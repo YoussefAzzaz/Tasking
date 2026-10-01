@@ -1,0 +1,7 @@
+# Supabase local dev secrets — NEVER commit this file
+.env
+.env.local
+*.env
+
+# Supabase generated files
+.branches/
