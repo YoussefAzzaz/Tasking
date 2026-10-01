@@ -13,22 +13,23 @@ This document outlines the step-by-step sprint plan for building the Axis applic
     *   Configure Row Level Security (RLS) on every table to restrict operations to `user_id = auth.uid()`.
 *   **Done When:** Supabase local environment runs successfully, migrations apply without errors, and RLS policies are active.
 
-### Sprint 2: PowerSync Setup & Sync Rules
+### Sprint 2: PowerSync Setup & Sync Rules (DONE)
 *   **Tasks:**
     *   Configure the PowerSync connector within the `backend/powersync/` directory.
     *   Write `sync-rules.yaml` to ensure all core, planning, habit, note, and gamification tables sync to the local SQLite database.
     *   Exclude `local_files` from sync rules.
     *   Restrict `calendar_connections` and `calendar_events` sync rules to read-only for clients, excluding secrets entirely.
-*   **Done When:** PowerSync instance connects to Supabase, and sync rules validate successfully.
+    *   Set up docker-compose and local config for PowerSync to connect successfully.
+*   **Done When:** PowerSync instance connects to Supabase, and sync rules validate successfully. (COMPLETED)
 
 ## Phase 2: Core Domain Logic & Shared Contracts
 
-### Sprint 3: Deterministic IDs & Global Constants
+### Sprint 3: Deterministic IDs & Global Constants (DONE)
 *   **Tasks:**
     *   Implement UUIDv5 generation using the namespace `3f2b8c1e-6d4a-4e7b-9a52-1c8d0f7e4b11` in both Dart (`lib/domain`) and C# (`Axis.Core`).
     *   Create deterministic ID logic for `user_settings`, `daily_plans`, `journal_entries`, `habit_logs`, `xp_events`, `badge_unlocks`, and recurring task instances.
     *   Generate the shared `contract/ids.json` test vector file to verify ID generation.
-*   **Done When:** Dart and C# implementations pass the `contract/ids.json` test vectors identically.
+*   **Done When:** Dart and C# implementations pass the `contract/ids.json` test vectors identically. (COMPLETED)
 
 ### Sprint 4: Task Quick-Add Parser
 *   **Tasks:**

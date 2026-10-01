@@ -1,0 +1,209 @@
+# =============================================================================
+# AXIS: PowerSync Sync Rules
+# Sprint 2 – PowerSync Setup & Sync Rules
+# SPEC.md §3 & §4.6 govern what gets synced and to whom.
+#
+# Key rules:
+#   • Every table with user_id syncs only rows where user_id = request.user_id()
+#   • calendar_secrets  → NEVER synced (no bucket entry at all)
+#   • local_files       → NEVER synced (SQLite-only, no Postgres table)
+#   • calendar_connections & calendar_events → clients READ-ONLY
+#     (they receive rows but the upload connector skips writes to these tables)
+#   • All synced tables are placed in a single per-user bucket for simplicity;
+#     this matches PowerSync's recommended pattern for personal apps.
+# =============================================================================
+
+bucket_definitions:
+
+  # ---------------------------------------------------------------------------
+  # user_data: the main per-user bucket covering all user-owned tables
+  # ---------------------------------------------------------------------------
+  user_data:
+    parameters: SELECT request.user_id() AS user_id
+
+    data:
+      # ── §4.1 Core ──────────────────────────────────────────────────────────
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          timezone, week_starts_on, work_start, work_end,
+          default_estimate_min, buffer_min,
+          focus_work_min, focus_break_min, focus_long_break_min,
+          focus_cycles_before_long,
+          morning_plan_time, evening_review_time,
+          theme, animations_enabled, sounds_enabled
+        FROM user_settings
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          name, color, icon, sort_order, archived_at
+        FROM projects
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          project_id, parent_task_id,
+          title, notes, status, priority,
+          due_date, due_time, estimate_min,
+          recurrence_rule, recurrence_mode, series_id,
+          remind_at, completed_at, completed_date,
+          sort_order
+        FROM tasks
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          name, color
+        FROM tags
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          task_id, tag_id
+        FROM task_tags
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          name, query_json, sort_order
+        FROM saved_filters
+        WHERE user_id = bucket.user_id
+
+      # ── §4.2 Planning ──────────────────────────────────────────────────────
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          plan_date,
+          top1_task_id, top2_task_id, top3_task_id,
+          planned_at, reviewed_at, reflection
+        FROM daily_plans
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          task_id, title, start_at, end_at, source, external_event_id
+        FROM time_blocks
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          task_id, kind, planned_min, actual_min,
+          started_at, ended_at, completed
+        FROM focus_sessions
+        WHERE user_id = bucket.user_id
+
+      # ── §4.3 Habits ────────────────────────────────────────────────────────
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          name, icon, color, kind, target_value, unit,
+          schedule_type, schedule_days, schedule_n,
+          start_date, remind_time, sort_order, archived_at
+        FROM habits
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          habit_id, log_date, status, value, note
+        FROM habit_logs
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          name, kind, remind_time, sort_order, archived_at
+        FROM routines
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          routine_id, title, duration_min, sort_order
+        FROM routine_steps
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          routine_id, run_date,
+          started_at, completed_at, steps_done, steps_total
+        FROM routine_runs
+        WHERE user_id = bucket.user_id
+
+      # ── §4.4 Notes, mood, voice ────────────────────────────────────────────
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          title, body_md, pinned, project_id, task_id
+        FROM notes
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          entry_date, body_md, template_key
+        FROM journal_entries
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          logged_at, log_date, mood, energy, note
+        FROM mood_logs
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          recorded_at, duration_sec, storage_path,
+          upload_status, transcript, transcript_status,
+          task_id, note_id
+        FROM voice_notes
+        WHERE user_id = bucket.user_id
+
+      # ── §4.5 Gamification ──────────────────────────────────────────────────
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          source_type, source_id, event_date, xp, reason
+        FROM xp_events
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          badge_key, unlocked_at
+        FROM badge_unlocks
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          name, description, cost_xp, active
+        FROM rewards
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          reward_id, xp_spent, redeemed_at
+        FROM reward_redemptions
+        WHERE user_id = bucket.user_id
+
+  # ---------------------------------------------------------------------------
+  # calendar_readonly: calendar data that clients receive but never write
+  # §4.6: calendar_connections and calendar_events are written server-side only.
+  # The upload connector skips writes to these tables (except selected_calendar_ids
+  # which goes through an Edge Function, not PowerSync uploads).
+  # calendar_secrets is NEVER included here — server-only.
+  # ---------------------------------------------------------------------------
+  calendar_readonly:
+    parameters: SELECT request.user_id() AS user_id
+
+    data:
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          provider, email, status,
+          selected_calendar_ids, push_calendar_id, last_synced_at
+        FROM calendar_connections
+        WHERE user_id = bucket.user_id
+
+      - SELECT
+          id, user_id, created_at, updated_at, deleted_at,
+          connection_id, external_id, calendar_name,
+          title, start_at, end_at, all_day
+        FROM calendar_events
+        WHERE user_id = bucket.user_id
+
+  # ---------------------------------------------------------------------------
+  # EXCLUDED (never synced):
+  #   • calendar_secrets  — no bucket; server-only table (Vault / Edge Functions)
+  #   • local_files       — SQLite-only; no Postgres table exists
+  # ---------------------------------------------------------------------------

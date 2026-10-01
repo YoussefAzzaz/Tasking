@@ -1,5 +1,20 @@
 # AXIS: Changelog
 
+## S03: Deterministic IDs & Global Constants
+
+- Generated `contract/ids.json` with UUIDv5 deterministic ID test vectors using namespace `3f2b8c1e-6d4a-4e7b-9a52-1c8d0f7e4b11`
+- Created Flutter mobile project in `mobile/` and implemented `IdGenerator` in Dart
+- Created C# library `Axis.Core` in `desktop/` and implemented `IdGenerator` in C# (with custom endian-swap logic to match standard network-byte order UUIDs)
+- Both Dart and C# implementations pass tests against `ids.json`
+
+## S02: PowerSync Setup & Sync Rules
+
+- Wrote `backend/powersync/sync-rules.yaml` — per-user bucket covering all 24 synced tables; `calendar_connections` + `calendar_events` read-only; `calendar_secrets` and `local_files` explicitly excluded
+- Wrote `backend/powersync/powersync.yaml` — self-hosted PowerSync service config (env-var driven, SSL disabled)
+- Wrote `backend/powersync/docker-compose.yml` — local dev stack (PowerSync + MongoDB configured as replica set)
+- Wrote `backend/powersync/.env.example` — template for local dev secrets (`PS_` prefixed)
+- Migration `20261001000001_powersync_publication.sql` — creates `powersync` Postgres publication covering the 24 synced tables, including truncate support
+
 ## S01: Repository & Database Schema
 
 - Created root repository structure: `docs/`, `contract/`, `backend/`, `mobile/`, `desktop/`

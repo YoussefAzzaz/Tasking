@@ -1,0 +1,12 @@
+F:\Dev\Tasking\desktop\Axis.Core\bin\Debug\net10.0\Axis.Core.deps.json
+F:\Dev\Tasking\desktop\Axis.Core\bin\Debug\net10.0\Axis.Core.dll
+F:\Dev\Tasking\desktop\Axis.Core\bin\Debug\net10.0\Axis.Core.pdb
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\Axis.Core.GeneratedMSBuildEditorConfig.editorconfig
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\Axis.Core.AssemblyInfoInputs.cache
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\Axis.Core.AssemblyInfo.cs
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\Axis.Core.csproj.CoreCompileInputs.cache
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\Axis.Core.sourcelink.json
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\Axis.Core.dll
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\refint\Axis.Core.dll
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\Axis.Core.pdb
+F:\Dev\Tasking\desktop\Axis.Core\obj\Debug\net10.0\ref\Axis.Core.dll

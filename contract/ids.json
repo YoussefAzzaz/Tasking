@@ -1,0 +1,33 @@
+{
+  "namespace": "3f2b8c1e-6d4a-4e7b-9a52-1c8d0f7e4b11",
+  "vectors": {
+    "user_settings": {
+      "name": "settings_user123",
+      "uuidv5": "af1b6e0f-5e6d-51e3-aa95-14e2368017ad"
+    },
+    "daily_plans": {
+      "name": "plan_2026-10-01",
+      "uuidv5": "8678923f-dce2-5e4e-959f-e7fc31acf553"
+    },
+    "journal_entries": {
+      "name": "journal_2026-10-01",
+      "uuidv5": "9fbf5d0e-0743-591e-8029-50ec8c59b299"
+    },
+    "habit_logs": {
+      "name": "habitlog_habit123_2026-10-01",
+      "uuidv5": "0e37276a-7c6c-53c8-b2f7-cc985548294c"
+    },
+    "xp_events": {
+      "name": "xp_event456",
+      "uuidv5": "ea66a1ea-9756-5ed9-b3ba-f563ab68b3f7"
+    },
+    "badge_unlocks": {
+      "name": "badge_first_task_user123",
+      "uuidv5": "4d9f373b-c7bc-5de7-8f8b-6d940bd51cd3"
+    },
+    "recurring_task_instances": {
+      "name": "task_123_2026-10-01",
+      "uuidv5": "52d4b6ec-3c31-5933-a78d-ab20e97eeab6"
+    }
+  }
+}

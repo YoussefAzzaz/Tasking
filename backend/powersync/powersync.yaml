@@ -1,0 +1,43 @@
+# =============================================================================
+# AXIS: PowerSync Service Configuration
+# Sprint 2 – PowerSync Setup & Sync Rules
+#
+# Self-hosted PowerSync v1.26.x config format.
+# Env vars MUST start with "PS_" per PowerSync v1.26.1 requirement.
+#
+# Reference: https://docs.powersync.com/self-hosting/getting-started
+# =============================================================================
+
+# PowerSync replicates from Postgres via logical replication (publication).
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_PG_URI
+      # Logical replication slot name
+      slot_name: powersync_axis
+      # Publication covering all synced tables (created via migration 20261001000001)
+      publication: powersync_axis
+      # Local Supabase dev DB does not use SSL
+      sslmode: disable
+
+# Client authentication: PowerSync verifies JWTs issued by Supabase Auth.
+# Uses the JWKS endpoint so no shared secret is required (RS256/ES256).
+client_auth:
+  jwks_url: !env PS_JWKS_URI
+  # Supabase issues tokens with audience "authenticated"
+  audience:
+    - authenticated
+
+# Sync rules file location (absolute path inside container)
+sync_rules:
+  path: /app/sync-rules.yaml
+
+# Storage for the PowerSync replication state
+storage:
+  type: mongodb
+  uri: !env PS_MONGO_URI
+
+# API server settings
+api:
+  # Port the PowerSync service listens on
+  port: 8080

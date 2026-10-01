@@ -1,0 +1,75 @@
+{
+  "now": "2026-10-01T10:00:00Z",
+  "timezone": "UTC",
+  "vectors": [
+    {
+      "input": "Buy milk p1 @groceries #home today",
+      "expected": {
+        "title": "Buy milk",
+        "priority": 1,
+        "tags": [
+          "groceries"
+        ],
+        "project": "home",
+        "due_date": "today",
+        "due_time": null,
+        "estimate": null,
+        "recurrence": null
+      }
+    },
+    {
+      "input": "Read a book for 30m at 8pm every day",
+      "expected": {
+        "title": "Read a book",
+        "priority": null,
+        "tags": [],
+        "project": null,
+        "due_date": "today",
+        "due_time": "20:00",
+        "estimate": 30,
+        "recurrence": "RRULE:FREQ=DAILY"
+      }
+    },
+    {
+      "input": "Call mom tmr p2 1h",
+      "expected": {
+        "title": "Call mom",
+        "priority": 2,
+        "tags": [],
+        "project": null,
+        "due_date": "tmr",
+        "due_time": null,
+        "estimate": 60,
+        "recurrence": null
+      }
+    },
+    {
+      "input": "Water plants every 3 days ac p3 #garden @chore",
+      "expected": {
+        "title": "Water plants",
+        "priority": 3,
+        "tags": [
+          "chore"
+        ],
+        "project": "garden",
+        "due_date": null,
+        "due_time": null,
+        "estimate": null,
+        "recurrence": "RRULE:FREQ=DAILY;INTERVAL=3;COMPLETION=1"
+      }
+    },
+    {
+      "input": "Meeting with Bob 2026-10-15 at 14:30 45m",
+      "expected": {
+        "title": "Meeting with Bob",
+        "priority": null,
+        "tags": [],
+        "project": null,
+        "due_date": "2026-10-15",
+        "due_time": "14:30",
+        "estimate": 45,
+        "recurrence": null
+      }
+    }
+  ]
+}

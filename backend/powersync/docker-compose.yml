@@ -1,0 +1,69 @@
+# =============================================================================
+# AXIS: PowerSync Local Development – Docker Compose
+# Sprint 2 – PowerSync Setup & Sync Rules
+#
+# Runs the PowerSync service + MongoDB (required for PowerSync state storage)
+# alongside the already-running Supabase local stack.
+#
+# Usage:
+#   1. Copy .env.example → .env and fill in the values
+#   2. docker compose up -d
+#   3. Verify at http://localhost:8080/api/healthz
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PowerSync service
+  # ---------------------------------------------------------------------------
+  powersync:
+    image: journeyapps/powersync-service:latest
+    container_name: axis_powersync
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Postgres connection to local Supabase
+      PS_PG_URI: ${PS_PG_URI}
+      # JWKS endpoint from local Supabase Auth
+      PS_JWKS_URI: ${PS_JWKS_URI}
+      # MongoDB URI for PowerSync internal state
+      PS_MONGO_URI: mongodb://powersync_mongo:27017/powersync?directConnection=true
+    volumes:
+      # PowerSync expects config at /app/powersync.yaml by default
+      - ./powersync.yaml:/app/powersync.yaml:ro
+      - ./sync-rules.yaml:/app/sync-rules.yaml:ro
+    depends_on:
+      powersync_mongo:
+        condition: service_healthy
+    networks:
+      - axis_powersync_net
+
+  # ---------------------------------------------------------------------------
+  # MongoDB — required by PowerSync for checkpoint/state storage.
+  # Must run as a replica set (even single-node) for PowerSync's transactions.
+  # ---------------------------------------------------------------------------
+  powersync_mongo:
+    image: mongo:7
+    container_name: axis_powersync_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - powersync_mongo_data:/data/db
+    healthcheck:
+      test: >
+        mongosh --quiet --eval
+        "try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'powersync_mongo:27017'}]}).ok }"
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - axis_powersync_net
+
+volumes:
+  powersync_mongo_data:
+
+networks:
+  axis_powersync_net:
+    driver: bridge
