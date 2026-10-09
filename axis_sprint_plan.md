@@ -31,12 +31,12 @@ This document outlines the step-by-step sprint plan for building the Axis applic
     *   Generate the shared `contract/ids.json` test vector file to verify ID generation.
 *   **Done When:** Dart and C# implementations pass the `contract/ids.json` test vectors identically. (COMPLETED)
 
-### Sprint 4: Task Quick-Add Parser
+### Sprint 4: Task Quick-Add Parser (DONE)
 *   **Tasks:**
     *   Implement the natural-language parsing pure function: `parse(text, now, tz, projects, tags)` in both Dart and C#.
     *   Parse priority (`p1`, `p2`, `p3`), projects (`#name`), tags (`@name`), dates (`today`, `tmr`, `mon`, `YYYY-MM-DD`), times (`at 6pm`, `18:00`), estimates (`30m`, `1h`), and recurrence rules (`every day`, `ac`).
     *   Generate `contract/quickadd.json` with comprehensive edge cases.
-*   **Done When:** Both platforms successfully extract metadata, remove tokens from the title, and pass all `quickadd.json` tests.
+*   **Done When:** Both platforms successfully extract metadata, remove tokens from the title, and pass all `quickadd.json` tests. (COMPLETED)
 
 ### Sprint 5: Recurrence & Auto-Scheduler Logic
 *   **Tasks:**

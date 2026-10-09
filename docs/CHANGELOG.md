@@ -1,5 +1,12 @@
 # AXIS: Changelog
 
+## S04: Task Quick-Add Parser
+
+- Generated `contract/quickadd.json` with multi-case parsing vectors
+- Implemented `QuickAddParser.cs` in `Axis.Core` parsing priority, project, tags, estimate, recurrence, time, and dates with fallback logic
+- Implemented `quick_add_parser.dart` in Flutter app with identical natural language extractions
+- Both implementations successfully passed test vectors, extracting clean metadata while removing tokens from the title
+
 ## S03: Deterministic IDs & Global Constants
 
 - Generated `contract/ids.json` with UUIDv5 deterministic ID test vectors using namespace `3f2b8c1e-6d4a-4e7b-9a52-1c8d0f7e4b11`
