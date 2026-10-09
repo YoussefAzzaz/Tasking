@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Axis.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bcfdd46c611c17a0df35cf1798ce75993c395862")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b3938b6bb753892731abc329f177dd3feddf1ed1")]
 [assembly: System.Reflection.AssemblyProductAttribute("Axis.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Axis.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

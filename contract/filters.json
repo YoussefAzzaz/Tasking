@@ -1,0 +1,44 @@
+{
+  "vectors": [
+    {
+      "task": {
+        "id": "t1",
+        "priority": 1,
+        "tags": [
+          "work"
+        ],
+        "due_date": "2026-10-10"
+      },
+      "query": {
+        "priority": [
+          1
+        ],
+        "tags": [
+          "work"
+        ],
+        "due_before": "2026-10-15"
+      },
+      "expected_match": true
+    },
+    {
+      "task": {
+        "id": "t2",
+        "priority": 2,
+        "tags": [
+          "home"
+        ],
+        "due_date": "2026-10-20"
+      },
+      "query": {
+        "priority": [
+          1
+        ],
+        "tags": [
+          "work"
+        ],
+        "due_before": "2026-10-15"
+      },
+      "expected_match": false
+    }
+  ]
+}

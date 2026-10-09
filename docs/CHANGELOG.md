@@ -1,5 +1,12 @@
 # AXIS: Changelog
 
+## S06: Gamification, Streaks & Filters Logic
+
+- Generated `contract/filters.json`, `contract/streaks.json`, and `contract/xp.json` outlining core business rules.
+- Implemented `GamificationEngine`, `StreakEngine`, and `FilterEngine` in C# (`desktop/Axis.Core`).
+- Implemented `GamificationEngine`, `StreakEngine`, and `FilterEngine` in Dart (`mobile/lib/domain`).
+- All tests pass, successfully concluding Phase 2 (Core Domain Logic & Shared Contracts).
+
 ## S05: Recurrence & Auto-Scheduler Logic
 
 - Generated `contract/recurrence.json` for RRULE parsing edge-cases (`fixed` vs `after_completion` evaluation).

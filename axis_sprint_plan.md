@@ -46,13 +46,13 @@ This document outlines the step-by-step sprint plan for building the Axis applic
     *   Generate `contract/recurrence.json` and `contract/scheduler.json`.
 *   **Done When:** Recurrence advancement and schedule generation pass all contract tests on both platforms. (COMPLETED)
 
-### Sprint 6: Gamification, Streaks & Filters Logic
+### Sprint 6: Gamification, Streaks & Filters Logic (DONE)
 *   **Tasks:**
     *   Implement filter logic evaluation over in-memory tasks using the defined JSON query structure (fields like `priority`, `tag`, `due`).
     *   Implement streak calculation for `daily`, `weekdays`, `times_per_week`, and `every_n_days` schedules, tracking `done` and `skipped` logs.
     *   Implement XP calculation, daily caps (25 task events, 120 focus events), level logic (`xp_to_reach(n) = 50·n·(n−1)`), and badge unlock rules.
     *   Generate `contract/filters.json`, `contract/streaks.json`, and `contract/xp.json`.
-*   **Done When:** All business rules execute identically on Dart and C# against the contract vectors.
+*   **Done When:** All business rules execute identically on Dart and C# against the contract vectors. (COMPLETED)
 
 ## Phase 3: Mobile Client (Flutter)
 

@@ -1,0 +1,26 @@
+{
+  "vectors": [
+    {
+      "current_xp": 0,
+      "expected_level": 1
+    },
+    {
+      "current_xp": 100,
+      "expected_level": 2
+    },
+    {
+      "current_xp": 300,
+      "expected_level": 3
+    },
+    {
+      "current_xp": 299,
+      "expected_level": 2
+    },
+    {
+      "daily_tasks_done": 30,
+      "daily_focus_sessions": 150,
+      "expected_tasks_counted": 25,
+      "expected_focus_counted": 120
+    }
+  ]
+}

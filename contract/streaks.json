@@ -1,0 +1,44 @@
+{
+  "vectors": [
+    {
+      "schedule_type": "daily",
+      "schedule_val": null,
+      "logs": [
+        {
+          "date": "2026-10-01",
+          "status": "done"
+        },
+        {
+          "date": "2026-10-02",
+          "status": "done"
+        },
+        {
+          "date": "2026-10-03",
+          "status": "skipped"
+        },
+        {
+          "date": "2026-10-04",
+          "status": "done"
+        }
+      ],
+      "current_date": "2026-10-04",
+      "expected_streak": 3
+    },
+    {
+      "schedule_type": "weekdays",
+      "schedule_val": null,
+      "logs": [
+        {
+          "date": "2026-10-02",
+          "status": "done"
+        },
+        {
+          "date": "2026-10-05",
+          "status": "done"
+        }
+      ],
+      "current_date": "2026-10-05",
+      "expected_streak": 2
+    }
+  ]
+}
