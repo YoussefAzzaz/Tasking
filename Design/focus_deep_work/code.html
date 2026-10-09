@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;family=Space+Mono:ital,wght@0,400;0,700;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#051424;color:#d4e4fa;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-primary-container": "#0d0096", "inverse-surface": "#d4e4fa", "outline": "#908fa0", "on-primary-fixed-variant": "#2f2ebe", "on-tertiary-fixed": "#002113", "primary-container": "#8083ff", "tertiary-fixed": "#6ffbbe", "surface-container-lowest": "#010f1f", "on-background": "#d4e4fa", "inverse-on-surface": "#233143", "secondary": "#7bd0ff", "secondary-container": "#00a6e0", "on-error-container": "#ffdad6", "surface-bright": "#2c3a4c", "tertiary": "#4edea3", "outline-variant": "#464554", "background": "#051424", "on-secondary": "#00354a", "error-container": "#93000a", "on-surface-variant": "#c7c4d7", "surface-tint": "#c0c1ff", "tertiary-container": "#00885d", "on-primary": "#1000a9", "primary-fixed-dim": "#c0c1ff", "on-tertiary-container": "#000703", "on-primary-fixed": "#07006c", "on-error": "#690005", "on-secondary-container": "#00374d", "primary-fixed": "#e1e0ff", "tertiary-fixed-dim": "#4edea3", "secondary-fixed": "#c4e7ff", "surface-container": "#122131", "surface-container-high": "#1c2b3c", "secondary-fixed-dim": "#7bd0ff", "on-surface": "#d4e4fa", "on-tertiary-fixed-variant": "#005236", "surface-container-low": "#0d1c2d", "inverse-primary": "#494bd6", "surface-variant": "#273647", "on-tertiary": "#003824", "surface-container-highest": "#273647", "surface-dim": "#051424", "surface": "#051424", "on-secondary-fixed": "#001e2c", "on-secondary-fixed-variant": "#004c69", "error": "#ffb4ab", "primary": "#c0c1ff" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-xl": "1.5rem", "gutter": "0.75rem", "space-sm": "0.5rem", "gutter-md": "1rem", "margin-lg": "2rem", "space-xs": "0.25rem", "space-md": "0.75rem", "margin-md": "1.5rem", "margin": "1rem", "space-lg": "1rem" }, "fontFamily": { "label-lg": ["Space Mono"], "body-md": ["Geist"], "title-md": ["Geist"], "title-lg": ["Geist"], "headline-xl": ["Space Grotesk"], "label-md": ["Space Mono"], "label-sm": ["Space Mono"], "headline-xl-mobile": ["Space Grotesk"], "headline-lg": ["Space Grotesk"], "body-lg": ["Geist"], "headline-md": ["Space Grotesk"], "body-sm": ["Geist"] }, "fontSize": { "label-lg": ["13px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "700" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "title-md": ["16px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "title-lg": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "headline-xl": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.03em", "fontWeight": "700" }], "label-md": ["11px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "600" }], "label-sm": ["10px", { "lineHeight": "12px", "letterSpacing": "0.08em", "fontWeight": "500" }], "headline-xl-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.025em", "fontWeight": "700" }], "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "headline-md": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.015em", "fontWeight": "600" }], "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }] } } } }</script></head><body class="bg-surface text-on-surface font-body-md text-body-md min-h-screen flex flex-col selection:bg-primary-container selection:text-on-primary-container"><header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.2)]"><div class="pt-safe"><div class="h-16 px-margin flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0"><img alt="Axis Logo" class="h-8 w-auto object-contain shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1X6YK5x_m3f3FgLV8MnspmP92lNnjKoIT6I7xaBVx7NiliRMEtAGS24-y0zdkv5YC8C5EKNc4xVeKwBQvK-m_j9StRLY4JI-nJbyKwamq3o8FGVQCkvekRzrYmdKVSh71qAufOOF8K-bz8g89bbGA4a7o6DaSkqVf52jZ8EHsVjtBwfAH0TV7O5no1ahiCl8nUDNPorxZ0Vewn6qPPHcZVdCAc8dIJiVD7UaFHvaedxv26AZZXxSiUVKnY"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-md text-headline-md text-on-surface tracking-tight leading-none uppercase">Axis</span><span class="font-title-md text-title-md text-primary hidden sm:inline-block leading-none">• Focus</span></div><div class="flex items-center gap-1.5 mt-0.5"><span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse shadow-[0_0_8px_rgba(78,222,163,0.8)]"></span><span class="font-label-sm text-label-sm text-on-surface-variant truncate uppercase">Local SQLite • Synced</span></div></div></div><div class="flex items-center gap-space-sm shrink-0"><div class="flex items-center gap-1 px-2 py-1 rounded-full bg-surface-container-high/60 backdrop-blur-md"><span class="material-symbols-outlined text-secondary text-sm leading-none">bolt</span><span class="font-label-sm text-label-sm text-secondary font-bold">LVL 08</span></div><div class="relative flex items-center justify-center p-0.5 rounded-full bg-gradient-to-tr from-primary to-secondary"><img alt="Profile" class="w-8 h-8 rounded-full object-cover shrink-0 block" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsDSG4k1kGLY_fhJ4Vu9w3ICumwHT0twMtsCX9BP-QUXeTRNsN5Mkc1385ewpEYbO4Kas2KwueVLe4SKT_TNEALsekZrQlbcH-pgI9qByI2995LfBt3g0JknT4lwB3foQ_3H0Ehh8lSWDQsAJbIlv6PfEVAnfvnFMqj3YmErNAbZAP8suZcMFKVH4xjwnuamATROi9dad3rw_WCh_YZHpZqoT4cc49f_JsN_XC8_7V-W7wdiojsayl"/></div></div></div></div></header><main class="flex-1 w-full bg-surface pt-16 pb-20"><div class="flex flex-col w-full px-margin pb-6 gap-space-xl">
+<!-- Multiplier Surge Banner -->
+<div class="relative overflow-hidden rounded-xl bg-surface-container-high/80 backdrop-blur-xl p-space-md shadow-lg flex items-center justify-between">
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl pointer-events-none"></div>
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-tertiary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-label-md text-label-md uppercase tracking-wider text-tertiary font-bold">1.5x Multiplier Surge</span>
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">4-Day execution streak engaged</span>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-tertiary/15 text-tertiary font-bold shrink-0">
+      +50% XP BOOST
+    </span>
+</div>
+<!-- Primary Interactive Focus Cockpit -->
+<div class="relative rounded-xl bg-surface-container/70 backdrop-blur-2xl p-space-lg flex flex-col items-center shadow-xl">
+<!-- Subtle Ambient Core Glow -->
+<div class="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-secondary/5 rounded-xl pointer-events-none"></div>
+<!-- Active Task Pill Link -->
+<div class="relative z-10 w-full mb-space-md">
+<div class="flex items-center justify-between bg-surface-container-low/90 rounded-lg p-2.5 px-3">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-secondary text-[18px] shrink-0" style="font-variation-settings: 'FILL' 1;">terminal</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Linked Tactical Objective</span>
+<span class="font-title-md text-title-md text-on-surface truncate">Finalize Q3 local storage encryption engine</span>
+</div>
+</div>
+<button aria-label="Change target task" class="p-1 rounded-md text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">sync_alt</span>
+</button>
+</div>
+</div>
+<!-- Mode Selector Chips (25m Sprint vs 50m Deep Flow) -->
+<div class="relative z-10 flex items-center p-1 bg-surface-container-lowest/80 rounded-full mb-6 w-full max-w-[310px]">
+<button class="flex-1 py-1.5 px-3 rounded-full font-label-md text-label-md text-center transition-all bg-primary-container text-on-primary-container font-bold shadow-md" id="mode-25" onclick="setSessionMode(25, 50)">
+        25m Sprint <span class="opacity-80 text-[10px] block sm:inline">• +50 XP</span>
+</button>
+<button class="flex-1 py-1.5 px-3 rounded-full font-label-md text-label-md text-center transition-all text-on-surface-variant hover:text-on-surface font-medium" id="mode-50" onclick="setSessionMode(50, 120)">
+        50m Flow <span class="opacity-80 text-[10px] block sm:inline">• +120 XP</span>
+</button>
+</div>
+<!-- Circular Cyberpunk Timer Gauge -->
+<div class="relative w-64 h-64 flex items-center justify-center my-2">
+<!-- Glow canvas behind ring -->
+<div class="absolute w-48 h-48 rounded-full bg-secondary/15 blur-xl pointer-events-none"></div>
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 200 200">
+<defs>
+<lineargradient id="neonGradient" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#8083ff"></stop>
+<stop offset="60%" stop-color="#00a6e0"></stop>
+<stop offset="100%" stop-color="#4edea3"></stop>
+</lineargradient>
+<filter id="glow">
+<fegaussianblur result="coloredBlur" stddeviation="3.5"></fegaussianblur>
+<femerge>
+<femergenode in="coloredBlur"></femergenode>
+<femergenode in="SourceGraphic"></femergenode>
+</femerge>
+</filter>
+</defs>
+<!-- Background Track -->
+<circle cx="100" cy="100" fill="transparent" r="86" stroke="#122131" stroke-dasharray="3 4" stroke-width="9"></circle>
+<!-- Active Progress Ring -->
+<circle class="transition-all duration-1000 ease-out" cx="100" cy="100" fill="transparent" filter="url(#glow)" id="timer-progress" r="86" stroke="url(#neonGradient)" stroke-dasharray="540.35" stroke-dashoffset="135" stroke-linecap="round" stroke-width="8"></circle>
+<!-- Ambient Indicator Tick Marks -->
+<circle cx="100" cy="100" fill="transparent" r="74" stroke="#273647" stroke-dasharray="1 12" stroke-width="1.5"></circle>
+</svg>
+<!-- Center Dynamic Time Display -->
+<div class="absolute flex flex-col items-center justify-center text-center select-none pointer-events-none">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold mb-1">Deep Wave Beta</span>
+<div class="font-headline-xl text-headline-xl text-on-surface tracking-tighter leading-none font-bold" id="timer-display">25:00</div>
+<div class="flex items-center gap-1.5 mt-2 bg-surface-container-high/60 px-2.5 py-1 rounded-full">
+<span class="font-label-sm text-label-sm text-primary font-bold" id="quantum-chip">QUANTUM 01/02</span>
+</div>
+</div>
+</div>
+<!-- Yield Prediction Live Strip -->
+<div class="relative z-10 w-full mt-4 p-3 rounded-lg bg-surface-container-lowest/60 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-[18px]">redeem</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Completion Yield:</span>
+</div>
+<div class="flex items-center gap-1.5 font-label-md text-label-md text-on-surface">
+<span class="text-on-surface-variant line-through text-[10px]">+50</span>
+<span class="text-tertiary font-bold" id="xp-preview">+75 Base</span>
+<span class="text-secondary font-bold" id="xp-bonus">+ 38 Multiplier</span>
+<span class="px-1.5 py-0.5 rounded bg-primary-container text-on-primary-container font-bold text-[10px]" id="xp-total">113 XP</span>
+</div>
+</div>
+<!-- Primary & Auxiliary Actions -->
+<div class="relative z-10 w-full flex flex-col gap-2.5 mt-5">
+<button class="w-full h-12 rounded-lg bg-primary text-on-primary font-title-md text-title-md flex items-center justify-center gap-2 font-bold shadow-lg hover:shadow-primary/30 transition-all active:scale-[0.98]" id="timer-toggle-btn" onclick="toggleTimer()">
+<span class="material-symbols-outlined text-[22px]" id="btn-icon" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span id="btn-label">Engage Deep Session</span>
+</button>
+<div class="grid grid-cols-2 gap-2">
+<button class="h-10 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-md text-label-md flex items-center justify-center gap-1.5 transition-colors" onclick="triggerQuickBreak()">
+<span class="material-symbols-outlined text-[16px]">coffee</span>
+          5m Reboot Break
+        </button>
+<button class="h-10 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface font-label-md text-label-md flex items-center justify-center gap-1.5 transition-colors" onclick="resetTimer()">
+<span class="material-symbols-outlined text-[16px]">restart_alt</span>
+          Reset Quantum
+        </button>
+</div>
+</div>
+</div>
+<!-- Ambient Soundscape Selector -->
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]">graphic_eq</span>
+<span class="font-title-md text-title-md text-on-surface">Neural Soundscapes</span>
+</div>
+<div class="flex items-center gap-1 text-tertiary">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+<span class="font-label-sm text-label-sm uppercase">Active Hums</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2.5">
+<!-- Track 1: Active -->
+<div class="sound-card relative overflow-hidden rounded-xl bg-surface-container-high p-3 flex flex-col justify-between cursor-pointer transition-all shadow-md group" onclick="selectTrack(this, 'Deep Theta 40Hz')">
+<div class="absolute top-0 right-0 w-16 h-16 bg-secondary/15 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex items-start justify-between">
+<div class="w-8 h-8 rounded-lg bg-secondary/20 text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">waves</span>
+</div>
+<!-- Tiny Live Waveform -->
+<div class="flex items-end gap-0.5 h-4 sound-bars">
+<span class="w-0.5 bg-secondary h-2.5 rounded-full animate-bounce"></span>
+<span class="w-0.5 bg-secondary h-4 rounded-full animate-pulse"></span>
+<span class="w-0.5 bg-secondary h-1.5 rounded-full animate-bounce"></span>
+<span class="w-0.5 bg-secondary h-3.5 rounded-full animate-pulse"></span>
+</div>
+</div>
+<div class="mt-3">
+<span class="font-label-md text-label-md text-on-surface block font-bold truncate">Deep Theta 40Hz</span>
+<span class="font-body-sm text-body-sm text-secondary truncate block">Cognitive Entrainment</span>
+</div>
+</div>
+<!-- Track 2 -->
+<div class="sound-card relative overflow-hidden rounded-xl bg-surface-container/60 p-3 flex flex-col justify-between cursor-pointer transition-all hover:bg-surface-container-high group" onclick="selectTrack(this, 'Neon Rain')">
+<div class="flex items-start justify-between">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest text-on-surface-variant group-hover:text-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[18px]">rainy</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Spatial</span>
+</div>
+<div class="mt-3">
+<span class="font-label-md text-label-md text-on-surface block font-bold truncate">Neon Rain</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate block">Bio-acoustics</span>
+</div>
+</div>
+<!-- Track 3 -->
+<div class="sound-card relative overflow-hidden rounded-xl bg-surface-container/60 p-3 flex flex-col justify-between cursor-pointer transition-all hover:bg-surface-container-high group" onclick="selectTrack(this, 'Cyber Synthwave')">
+<div class="flex items-start justify-between">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest text-on-surface-variant group-hover:text-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[18px]">equalizer</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">118 BPM</span>
+</div>
+<div class="mt-3">
+<span class="font-label-md text-label-md text-on-surface block font-bold truncate">Cyber Synthwave</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate block">Subtle Arpeggio</span>
+</div>
+</div>
+<!-- Track 4 -->
+<div class="sound-card relative overflow-hidden rounded-xl bg-surface-container/60 p-3 flex flex-col justify-between cursor-pointer transition-all hover:bg-surface-container-high group" onclick="selectTrack(this, 'Midnight Cafe')">
+<div class="flex items-start justify-between">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest text-on-surface-variant group-hover:text-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[18px]">local_cafe</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">White Noise</span>
+</div>
+<div class="mt-3">
+<span class="font-label-md text-label-md text-on-surface block font-bold truncate">Midnight Cafe</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate block">Shibuya Ambience</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Mastery Badge Progress Milestone -->
+<div class="rounded-xl bg-surface-container-high/70 backdrop-blur-xl p-space-md shadow-lg flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-10 h-10 rounded-lg bg-primary-container/20 text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">military_tech</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-title-md text-title-md text-on-surface truncate">Laser Focus IV</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tier Milestone Requirement</span>
+</div>
+</div>
+<span class="font-label-md text-label-md px-2.5 py-1 rounded-full bg-primary/10 text-primary font-bold shrink-0">
+        3 / 5 SESSIONS
+      </span>
+</div>
+<!-- Segmented Milestone Bar -->
+<div class="w-full flex gap-1.5 h-2">
+<div class="flex-1 bg-primary rounded-full shadow-[0_0_8px_rgba(192,193,255,0.7)]"></div>
+<div class="flex-1 bg-primary rounded-full shadow-[0_0_8px_rgba(192,193,255,0.7)]"></div>
+<div class="flex-1 bg-primary rounded-full shadow-[0_0_8px_rgba(192,193,255,0.7)]"></div>
+<div class="flex-1 bg-surface-container-lowest rounded-full"></div>
+<div class="flex-1 bg-surface-container-lowest rounded-full"></div>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>Current Session counts towards badge</span>
+<span class="text-primary font-bold">+250 XP Unlock Payout</span>
+</div>
+</div>
+<!-- Daily Focus Performance & Completed Cycles -->
+<div class="rounded-xl bg-surface-container/60 p-space-md flex flex-col gap-space-sm shadow-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">verified</span>
+<span class="font-title-md text-title-md text-on-surface">Daily Output Telemetry</span>
+</div>
+<span class="font-label-md text-label-md text-secondary font-bold">2h 15m Complete</span>
+</div>
+<!-- Segmented Completed Cycles Matrix -->
+<div class="grid grid-cols-4 gap-2 pt-1">
+<!-- Cycle 1 Completed -->
+<div class="p-2.5 rounded-lg bg-surface-container-high/90 flex flex-col gap-1 items-center justify-center text-center">
+<span class="w-5 h-5 rounded-full bg-tertiary/20 text-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</span>
+<span class="font-label-sm text-label-sm text-on-surface font-bold">09:15</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant text-[9px] uppercase">Sprint 25m</span>
+</div>
+<!-- Cycle 2 Completed -->
+<div class="p-2.5 rounded-lg bg-surface-container-high/90 flex flex-col gap-1 items-center justify-center text-center">
+<span class="w-5 h-5 rounded-full bg-tertiary/20 text-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</span>
+<span class="font-label-sm text-label-sm text-on-surface font-bold">11:00</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant text-[9px] uppercase">Flow 50m</span>
+</div>
+<!-- Cycle 3 Completed -->
+<div class="p-2.5 rounded-lg bg-surface-container-high/90 flex flex-col gap-1 items-center justify-center text-center">
+<span class="w-5 h-5 rounded-full bg-tertiary/20 text-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</span>
+<span class="font-label-sm text-label-sm text-on-surface font-bold">13:30</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant text-[9px] uppercase">Flow 50m</span>
+</div>
+<!-- Cycle 4 (Current) -->
+<div class="p-2.5 rounded-lg bg-primary-container/20 flex flex-col gap-1 items-center justify-center text-center shadow-[0_0_12px_rgba(128,131,255,0.2)]">
+<span class="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center animate-pulse">
+<span class="material-symbols-outlined text-[14px]">play_arrow</span>
+</span>
+<span class="font-label-sm text-label-sm text-primary font-bold">NOW</span>
+<span class="font-label-sm text-label-sm text-primary text-[9px] uppercase">Active</span>
+</div>
+</div>
+</div>
+</div>
+<script>
+  let timerInterval = null;
+  let isRunning = false;
+  let currentMinutes = 25;
+  let remainingSeconds = 25 * 60;
+  let initialTotalSeconds = 25 * 60;
+  const circumference = 540.35; // 2 * PI * 86
+
+  function updateDisplay() {
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+    const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const displayEl = document.getElementById('timer-display');
+    if (displayEl) displayEl.innerText = formatted;
+
+    const ring = document.getElementById('timer-progress');
+    if (ring) {
+      const progressFraction = (initialTotalSeconds - remainingSeconds) / initialTotalSeconds;
+      const offset = circumference * (1 - progressFraction);
+      ring.style.strokeDashoffset = offset;
+    }
+  }
+
+  function toggleTimer() {
+    const btnIcon = document.getElementById('btn-icon');
+    const btnLabel = document.getElementById('btn-label');
+    const toggleBtn = document.getElementById('timer-toggle-btn');
+
+    if (!isRunning) {
+      isRunning = true;
+      if (btnIcon) btnIcon.innerText = 'pause';
+      if (btnLabel) btnLabel.innerText = 'Pause Quantum';
+      if (toggleBtn) {
+        toggleBtn.classList.remove('bg-primary', 'text-on-primary');
+        toggleBtn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+      }
+
+      timerInterval = setInterval(() => {
+        if (remainingSeconds > 0) {
+          remainingSeconds--;
+          updateDisplay();
+        } else {
+          clearInterval(timerInterval);
+          isRunning = false;
+          if (btnIcon) btnIcon.innerText = 'play_arrow';
+          if (btnLabel) btnLabel.innerText = 'Session Complete! (+XP Claimed)';
+        }
+      }, 1000);
+    } else {
+      clearInterval(timerInterval);
+      isRunning = false;
+      if (btnIcon) btnIcon.innerText = 'play_arrow';
+      if (btnLabel) btnLabel.innerText = 'Resume Deep Session';
+      if (toggleBtn) {
+        toggleBtn.classList.add('bg-primary', 'text-on-primary');
+        toggleBtn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+      }
+    }
+  }
+
+  function resetTimer() {
+    if (isRunning) {
+      clearInterval(timerInterval);
+      isRunning = false;
+    }
+    remainingSeconds = currentMinutes * 60;
+    initialTotalSeconds = remainingSeconds;
+    const btnIcon = document.getElementById('btn-icon');
+    const btnLabel = document.getElementById('btn-label');
+    const toggleBtn = document.getElementById('timer-toggle-btn');
+    if (btnIcon) btnIcon.innerText = 'play_arrow';
+    if (btnLabel) btnLabel.innerText = 'Engage Deep Session';
+    if (toggleBtn) {
+      toggleBtn.classList.add('bg-primary', 'text-on-primary');
+      toggleBtn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+    }
+    updateDisplay();
+  }
+
+  function setSessionMode(minutes, baseXP) {
+    currentMinutes = minutes;
+    const btn25 = document.getElementById('mode-25');
+    const btn50 = document.getElementById('mode-50');
+    const xpPreview = document.getElementById('xp-preview');
+    const xpBonus = document.getElementById('xp-bonus');
+    const xpTotal = document.getElementById('xp-total');
+    const quantumChip = document.getElementById('quantum-chip');
+
+    if (minutes === 25) {
+      btn25.className = 'flex-1 py-1.5 px-3 rounded-full font-label-md text-label-md text-center transition-all bg-primary-container text-on-primary-container font-bold shadow-md';
+      btn50.className = 'flex-1 py-1.5 px-3 rounded-full font-label-md text-label-md text-center transition-all text-on-surface-variant hover:text-on-surface font-medium';
+      if (xpPreview) xpPreview.innerText = `+${Math.round(baseXP * 1.5)} Base`;
+      if (xpBonus) xpBonus.innerText = `+ 38 Multiplier`;
+      if (xpTotal) xpTotal.innerText = `113 XP`;
+      if (quantumChip) quantumChip.innerText = 'QUANTUM 01/02';
+    } else {
+      btn50.className = 'flex-1 py-1.5 px-3 rounded-full font-label-md text-label-md text-center transition-all bg-primary-container text-on-primary-container font-bold shadow-md';
+      btn25.className = 'flex-1 py-1.5 px-3 rounded-full font-label-md text-label-md text-center transition-all text-on-surface-variant hover:text-on-surface font-medium';
+      if (xpPreview) xpPreview.innerText = `+${baseXP} Base`;
+      if (xpBonus) xpBonus.innerText = `+ 60 Multiplier`;
+      if (xpTotal) xpTotal.innerText = `180 XP`;
+      if (quantumChip) quantumChip.innerText = 'QUANTUM 01/04';
+    }
+    resetTimer();
+  }
+
+  function triggerQuickBreak() {
+    currentMinutes = 5;
+    const quantumChip = document.getElementById('quantum-chip');
+    if (quantumChip) quantumChip.innerText = 'SYNAPSE RECOVERY';
+    resetTimer();
+  }
+
+  function selectTrack(cardEl, title) {
+    document.querySelectorAll('.sound-card').forEach(card => {
+      card.classList.remove('bg-surface-container-high', 'shadow-md');
+      card.classList.add('bg-surface-container/60');
+      const wave = card.querySelector('.sound-bars');
+      if (wave) wave.remove();
+    });
+
+    cardEl.classList.remove('bg-surface-container/60');
+    cardEl.classList.add('bg-surface-container-high', 'shadow-md');
+
+    // Add animated bars
+    const header = cardEl.querySelector('.flex.items-start');
+    if (header && !cardEl.querySelector('.sound-bars')) {
+      const barsDiv = document.createElement('div');
+      barsDiv.className = 'flex items-end gap-0.5 h-4 sound-bars';
+      barsDiv.innerHTML = `
+        <span class="w-0.5 bg-secondary h-2.5 rounded-full animate-bounce"></span>
+        <span class="w-0.5 bg-secondary h-4 rounded-full animate-pulse"></span>
+        <span class="w-0.5 bg-secondary h-1.5 rounded-full animate-bounce"></span>
+        <span class="w-0.5 bg-secondary h-3.5 rounded-full animate-pulse"></span>
+      `;
+      header.appendChild(barsDiv);
+    }
+  }
+
+  // Initialize ring
+  updateDisplay();
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/85 backdrop-blur-xl shadow-[0_-1px_12px_rgba(0,0,0,0.3)]" data-active-classes="text-primary [&amp;_span.indicator]:opacity-100 [&amp;_span.icon-box]:bg-primary-container/20 [&amp;_span.icon-box]:text-primary"><div class="flex justify-around items-center h-20 px-gutter"><a class="group relative flex flex-col items-center justify-center min-w-[64px] min-h-[44px] py-1 text-on-surface-variant hover:text-on-surface transition-colors" data-path="today" href="#"><span class="icon-box flex items-center justify-center w-10 h-7 rounded-full transition-all"><span class="material-symbols-outlined text-[22px]">view_day</span></span><span class="font-label-sm text-label-sm mt-0.5 font-medium tracking-wide">Today</span><span class="indicator absolute bottom-0.5 w-1 h-1 rounded-full bg-primary opacity-0 transition-opacity"></span></a><a aria-current="page" class="group relative flex flex-col items-center justify-center min-w-[64px] min-h-[44px] py-1 transition-colors text-primary [&amp;_span.indicator]:opacity-100 [&amp;_span.icon-box]:bg-primary-container/20 [&amp;_span.icon-box]:text-primary" data-path="focus" href="#"><span class="icon-box flex items-center justify-center w-10 h-7 rounded-full transition-all"><span class="material-symbols-outlined text-[22px]">timer</span></span><span class="font-label-sm text-label-sm mt-0.5 font-medium tracking-wide">Focus</span><span class="indicator absolute bottom-0.5 w-1 h-1 rounded-full bg-primary opacity-0 transition-opacity"></span></a><a class="group relative flex flex-col items-center justify-center min-w-[64px] min-h-[44px] py-1 text-on-surface-variant hover:text-on-surface transition-colors" data-path="habits" href="#"><span class="icon-box flex items-center justify-center w-10 h-7 rounded-full transition-all"><span class="material-symbols-outlined text-[22px]">local_fire_department</span></span><span class="font-label-sm text-label-sm mt-0.5 font-medium tracking-wide">Habits</span><span class="indicator absolute bottom-0.5 w-1 h-1 rounded-full bg-primary opacity-0 transition-opacity"></span></a><a class="group relative flex flex-col items-center justify-center min-w-[64px] min-h-[44px] py-1 text-on-surface-variant hover:text-on-surface transition-colors" data-path="mastery" href="#"><span class="icon-box flex items-center justify-center w-10 h-7 rounded-full transition-all"><span class="material-symbols-outlined text-[22px]">military_tech</span></span><span class="font-label-sm text-label-sm mt-0.5 font-medium tracking-wide">Mastery</span><span class="indicator absolute bottom-0.5 w-1 h-1 rounded-full bg-primary opacity-0 transition-opacity"></span></a></div></nav></body></html>

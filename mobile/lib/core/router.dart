@@ -4,6 +4,11 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/ui/tasks/tasks_screen.dart';
 import 'package:axis/ui/tasks/quick_add_sheet.dart';
 
+import 'package:axis/ui/today/today_screen.dart';
+import 'package:axis/ui/habits/habits_screen.dart';
+import 'package:axis/ui/notes/notes_screen.dart';
+import 'package:axis/ui/me/me_screen.dart';
+
 // Shell destinations
 final _destinations = [
   const _NavDest(icon: Icons.today_rounded, label: 'Today', path: '/today'),
@@ -184,11 +189,11 @@ final router = GoRouter(
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
-        GoRoute(path: '/today', builder: (_, __) => const _PlaceholderScreen(label: 'Today')),
+        GoRoute(path: '/today', builder: (_, __) => const TodayScreen()),
         GoRoute(path: '/tasks', builder: (_, __) => const TasksScreen()),
-        GoRoute(path: '/habits', builder: (_, __) => const _PlaceholderScreen(label: 'Habits')),
-        GoRoute(path: '/notes', builder: (_, __) => const _PlaceholderScreen(label: 'Notes')),
-        GoRoute(path: '/me', builder: (_, __) => const _PlaceholderScreen(label: 'Me')),
+        GoRoute(path: '/habits', builder: (_, __) => const HabitsScreen()),
+        GoRoute(path: '/notes', builder: (_, __) => const NotesScreen()),
+        GoRoute(path: '/me', builder: (_, __) => const MeScreen()),
       ],
     ),
   ],

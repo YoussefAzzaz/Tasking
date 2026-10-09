@@ -1,5 +1,15 @@
 # AXIS: Changelog
 
+## S10: Mobile UI — Habits, Notes & Gamification
+- Added `HabitsScreen` displaying top streak status (Streak Hero Cockpit Card) and Habit Lists.
+- Added `NotesScreen` with Journaling component and Recent Notes listing.
+- Added `MeScreen` with User Profile, Gamification stats (Mastery Badges), and sync status.
+
+## S09: Mobile UI — Today Plan & Focus
+- Implemented `TodayScreen` using the Smart Auto-Scheduler UI and Gamification HUD.
+- Displayed AI insights and timeline slot UI matched to Obsidian Kinetic design language.
+- Mapped screens to the GoRouter app shell.
+
 ## S08: Mobile UI — Tasks & Navigation
 
 - Created `core/theme.dart` encoding the full **Obsidian Kinetic** design system from `DESIGN.md` — Space Grotesk headlines, Geist body, Space Mono labels, all color tokens.

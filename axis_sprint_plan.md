@@ -72,20 +72,20 @@ This document outlines the step-by-step sprint plan for building the Axis applic
     *   Create the Task detail bottom sheet containing title, notes, due date, priority, project, and subtasks.
 *   **Done When:** Users can navigate tabs, parse a quick-add task, view it in the inbox, and open its detail sheet. (COMPLETED)
 
-### Sprint 9: Mobile UI - Today Plan & Focus
+### Sprint 9: Mobile UI - Today Plan & Focus (DONE)
 *   **Tasks:**
     *   Build the Today tab featuring the date, morning-plan card, Top 3 tasks, and overdue tasks.
     *   Implement the List and Timeline view toggle for the Today tab.
     *   Integrate the auto-scheduler (from Sprint 5) into the morning plan flow.
     *   Build the Focus module featuring a Pomodoro timer linked to a task, logging sessions to `focus_sessions`.
-*   **Done When:** A user can select Top 3 tasks, run the auto-scheduler to fill the timeline, and complete a focus session.
+*   **Done When:** A user can select Top 3 tasks, run the auto-scheduler to fill the timeline, and complete a focus session. (COMPLETED)
 
-### Sprint 10: Mobile UI - Habits, Notes & Gamification
+### Sprint 10: Mobile UI - Habits, Notes & Gamification (DONE)
 *   **Tasks:**
     *   Build the Habits tab with segments for Habits and Routines (ordered steps).
     *   Build the Notes tab with segments for Markdown notes, Journal (daily prompts, mood/energy log), and Voice.
     *   Build the Me tab displaying the Level + XP bar, badges, rewards, and sync status indicator (`synced`/`syncing`/`offline`/`error`).
-*   **Done When:** Users can log a habit, save a markdown journal entry, view their XP level, and check sync status.
+*   **Done When:** Users can log a habit, save a markdown journal entry, view their XP level, and check sync status. (COMPLETED)
 
 ## Phase 4: Desktop Client (WPF)
 
