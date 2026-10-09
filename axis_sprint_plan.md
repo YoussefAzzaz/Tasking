@@ -38,13 +38,13 @@ This document outlines the step-by-step sprint plan for building the Axis applic
     *   Generate `contract/quickadd.json` with comprehensive edge cases.
 *   **Done When:** Both platforms successfully extract metadata, remove tokens from the title, and pass all `quickadd.json` tests. (COMPLETED)
 
-### Sprint 5: Recurrence & Auto-Scheduler Logic
+### Sprint 5: Recurrence & Auto-Scheduler Logic (DONE)
 *   **Tasks:**
     *   Implement RRULE parsing (without `DTSTART`) and calculation for `fixed` and `after_completion` modes in both languages.
     *   Implement the auto-scheduler pure function in Dart and C# using the inputs: `date`, `now`, `work_start`, `work_end`, `buffer_min`, `default_estimate_min`, `busy`, and `tasks`.
     *   Apply greedy placement logic ensuring tasks fit into available 15-minute windows, outputting `{proposed, unplaced, available_min, planned_min}`.
     *   Generate `contract/recurrence.json` and `contract/scheduler.json`.
-*   **Done When:** Recurrence advancement and schedule generation pass all contract tests on both platforms.
+*   **Done When:** Recurrence advancement and schedule generation pass all contract tests on both platforms. (COMPLETED)
 
 ### Sprint 6: Gamification, Streaks & Filters Logic
 *   **Tasks:**

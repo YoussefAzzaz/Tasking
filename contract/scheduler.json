@@ -1,0 +1,53 @@
+{
+  "vectors": [
+    {
+      "input": {
+        "date": "2026-10-01",
+        "now": "08:00",
+        "work_start": "09:00",
+        "work_end": "12:00",
+        "buffer_min": 15,
+        "default_estimate_min": 30,
+        "busy": [
+          {
+            "start": "10:00",
+            "end": "10:30"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "task1",
+            "estimate_min": 45
+          },
+          {
+            "id": "task2",
+            "estimate_min": null
+          },
+          {
+            "id": "task3",
+            "estimate_min": 60
+          }
+        ]
+      },
+      "expected": {
+        "proposed": [
+          {
+            "id": "task1",
+            "start": "09:00",
+            "end": "09:45"
+          },
+          {
+            "id": "task2",
+            "start": "10:30",
+            "end": "11:00"
+          }
+        ],
+        "unplaced": [
+          "task3"
+        ],
+        "available_min": 150,
+        "planned_min": 75
+      }
+    }
+  ]
+}

@@ -1,5 +1,13 @@
 # AXIS: Changelog
 
+## S05: Recurrence & Auto-Scheduler Logic
+
+- Generated `contract/recurrence.json` for RRULE parsing edge-cases (`fixed` vs `after_completion` evaluation).
+- Generated `contract/scheduler.json` for deterministic greedy time block allocation.
+- Implemented `RecurrenceEngine` and `AutoScheduler` in C# (`desktop/Axis.Core`).
+- Implemented `RecurrenceEngine` and `AutoScheduler` in Dart (`mobile/lib/domain`).
+- All tests pass, guaranteeing identical offline auto-scheduling on both platforms.
+
 ## S04: Task Quick-Add Parser
 
 - Generated `contract/quickadd.json` with multi-case parsing vectors

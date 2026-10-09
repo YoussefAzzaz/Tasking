@@ -1,0 +1,39 @@
+{
+  "vectors": [
+    {
+      "rrule": "RRULE:FREQ=DAILY",
+      "mode": "fixed",
+      "current_due_date": "2026-10-01",
+      "completion_date": "2026-10-01",
+      "expected_next_due": "2026-10-02"
+    },
+    {
+      "rrule": "RRULE:FREQ=DAILY;INTERVAL=3",
+      "mode": "fixed",
+      "current_due_date": "2026-10-01",
+      "completion_date": "2026-10-05",
+      "expected_next_due": "2026-10-07"
+    },
+    {
+      "rrule": "RRULE:FREQ=DAILY;INTERVAL=3",
+      "mode": "after_completion",
+      "current_due_date": "2026-10-01",
+      "completion_date": "2026-10-05",
+      "expected_next_due": "2026-10-08"
+    },
+    {
+      "rrule": "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR",
+      "mode": "fixed",
+      "current_due_date": "2026-10-05",
+      "completion_date": "2026-10-05",
+      "expected_next_due": "2026-10-07"
+    },
+    {
+      "rrule": "RRULE:FREQ=MONTHLY;BYMONTHDAY=15",
+      "mode": "fixed",
+      "current_due_date": "2026-10-15",
+      "completion_date": "2026-10-16",
+      "expected_next_due": "2026-11-15"
+    }
+  ]
+}

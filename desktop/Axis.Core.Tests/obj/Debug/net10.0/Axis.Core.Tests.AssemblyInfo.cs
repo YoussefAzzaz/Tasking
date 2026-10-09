@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Axis.Core.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0ab1e581ae233fa8b71181395bde3d81de98d9b0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bcfdd46c611c17a0df35cf1798ce75993c395862")]
 [assembly: System.Reflection.AssemblyProductAttribute("Axis.Core.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Axis.Core.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
