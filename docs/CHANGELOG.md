@@ -1,5 +1,15 @@
 # AXIS: Changelog
 
+## S08: Mobile UI — Tasks & Navigation
+
+- Created `core/theme.dart` encoding the full **Obsidian Kinetic** design system from `DESIGN.md` — Space Grotesk headlines, Geist body, Space Mono labels, all color tokens.
+- Created `core/widgets.dart` with atomic components: `AxisCard` (glass tier 1/2 with backdrop blur), `AxisChip`/`PriorityChip` (pill badges), `XpBar` (emerald→cyan animated gradient), `StreakBadge`, `AxisCheckbox` (spring animation), `AxisButton`.
+- Built `TaskCard` with lead checkbox, Geist title, pill tag cluster, and Space Mono trailing estimate — matches DESIGN.md §Task Cards spec.
+- Built `QuickAddButton` orb (indigo→cyan gradient) + bottom sheet with live parser chips that extract metadata as-you-type.
+- Built `TasksScreen` with 4-segment pill TabBar (Inbox / Upcoming / Projects / Filters) backed by PowerSync stream.
+- Built `TaskDetailSheet` — draggable, glass tier 2, metadata rows with icons, delete action.
+- Configured GoRouter `ShellRoute` + custom `AppShell` with a 5-slot bottom nav: Today | Tasks | **[+]** | Habits | Notes.
+
 ## S07: Mobile Infrastructure & Data Layer
 
 - Added Flutter dependencies: `supabase_flutter`, `powersync`, `sqlite_async`, `flutter_riverpod`, `go_router`, `rrule`, `google_fonts`.

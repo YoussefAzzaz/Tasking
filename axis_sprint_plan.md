@@ -64,13 +64,13 @@ This document outlines the step-by-step sprint plan for building the Axis applic
     *   Implement the global `DomainEvents` bus using Dart streams.
 *   **Done When:** The app successfully authenticates, writes a task to local SQLite, and syncs it to Supabase via PowerSync. (COMPLETED)
 
-### Sprint 8: Mobile UI - Tasks & Navigation
+### Sprint 8: Mobile UI - Tasks & Navigation (DONE)
 *   **Tasks:**
     *   Build the bottom navigation bar with 5 tabs: Today, Tasks, Habits, Notes, Me.
     *   Implement the global floating Quick-Add button utilizing the parser from Sprint 4.
     *   Build the Tasks tab segments: Inbox, Upcoming, Projects, and Filters.
     *   Create the Task detail bottom sheet containing title, notes, due date, priority, project, and subtasks.
-*   **Done When:** Users can navigate tabs, parse a quick-add task, view it in the inbox, and open its detail sheet.
+*   **Done When:** Users can navigate tabs, parse a quick-add task, view it in the inbox, and open its detail sheet. (COMPLETED)
 
 ### Sprint 9: Mobile UI - Today Plan & Focus
 *   **Tasks:**
