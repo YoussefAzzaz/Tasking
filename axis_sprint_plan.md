@@ -56,13 +56,13 @@ This document outlines the step-by-step sprint plan for building the Axis applic
 
 ## Phase 3: Mobile Client (Flutter)
 
-### Sprint 7: Mobile Infrastructure & Data Layer
+### Sprint 7: Mobile Infrastructure & Data Layer (DONE)
 *   **Tasks:**
     *   Initialize the Flutter app in `mobile/` using `flutter_riverpod` and `go_router`.
     *   Implement the PowerSync local SQLite database integration and Supabase Auth (email + password).
     *   Build the base repository classes mapping local SQLite rows to Dart models for tasks, projects, and tags.
     *   Implement the global `DomainEvents` bus using Dart streams.
-*   **Done When:** The app successfully authenticates, writes a task to local SQLite, and syncs it to Supabase via PowerSync.
+*   **Done When:** The app successfully authenticates, writes a task to local SQLite, and syncs it to Supabase via PowerSync. (COMPLETED)
 
 ### Sprint 8: Mobile UI - Tasks & Navigation
 *   **Tasks:**

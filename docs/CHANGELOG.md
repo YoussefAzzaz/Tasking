@@ -1,5 +1,13 @@
 # AXIS: Changelog
 
+## S07: Mobile Infrastructure & Data Layer
+
+- Added Flutter dependencies: `supabase_flutter`, `powersync`, `sqlite_async`, `flutter_riverpod`, `go_router`, `rrule`, `google_fonts`.
+- Implemented `powersync_db.dart` initializing local SQLite database and mapping SPEC.md entities to PowerSync schemas.
+- Implemented `SupabaseConnector` to handle JWT authentication and syncing data.
+- Built `TaskRepository` to map local SQLite rows directly to Dart domain models.
+- Set up global `DomainEvents` stream bus for cross-feature reactivity.
+
 ## S06: Gamification, Streaks & Filters Logic
 
 - Generated `contract/filters.json`, `contract/streaks.json`, and `contract/xp.json` outlining core business rules.
