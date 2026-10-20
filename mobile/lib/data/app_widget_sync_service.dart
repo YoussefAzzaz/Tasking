@@ -155,7 +155,7 @@ class AppWidgetSyncService {
 
       await HomeWidget.saveWidgetData<String>(
         'habit_streak_days',
-        '🔥 $streak ${streak == 1 ? 'DAY' : 'DAYS'}',
+        '$streak ${streak == 1 ? 'DAY' : 'DAYS'}',
       );
       await HomeWidget.saveWidgetData<String>(
         'habit_streak_badge',
@@ -172,7 +172,7 @@ class AppWidgetSyncService {
       await HomeWidget.saveWidgetData<String>(
         'habit_streak_quote',
         streak > 0
-            ? '🔥 $streak-day streak active • Tap to open'
+            ? '$streak-day streak active • Tap to open'
             : 'Consistency creates mastery • Tap to open',
       );
       await HomeWidget.saveWidgetData<int>('habit_streak_percent', percent);

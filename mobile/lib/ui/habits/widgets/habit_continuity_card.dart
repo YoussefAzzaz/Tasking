@@ -296,8 +296,8 @@ class HabitContinuityCard extends StatelessWidget {
                               ),
                               Text(
                                 currentStreak == 0
-                                    ? 'Start your streak today 🔥'
-                                    : 'Current Best: $bestStreak ${bestStreak == 1 ? 'Day' : 'Days'} Unbroken 🔥',
+                                    ? 'Start your streak today'
+                                    : 'Current Best: $bestStreak ${bestStreak == 1 ? 'Day' : 'Days'} Unbroken',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context)

@@ -4,6 +4,7 @@ import 'package:axis/core/widgets.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
+import 'package:axis/ui/habits/widgets/qibla_compass_sheet.dart';
 
 /// EXPANDABLE HABIT CATEGORY CARD
 /// Displays habits grouped by category with live progress bar, completion status,
@@ -379,11 +380,21 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                               ),
                             ),
                           const SizedBox(width: 6),
-                          if (isPrayers)
+                          if (isPrayers) ...[
+                            IconButton(
+                              icon: const Icon(Icons.explore_rounded,
+                                  size: 18, color: AxisColors.success),
+                              tooltip: 'Qibla Direction Compass',
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 26, minHeight: 26),
+                              onPressed: () => QiblaCompassSheet.show(context),
+                            ),
                             IconButton(
                               icon: const Icon(Icons.sync_rounded,
                                   size: 18, color: AxisColors.textDim),
-                              tooltip: 'Refresh Prayer Times',
+                              tooltip: 'Refresh Prayer Times & Location',
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
@@ -403,6 +414,7 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                 }
                               },
                             ),
+                          ],
                           if (widget.onDeleteCategory != null &&
                               widget.category.id != 'general_routines' &&
                               !isPrayers)
@@ -479,6 +491,48 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
           // Habits breakdown
           if (_expanded) ...[
             const Divider(color: AxisColors.borderSubtle, height: 1),
+            if (isPrayers)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+                child: InkWell(
+                  onTap: () => QiblaCompassSheet.show(context),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: widget.color.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: widget.color.withValues(alpha: 0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.explore_rounded,
+                            size: 16, color: widget.color),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Qibla Direction (Live GPS & Compass)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: widget.color,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 11,
+                          color: widget.color.withValues(alpha: 0.7),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             if (widget.habits.isEmpty)
               Padding(
                 padding:

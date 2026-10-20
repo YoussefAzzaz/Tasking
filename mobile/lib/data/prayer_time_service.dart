@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:adhan_dart/adhan_dart.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
+import 'package:axis/data/location_service.dart';
+import 'package:axis/data/qibla_service.dart';
 
 /// Representation of a single daily Islamic prayer
 class PrayerItem {
@@ -151,125 +151,30 @@ class PrayerTimeService with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  /// Resolves the user's geographical coordinates and timezone.
-  /// 1. Tries fast IP Geolocation (zero permissions, seamless)
-  /// 2. Falls back to device timezone offset mapping
+  /// Resolves the user's geographical coordinates and timezone via LocationService.
+  /// Integrates hardware GPS (geolocator), IP geolocation, and regional timezone inference.
   Future<Coordinates> resolveCoordinates({bool forceRefresh = false}) async {
     if (!forceRefresh && _currentCity != 'Auto' && _currentLat != 0) {
       return Coordinates(_currentLat, _currentLng);
     }
 
     try {
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 4);
-      final request = await client.getUrl(Uri.parse('http://ip-api.com/json'));
-      final response = await request.close().timeout(const Duration(seconds: 4));
-
-      if (response.statusCode == 200) {
-        final jsonStr = await response.transform(utf8.decoder).join();
-        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-
-        if (data['status'] == 'success') {
-          _currentLat = (data['lat'] as num).toDouble();
-          _currentLng = (data['lon'] as num).toDouble();
-          _currentCity = (data['city'] as String?) ?? 'Local';
-          _currentCountry = (data['country'] as String?) ?? '';
-          _currentTimezone = (data['timezone'] as String?) ?? '';
-          await _saveSettings();
-          return Coordinates(_currentLat, _currentLng);
-        }
-      }
+      final loc = await LocationService().getLocation(forceRefresh: forceRefresh);
+      _currentLat = loc.latitude;
+      _currentLng = loc.longitude;
+      _currentCity = loc.city;
+      _currentCountry = loc.country;
+      _currentTimezone = DateTime.now().timeZoneName;
+      await _saveSettings();
+      return Coordinates(_currentLat, _currentLng);
     } catch (_) {
-      // Offline or network timeout, fallback to timezone offset inference
+      return Coordinates(_currentLat, _currentLng);
     }
-
-    // Fallback: Map the device's local timezone offset to major Islamic regional coordinates
-    final offsetHours = DateTime.now().timeZoneOffset.inHours;
-    switch (offsetHours) {
-      case 1: // West Africa / Central Europe / Algeria / Tunisia
-        _currentLat = 35.7065;
-        _currentLng = -0.6292;
-        _currentCity = 'North Africa (GMT+1)';
-        _currentCountry = 'Algeria';
-        break;
-      case 2: // Egypt / Levant / Eastern Europe
-        _currentLat = 30.0444;
-        _currentLng = 31.2357;
-        _currentCity = 'Cairo Region (GMT+2)';
-        _currentCountry = 'Egypt';
-        break;
-      case 3: // Saudi Arabia / Gulf / East Africa
-        _currentLat = 21.4225;
-        _currentLng = 39.8262;
-        _currentCity = 'Makkah Region (GMT+3)';
-        _currentCountry = 'Saudi Arabia';
-        break;
-      case 4: // UAE / Oman
-        _currentLat = 25.2048;
-        _currentLng = 55.2708;
-        _currentCity = 'Dubai Region (GMT+4)';
-        _currentCountry = 'United Arab Emirates';
-        break;
-      case 5: // Pakistan / Central Asia
-        _currentLat = 24.8607;
-        _currentLng = 67.0011;
-        _currentCity = 'Karachi Region (GMT+5)';
-        _currentCountry = 'Pakistan';
-        break;
-      case 6: // Bangladesh
-        _currentLat = 23.8103;
-        _currentLng = 90.4125;
-        _currentCity = 'Dhaka Region (GMT+6)';
-        _currentCountry = 'Bangladesh';
-        break;
-      case 7: // Western Indonesia
-        _currentLat = -6.2088;
-        _currentLng = 106.8456;
-        _currentCity = 'Jakarta Region (GMT+7)';
-        _currentCountry = 'Indonesia';
-        break;
-      case 8: // Malaysia / Singapore
-        _currentLat = 3.1390;
-        _currentLng = 101.6869;
-        _currentCity = 'Kuala Lumpur (GMT+8)';
-        _currentCountry = 'Malaysia';
-        break;
-      case 0: // UK / Morocco / Portugal
-        _currentLat = 33.5731;
-        _currentLng = -7.5898;
-        _currentCity = 'Casablanca (GMT)';
-        _currentCountry = 'Morocco';
-        break;
-      case -5: // North America Eastern
-        _currentLat = 40.7128;
-        _currentLng = -74.0060;
-        _currentCity = 'New York (EST)';
-        _currentCountry = 'United States';
-        break;
-      case -6: // North America Central
-        _currentLat = 41.8781;
-        _currentLng = -87.6298;
-        _currentCity = 'Chicago (CST)';
-        _currentCountry = 'United States';
-        break;
-      case -8: // North America Pacific
-        _currentLat = 34.0522;
-        _currentLng = -118.2437;
-        _currentCity = 'Los Angeles (PST)';
-        _currentCountry = 'United States';
-        break;
-      default:
-        _currentLat = 21.4225;
-        _currentLng = 39.8262;
-        _currentCity = 'Makkah Region';
-        _currentCountry = 'Saudi Arabia';
-        break;
-    }
-
-    _currentTimezone = DateTime.now().timeZoneName;
-    await _saveSettings();
-    return Coordinates(_currentLat, _currentLng);
   }
+
+  /// Calculates the exact Qibla bearing towards the Kaaba in Mecca
+  double get qiblaBearing =>
+      QiblaService().calculateQiblaBearing(_currentLat, _currentLng);
 
   /// Selects the optimal Islamic calculation method based on country / coordinates
   CalculationParameters _getCalculationMethod() {

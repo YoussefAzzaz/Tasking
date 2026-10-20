@@ -28,9 +28,14 @@ void main() {
       expect(prayerTimes.fajr.isBefore(prayerTimes.dhuhr), isTrue);
       expect(prayerTimes.dhuhr.isBefore(prayerTimes.asr), isTrue);
       expect(prayerTimes.asr.isBefore(prayerTimes.maghrib), isTrue);
+
+      final qiblaDirection = Qibla.qibla(coordinates);
+      expect(qiblaDirection, isNotNull);
+      expect(qiblaDirection, greaterThan(90));
+      expect(qiblaDirection, lessThan(120)); // From Oran/Algiers, Mecca is roughly ESE (~105-110 deg)
       expect(prayerTimes.maghrib.isBefore(prayerTimes.isha), isTrue);
 
-      final formatAdan = (DateTime dt) => DateFormat('hh:mm a').format(dt.toLocal());
+      String formatAdan(DateTime dt) => DateFormat('hh:mm a').format(dt.toLocal());
       expect(formatAdan(prayerTimes.fajr), isNotEmpty);
       expect(formatAdan(prayerTimes.dhuhr), isNotEmpty);
       expect(formatAdan(prayerTimes.asr), isNotEmpty);
