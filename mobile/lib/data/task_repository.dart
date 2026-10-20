@@ -66,6 +66,84 @@ class Task {
   }
 }
 
+/// Sort comparator: Earliest due date first, then priority, then alphabetical.
+int compareTasksByDueDate(Task a, Task b) {
+  // 1. Incomplete tasks before completed tasks
+  final aDone = a.status == 'done';
+  final bDone = b.status == 'done';
+  if (aDone != bDone) {
+    return aDone ? 1 : -1;
+  }
+
+  // 2. Earliest due date first (tasks with dates appear before tasks without)
+  final aDue = a.dueDate;
+  final bDue = b.dueDate;
+  final aHasDue = aDue != null && aDue.trim().isNotEmpty;
+  final bHasDue = bDue != null && bDue.trim().isNotEmpty;
+
+  if (aHasDue && !bHasDue) return -1;
+  if (!aHasDue && bHasDue) return 1;
+
+  if (aHasDue && bHasDue) {
+    final cmpDate = aDue.compareTo(bDue);
+    if (cmpDate != 0) return cmpDate;
+
+    // 3. Same date: earlier due time first
+    final aTime = a.dueTime ?? '';
+    final bTime = b.dueTime ?? '';
+    if (aTime.isNotEmpty && bTime.isNotEmpty) {
+      final cmpTime = aTime.compareTo(bTime);
+      if (cmpTime != 0) return cmpTime;
+    } else if (aTime.isNotEmpty) {
+      return -1;
+    } else if (bTime.isNotEmpty) {
+      return 1;
+    }
+  }
+
+  // 4. Secondary sort by priority: P1 (1) < P2 (2) < P3 (3)
+  final aPri = a.priority ?? 99;
+  final bPri = b.priority ?? 99;
+  if (aPri != bPri) {
+    return aPri.compareTo(bPri);
+  }
+
+  // 5. Tertiary sort alphabetically by title
+  return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+}
+
+/// Sort comparator: Priority first (P1 < P2 < P3), then due time, then alphabetical.
+int compareTasksByPriority(Task a, Task b) {
+  // 1. Incomplete tasks before completed tasks
+  final aDone = a.status == 'done';
+  final bDone = b.status == 'done';
+  if (aDone != bDone) {
+    return aDone ? 1 : -1;
+  }
+
+  // 2. Priority: P1 (1) < P2 (2) < P3 (3)
+  final aPri = a.priority ?? 99;
+  final bPri = b.priority ?? 99;
+  if (aPri != bPri) {
+    return aPri.compareTo(bPri);
+  }
+
+  // 3. Earlier due time first
+  final aTime = a.dueTime ?? '';
+  final bTime = b.dueTime ?? '';
+  if (aTime.isNotEmpty && bTime.isNotEmpty) {
+    final cmpTime = aTime.compareTo(bTime);
+    if (cmpTime != 0) return cmpTime;
+  } else if (aTime.isNotEmpty) {
+    return -1;
+  } else if (bTime.isNotEmpty) {
+    return 1;
+  }
+
+  // 4. Alphabetical by title
+  return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+}
+
 class TaskRepository {
   Stream<List<Task>> watchTasks() {
     return db.watch('SELECT * FROM tasks ORDER BY created_at DESC').map((rows) {

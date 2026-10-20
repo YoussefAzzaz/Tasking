@@ -149,14 +149,21 @@ class _TodayScreenState extends State<TodayScreen> {
       stream: TaskRepository().watchTasks(),
       builder: (context, snapshot) {
         final allTasks = snapshot.data ?? [];
-        final pendingTasks = allTasks.where((t) => t.status != 'done').toList()
-          ..sort((a, b) {
-            final pa = a.priority ?? 99;
-            final pb = b.priority ?? 99;
-            return pa.compareTo(pb);
-          });
+        final now = DateTime.now();
+        final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+        // Filter strictly for today's active tasks, sorted by priority (P1 -> P2 -> P3)
+        final pendingTasks = allTasks.where((t) {
+          if (t.status == 'done') return false;
+          if (t.dueDate == null || t.dueDate!.trim().isEmpty) return false;
+          return t.dueDate == todayStr || t.dueDate!.startsWith(todayStr);
+        }).toList()
+          ..sort(compareTasksByPriority);
 
         final slottedTasks = allTasks.where((t) {
+          final isToday = t.dueDate != null &&
+              (t.dueDate == todayStr || t.dueDate!.startsWith(todayStr));
+          if (!isToday) return false;
           if (t.dueTime != null && t.dueTime!.isNotEmpty) return true;
           if (t.estimateMin != null && t.estimateMin! <= 30) return true;
           return false;
@@ -689,7 +696,7 @@ class _TodayScreenState extends State<TodayScreen> {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'Zero Pending Tasks',
+                            'No Tasks For Today',
                             style: TextStyle(
                               color: AxisColors.textHigh,
                               fontWeight: FontWeight.bold,
@@ -698,7 +705,7 @@ class _TodayScreenState extends State<TodayScreen> {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Your priority matrix is clean. Add a task to get started.',
+                            'Your priority matrix for today is clean. Add a task to get started.',
                             style: TextStyle(
                               color: AxisColors.textMuted,
                               fontSize: 12,

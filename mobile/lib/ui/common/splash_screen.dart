@@ -42,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Smooth transition to the main app after splash sequence
     Future.delayed(const Duration(milliseconds: 1600), () {
       if (mounted) {
-        context.go('/tasks');
+        context.go('/today');
       }
     });
   }

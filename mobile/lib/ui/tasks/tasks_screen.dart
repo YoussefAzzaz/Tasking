@@ -281,7 +281,8 @@ class _InboxTabState extends State<_InboxTab> {
             }
 
             final allTasks = snapshot.data ?? [];
-            final filteredTasks = allTasks.where(criteria.matches).toList();
+            final filteredTasks = allTasks.where(criteria.matches).toList()
+              ..sort(compareTasksByDueDate);
 
             if (filteredTasks.isEmpty) {
               return _EmptyState(
@@ -726,7 +727,8 @@ class _ProjectsTabState extends State<_ProjectsTab> {
 
                 // List of Projects as Big Tasks
                 ...allProjects.map((project) {
-                  final subtasks = tasksByProject[project.name] ?? [];
+                  final subtasks = List<Task>.from(tasksByProject[project.name] ?? [])
+                    ..sort(compareTasksByDueDate);
                   final color = _parseHex(project.color);
 
                   return _ProjectBigTaskCard(
@@ -757,7 +759,7 @@ class _ProjectsTabState extends State<_ProjectsTab> {
                       color: '#64748B',
                     ),
                     color: const Color(0xFF64748B),
-                    subtasks: unassignedTasks,
+                    subtasks: List<Task>.from(unassignedTasks)..sort(compareTasksByDueDate),
                     taskRepo: widget.taskRepo,
                     projectRepo: widget.projectRepo,
                     onAddSubtask: widget.onAddTask,
@@ -801,8 +803,9 @@ class _ProjectBigTaskCardState extends State<_ProjectBigTaskCard> {
 
   @override
   Widget build(BuildContext context) {
-    final total = widget.subtasks.length;
-    final done = widget.subtasks.where((t) => t.status == 'done').length;
+    final sortedSubtasks = List<Task>.from(widget.subtasks)..sort(compareTasksByDueDate);
+    final total = sortedSubtasks.length;
+    final done = sortedSubtasks.where((t) => t.status == 'done').length;
     final progress = total > 0 ? (done / total) : 0.0;
     final percent = (progress * 100).toInt();
     final isComplete = total > 0 && done == total;
@@ -1084,11 +1087,11 @@ class _ProjectBigTaskCardState extends State<_ProjectBigTaskCard> {
                 physics: const NeverScrollableScrollPhysics(),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                itemCount: widget.subtasks.length,
+                itemCount: sortedSubtasks.length,
                 separatorBuilder: (_, _) =>
                     const Divider(color: AxisColors.borderGlass2, height: 1),
                 itemBuilder: (context, i) {
-                  final task = widget.subtasks[i];
+                  final task = sortedSubtasks[i];
                   final isDone = task.status == 'done';
 
                   return ListTile(

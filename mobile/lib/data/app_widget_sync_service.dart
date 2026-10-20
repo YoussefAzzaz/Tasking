@@ -24,7 +24,7 @@ class AppWidgetSyncService {
 
       final todayTasks = rows.where((r) {
         final due = r['due_date'] as String?;
-        return due == null || due == todayStr || due.startsWith(todayStr);
+        return due != null && (due == todayStr || due.startsWith(todayStr));
       }).toList();
 
       final total = todayTasks.length;
