@@ -21,7 +21,7 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <!-- Dynamic Local Time (updates every minute via Android OS) -->
+            <!-- Dynamic Local Time (ticks live via Android OS TextClock) -->
             <TextClock
                 android:id="@+id/widget_tasks_clock"
                 android:layout_width="wrap_content"
@@ -32,14 +32,13 @@
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
-            <!-- Today's Date (dynamically updates at midnight) -->
-            <TextClock
+            <!-- Today's Date -->
+            <TextView
                 android:id="@+id/widget_tasks_date"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
-                android:format12Hour="EEEE, MMM d"
-                android:format24Hour="EEEE, MMM d"
+                android:text="TODAY"
                 android:textColor="#00E5FF"
                 android:textSize="11sp"
                 android:textStyle="bold" />
@@ -78,14 +77,15 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Subtle Divider Line -->
-    <View
+    <!-- Divider Line using ImageView (RemoteViews-compliant) -->
+    <ImageView
         android:id="@+id/widget_tasks_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_below="@id/widget_tasks_header"
         android:layout_marginTop="8dp"
-        android:background="#1E293B" />
+        android:background="#1E293B"
+        android:contentDescription="Divider" />
 
     <!-- Task List Content: Today's tasks as shown right now -->
     <TextView

@@ -15,13 +15,12 @@ class AppWidgetSyncService {
   StreamSubscription? _tasksSub;
   StreamSubscription? _habitsSub;
   StreamSubscription? _habitLogsSub;
-  Timer? _debounceTimer;
+  Timer? _tasksDebounceTimer;
+  Timer? _habitsDebounceTimer;
 
   /// Starts listening to real-time database changes and keeps widgets synchronized
   void startAutoSync() {
-    _tasksSub?.cancel();
-    _habitsSub?.cancel();
-    _habitLogsSub?.cancel();
+    stopAutoSync();
 
     try {
       _tasksSub =
@@ -41,19 +40,20 @@ class AppWidgetSyncService {
     _tasksSub?.cancel();
     _habitsSub?.cancel();
     _habitLogsSub?.cancel();
-    _debounceTimer?.cancel();
+    _tasksDebounceTimer?.cancel();
+    _habitsDebounceTimer?.cancel();
   }
 
   void _debouncedSyncTasks() {
-    _debounceTimer?.cancel();
-    _debounceTimer =
-        Timer(const Duration(milliseconds: 300), () => syncTodayTasks());
+    _tasksDebounceTimer?.cancel();
+    _tasksDebounceTimer =
+        Timer(const Duration(milliseconds: 250), () => syncTodayTasks());
   }
 
   void _debouncedSyncHabits() {
-    _debounceTimer?.cancel();
-    _debounceTimer =
-        Timer(const Duration(milliseconds: 300), () => syncHabitStreak());
+    _habitsDebounceTimer?.cancel();
+    _habitsDebounceTimer =
+        Timer(const Duration(milliseconds: 250), () => syncHabitStreak());
   }
 
   Future<void> syncAll() async {
@@ -65,10 +65,11 @@ class AppWidgetSyncService {
     try {
       final now = DateTime.now();
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
-      final formattedDate = DateFormat('EEEE, MMM d').format(now);
+      final formattedDate =
+          DateFormat('EEEE, MMM d').format(now).toUpperCase();
 
       final rows = await db.getAll(
-        "SELECT title, status, due_date, priority FROM tasks WHERE status != 'archived' ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC",
+        "SELECT title, status, due_date, priority FROM tasks ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC",
       );
 
       final todayTasks = rows.where((r) {
@@ -83,7 +84,8 @@ class AppWidgetSyncService {
       for (final t in todayTasks.take(5)) {
         final isDone = t['status'] == 'done';
         final symbol = isDone ? '✓' : '○';
-        lines.add('$symbol ${t['title']}');
+        final title = (t['title'] as String? ?? '').replaceAll('\n', ' ').trim();
+        lines.add('$symbol $title');
       }
 
       final content = lines.isEmpty
@@ -97,7 +99,9 @@ class AppWidgetSyncService {
       await HomeWidget.saveWidgetData<String>(
           'today_tasks_count', '$done/$total DONE');
       await HomeWidget.saveWidgetData<String>('today_tasks_content', content);
+
       await HomeWidget.updateWidget(
+        name: 'TodayTasksWidgetProvider',
         androidName: 'TodayTasksWidgetProvider',
       );
     } catch (e) {
@@ -141,7 +145,8 @@ class AppWidgetSyncService {
       for (final h in habitRows.take(5)) {
         final isDone = todayDoneHabitIds.contains(h['id'] as String);
         final symbol = isDone ? '✓' : '○';
-        lines.add('$symbol ${h['name']}');
+        final name = (h['name'] as String? ?? '').replaceAll('\n', ' ').trim();
+        lines.add('$symbol $name');
       }
 
       final content = lines.isEmpty
@@ -171,10 +176,9 @@ class AppWidgetSyncService {
             : 'Consistency creates mastery • Tap to open',
       );
       await HomeWidget.saveWidgetData<int>('habit_streak_percent', percent);
-      await HomeWidget.saveWidgetData<int>('habit_streak_total', totalHabits);
-      await HomeWidget.saveWidgetData<int>('habit_streak_done', todayDoneCount);
 
       await HomeWidget.updateWidget(
+        name: 'HabitStreakWidgetProvider',
         androidName: 'HabitStreakWidgetProvider',
       );
     } catch (e) {
