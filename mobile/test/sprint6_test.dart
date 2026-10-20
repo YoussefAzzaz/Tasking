@@ -68,4 +68,9 @@ void main() {
       }
     }
   });
+
+  test('StreakEngine returns 0 when logs are reset/empty', () {
+    final streak = StreakEngine.calculateStreak('daily', [], '2026-10-20');
+    expect(streak, 0);
+  });
 }

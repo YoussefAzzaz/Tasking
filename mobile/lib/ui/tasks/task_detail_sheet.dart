@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/ui/focus/focus_screen.dart';
+import 'package:axis/ui/tasks/create_task_sheet.dart';
 
 /// Task detail bottom sheet — glass tier 2, full DESIGN.md spec
 class TaskDetailSheet extends StatefulWidget {
-  const TaskDetailSheet({super.key, required this.task});
+  const TaskDetailSheet({super.key, required this.task, this.onTaskUpdated});
   final Task task;
+  final ValueChanged<Task>? onTaskUpdated;
 
   @override
   State<TaskDetailSheet> createState() => _TaskDetailSheetState();
@@ -22,10 +25,27 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     _task = widget.task;
   }
 
+  void _openEditTask() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CreateTaskSheet(
+        taskToEdit: _task,
+        onTaskCreated: () {},
+        onTaskUpdated: (updated) {
+          setState(() => _task = updated);
+          widget.onTaskUpdated?.call(updated);
+        },
+      ),
+    );
+  }
+
   Future<void> _toggleDone() async {
     final updated = Task(
       id: _task.id,
       title: _task.title,
+      notes: _task.notes,
       status: _task.status == 'done' ? 'todo' : 'done',
       priority: _task.priority,
       projectId: _task.projectId,
@@ -38,6 +58,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     );
     await _repo.updateTask(updated);
     setState(() => _task = updated);
+    widget.onTaskUpdated?.call(updated);
   }
 
   @override
@@ -49,9 +70,9 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
         .toList();
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.6,
+      initialChildSize: 0.7,
       minChildSize: 0.4,
-      maxChildSize: 0.92,
+      maxChildSize: 0.95,
       builder: (context, scrollCtrl) {
         return AxisCard(
           tier: GlassTier.two,
@@ -66,13 +87,51 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                 Center(
                   child: Container(
                     width: 36, height: 4,
-                    margin: const EdgeInsets.only(bottom: 20),
+                    margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
                       color: AxisColors.borderSubtle,
                       borderRadius: BorderRadius.circular(9999),
                     ),
                   ),
                 ),
+
+                // Top actions row (Edit & Close)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AxisColors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _task.projectId != null ? '#${_task.projectId}' : 'TASK DETAILS',
+                        style: const TextStyle(
+                          color: AxisColors.primarySoft,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 20, color: AxisColors.secondary),
+                          tooltip: 'Edit Task',
+                          onPressed: _openEditTask,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 22, color: AxisColors.textMuted),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
 
                 // Title row + checkbox
                 Row(
@@ -90,12 +149,49 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                           decoration: isDone ? TextDecoration.lineThrough : null,
                           decorationColor: AxisColors.textDim,
                           color: isDone ? AxisColors.textDim : AxisColors.textHigh,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
+
+                // Task Description Section
+                _MetaSection(
+                  title: 'Description',
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: _task.notes != null && _task.notes!.trim().isNotEmpty
+                          ? SelectableText(
+                              _task.notes!,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AxisColors.textHigh,
+                                    height: 1.5,
+                                  ),
+                            )
+                          : InkWell(
+                              onTap: _openEditTask,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.add_circle_outline_rounded,
+                                      size: 16, color: AxisColors.textDim),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'No description added. Tap to add details...',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: AxisColors.textDim, fontStyle: FontStyle.italic),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
                 // Metadata section
                 _MetaSection(title: 'Details', children: [
@@ -105,6 +201,13 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                       iconColor: _priorityColor(_task.priority!),
                       label: 'Priority',
                       value: 'P${_task.priority}',
+                    ),
+                  if (_task.projectId != null)
+                    _MetaRow(
+                      icon: Icons.folder_outlined,
+                      iconColor: AxisColors.primary,
+                      label: 'Project',
+                      value: _task.projectId!,
                     ),
                   if (_task.dueDate != null)
                     _MetaRow(
@@ -141,18 +244,67 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                 if (tags.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _MetaSection(title: 'Tags', children: [
-                    Wrap(
-                      spacing: 8, runSpacing: 6,
-                      children: tags.map((t) => AxisChip(
-                        label: '@$t',
-                        backgroundColor: AxisColors.primary.withOpacity(0.08),
-                        textColor: AxisColors.primarySoft,
-                      )).toList(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Wrap(
+                        spacing: 8, runSpacing: 6,
+                        children: tags.map((t) => AxisChip(
+                          label: '@$t',
+                          backgroundColor: AxisColors.primary.withValues(alpha: 0.08),
+                          textColor: AxisColors.primarySoft,
+                        )).toList(),
+                      ),
                     ),
                   ]),
                 ],
 
                 const SizedBox(height: 24),
+
+                // Action buttons: Edit Task + Start Focus
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _openEditTask,
+                        icon: const Icon(Icons.edit_rounded, size: 16),
+                        label: const Text('Edit Task',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AxisColors.secondary,
+                          side: const BorderSide(color: AxisColors.secondary, width: 1.2),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FocusScreen(initialTask: _task),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.timer_outlined, size: 16),
+                        label: const Text('Focus',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AxisColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
 
                 // Delete button
                 SizedBox(
@@ -169,8 +321,8 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                             ?.copyWith(color: AxisColors.error)),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
-                          color: AxisColors.error.withOpacity(0.3), width: 1),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                          color: AxisColors.error.withValues(alpha: 0.3), width: 1),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),

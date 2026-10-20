@@ -5,37 +5,47 @@ import 'package:google_fonts/google_fonts.dart';
 class AxisColors {
   AxisColors._();
 
-  // Surfaces
-  static const Color canvasBase        = Color(0xFF0B0F19);
-  static const Color surfaceLow        = Color(0xFF0D1C2D);
-  static const Color surface           = Color(0xFF122131);
-  static const Color surfaceHigh       = Color(0xFF1E293B);
-  static const Color surfaceHighest    = Color(0xFF273647);
+  // Surfaces — exact values from DESIGN.md YAML
+  static const Color canvasBase        = Color(0xFF051424); // #051424 deep void obsidian
+  static const Color surfaceLowest     = Color(0xFF010F1F); // surface-container-lowest
+  static const Color surfaceLow        = Color(0xFF0D1C2D); // surface-container-low
+  static const Color surface           = Color(0xFF122131); // surface-container
+  static const Color surfaceHigh       = Color(0xFF1C2B3C); // surface-container-high
+  static const Color surfaceHighest    = Color(0xFF273647); // surface-container-highest
+  static const Color surfaceBright     = Color(0xFF2C3A4C); // surface-bright
 
-  // Glass tier backgrounds (use withOpacity in BackdropFilter context)
+  // Glass tier backgrounds (use with opacity in BackdropFilter context)
   static const Color glassTier1        = Color(0xFF131A2A); // 0.65 alpha
   static const Color glassTier2        = Color(0xFF192236); // 0.82 alpha
 
-  // Accents
-  static const Color primary           = Color(0xFF6366F1); // Electric Violet
-  static const Color primarySoft       = Color(0xFFC0C1FF);
-  static const Color secondary         = Color(0xFF38BDF8); // Cyan
-  static const Color secondarySoft     = Color(0xFF7BD0FF);
-  static const Color success           = Color(0xFF10B981); // Emerald
-  static const Color successBright     = Color(0xFF34D399);
-  static const Color warning           = Color(0xFFF59E0B); // Amber
-  static const Color warningBright     = Color(0xFFFBBF24);
-  static const Color error             = Color(0xFFFFB4AB);
+  // Primary accents — from DESIGN.md narrative
+  static const Color primary           = Color(0xFF6366F1); // Electric Violet / Indigo
+  static const Color primarySoft       = Color(0xFFC0C1FF); // primary on dark = text/icon use
+  static const Color secondary         = Color(0xFF38BDF8); // Atmospheric Cyan
+  static const Color secondarySoft     = Color(0xFF7BD0FF); // lighter cyan
+  static const Color tertiary          = Color(0xFF4EDEA3); // Radiant Emerald (design tertiary)
+  static const Color tertiaryBright    = Color(0xFF6FFBBE); // tertiary-fixed
+  static const Color success           = Color(0xFF10B981); // gamification emerald
+  static const Color warning           = Color(0xFFF59E0B); // Auric Amber priority/prestige
+  static const Color warningBright     = Color(0xFFFBBF24); // bright amber
+  static const Color error             = Color(0xFFFFB4AB); // error red
+
+  // Priority Tokens
+  static const Color priorityHigh      = Color(0xFFEF4444); // P1 Crimson
+  static const Color priorityMed       = Color(0xFFF59E0B); // P2 Amber
+  static const Color priorityLow       = Color(0xFF38BDF8); // P3 Atmospheric Cyan
 
   // Text
-  static const Color textHigh          = Color(0xFFF8FAFC);
-  static const Color textMuted         = Color(0xFF94A3B8);
-  static const Color textDim           = Color(0xFF475569);
+  static const Color textHigh          = Color(0xFFF8FAFC); // Primary headings, active
+  static const Color textMuted         = Color(0xFF94A3B8); // Secondary metrics, timestamps
+  static const Color textDim           = Color(0xFF475569); // Disabled states
 
   // Borders
-  static const Color borderSubtle      = Color(0x14FFFFFF); // 8% white
+  static const Color borderSubtle      = Color(0x0FFFFFFF); // 6% white (glass tier 1 border)
+  static const Color borderGlass2      = Color(0x1EFFFFFF); // 12% white (glass tier 2)
   static const Color borderActive      = Color(0x40C0C1FF); // primary-tinted
-  static const Color borderPrimary     = Color(0x406366F1); // 25% indigo
+  static const Color borderPrimary     = Color(0x406366F1); // 25% indigo (action sheets)
+  static const Color borderEmerald     = Color(0x6610B981); // 40% emerald streak rim
 }
 
 class AxisTheme {
@@ -46,31 +56,31 @@ class AxisTheme {
       // headline-xl → displayLarge
       displayLarge: GoogleFonts.spaceGrotesk(
         fontSize: 40, fontWeight: FontWeight.w700,
-        height: 48 / 40, letterSpacing: -0.03 * 40,
+        height: 48 / 40, letterSpacing: -1.2,
         color: AxisColors.textHigh,
       ),
       // headline-lg → displayMedium
       displayMedium: GoogleFonts.spaceGrotesk(
         fontSize: 28, fontWeight: FontWeight.w600,
-        height: 36 / 28, letterSpacing: -0.02 * 28,
+        height: 36 / 28, letterSpacing: -0.56,
         color: AxisColors.textHigh,
       ),
       // headline-md → displaySmall
       displaySmall: GoogleFonts.spaceGrotesk(
         fontSize: 22, fontWeight: FontWeight.w600,
-        height: 30 / 22, letterSpacing: -0.015 * 22,
+        height: 30 / 22, letterSpacing: -0.33,
         color: AxisColors.textHigh,
       ),
       // title-lg → titleLarge
       titleLarge: GoogleFonts.getFont('Geist',
         fontSize: 18, fontWeight: FontWeight.w600,
-        height: 24 / 18, letterSpacing: -0.01 * 18,
+        height: 24 / 18, letterSpacing: -0.18,
         color: AxisColors.textHigh,
       ),
       // title-md → titleMedium
       titleMedium: GoogleFonts.getFont('Geist',
         fontSize: 16, fontWeight: FontWeight.w600,
-        height: 22 / 16, letterSpacing: -0.01 * 16,
+        height: 22 / 16, letterSpacing: -0.16,
         color: AxisColors.textHigh,
       ),
       // body-lg → bodyLarge
@@ -94,19 +104,19 @@ class AxisTheme {
       // label-lg → labelLarge
       labelLarge: GoogleFonts.spaceMono(
         fontSize: 13, fontWeight: FontWeight.w700,
-        height: 16 / 13, letterSpacing: 0.04 * 13,
+        height: 16 / 13, letterSpacing: 0.52,
         color: AxisColors.textMuted,
       ),
       // label-md → labelMedium
       labelMedium: GoogleFonts.spaceMono(
         fontSize: 11, fontWeight: FontWeight.w600,
-        height: 14 / 11, letterSpacing: 0.06 * 11,
+        height: 14 / 11, letterSpacing: 0.66,
         color: AxisColors.textMuted,
       ),
       // label-sm → labelSmall
       labelSmall: GoogleFonts.spaceMono(
         fontSize: 10, fontWeight: FontWeight.w500,
-        height: 12 / 10, letterSpacing: 0.08 * 10,
+        height: 12 / 10, letterSpacing: 0.8,
         color: AxisColors.textDim,
       ),
     );
@@ -122,39 +132,18 @@ class AxisTheme {
         surface: AxisColors.surface,
         primary: AxisColors.primary,
         secondary: AxisColors.secondary,
-        tertiary: AxisColors.success,
+        tertiary: AxisColors.tertiary,
         error: AxisColors.error,
         onSurface: AxisColors.textHigh,
         onPrimary: AxisColors.textHigh,
         onSecondary: AxisColors.canvasBase,
+        onTertiary: AxisColors.canvasBase,
         outline: AxisColors.borderSubtle,
       ),
       textTheme: textTheme,
       useMaterial3: true,
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AxisColors.glassTier1.withOpacity(0.95),
-        indicatorColor: AxisColors.primary.withOpacity(0.18),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return GoogleFonts.spaceMono(
-              fontSize: 10, fontWeight: FontWeight.w600,
-              color: AxisColors.primarySoft, letterSpacing: 0.6,
-            );
-          }
-          return GoogleFonts.spaceMono(
-            fontSize: 10, fontWeight: FontWeight.w500,
-            color: AxisColors.textDim, letterSpacing: 0.6,
-          );
-        }),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AxisColors.primarySoft, size: 22);
-          }
-          return const IconThemeData(color: AxisColors.textDim, size: 22);
-        }),
-      ),
       cardTheme: CardThemeData(
-        color: AxisColors.glassTier1.withOpacity(0.65),
+        color: AxisColors.glassTier1,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -163,6 +152,24 @@ class AxisTheme {
       ),
       dividerTheme: const DividerThemeData(
         color: AxisColors.borderSubtle, thickness: 1,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0x331C2B3C),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AxisColors.borderSubtle),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AxisColors.borderSubtle),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AxisColors.primary, width: 1.5),
+        ),
+        hintStyle: GoogleFonts.getFont('Geist',
+          fontSize: 16, color: AxisColors.textDim),
       ),
     );
   }

@@ -76,13 +76,13 @@ class TaskCard extends StatelessWidget {
                             label: task.dueDate!,
                             dotColor: _dueDateColor(task.dueDate!),
                             backgroundColor: _dueDateColor(task.dueDate!)
-                                .withOpacity(0.10),
+                                .withValues(alpha: 0.10),
                             textColor: _dueDateColor(task.dueDate!),
                           ),
                         ...tags.map((t) => AxisChip(
                           label: '@$t',
                           backgroundColor:
-                              AxisColors.primary.withOpacity(0.08),
+                              AxisColors.primary.withValues(alpha: 0.08),
                           textColor: AxisColors.primarySoft,
                         )),
                       ],

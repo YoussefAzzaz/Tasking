@@ -44,7 +44,11 @@ dependencies:
   google_fonts: ^9.0.0
   path: ^1.9.1
   path_provider: ^2.1.6
-
+  intl: ^0.20.3
+  audioplayers: ^6.8.1
+  awesome_notifications: ^0.12.1
+  home_widget: ^0.10.0
+  flutter_native_splash: ^2.4.8
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -66,6 +70,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/logo.png
+    - assets/transparent_splash.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -97,3 +105,15 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_native_splash:
+  color: "#080C14"
+  color_dark: "#080C14"
+  image: assets/transparent_splash.png
+  android_12:
+    color: "#080C14"
+    color_dark: "#080C14"
+    image: assets/transparent_splash.png
+  android: true
+  ios: true
+  web: false

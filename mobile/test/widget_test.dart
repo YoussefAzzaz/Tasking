@@ -1,30 +1,23 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:axis/main.dart';
+import 'package:axis/core/theme.dart';
+import 'package:axis/core/widgets.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('AxisCard renders child properly with dark theme', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AxisTheme.dark,
+        home: const Scaffold(
+          body: AxisCard(
+            tier: GlassTier.two,
+            child: Text('AXIS KINETIC TEST'),
+          ),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('AXIS KINETIC TEST'), findsOneWidget);
+    expect(find.byType(AxisCard), findsOneWidget);
   });
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:axis/core/theme.dart';
 
-/// Glass-tier card per DESIGN.md — backdrop blur, chromatic edge border.
+/// Glass-tier card per DESIGN.md
 class AxisCard extends StatelessWidget {
   const AxisCard({
     super.key,
@@ -21,14 +21,12 @@ class AxisCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (bgColor, bgAlpha, blurSigma) = switch (tier) {
-      GlassTier.one => (AxisColors.glassTier1, 0.65, 16.0),
-      GlassTier.two => (AxisColors.glassTier2, 0.82, 20.0),
+    final (bgColor, bgAlpha, blurSigma, borderColor) = switch (tier) {
+      GlassTier.one => (AxisColors.glassTier1, 0.65, 16.0, AxisColors.borderSubtle),
+      GlassTier.two => (AxisColors.glassTier2, 0.82, 20.0, AxisColors.borderGlass2),
     };
     final radius = borderRadius ?? 12.0;
-    final borderColor = accentBorder
-        ? AxisColors.borderPrimary
-        : AxisColors.borderSubtle;
+    final border = accentBorder ? AxisColors.borderPrimary : borderColor;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
@@ -37,9 +35,9 @@ class AxisCard extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: bgColor.withOpacity(bgAlpha),
+            color: bgColor.withValues(alpha: bgAlpha),
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: borderColor, width: 1),
+            border: Border.all(color: border, width: 1),
           ),
           child: child,
         ),
@@ -50,7 +48,7 @@ class AxisCard extends StatelessWidget {
 
 enum GlassTier { one, two }
 
-/// Pill chip used for tags, priority, estimates (Space Mono, 24-28px height)
+/// Pill chip (Space Mono, full-rounded, 24px height)
 class AxisChip extends StatelessWidget {
   const AxisChip({
     super.key,
@@ -67,7 +65,7 @@ class AxisChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColor ?? AxisColors.surfaceHigh.withOpacity(0.5);
+    final bg = backgroundColor ?? AxisColors.surfaceHigh.withValues(alpha: 0.5);
     final fg = textColor ?? AxisColors.textMuted;
 
     return Container(
@@ -106,9 +104,9 @@ class PriorityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, dotColor, bg) = switch (priority) {
-      1 => ('P1', AxisColors.warning, AxisColors.warning.withOpacity(0.12)),
-      2 => ('P2', AxisColors.primary, AxisColors.primary.withOpacity(0.12)),
-      _ => ('P3', AxisColors.textDim, AxisColors.surfaceHigh.withOpacity(0.3)),
+      1 => ('P1', AxisColors.warning, AxisColors.warning.withValues(alpha: 0.12)),
+      2 => ('P2', AxisColors.primary, AxisColors.primary.withValues(alpha: 0.12)),
+      _ => ('P3', AxisColors.textDim, AxisColors.surfaceHigh.withValues(alpha: 0.3)),
     };
     return AxisChip(
       label: label,
@@ -119,7 +117,7 @@ class PriorityChip extends StatelessWidget {
   }
 }
 
-/// XP micro-bar — emerald→cyan gradient, 6px height
+/// XP micro-bar — emerald→cyan gradient, slim track
 class XpBar extends StatelessWidget {
   const XpBar({super.key, required this.progress, this.height = 6.0});
   final double progress; // 0.0 → 1.0
@@ -129,6 +127,7 @@ class XpBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       return Stack(children: [
+        // Track
         Container(
           height: height,
           decoration: BoxDecoration(
@@ -136,8 +135,9 @@ class XpBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(9999),
           ),
         ),
+        // Fill
         AnimatedContainer(
-          duration: const Duration(milliseconds: 600),
+          duration: const Duration(milliseconds: 800),
           curve: Curves.easeOutCubic,
           height: height,
           width: constraints.maxWidth * progress.clamp(0.0, 1.0),
@@ -148,8 +148,9 @@ class XpBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(9999),
             boxShadow: [
               BoxShadow(
-                color: AxisColors.success.withOpacity(0.35),
+                color: AxisColors.success.withValues(alpha: 0.35),
                 blurRadius: 8, spreadRadius: -2,
+                offset: const Offset(0, 0),
               ),
             ],
           ),
@@ -159,7 +160,7 @@ class XpBar extends StatelessWidget {
   }
 }
 
-/// Streak badge pill with flame + day count
+/// Streak badge pill with flame + day count + emerald rim glow
 class StreakBadge extends StatelessWidget {
   const StreakBadge({super.key, required this.days, this.isActive = true});
   final int days;
@@ -168,33 +169,32 @@ class StreakBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: isActive
-            ? AxisColors.success.withOpacity(0.12)
-            : AxisColors.surfaceHigh.withOpacity(0.4),
+            ? AxisColors.success.withValues(alpha: 0.12)
+            : AxisColors.surfaceHigh.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(9999),
         border: Border.all(
-          color: isActive
-              ? AxisColors.success.withOpacity(0.4)
-              : AxisColors.borderSubtle,
+          color: isActive ? AxisColors.borderEmerald : AxisColors.borderSubtle,
           width: 1,
         ),
         boxShadow: isActive
             ? [BoxShadow(
-                color: AxisColors.success.withOpacity(0.2),
-                blurRadius: 12, spreadRadius: -2)]
+                color: AxisColors.success.withValues(alpha: 0.25),
+                blurRadius: 24, spreadRadius: -4)]
             : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🔥', style: TextStyle(fontSize: 12)),
+          Icon(Icons.local_fire_department_rounded,
+              size: 14, color: AxisColors.tertiary),
           const SizedBox(width: 4),
           Text(
             '$days',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: isActive ? AxisColors.successBright : AxisColors.textDim,
+              color: isActive ? AxisColors.tertiary : AxisColors.textDim,
             ),
           ),
         ],
@@ -203,7 +203,7 @@ class StreakBadge extends StatelessWidget {
   }
 }
 
-/// Custom checkbox per DESIGN.md — 20x20px geometric, spring animation
+/// Custom checkbox — 20×20px, 6px radius, emerald spring animation + glow
 class AxisCheckbox extends StatefulWidget {
   const AxisCheckbox({
     super.key,
@@ -226,8 +226,8 @@ class _AxisCheckboxState extends State<AxisCheckbox>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 200));
-    _scaleAnim = Tween<double>(begin: 1.0, end: 1.25).animate(
+        vsync: this, duration: const Duration(milliseconds: 280));
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.3).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
   }
 
@@ -245,37 +245,48 @@ class _AxisCheckboxState extends State<AxisCheckbox>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: _toggle,
-      child: ScaleTransition(
-        scale: _scaleAnim,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 20, height: 20,
-          decoration: BoxDecoration(
-            color: widget.checked ? AxisColors.success : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: widget.checked
-                  ? AxisColors.success
-                  : AxisColors.textMuted.withOpacity(0.3),
-              width: 1.5,
+      child: Container(
+        color: Colors.transparent,
+        padding: const EdgeInsets.all(6),
+        child: ScaleTransition(
+          scale: _scaleAnim,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: widget.checked ? AxisColors.success : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: widget.checked
+                    ? AxisColors.success
+                    : AxisColors.textMuted.withValues(alpha: 0.4),
+                width: 1.8,
+              ),
+              boxShadow: widget.checked
+                  ? [
+                      BoxShadow(
+                        color: AxisColors.success.withValues(alpha: 0.4),
+                        blurRadius: 10,
+                        spreadRadius: -2,
+                      )
+                    ]
+                  : null,
             ),
-            boxShadow: widget.checked
-                ? [BoxShadow(
-                    color: AxisColors.success.withOpacity(0.4),
-                    blurRadius: 10, spreadRadius: -2)]
+            child: widget.checked
+                ? const Icon(Icons.check_rounded,
+                    size: 14, color: AxisColors.canvasBase)
                 : null,
           ),
-          child: widget.checked
-              ? const Icon(Icons.check, size: 12, color: AxisColors.canvasBase)
-              : null,
         ),
       ),
     );
   }
 }
 
-/// Primary kinetic button per DESIGN.md
+/// Primary kinetic button
 class AxisButton extends StatelessWidget {
   const AxisButton({
     super.key,
@@ -315,11 +326,10 @@ class AxisButton extends StatelessWidget {
         ),
       );
     }
-    // Secondary glass
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        backgroundColor: AxisColors.surfaceHigh.withOpacity(0.6),
+        backgroundColor: AxisColors.surfaceHigh.withValues(alpha: 0.6),
         foregroundColor: AxisColors.textHigh,
         side: const BorderSide(color: AxisColors.borderSubtle, width: 1),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),

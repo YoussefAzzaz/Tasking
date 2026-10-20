@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_habit_streak_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:padding="14dp">
+
+    <!-- Header Row -->
+    <LinearLayout
+        android:id="@+id/widget_habit_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="AXIS • HABITS"
+            android:textColor="#F59E0B"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_habit_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/widget_pill_amber"
+            android:paddingStart="8dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="3dp"
+            android:text="STREAK"
+            android:textColor="#F59E0B"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Streak Display -->
+    <TextView
+        android:id="@+id/widget_habit_streak_days"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/widget_habit_header"
+        android:layout_marginTop="8dp"
+        android:text="🔥 0 DAYS"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <!-- Progress Summary -->
+    <TextView
+        android:id="@+id/widget_habit_progress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/widget_habit_streak_days"
+        android:layout_marginTop="4dp"
+        android:text="0 of 0 habits completed today"
+        android:textColor="#94A3B8"
+        android:textSize="12sp" />
+
+    <!-- Quote / Momentum Cue -->
+    <TextView
+        android:id="@+id/widget_habit_quote"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="Consistency creates mastery"
+        android:textColor="#38BDF8"
+        android:textSize="11sp"
+        android:textStyle="italic" />
+
+</RelativeLayout>

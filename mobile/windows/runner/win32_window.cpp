@@ -146,6 +146,19 @@ bool Win32Window::Create(const std::wstring& title,
 
   UpdateTheme(window);
 
+  HICON hIconBig = (HICON)LoadImage(
+      GetModuleHandle(nullptr), MAKEINTRESOURCE(IDI_APP_ICON), IMAGE_ICON,
+      GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR);
+  HICON hIconSmall = (HICON)LoadImage(
+      GetModuleHandle(nullptr), MAKEINTRESOURCE(IDI_APP_ICON), IMAGE_ICON,
+      GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+  if (hIconBig) {
+    SendMessage(window, WM_SETICON, ICON_BIG, (LPARAM)hIconBig);
+  }
+  if (hIconSmall) {
+    SendMessage(window, WM_SETICON, ICON_SMALL, (LPARAM)hIconSmall);
+  }
+
   return OnCreate();
 }
 

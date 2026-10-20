@@ -3,9 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
 import 'package:axis/data/powersync_db.dart';
+import 'package:axis/data/focus_session_service.dart';
+import 'package:axis/data/app_widget_sync_service.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   // System UI — transparent bars to let the canvas bleed edge-to-edge
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -18,6 +22,12 @@ Future<void> main() async {
 
   // Initialize local SQLite + Supabase connector
   await openDatabase();
+
+  // Initialize Focus session background service & notification channel
+  await FocusSessionService().init();
+
+  // Sync on-screen Android home widgets
+  AppWidgetSyncService().syncAll();
 
   runApp(const AxisApp());
 }

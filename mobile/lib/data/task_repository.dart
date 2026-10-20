@@ -4,6 +4,7 @@ import 'package:axis/data/powersync_db.dart';
 class Task {
   final String id;
   final String title;
+  final String? notes;
   final String status;
   final int? priority;
   final String? projectId;
@@ -17,6 +18,7 @@ class Task {
   Task({
     required this.id,
     required this.title,
+    this.notes,
     this.status = 'todo',
     this.priority,
     this.projectId,
@@ -32,6 +34,7 @@ class Task {
     return Task(
       id: row['id'],
       title: row['title'],
+      notes: row['notes'],
       status: row['status'] ?? 'todo',
       priority: row['priority'],
       projectId: row['project_id'],
@@ -48,6 +51,7 @@ class Task {
     return {
       'id': id,
       'title': title,
+      'notes': notes,
       'status': status,
       'priority': priority,
       'project_id': projectId,
@@ -72,13 +76,14 @@ class TaskRepository {
   Future<void> addTask(Task task) async {
     await db.execute('''
       INSERT INTO tasks (
-        id, title, status, priority, project_id, tags, due_date, due_time, estimate_min, recurrence_rule, recurrence_mode, created_at, updated_at
+        id, title, notes, status, priority, project_id, tags, due_date, due_time, estimate_min, recurrence_rule, recurrence_mode, created_at, updated_at
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     ''', [
       task.id,
       task.title,
+      task.notes,
       task.status,
       task.priority,
       task.projectId,
@@ -96,10 +101,11 @@ class TaskRepository {
   Future<void> updateTask(Task task) async {
     await db.execute('''
       UPDATE tasks SET
-        title = ?, status = ?, priority = ?, project_id = ?, tags = ?, due_date = ?, due_time = ?, estimate_min = ?, recurrence_rule = ?, recurrence_mode = ?, updated_at = ?
+        title = ?, notes = ?, status = ?, priority = ?, project_id = ?, tags = ?, due_date = ?, due_time = ?, estimate_min = ?, recurrence_rule = ?, recurrence_mode = ?, updated_at = ?
       WHERE id = ?
     ''', [
       task.title,
+      task.notes,
       task.status,
       task.priority,
       task.projectId,
