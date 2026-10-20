@@ -6,6 +6,7 @@ import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/location_service.dart';
 import 'package:axis/data/qibla_service.dart';
+import 'package:axis/data/adhan_alarm_service.dart';
 
 /// Representation of a single daily Islamic prayer
 class PrayerItem {
@@ -346,6 +347,9 @@ class PrayerTimeService with WidgetsBindingObserver {
 
       _lastSyncedDate = todayStr;
       await _saveSettings();
+
+      // Schedule Adhan notifications and Fajr Wake-Up Alarm
+      await AdhanAlarmService().scheduleAllPrayers(prayers);
 
       // Synchronize home screen widgets with updated prayer habits
       AppWidgetSyncService().syncHabitStreak();

@@ -6,6 +6,8 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/data/focus_repository.dart';
 import 'package:axis/data/neural_sound_service.dart';
+import 'package:axis/data/adhan_alarm_service.dart';
+import 'package:axis/data/habit_repository.dart';
 import 'package:axis/ui/focus/focus_settings_sheet.dart';
 
 class NotificationController {
@@ -28,13 +30,20 @@ class NotificationController {
     );
   }
 
-  static void _handleAction(String key) {
+  static void _handleAction(String key, {Map<String, String?>? payload, String? channelKey}) {
     if (key == 'ACTION_PAUSE') {
       FocusSessionService().pauseTimer();
     } else if (key == 'ACTION_RESUME') {
       FocusSessionService().startTimer();
     } else if (key == 'ACTION_STOP') {
       FocusSessionService().resetTimer();
+    } else if (key == 'DISMISS_FAJR_ALARM' || channelKey == 'fajr_alarm_channel') {
+      AdhanAlarmService().handleFajrAlarmAction();
+    } else if (key == 'MARK_DONE') {
+      final prayerId = payload?['prayer_id'];
+      if (prayerId != null) {
+        HabitRepository().toggleHabit(prayerId, true);
+      }
     }
   }
 
@@ -42,6 +51,19 @@ class NotificationController {
   static Future<void> onActionReceivedMethod(
       ReceivedAction receivedAction) async {
     final key = receivedAction.buttonKeyPressed;
+    final channelKey = receivedAction.channelKey;
+    final payload = receivedAction.payload;
+
+    if (channelKey == 'fajr_alarm_channel' || key == 'DISMISS_FAJR_ALARM') {
+      AdhanAlarmService().handleFajrAlarmAction();
+      return;
+    }
+
+    if (key == 'MARK_DONE' && payload != null && payload['prayer_id'] != null) {
+      HabitRepository().toggleHabit(payload['prayer_id']!, true);
+      return;
+    }
+
     if (key.isEmpty) return;
 
     final sendPort =
@@ -49,7 +71,7 @@ class NotificationController {
     if (sendPort != null) {
       sendPort.send(key);
     } else {
-      _handleAction(key);
+      _handleAction(key, payload: payload, channelKey: channelKey);
     }
   }
 
@@ -148,6 +170,28 @@ class FocusSessionService with WidgetsBindingObserver {
             channelShowBadge: true,
             playSound: true,
             enableVibration: true,
+          ),
+          NotificationChannel(
+            channelKey: 'prayer_adhan_channel',
+            channelName: 'Prayer Adhan & Times',
+            channelDescription: 'Daily Islamic prayer notifications and Adhan reminder',
+            defaultColor: const Color(0xFF38BDF8),
+            importance: NotificationImportance.Max,
+            channelShowBadge: true,
+            playSound: true,
+            enableVibration: true,
+            criticalAlerts: true,
+          ),
+          NotificationChannel(
+            channelKey: 'fajr_alarm_channel',
+            channelName: 'Fajr Wake-Up Alarm',
+            channelDescription: 'High-priority cognitive Fajr wake-up verification alarm',
+            defaultColor: const Color(0xFFEF4444),
+            importance: NotificationImportance.Max,
+            channelShowBadge: true,
+            playSound: true,
+            enableVibration: true,
+            criticalAlerts: true,
           ),
         ],
         debug: false,
@@ -345,8 +389,8 @@ class FocusSessionService with WidgetsBindingObserver {
           id: 1001,
           channelKey: 'focus_session_channel',
           title: isPaused
-              ? '⏸ Focus Paused • $timeStr'
-              : '⚡ Deep Focus • $timeStr',
+              ? 'Focus Paused • $timeStr'
+              : 'Deep Focus • $timeStr',
           body: isPaused
               ? '$taskTitle is paused'
               : '$taskTitle ($_selectedSoundscape)',
@@ -361,20 +405,20 @@ class FocusSessionService with WidgetsBindingObserver {
           if (isPaused)
             NotificationActionButton(
               key: 'ACTION_RESUME',
-              label: '▶ Resume',
+              label: 'Resume',
               actionType: ActionType.SilentBackgroundAction,
               autoDismissible: false,
             )
           else
             NotificationActionButton(
               key: 'ACTION_PAUSE',
-              label: '⏸ Pause',
+              label: 'Pause',
               actionType: ActionType.SilentBackgroundAction,
               autoDismissible: false,
             ),
           NotificationActionButton(
             key: 'ACTION_STOP',
-            label: '⏹ Stop',
+            label: 'Stop',
             actionType: ActionType.SilentBackgroundAction,
             autoDismissible: true,
           ),
@@ -396,7 +440,7 @@ class FocusSessionService with WidgetsBindingObserver {
         content: NotificationContent(
           id: 1002,
           channelKey: 'focus_completed_channel',
-          title: 'Focus Session Complete! 🎉',
+          title: 'Focus Session Complete',
           body:
               'Optimal continuity achieved. You earned +$xp XP for $taskTitle.',
           category: NotificationCategory.Status,

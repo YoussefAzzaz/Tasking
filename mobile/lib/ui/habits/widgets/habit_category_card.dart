@@ -5,6 +5,7 @@ import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
 import 'package:axis/ui/habits/widgets/qibla_compass_sheet.dart';
+import 'package:axis/ui/habits/widgets/prayer_settings_sheet.dart';
 
 /// EXPANDABLE HABIT CATEGORY CARD
 /// Displays habits grouped by category with live progress bar, completion status,
@@ -382,6 +383,16 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                           const SizedBox(width: 6),
                           if (isPrayers) ...[
                             IconButton(
+                              icon: const Icon(Icons.alarm_on_rounded,
+                                  size: 18, color: Color(0xFFEF4444)),
+                              tooltip: 'Adhan & Fajr Alarm Settings',
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 26, minHeight: 26),
+                              onPressed: () => PrayerSettingsSheet.show(context),
+                            ),
+                            IconButton(
                               icon: const Icon(Icons.explore_rounded,
                                   size: 18, color: AxisColors.success),
                               tooltip: 'Qibla Direction Compass',
@@ -527,6 +538,83 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                           Icons.arrow_forward_ios_rounded,
                           size: 11,
                           color: widget.color.withValues(alpha: 0.7),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            if (isPrayers)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
+                child: InkWell(
+                  onTap: () => PrayerSettingsSheet.show(context),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.alarm_on_rounded,
+                            size: 16, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text(
+                                    'Adhan Alerts & Fajr Wake-Up Alarm',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFFEF4444),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444)
+                                          .withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      '+1 MIN',
+                                      style: TextStyle(
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFFEF4444),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 1),
+                              const Text(
+                                'Anti-snooze mental verification enabled',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AxisColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.tune_rounded,
+                          size: 14,
+                          color: Color(0xFFEF4444),
                         ),
                       ],
                     ),

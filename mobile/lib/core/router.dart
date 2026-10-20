@@ -355,8 +355,12 @@ class _AxisBottomBar extends StatelessWidget {
   }
 }
 
+/// Global navigator key for presenting system-wide dialogs and alarms
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// GoRouter configuration with IndexedStack state persistence
 final router = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/splash',
   routes: [
     GoRoute(
