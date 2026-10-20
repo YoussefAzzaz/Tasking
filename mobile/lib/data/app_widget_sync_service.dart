@@ -115,7 +115,7 @@ class AppWidgetSyncService {
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
       final habitRows = await db.getAll(
-        'SELECT id, name, icon, color FROM habits ORDER BY created_at ASC',
+        'SELECT id, name, icon, color FROM habits ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC',
       );
 
       final habitLogRows = await db.getAll(

@@ -49,6 +49,7 @@ dependencies:
   awesome_notifications: ^0.12.1
   home_widget: ^0.10.0
   flutter_native_splash: ^2.4.8
+  adhan_dart: ^2.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

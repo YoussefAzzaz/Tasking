@@ -40,6 +40,11 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
 
   List<HabitCategory> _categories = [
     const HabitCategory(
+        id: 'cat_prayers',
+        name: 'Prayers',
+        icon: 'mosque',
+        color: '#10B981'),
+    const HabitCategory(
         id: 'cat_workout', name: 'Workout', icon: 'fitness', color: '#10B981'),
     const HabitCategory(
         id: 'cat_reading', name: 'Reading', icon: 'book', color: '#38BDF8'),

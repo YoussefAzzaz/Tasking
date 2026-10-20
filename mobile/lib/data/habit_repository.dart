@@ -14,6 +14,7 @@ class Habit {
   final int targetValue; // XP reward
   final bool isDoneToday;
   final int streakDays;
+  final int sortOrder;
 
   Habit({
     required this.id,
@@ -26,6 +27,7 @@ class Habit {
     this.targetValue = 20,
     this.isDoneToday = false,
     this.streakDays = 0,
+    this.sortOrder = 999,
   });
 
   factory Habit.fromRow(Map<String, dynamic> row, {bool isDone = false, int streak = 0}) {
@@ -42,6 +44,14 @@ class Habit {
         cat = 'Code';
       } else if (icon == 'sleep') {
         cat = 'Rest';
+      } else if (icon == 'mosque' ||
+          icon == 'prayer' ||
+          icon == 'fajr' ||
+          icon == 'dhuhr' ||
+          icon == 'asr' ||
+          icon == 'maghrib' ||
+          icon == 'isha') {
+        cat = 'Prayers';
       } else {
         cat = 'Workout';
       }
@@ -58,6 +68,7 @@ class Habit {
       targetValue: (row['target_value'] as num?)?.toInt() ?? 20,
       isDoneToday: isDone,
       streakDays: streak,
+      sortOrder: (row['sort_order'] as num?)?.toInt() ?? 999,
     );
   }
 }
@@ -73,7 +84,7 @@ class HabitRepository {
           'SELECT habits.*, habit_logs.status AS today_status '
           'FROM habits '
           'LEFT JOIN habit_logs ON habits.id = habit_logs.habit_id AND habit_logs.log_date = ? '
-          'ORDER BY habits.created_at ASC',
+          'ORDER BY COALESCE(habits.sort_order, 999) ASC, habits.created_at ASC',
           parameters: [today],
         )
         .asyncMap((habitRows) async {
@@ -114,8 +125,8 @@ class HabitRepository {
     final now = DateTime.now().toUtc().toIso8601String();
     await db.execute('''
       INSERT INTO habits (
-        id, name, kind, icon, color, schedule_type, remind_time, target_value, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, name, kind, icon, color, schedule_type, remind_time, target_value, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       habit.id,
       habit.name,
@@ -125,6 +136,7 @@ class HabitRepository {
       habit.scheduleType,
       habit.remindTime,
       habit.targetValue,
+      habit.sortOrder,
       now,
       now,
     ]);
@@ -135,7 +147,7 @@ class HabitRepository {
     final now = DateTime.now().toUtc().toIso8601String();
     await db.execute('''
       UPDATE habits SET
-        name = ?, kind = ?, icon = ?, color = ?, schedule_type = ?, remind_time = ?, target_value = ?, updated_at = ?
+        name = ?, kind = ?, icon = ?, color = ?, schedule_type = ?, remind_time = ?, target_value = ?, sort_order = ?, updated_at = ?
       WHERE id = ?
     ''', [
       habit.name,
@@ -145,6 +157,7 @@ class HabitRepository {
       habit.scheduleType,
       habit.remindTime,
       habit.targetValue,
+      habit.sortOrder,
       now,
       habit.id,
     ]);

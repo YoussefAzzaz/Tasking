@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/data/habit_repository.dart';
+import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
 
 /// EXPANDABLE HABIT CATEGORY CARD
@@ -52,6 +53,20 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
         return Icons.account_balance_wallet_rounded;
       case 'health':
         return Icons.favorite_rounded;
+      case 'mosque':
+      case 'prayer':
+      case 'prayers':
+        return Icons.mosque_rounded;
+      case 'fajr':
+        return Icons.wb_twilight_rounded;
+      case 'dhuhr':
+        return Icons.wb_sunny_rounded;
+      case 'asr':
+        return Icons.brightness_medium_rounded;
+      case 'maghrib':
+        return Icons.wb_twilight_rounded;
+      case 'isha':
+        return Icons.dark_mode_rounded;
       default:
         return Icons.fitness_center_rounded;
     }
@@ -205,6 +220,7 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
     final progress = total > 0 ? (done / total) : 0.0;
     final percent = (progress * 100).toInt();
     final isComplete = total > 0 && done == total;
+    final isPrayers = widget.category.name.toLowerCase() == 'prayers';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -259,19 +275,59 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    widget.category.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: AxisColors.textHigh,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          widget.category.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: AxisColors.textHigh,
+                                          ),
+                                        ),
+                                      ),
+                                      if (isPrayers) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: widget.color
+                                                .withValues(alpha: 0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            border: Border.all(
+                                                color: widget.color
+                                                    .withValues(alpha: 0.3)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.location_on_rounded,
+                                                  size: 10, color: widget.color),
+                                              const SizedBox(width: 2),
+                                              Text(
+                                                PrayerTimeService().currentCity,
+                                                style: TextStyle(
+                                                  color: widget.color,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '$done of $total habits finished today',
+                                    isPrayers
+                                        ? '$done of $total prayers completed today'
+                                        : '$done of $total habits finished today',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -323,8 +379,33 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                               ),
                             ),
                           const SizedBox(width: 6),
+                          if (isPrayers)
+                            IconButton(
+                              icon: const Icon(Icons.sync_rounded,
+                                  size: 18, color: AxisColors.textDim),
+                              tooltip: 'Refresh Prayer Times',
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 26, minHeight: 26),
+                              onPressed: () async {
+                                await PrayerTimeService()
+                                    .syncPrayerHabits(forceLocation: true);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Prayer times refreshed for ${PrayerTimeService().currentCity}'),
+                                      backgroundColor: AxisColors.surfaceLow,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
                           if (widget.onDeleteCategory != null &&
-                              widget.category.id != 'general_routines')
+                              widget.category.id != 'general_routines' &&
+                              !isPrayers)
                             IconButton(
                               icon: const Icon(Icons.delete_outline_rounded,
                                   size: 18, color: AxisColors.textDim),
@@ -473,10 +554,30 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                         children: [
                           if (habit.remindTime != null &&
                               habit.remindTime!.isNotEmpty)
-                            Text(
-                              habit.remindTime!,
-                              style: const TextStyle(
-                                  fontSize: 11, color: AxisColors.textMuted),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isPrayers) ...[
+                                  const Icon(Icons.access_time_filled_rounded,
+                                      size: 11, color: AxisColors.success),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Adan ${habit.remindTime!}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AxisColors.success,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ] else ...[
+                                  Text(
+                                    habit.remindTime!,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AxisColors.textMuted),
+                                  ),
+                                ],
+                              ],
                             ),
                           if (habit.streakDays > 0)
                             Row(
@@ -573,7 +674,9 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                       Icon(Icons.add, size: 14, color: widget.color),
                       const SizedBox(width: 6),
                       Text(
-                        'Add Habit to ${widget.category.name}',
+                        isPrayers
+                            ? 'Add Extra Prayer (e.g. Duha, Tahajjud)'
+                            : 'Add Habit to ${widget.category.name}',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

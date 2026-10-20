@@ -30,6 +30,20 @@ class LiveHabitCard extends StatelessWidget {
         return Icons.terminal_rounded;
       case 'sleep':
         return Icons.bedtime_rounded;
+      case 'mosque':
+      case 'prayer':
+      case 'prayers':
+        return Icons.mosque_rounded;
+      case 'fajr':
+        return Icons.wb_twilight_rounded;
+      case 'dhuhr':
+        return Icons.wb_sunny_rounded;
+      case 'asr':
+        return Icons.brightness_medium_rounded;
+      case 'maghrib':
+        return Icons.wb_twilight_rounded;
+      case 'isha':
+        return Icons.dark_mode_rounded;
       default:
         return Icons.fitness_center_rounded;
     }

@@ -5,6 +5,7 @@ import 'package:axis/core/router.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
+import 'package:axis/data/prayer_time_service.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 Future<void> main() async {
@@ -25,6 +26,9 @@ Future<void> main() async {
 
   // Initialize Focus session background service & notification channel
   await FocusSessionService().init();
+
+  // Initialize Islamic prayer times & daily prayer habits
+  await PrayerTimeService().init();
 
   // Sync on-screen Android home widgets and start real-time reactive sync
   AppWidgetSyncService().syncAll();

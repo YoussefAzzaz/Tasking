@@ -338,6 +338,11 @@ class _HabitsScreenState extends State<HabitsScreen> {
                     if (allCategories.isEmpty) {
                       final defaults = const [
                         HabitCategory(
+                            id: 'cat_prayers',
+                            name: 'Prayers',
+                            icon: 'mosque',
+                            color: '#10B981'),
+                        HabitCategory(
                             id: 'cat_workout',
                             name: 'Workout',
                             icon: 'fitness',
@@ -376,6 +381,15 @@ class _HabitsScreenState extends State<HabitsScreen> {
                           .toList();
                       allCategories.addAll(defaults);
                     }
+
+                    // Prioritize Prayers category at the top
+                    allCategories.sort((a, b) {
+                      final aIsPrayer = a.name.toLowerCase() == 'prayers';
+                      final bIsPrayer = b.name.toLowerCase() == 'prayers';
+                      if (aIsPrayer && !bIsPrayer) return -1;
+                      if (!aIsPrayer && bIsPrayer) return 1;
+                      return a.name.compareTo(b.name);
+                    });
 
                     // Separate habits by category
                     final Map<String, List<Habit>> habitsByCategory = {};
