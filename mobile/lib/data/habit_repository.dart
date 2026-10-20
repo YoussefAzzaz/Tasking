@@ -5,6 +5,7 @@ import 'package:axis/domain/id_generator.dart';
 class Habit {
   final String id;
   final String name;
+  final String category;
   final String icon;
   final String color;
   final String scheduleType;
@@ -16,6 +17,7 @@ class Habit {
   Habit({
     required this.id,
     required this.name,
+    this.category = 'Workout',
     this.icon = 'fitness',
     this.color = '#10B981',
     this.scheduleType = 'daily',
@@ -26,9 +28,28 @@ class Habit {
   });
 
   factory Habit.fromRow(Map<String, dynamic> row, {bool isDone = false, int streak = 0}) {
+    String cat = (row['kind'] as String?)?.trim() ?? '';
+    if (cat.isEmpty) {
+      final icon = (row['icon'] as String?) ?? '';
+      if (icon == 'book') {
+        cat = 'Reading';
+      } else if (icon == 'meditation') {
+        cat = 'Mindful';
+      } else if (icon == 'water') {
+        cat = 'Hydrate';
+      } else if (icon == 'code') {
+        cat = 'Code';
+      } else if (icon == 'sleep') {
+        cat = 'Rest';
+      } else {
+        cat = 'Workout';
+      }
+    }
+
     return Habit(
       id: row['id'] as String,
       name: row['name'] as String,
+      category: cat,
       icon: (row['icon'] as String?) ?? 'fitness',
       color: (row['color'] as String?) ?? '#10B981',
       scheduleType: (row['schedule_type'] as String?) ?? 'daily',
@@ -91,11 +112,12 @@ class HabitRepository {
     final now = DateTime.now().toUtc().toIso8601String();
     await db.execute('''
       INSERT INTO habits (
-        id, name, icon, color, schedule_type, remind_time, target_value, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, name, kind, icon, color, schedule_type, remind_time, target_value, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       habit.id,
       habit.name,
+      habit.category,
       habit.icon,
       habit.color,
       habit.scheduleType,
@@ -110,10 +132,11 @@ class HabitRepository {
     final now = DateTime.now().toUtc().toIso8601String();
     await db.execute('''
       UPDATE habits SET
-        name = ?, icon = ?, color = ?, schedule_type = ?, remind_time = ?, target_value = ?, updated_at = ?
+        name = ?, kind = ?, icon = ?, color = ?, schedule_type = ?, remind_time = ?, target_value = ?, updated_at = ?
       WHERE id = ?
     ''', [
       habit.name,
+      habit.category,
       habit.icon,
       habit.color,
       habit.scheduleType,

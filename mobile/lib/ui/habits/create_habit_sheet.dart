@@ -13,10 +13,12 @@ class CreateHabitSheet extends StatefulWidget {
     super.key,
     required this.onHabitCreated,
     this.habitToEdit,
+    this.initialCategory,
   });
 
   final VoidCallback onHabitCreated;
   final Habit? habitToEdit;
+  final String? initialCategory;
 
   @override
   State<CreateHabitSheet> createState() => _CreateHabitSheetState();
@@ -60,6 +62,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
     if (widget.habitToEdit != null) {
       final h = widget.habitToEdit!;
       _nameController.text = h.name;
+      _categoryController.text = h.category;
       _selectedIcon = h.icon;
       _selectedColor = h.color;
       _scheduleType = h.scheduleType;
@@ -82,6 +85,9 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
           _reminderTime = TimeOfDay(hour: hour, minute: minute);
         } catch (_) {}
       }
+    } else if (widget.initialCategory != null &&
+        widget.initialCategory!.trim().isNotEmpty) {
+      _categoryController.text = widget.initialCategory!.trim();
     }
     _loadCategories();
     _categoryFocusNode.addListener(() {
@@ -113,7 +119,21 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                 ))
             .toList();
         if (mounted) {
-          setState(() => _categories = list);
+          setState(() {
+            _categories = list;
+            if (widget.habitToEdit == null &&
+                _categoryController.text.trim().isNotEmpty) {
+              final cat = _categoryController.text.trim().toLowerCase();
+              final match = list.firstWhere(
+                (c) => c.name.toLowerCase() == cat,
+                orElse: () => const HabitCategory(id: '', name: ''),
+              );
+              if (match.name.isNotEmpty) {
+                _selectedIcon = match.icon;
+                _selectedColor = match.color;
+              }
+            }
+          });
         }
       }
     } catch (_) {}
@@ -178,10 +198,13 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
         ? '${_reminderTime!.hourOfPeriod == 0 ? 12 : _reminderTime!.hourOfPeriod}:${_reminderTime!.minute.toString().padLeft(2, '0')} ${_reminderTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
         : null;
 
+    final category = categoryName.isNotEmpty ? categoryName : 'Workout';
+
     if (widget.habitToEdit != null) {
       final updatedHabit = Habit(
         id: widget.habitToEdit!.id,
         name: name,
+        category: category,
         icon: _selectedIcon,
         color: _selectedColor,
         scheduleType: _scheduleType,
@@ -202,6 +225,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
       id: IdGenerator.generateDeterministicId(
           'habit_${DateTime.now().microsecondsSinceEpoch}_$name'),
       name: name,
+      category: category,
       icon: _selectedIcon,
       color: _selectedColor,
       scheduleType: _scheduleType,

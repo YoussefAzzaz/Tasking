@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
-import 'package:axis/core/widgets.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/domain/streak_engine.dart';
 import 'package:axis/ui/habits/create_habit_sheet.dart';
-import 'package:axis/ui/habits/widgets/live_habit_card.dart';
 import 'package:axis/ui/habits/widgets/habit_continuity_card.dart';
+import 'package:axis/ui/habits/widgets/habit_category_card.dart';
 
-export 'package:axis/ui/habits/widgets/live_habit_card.dart';
 export 'package:axis/ui/habits/widgets/habit_continuity_card.dart';
+export 'package:axis/ui/habits/widgets/habit_category_card.dart';
 
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
@@ -22,20 +21,37 @@ class HabitsScreen extends StatefulWidget {
 class _HabitsScreenState extends State<HabitsScreen> {
   final _repo = HabitRepository();
   late final Stream<List<Map<String, dynamic>>> _habitLogsStream;
+  late final Stream<List<Map<String, dynamic>>> _habitCategoriesStream;
+  late final Stream<List<Habit>> _habitsStream;
+  static final Set<String> _locallyDeletedCategories = {};
 
   @override
   void initState() {
     super.initState();
     _habitLogsStream =
         db.watch('SELECT * FROM habit_logs ORDER BY log_date DESC');
+    _habitCategoriesStream =
+        db.watch('SELECT * FROM habit_categories ORDER BY name ASC');
+    _habitsStream = _repo.watchHabits();
   }
 
-  void _openCreateHabit() {
+  Color _parseHex(String? hex) {
+    if (hex == null || hex.isEmpty) return AxisColors.success;
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse('FF$clean', radix: 16));
+    } catch (_) {
+      return AxisColors.success;
+    }
+  }
+
+  void _openCreateHabit({String? initialCategory}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => CreateHabitSheet(
+        initialCategory: initialCategory,
         onHabitCreated: () => setState(() {}),
       ),
     );
@@ -185,128 +201,305 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
           const SizedBox(height: 20),
 
-          // HABIT LIST HEADER WITH "+ Add Habit" BUTTON
+          // HABIT CATEGORIES HEADER BANNER WITH "+ Add Habit" BUTTON
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.tune_rounded,
-                        color: AxisColors.textMuted, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'DAILY ROUTINES',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: AxisColors.textMuted,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ],
-                ),
-                InkWell(
-                  onTap: _openCreateHabit,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AxisColors.success.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: AxisColors.success.withValues(alpha: 0.4)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add, size: 14, color: AxisColors.success),
-                        SizedBox(width: 4),
-                        Text(
-                          'Add Habit',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AxisColors.success,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AxisColors.surfaceLow.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AxisColors.borderSubtle),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: const [
+                        Icon(Icons.tune_rounded,
+                            color: AxisColors.success, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'HABIT ROUTINES BY CATEGORY',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AxisColors.success,
+                              letterSpacing: 1.1,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () => _openCreateHabit(),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      backgroundColor:
+                          AxisColors.success.withValues(alpha: 0.15),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.add_rounded,
+                        size: 14, color: AxisColors.success),
+                    label: const Text(
+                      'Add Habit',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AxisColors.success,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // DYNAMIC HABIT STREAM LIST
+          // DYNAMIC HABIT CATEGORY STREAM & LIST
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: StreamBuilder<List<Habit>>(
-              stream: _repo.watchHabits(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child:
-                          CircularProgressIndicator(color: AxisColors.success),
-                    ),
-                  );
-                }
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _habitCategoriesStream,
+              builder: (context, catSnapshot) {
+                return StreamBuilder<List<Habit>>(
+                  stream: _habitsStream,
+                  builder: (context, habitSnapshot) {
+                    if (catSnapshot.connectionState ==
+                            ConnectionState.waiting &&
+                        habitSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(
+                              color: AxisColors.success),
+                        ),
+                      );
+                    }
 
-                final habits = snapshot.data ?? [];
-                if (habits.isEmpty) {
-                  return AxisCard(
-                    tier: GlassTier.two,
-                    padding: const EdgeInsets.all(20),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Icon(Icons.local_fire_department_outlined,
-                              size: 40, color: AxisColors.textDim),
+                    final catRows = catSnapshot.data ?? [];
+                    final allHabits = habitSnapshot.data ?? [];
+
+                    final customCategories = catRows
+                        .map((r) => HabitCategory(
+                              id: r['id'] as String,
+                              name: r['name'] as String,
+                              icon: (r['icon'] as String?) ?? 'fitness',
+                              color: (r['color'] as String?) ?? '#10B981',
+                            ))
+                        .toList();
+
+                    // Discovered categories from habits' category if not in DB
+                    final categoryNames = <String>{};
+                    for (final c in customCategories) {
+                      categoryNames.add(c.name.toLowerCase());
+                    }
+
+                    final discoveredCategories = <HabitCategory>[];
+                    for (final h in allHabits) {
+                      final catTrimmed = h.category.trim();
+                      if (catTrimmed.isNotEmpty &&
+                          !categoryNames.contains(catTrimmed.toLowerCase())) {
+                        categoryNames.add(catTrimmed.toLowerCase());
+                        discoveredCategories.add(
+                          HabitCategory(
+                            id: 'discovered_$catTrimmed',
+                            name: catTrimmed,
+                            icon: h.icon,
+                            color: h.color,
+                          ),
+                        );
+                      }
+                    }
+
+                    final allCategories = [
+                      ...customCategories,
+                      ...discoveredCategories
+                    ].where((c) {
+                      final idLower = c.id.toLowerCase();
+                      final nameLower = c.name.toLowerCase();
+                      return !_locallyDeletedCategories.contains(idLower) &&
+                          !_locallyDeletedCategories.contains(nameLower) &&
+                          !_locallyDeletedCategories
+                              .contains(idLower.replaceFirst('discovered_', ''));
+                    }).toList();
+
+                    // Defaults if empty
+                    if (allCategories.isEmpty) {
+                      final defaults = const [
+                        HabitCategory(
+                            id: 'cat_workout',
+                            name: 'Workout',
+                            icon: 'fitness',
+                            color: '#10B981'),
+                        HabitCategory(
+                            id: 'cat_reading',
+                            name: 'Reading',
+                            icon: 'book',
+                            color: '#38BDF8'),
+                        HabitCategory(
+                            id: 'cat_mindful',
+                            name: 'Mindful',
+                            icon: 'meditation',
+                            color: '#A855F7'),
+                        HabitCategory(
+                            id: 'cat_hydrate',
+                            name: 'Hydrate',
+                            icon: 'water',
+                            color: '#06B6D4'),
+                        HabitCategory(
+                            id: 'cat_code',
+                            name: 'Code',
+                            icon: 'code',
+                            color: '#6366F1'),
+                        HabitCategory(
+                            id: 'cat_rest',
+                            name: 'Rest',
+                            icon: 'sleep',
+                            color: '#F59E0B'),
+                      ]
+                          .where((c) =>
+                              !_locallyDeletedCategories
+                                  .contains(c.id.toLowerCase()) &&
+                              !_locallyDeletedCategories
+                                  .contains(c.name.toLowerCase()))
+                          .toList();
+                      allCategories.addAll(defaults);
+                    }
+
+                    // Separate habits by category
+                    final Map<String, List<Habit>> habitsByCategory = {};
+                    final unassignedHabits = <Habit>[];
+
+                    for (final h in allHabits) {
+                      final catTrimmed = h.category.trim();
+                      if (catTrimmed.isEmpty) {
+                        unassignedHabits.add(h);
+                        continue;
+                      }
+
+                      final matchedCat = allCategories.firstWhere(
+                        (c) =>
+                            c.id == catTrimmed ||
+                            c.name.toLowerCase() == catTrimmed.toLowerCase(),
+                        orElse: () => const HabitCategory(id: '', name: ''),
+                      );
+
+                      if (matchedCat.name.isNotEmpty) {
+                        habitsByCategory
+                            .putIfAbsent(matchedCat.name, () => [])
+                            .add(h);
+                      } else {
+                        unassignedHabits.add(h);
+                      }
+                    }
+
+                    return Column(
+                      children: [
+                        ...allCategories.map((category) {
+                          final habits = habitsByCategory[category.name] ?? [];
+                          final color = _parseHex(category.color);
+
+                          return HabitCategoryCard(
+                            category: category,
+                            color: color,
+                            habits: habits,
+                            onToggleHabit: (habit, done) =>
+                                _repo.toggleHabit(habit.id, done),
+                            onEditHabit: (habit) {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => CreateHabitSheet(
+                                  habitToEdit: habit,
+                                  onHabitCreated: () => setState(() {}),
+                                ),
+                              );
+                            },
+                            onDeleteHabit: (habit) =>
+                                _repo.deleteHabit(habit.id),
+                            onAddHabit: () => _openCreateHabit(
+                                initialCategory: category.name),
+                            onDeleteCategory: () async {
+                              setState(() {
+                                _locallyDeletedCategories
+                                    .add(category.id.toLowerCase());
+                                _locallyDeletedCategories
+                                    .add(category.name.toLowerCase());
+                                final raw = category.id
+                                    .toLowerCase()
+                                    .replaceFirst('discovered_', '');
+                                _locallyDeletedCategories.add(raw);
+                              });
+
+                              try {
+                                await db.execute('''
+                                  DELETE FROM habit_categories
+                                  WHERE id = ? 
+                                     OR id = ?
+                                     OR LOWER(name) = LOWER(?)
+                                ''', [
+                                  category.id,
+                                  category.id.replaceFirst('discovered_', ''),
+                                  category.name
+                                ]);
+                                await db.execute('''
+                                  UPDATE habits 
+                                  SET kind = NULL 
+                                  WHERE LOWER(COALESCE(kind, '')) = LOWER(?)
+                                ''', [category.name]);
+                              } catch (e) {
+                                debugPrint('Error deleting category: $e');
+                              }
+                            },
+                          );
+                        }),
+
+                        // Unassigned / General Routines section if any
+                        if (unassignedHabits.isNotEmpty) ...[
                           const SizedBox(height: 8),
-                          const Text('No habits created yet',
-                              style: TextStyle(color: AxisColors.textDim)),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            onPressed: _openCreateHabit,
-                            icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Create First Habit'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AxisColors.success,
-                              foregroundColor: Colors.white,
+                          HabitCategoryCard(
+                            category: const HabitCategory(
+                              id: 'general_routines',
+                              name: 'General Routines',
+                              icon: 'fitness',
+                              color: '#64748B',
                             ),
+                            color: const Color(0xFF64748B),
+                            habits: unassignedHabits,
+                            onToggleHabit: (habit, done) =>
+                                _repo.toggleHabit(habit.id, done),
+                            onEditHabit: (habit) {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => CreateHabitSheet(
+                                  habitToEdit: habit,
+                                  onHabitCreated: () => setState(() {}),
+                                ),
+                              );
+                            },
+                            onDeleteHabit: (habit) =>
+                                _repo.deleteHabit(habit.id),
+                            onAddHabit: () => _openCreateHabit(
+                                initialCategory: 'General Routines'),
                           ),
                         ],
-                      ),
-                    ),
-                  );
-                }
-
-                return Column(
-                  children: habits.map((habit) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: LiveHabitCard(
-                        habit: habit,
-                        onToggle: (done) => _repo.toggleHabit(habit.id, done),
-                        onEdit: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => CreateHabitSheet(
-                              habitToEdit: habit,
-                              onHabitCreated: () => setState(() {}),
-                            ),
-                          );
-                        },
-                        onDelete: () => _repo.deleteHabit(habit.id),
-                      ),
+                      ],
                     );
-                  }).toList(),
+                  },
                 );
               },
             ),
