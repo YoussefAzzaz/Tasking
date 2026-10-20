@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/streak_engine.dart';
+import 'package:axis/data/location_service.dart';
+import 'package:axis/data/prayer_time_service.dart';
 
 /// Centralized service to keep Android Home Screen widgets synchronized
 /// with local database changes in real time.
@@ -92,10 +94,41 @@ class AppWidgetSyncService {
           ? 'No tasks scheduled for today.'
           : lines.join('\n');
 
+      // Resolve city name from LocationService (GPS / IP / Fallback) or PrayerTimeService
+      String cityName = '';
+      try {
+        final loc = await LocationService().getLocation();
+        if (loc.city.isNotEmpty &&
+            loc.city != 'Local' &&
+            loc.city != 'Auto' &&
+            loc.city != 'GPS Location') {
+          cityName = loc.city;
+        }
+      } catch (_) {}
+
+      if (cityName.isEmpty) {
+        final prayerCity = PrayerTimeService().currentCity;
+        if (prayerCity.isNotEmpty &&
+            prayerCity != 'Local' &&
+            prayerCity != 'Auto' &&
+            prayerCity != 'GPS Location') {
+          cityName = prayerCity;
+        }
+      }
+
+      // Clean up any region/GMT suffixes if present, e.g. "North Africa (GMT+1)" -> "North Africa"
+      final cleanCity = cityName.replaceAll(RegExp(r'\s*\(.*?\)'), '').trim();
+
+      final dateWithCity = cleanCity.isNotEmpty
+          ? '$formattedDate • ${cleanCity.toUpperCase()}'
+          : formattedDate;
+
       await HomeWidget.saveWidgetData<String>(
           'today_tasks_title', 'AXIS • TODAY');
       await HomeWidget.saveWidgetData<String>(
-          'today_tasks_date', formattedDate);
+          'today_tasks_date', dateWithCity);
+      await HomeWidget.saveWidgetData<String>(
+          'today_tasks_city', cleanCity.toUpperCase());
       await HomeWidget.saveWidgetData<String>(
           'today_tasks_count', '$done/$total DONE');
       await HomeWidget.saveWidgetData<String>('today_tasks_content', content);

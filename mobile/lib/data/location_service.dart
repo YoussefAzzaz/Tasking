@@ -105,12 +105,31 @@ class LocationService {
         ),
       );
 
-      // Attempt reverse geocoding or display clean coordinates
+      // Resolve human-readable city name from cached location or fast IP lookup
+      String resolvedCity = _cachedLocation?.city ?? '';
+      String resolvedCountry = _cachedLocation?.country ?? '';
+
+      if (resolvedCity.isEmpty || resolvedCity == 'GPS Location' || resolvedCity == 'Local') {
+        try {
+          final ipLoc = await _tryIpGeolocation();
+          if (ipLoc != null && ipLoc.city.isNotEmpty && ipLoc.city != 'Local') {
+            resolvedCity = ipLoc.city;
+            resolvedCountry = ipLoc.country;
+          }
+        } catch (_) {}
+      }
+
+      if (resolvedCity.isEmpty || resolvedCity == 'GPS Location') {
+        final offset = _fallbackTimezoneLocation();
+        resolvedCity = offset.city;
+        resolvedCountry = offset.country;
+      }
+
       return AppLocation(
         latitude: position.latitude,
         longitude: position.longitude,
-        city: 'GPS Location',
-        country: '',
+        city: resolvedCity,
+        country: resolvedCountry,
         source: LocationSource.gps,
       );
     } catch (e) {
