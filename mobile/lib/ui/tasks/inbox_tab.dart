@@ -1,0 +1,98 @@
+import 'package:flutter/material.dart';
+import 'package:axis/core/theme.dart';
+import 'package:axis/data/task_repository.dart';
+import 'package:axis/ui/tasks/task_card.dart';
+import 'package:axis/ui/tasks/task_detail_sheet.dart';
+import 'package:axis/ui/tasks/task_filter_sheet.dart';
+import 'package:axis/ui/tasks/tasks_empty_state.dart';
+
+/// INBOX TAB (With reactive filter criteria, due date sorting, and cached stream)
+class InboxTab extends StatefulWidget {
+  const InboxTab({
+    super.key,
+    required this.repo,
+    required this.filterCriteria,
+  });
+
+  final TaskRepository repo;
+  final ValueNotifier<TaskFilterCriteria> filterCriteria;
+
+  @override
+  State<InboxTab> createState() => _InboxTabState();
+}
+
+class _InboxTabState extends State<InboxTab> {
+  late final Stream<List<Task>> _tasksStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _tasksStream = widget.repo.watchTasks();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<TaskFilterCriteria>(
+      valueListenable: widget.filterCriteria,
+      builder: (context, criteria, _) {
+        return StreamBuilder<List<Task>>(
+          stream: _tasksStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: AxisColors.primary),
+              );
+            }
+
+            final allTasks = snapshot.data ?? [];
+            final filteredTasks = allTasks.where(criteria.matches).toList()
+              ..sort(compareTasksByDueDate);
+
+            if (filteredTasks.isEmpty) {
+              return TasksEmptyState(
+                isFiltered: criteria.isActive,
+                onReset: () =>
+                    widget.filterCriteria.value = const TaskFilterCriteria(),
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: filteredTasks.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, i) {
+                final task = filteredTasks[i];
+                return TaskCard(
+                  task: task,
+                  onToggle: (checked) async {
+                    final updated = Task(
+                      id: task.id,
+                      title: task.title,
+                      notes: task.notes,
+                      status: checked ? 'done' : 'todo',
+                      priority: task.priority,
+                      projectId: task.projectId,
+                      tags: task.tags,
+                      dueDate: task.dueDate,
+                      dueTime: task.dueTime,
+                      estimateMin: task.estimateMin,
+                      recurrenceRule: task.recurrenceRule,
+                      recurrenceMode: task.recurrenceMode,
+                    );
+                    await widget.repo.updateTask(updated);
+                  },
+                  onTap: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => TaskDetailSheet(task: task),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}

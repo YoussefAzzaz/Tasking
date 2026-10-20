@@ -3,20 +3,10 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/id_generator.dart';
+import 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
+import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
 
-class HabitCategory {
-  final String id;
-  final String name;
-  final String icon;
-  final String color;
-
-  const HabitCategory({
-    required this.id,
-    required this.name,
-    this.icon = 'fitness',
-    this.color = '#10B981',
-  });
-}
+export 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
 
 class CreateHabitSheet extends StatefulWidget {
   const CreateHabitSheet({
@@ -24,6 +14,7 @@ class CreateHabitSheet extends StatefulWidget {
     required this.onHabitCreated,
     this.habitToEdit,
   });
+
   final VoidCallback onHabitCreated;
   final Habit? habitToEdit;
 
@@ -46,20 +37,21 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
   String? _errorText;
 
   List<HabitCategory> _categories = [
-    const HabitCategory(id: 'cat_workout', name: 'Workout', icon: 'fitness', color: '#10B981'),
-    const HabitCategory(id: 'cat_reading', name: 'Reading', icon: 'book', color: '#38BDF8'),
-    const HabitCategory(id: 'cat_mindful', name: 'Mindful', icon: 'meditation', color: '#A855F7'),
-    const HabitCategory(id: 'cat_hydrate', name: 'Hydrate', icon: 'water', color: '#06B6D4'),
-    const HabitCategory(id: 'cat_code', name: 'Code', icon: 'code', color: '#6366F1'),
-    const HabitCategory(id: 'cat_rest', name: 'Rest', icon: 'sleep', color: '#F59E0B'),
-  ];
-
-  static const _colors = [
-    {'hex': '#10B981', 'color': AxisColors.success, 'label': 'Emerald'},
-    {'hex': '#38BDF8', 'color': AxisColors.secondary, 'label': 'Cyan'},
-    {'hex': '#6366F1', 'color': AxisColors.primary, 'label': 'Indigo'},
-    {'hex': '#F59E0B', 'color': AxisColors.warning, 'label': 'Amber'},
-    {'hex': '#EC4899', 'color': Color(0xFFEC4899), 'label': 'Rose'},
+    const HabitCategory(
+        id: 'cat_workout', name: 'Workout', icon: 'fitness', color: '#10B981'),
+    const HabitCategory(
+        id: 'cat_reading', name: 'Reading', icon: 'book', color: '#38BDF8'),
+    const HabitCategory(
+        id: 'cat_mindful',
+        name: 'Mindful',
+        icon: 'meditation',
+        color: '#A855F7'),
+    const HabitCategory(
+        id: 'cat_hydrate', name: 'Hydrate', icon: 'water', color: '#06B6D4'),
+    const HabitCategory(
+        id: 'cat_code', name: 'Code', icon: 'code', color: '#6366F1'),
+    const HabitCategory(
+        id: 'cat_rest', name: 'Rest', icon: 'sleep', color: '#F59E0B'),
   ];
 
   @override
@@ -78,9 +70,13 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
           final timeParts = parts[0].split(':');
           int hour = int.parse(timeParts[0]);
           final minute = int.parse(timeParts[1]);
-          if (parts.length > 1 && parts[1].toUpperCase() == 'PM' && hour != 12) {
+          if (parts.length > 1 &&
+              parts[1].toUpperCase() == 'PM' &&
+              hour != 12) {
             hour += 12;
-          } else if (parts.length > 1 && parts[1].toUpperCase() == 'AM' && hour == 12) {
+          } else if (parts.length > 1 &&
+              parts[1].toUpperCase() == 'AM' &&
+              hour == 12) {
             hour = 0;
           }
           _reminderTime = TimeOfDay(hour: hour, minute: minute);
@@ -105,28 +101,22 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
 
   Future<void> _loadCategories() async {
     try {
-      final rows = await db.getAll('SELECT * FROM habit_categories ORDER BY name ASC');
+      final rows =
+          await db.getAll('SELECT * FROM habit_categories ORDER BY name ASC');
       if (rows.isNotEmpty) {
-        final list = rows.map((r) => HabitCategory(
-          id: r['id'] as String,
-          name: r['name'] as String,
-          icon: (r['icon'] as String?) ?? 'fitness',
-          color: (r['color'] as String?) ?? '#10B981',
-        )).toList();
+        final list = rows
+            .map((r) => HabitCategory(
+                  id: r['id'] as String,
+                  name: r['name'] as String,
+                  icon: (r['icon'] as String?) ?? 'fitness',
+                  color: (r['color'] as String?) ?? '#10B981',
+                ))
+            .toList();
         if (mounted) {
           setState(() => _categories = list);
         }
       }
     } catch (_) {}
-  }
-
-  Color _parseHex(String hex) {
-    try {
-      final clean = hex.replaceAll('#', '');
-      return Color(int.parse('FF$clean', radix: 16));
-    } catch (_) {
-      return AxisColors.success;
-    }
   }
 
   Future<void> _pickTime() async {
@@ -173,7 +163,12 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
         try {
           await db.execute(
             'INSERT OR IGNORE INTO habit_categories (id, name, icon, color) VALUES (?, ?, ?, ?)',
-            ['cat_${DateTime.now().microsecondsSinceEpoch}', categoryName, _selectedIcon, _selectedColor],
+            [
+              'cat_${DateTime.now().microsecondsSinceEpoch}',
+              categoryName,
+              _selectedIcon,
+              _selectedColor
+            ],
           );
         } catch (_) {}
       }
@@ -222,116 +217,6 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
     }
   }
 
-  List<Widget> _buildCategoryDropdownItems() {
-    final query = _categoryController.text.trim().toLowerCase();
-    final items = <Widget>[];
-
-    final filtered = _categories.where((c) {
-      if (query.isEmpty) return true;
-      return c.name.toLowerCase().contains(query);
-    }).toList();
-
-    for (final cat in filtered) {
-      final isSel = _categoryController.text.trim().toLowerCase() ==
-          cat.name.toLowerCase();
-      final color = _parseHex(cat.color);
-
-      items.add(
-        InkWell(
-          onTap: () {
-            setState(() {
-              _categoryController.text = cat.name;
-              _selectedIcon = cat.icon;
-              _selectedColor = cat.color;
-              _showCategoryDropdown = false;
-              _categoryFocusNode.unfocus();
-            });
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isSel
-                  ? AxisColors.surfaceHigh.withValues(alpha: 0.6)
-                  : Colors.transparent,
-              border: const Border(
-                bottom: BorderSide(color: AxisColors.borderSubtle, width: 0.5),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.5),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    cat.name,
-                    style: TextStyle(
-                      color: isSel ? AxisColors.textHigh : AxisColors.textMuted,
-                      fontSize: 13,
-                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                ),
-                if (isSel)
-                  const Icon(Icons.check_rounded,
-                      size: 16, color: AxisColors.success),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    final exactMatch = _categories.any((c) => c.name.toLowerCase() == query);
-    if (query.isNotEmpty && !exactMatch) {
-      final typed = _categoryController.text.trim();
-      items.add(
-        InkWell(
-          onTap: () {
-            setState(() {
-              _categoryController.text = typed;
-              _showCategoryDropdown = false;
-              _categoryFocusNode.unfocus();
-            });
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: [
-                const Icon(Icons.add_rounded, size: 16, color: AxisColors.success),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Create category "$typed"',
-                    style: const TextStyle(
-                      color: AxisColors.success,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return items;
-  }
-
   @override
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
@@ -350,7 +235,8 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
           ),
           decoration: BoxDecoration(
             color: const Color(0xF50A1422),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
             boxShadow: [
               BoxShadow(
@@ -387,17 +273,21 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AxisColors.success.withValues(alpha: 0.2),
+                                color:
+                                    AxisColors.success.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
-                                  Icons.local_fire_department_rounded,
-                                  color: AxisColors.success,
-                                  size: 20),
+                                Icons.local_fire_department_rounded,
+                                color: AxisColors.success,
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              widget.habitToEdit != null ? 'EDIT HABIT ROUTINE' : 'NEW HABIT ROUTINE',
+                              widget.habitToEdit != null
+                                  ? 'EDIT HABIT ROUTINE'
+                                  : 'NEW HABIT ROUTINE',
                               style: Theme.of(context)
                                   .textTheme
                                   .titleMedium
@@ -429,7 +319,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Name
-                      _SectionTitle(label: 'HABIT NAME *'),
+                      const FieldLabel(label: 'HABIT NAME *'),
                       TextField(
                         controller: _nameController,
                         autofocus: false,
@@ -465,107 +355,27 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Category Dropdown Selector (Same method as Project in Task Form)
-                      _SectionTitle(label: 'CATEGORY'),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _showCategoryDropdown
-                                ? AxisColors.success
-                                : AxisColors.borderSubtle,
-                            width: _showCategoryDropdown ? 1.5 : 1.0,
-                          ),
-                        ),
-                        child: TextField(
-                          controller: _categoryController,
-                          focusNode: _categoryFocusNode,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color: AxisColors.textHigh,
-                              ),
-                          cursorColor: AxisColors.success,
-                          decoration: InputDecoration(
-                            hintText: 'Select or write category name...',
-                            hintStyle: const TextStyle(
-                                color: AxisColors.textDim, fontSize: 13),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 12),
-                            prefixIcon: const Icon(Icons.category_rounded,
-                                size: 18, color: AxisColors.success),
-                            suffixIcon: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_categoryController.text.isNotEmpty)
-                                  IconButton(
-                                    icon: const Icon(Icons.close_rounded,
-                                        size: 16, color: AxisColors.textDim),
-                                    onPressed: () {
-                                      _categoryController.clear();
-                                      setState(() {});
-                                    },
-                                  ),
-                                IconButton(
-                                  icon: Icon(
-                                    _showCategoryDropdown
-                                        ? Icons.keyboard_arrow_up_rounded
-                                        : Icons.keyboard_arrow_down_rounded,
-                                    color: AxisColors.textDim,
-                                    size: 20,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _showCategoryDropdown =
-                                          !_showCategoryDropdown;
-                                      if (_showCategoryDropdown) {
-                                        _categoryFocusNode.requestFocus();
-                                      }
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          onTap: () {
-                            setState(() => _showCategoryDropdown = true);
-                          },
-                          onChanged: (text) {
-                            setState(() => _showCategoryDropdown = true);
-                          },
-                        ),
+                      // Category Dropdown Selector
+                      const FieldLabel(label: 'CATEGORY'),
+                      CategorySelectorField(
+                        controller: _categoryController,
+                        focusNode: _categoryFocusNode,
+                        categories: _categories,
+                        isOpen: _showCategoryDropdown,
+                        onOpenChanged: (open) =>
+                            setState(() => _showCategoryDropdown = open),
+                        onSelectCategory: (name, icon, color) {
+                          setState(() {
+                            _categoryController.text = name;
+                            _selectedIcon = icon;
+                            _selectedColor = color;
+                          });
+                        },
+                        onClear: () {
+                          _categoryController.clear();
+                          setState(() {});
+                        },
                       ),
-                      if (_showCategoryDropdown) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          constraints: const BoxConstraints(maxHeight: 180),
-                          decoration: BoxDecoration(
-                            color: AxisColors.surfaceLow,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AxisColors.success.withValues(alpha: 0.35),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: ListView(
-                              shrinkWrap: true,
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              children: _buildCategoryDropdownItems(),
-                            ),
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 18),
 
                       // Frequency & Reminder
@@ -576,7 +386,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _SectionTitle(label: 'FREQUENCY'),
+                                const FieldLabel(label: 'FREQUENCY'),
                                 DropdownButtonFormField<String>(
                                   initialValue: _scheduleType,
                                   decoration: InputDecoration(
@@ -622,7 +432,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _SectionTitle(label: 'TIME'),
+                                const FieldLabel(label: 'TIME'),
                                 InkWell(
                                   onTap: _pickTime,
                                   borderRadius: BorderRadius.circular(12),
@@ -640,7 +450,8 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                                     child: Row(
                                       children: [
                                         const Icon(Icons.alarm_rounded,
-                                            size: 18, color: AxisColors.success),
+                                            size: 18,
+                                            color: AxisColors.success),
                                         const SizedBox(width: 8),
                                         Text(
                                           _reminderTime != null
@@ -666,93 +477,19 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                       const SizedBox(height: 18),
 
                       // Color Accent
-                      _SectionTitle(label: 'COLOR ACCENT'),
-                      Row(
-                        children: _colors.map((c) {
-                          final isSel = _selectedColor == c['hex'];
-                          final col = c['color'] as Color;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 12),
-                            child: InkWell(
-                              onTap: () => setState(
-                                  () => _selectedColor = c['hex'] as String),
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  color: col,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isSel
-                                        ? Colors.white
-                                        : Colors.transparent,
-                                    width: 2.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: col.withValues(alpha: 0.4),
-                                      blurRadius: 8,
-                                    ),
-                                  ],
-                                ),
-                                child: isSel
-                                    ? const Icon(Icons.check_rounded,
-                                        size: 18, color: Colors.white)
-                                    : null,
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                      const FieldLabel(label: 'COLOR ACCENT'),
+                      ColorAccentSelector(
+                        selectedColor: _selectedColor,
+                        onSelectColor: (col) =>
+                            setState(() => _selectedColor = col),
                       ),
                       const SizedBox(height: 18),
 
                       // XP Reward
-                      _SectionTitle(label: 'XP REWARD'),
-                      Row(
-                        children: [10, 20, 30, 50].map((xp) {
-                          final isSel = _targetXp == xp;
-                          return Expanded(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 4),
-                              child: InkWell(
-                                onTap: () => setState(() => _targetXp = xp),
-                                borderRadius: BorderRadius.circular(10),
-                                child: Container(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: isSel
-                                        ? AxisColors.success
-                                            .withValues(alpha: 0.22)
-                                        : AxisColors.surfaceHigh
-                                            .withValues(alpha: 0.4),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: isSel
-                                          ? AxisColors.success
-                                          : AxisColors.borderSubtle,
-                                      width: isSel ? 1.5 : 1,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '+$xp XP',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: isSel
-                                            ? AxisColors.success
-                                            : AxisColors.textDim,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                      const FieldLabel(label: 'XP REWARD'),
+                      XpRewardSelector(
+                        targetXp: _targetXp,
+                        onSelectXp: (xp) => setState(() => _targetXp = xp),
                       ),
                       const SizedBox(height: 28),
 
@@ -775,7 +512,8 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                             borderRadius: BorderRadius.circular(14),
                             boxShadow: [
                               BoxShadow(
-                                color: AxisColors.success.withValues(alpha: 0.4),
+                                color:
+                                    AxisColors.success.withValues(alpha: 0.4),
                                 blurRadius: 16,
                                 spreadRadius: 1,
                               ),
@@ -792,13 +530,16 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                                     ),
                                   )
                                 : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
                                     children: [
                                       const Icon(Icons.add_task_rounded,
                                           color: Colors.white, size: 20),
                                       const SizedBox(width: 8),
                                       Text(
-                                        widget.habitToEdit != null ? 'UPDATE HABIT' : 'ACTIVATE HABIT',
+                                        widget.habitToEdit != null
+                                            ? 'UPDATE HABIT'
+                                            : 'ACTIVATE HABIT',
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelLarge
@@ -820,26 +561,6 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AxisColors.textMuted,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.1,
-            ),
       ),
     );
   }
