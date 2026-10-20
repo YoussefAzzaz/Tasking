@@ -6,7 +6,7 @@
     android:background="@drawable/widget_background"
     android:padding="14dp">
 
-    <!-- Header Row -->
+    <!-- Header Row: Title & Streak on Left, Progress Pill on Right -->
     <LinearLayout
         android:id="@+id/widget_habit_header"
         android:layout_width="match_parent"
@@ -14,54 +14,98 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <TextView
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="AXIS • HABITS"
-            android:textColor="#F59E0B"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AXIS • HABITS"
+                android:textColor="#10B981"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_habit_streak_days"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="🔥 0 DAYS"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/widget_habit_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/widget_pill_amber"
+            android:background="@drawable/widget_pill_emerald"
             android:paddingStart="8dp"
             android:paddingTop="3dp"
             android:paddingEnd="8dp"
             android:paddingBottom="3dp"
-            android:text="STREAK"
-            android:textColor="#F59E0B"
+            android:text="0/0 DONE"
+            android:textColor="#10B981"
             android:textSize="10sp"
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Streak Display -->
-    <TextView
-        android:id="@+id/widget_habit_streak_days"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/widget_habit_header"
-        android:layout_marginTop="8dp"
-        android:text="🔥 0 DAYS"
-        android:textColor="#FFFFFF"
-        android:textSize="22sp"
-        android:textStyle="bold" />
-
-    <!-- Progress Summary -->
-    <TextView
-        android:id="@+id/widget_habit_progress"
+    <!-- Progress Section: Summary text and Horizontal Progress Bar -->
+    <LinearLayout
+        android:id="@+id/widget_habit_progress_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/widget_habit_streak_days"
-        android:layout_marginTop="4dp"
-        android:text="0 of 0 habits completed today"
-        android:textColor="#94A3B8"
+        android:layout_below="@id/widget_habit_header"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_habit_progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="0 of 0 habits completed today (0%)"
+            android:textColor="#94A3B8"
+            android:textSize="11sp" />
+
+        <ProgressBar
+            android:id="@+id/widget_habit_progressbar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="5dp"
+            android:layout_marginTop="5dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/widget_progress_track" />
+    </LinearLayout>
+
+    <!-- Divider Line -->
+    <View
+        android:id="@+id/widget_habit_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_below="@id/widget_habit_progress_section"
+        android:layout_marginTop="7dp"
+        android:background="#1E293B" />
+
+    <!-- Current Habits List Content -->
+    <TextView
+        android:id="@+id/widget_habit_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/widget_habit_divider"
+        android:layout_marginTop="7dp"
+        android:ellipsize="end"
+        android:lineSpacingExtra="4dp"
+        android:maxLines="4"
+        android:text="No habits created yet. Tap to add."
+        android:textColor="#F1F5F9"
         android:textSize="12sp" />
 
-    <!-- Quote / Momentum Cue -->
+    <!-- Quote / Footer Cue -->
     <TextView
         android:id="@+id/widget_habit_quote"
         android:layout_width="wrap_content"
@@ -69,9 +113,8 @@
         android:layout_alignParentBottom="true"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="Consistency creates mastery"
-        android:textColor="#38BDF8"
-        android:textSize="11sp"
-        android:textStyle="italic" />
+        android:text="Consistency creates mastery • Tap to open"
+        android:textColor="#475569"
+        android:textSize="10sp" />
 
 </RelativeLayout>

@@ -1,4 +1,5 @@
 import 'package:axis/data/powersync_db.dart';
+import 'package:axis/data/app_widget_sync_service.dart';
 
 
 class Task {
@@ -174,6 +175,7 @@ class TaskRepository {
       DateTime.now().toUtc().toIso8601String(),
       DateTime.now().toUtc().toIso8601String(),
     ]);
+    AppWidgetSyncService().syncTodayTasks();
   }
 
   Future<void> updateTask(Task task) async {
@@ -196,9 +198,11 @@ class TaskRepository {
       DateTime.now().toUtc().toIso8601String(),
       task.id,
     ]);
+    AppWidgetSyncService().syncTodayTasks();
   }
 
   Future<void> deleteTask(String id) async {
     await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
+    AppWidgetSyncService().syncTodayTasks();
   }
 }

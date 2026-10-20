@@ -26,8 +26,9 @@ Future<void> main() async {
   // Initialize Focus session background service & notification channel
   await FocusSessionService().init();
 
-  // Sync on-screen Android home widgets
+  // Sync on-screen Android home widgets and start real-time reactive sync
   AppWidgetSyncService().syncAll();
+  AppWidgetSyncService().startAutoSync();
 
   runApp(const AxisApp());
 }

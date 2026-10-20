@@ -18,11 +18,15 @@ class TodayTasksWidgetProvider : HomeWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_today_tasks).apply {
                 val title = widgetData.getString("today_tasks_title", "AXIS • TODAY") ?: "AXIS • TODAY"
                 val count = widgetData.getString("today_tasks_count", "0/0 DONE") ?: "0/0 DONE"
+                val date = widgetData.getString("today_tasks_date", "") ?: ""
                 val content = widgetData.getString("today_tasks_content", "No tasks scheduled for today.")
                     ?: "No tasks scheduled for today."
 
                 setTextViewText(R.id.widget_tasks_title, title)
                 setTextViewText(R.id.widget_tasks_count, count)
+                if (date.isNotEmpty()) {
+                    setTextViewText(R.id.widget_tasks_date, date)
+                }
                 setTextViewText(R.id.widget_tasks_content, content)
 
                 val pendingIntent = HomeWidgetLaunchIntent.getActivity(

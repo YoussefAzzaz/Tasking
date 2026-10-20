@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/id_generator.dart';
+import 'package:axis/data/app_widget_sync_service.dart';
 
 class Habit {
   final String id;
@@ -106,6 +107,7 @@ class HabitRepository {
 
   Future<void> resetAllStreaks() async {
     await db.execute('DELETE FROM habit_logs');
+    AppWidgetSyncService().syncHabitStreak();
   }
 
   Future<void> addHabit(Habit habit) async {
@@ -126,6 +128,7 @@ class HabitRepository {
       now,
       now,
     ]);
+    AppWidgetSyncService().syncHabitStreak();
   }
 
   Future<void> updateHabit(Habit habit) async {
@@ -145,6 +148,7 @@ class HabitRepository {
       now,
       habit.id,
     ]);
+    AppWidgetSyncService().syncHabitStreak();
   }
 
   Future<void> toggleHabit(String habitId, bool done) async {
@@ -184,10 +188,13 @@ class HabitRepository {
     try {
       await syncGlobalUserLevel();
     } catch (_) {}
+
+    AppWidgetSyncService().syncHabitStreak();
   }
 
   Future<void> deleteHabit(String habitId) async {
     await db.execute('DELETE FROM habit_logs WHERE habit_id = ?', [habitId]);
     await db.execute('DELETE FROM habits WHERE id = ?', [habitId]);
+    AppWidgetSyncService().syncHabitStreak();
   }
 }
