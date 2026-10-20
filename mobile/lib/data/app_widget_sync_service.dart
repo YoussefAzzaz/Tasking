@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:axis/data/powersync_db.dart';
@@ -14,6 +15,12 @@ class AppWidgetSyncService {
   factory AppWidgetSyncService() => _instance;
   AppWidgetSyncService._();
 
+  /// Only Android and iOS provide native home screen widget frameworks supported by home_widget
+  static bool get isSupportedPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+       defaultTargetPlatform == TargetPlatform.iOS);
+
   StreamSubscription? _tasksSub;
   StreamSubscription? _habitsSub;
   StreamSubscription? _habitLogsSub;
@@ -22,6 +29,7 @@ class AppWidgetSyncService {
 
   /// Starts listening to real-time database changes and keeps widgets synchronized
   void startAutoSync() {
+    if (!isSupportedPlatform) return;
     stopAutoSync();
 
     try {
@@ -59,11 +67,13 @@ class AppWidgetSyncService {
   }
 
   Future<void> syncAll() async {
+    if (!isSupportedPlatform) return;
     await syncTodayTasks();
     await syncHabitStreak();
   }
 
   Future<void> syncTodayTasks() async {
+    if (!isSupportedPlatform) return;
     try {
       final now = DateTime.now();
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
@@ -138,11 +148,14 @@ class AppWidgetSyncService {
         androidName: 'TodayTasksWidgetProvider',
       );
     } catch (e) {
-      debugPrint('Error syncing today tasks widget: $e');
+      if (e is! MissingPluginException) {
+        debugPrint('Error syncing today tasks widget: $e');
+      }
     }
   }
 
   Future<void> syncHabitStreak() async {
+    if (!isSupportedPlatform) return;
     try {
       final now = DateTime.now();
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
@@ -215,7 +228,9 @@ class AppWidgetSyncService {
         androidName: 'HabitStreakWidgetProvider',
       );
     } catch (e) {
-      debugPrint('Error syncing habit streak widget: $e');
+      if (e is! MissingPluginException) {
+        debugPrint('Error syncing habit streak widget: $e');
+      }
     }
   }
 }

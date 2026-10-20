@@ -52,6 +52,7 @@ dependencies:
   adhan_dart: ^2.0.1
   geolocator: ^14.1.2
   flutter_compass: ^0.8.1
+  device_preview: ^1.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

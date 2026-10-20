@@ -64,7 +64,9 @@ class PrayerTimeService with WidgetsBindingObserver {
           longitude REAL,
           timezone TEXT,
           calculation_method TEXT,
-          last_sync_date TEXT
+          last_sync_date TEXT,
+          adhan_notifications_enabled INTEGER DEFAULT 1,
+          fajr_alarm_enabled INTEGER DEFAULT 1
         )
       ''');
 
@@ -137,9 +139,16 @@ class PrayerTimeService with WidgetsBindingObserver {
   Future<void> _saveSettings() async {
     try {
       await db.execute('''
-        INSERT OR REPLACE INTO prayer_settings (
+        INSERT INTO prayer_settings (
           id, city, country, latitude, longitude, timezone, last_sync_date
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          city = excluded.city,
+          country = excluded.country,
+          latitude = excluded.latitude,
+          longitude = excluded.longitude,
+          timezone = excluded.timezone,
+          last_sync_date = excluded.last_sync_date
       ''', [
         'current',
         _currentCity,

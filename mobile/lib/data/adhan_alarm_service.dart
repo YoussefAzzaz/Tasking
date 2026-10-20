@@ -34,7 +34,23 @@ class AdhanAlarmService {
   /// Initializes alarm preferences from SQLite
   Future<void> init() async {
     try {
-      // Ensure preference columns exist in prayer_settings
+      // Ensure prayer_settings table exists
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS prayer_settings (
+          id TEXT PRIMARY KEY,
+          city TEXT,
+          country TEXT,
+          latitude REAL,
+          longitude REAL,
+          timezone TEXT,
+          calculation_method TEXT,
+          last_sync_date TEXT,
+          adhan_notifications_enabled INTEGER DEFAULT 1,
+          fajr_alarm_enabled INTEGER DEFAULT 1
+        )
+      ''');
+
+      // Ensure preference columns exist for older existing tables
       try {
         await db.execute('''
           ALTER TABLE prayer_settings ADD COLUMN adhan_notifications_enabled INTEGER DEFAULT 1

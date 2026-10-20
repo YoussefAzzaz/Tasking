@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
 import 'package:axis/data/powersync_db.dart';
@@ -8,6 +9,7 @@ import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:device_preview/device_preview.dart';
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -28,17 +30,22 @@ Future<void> main() async {
   // Initialize Focus session background service & notification channel
   await FocusSessionService().init();
 
-  // Initialize Adhan notification & Fajr wake-up alarm service
-  await AdhanAlarmService().init();
-
   // Initialize Islamic prayer times & daily prayer habits
   await PrayerTimeService().init();
+
+  // Initialize Adhan notification & Fajr wake-up alarm service
+  await AdhanAlarmService().init();
 
   // Sync on-screen Android home widgets and start real-time reactive sync
   AppWidgetSyncService().syncAll();
   AppWidgetSyncService().startAutoSync();
 
-  runApp(const AxisApp());
+  runApp(
+    DevicePreview(
+      enabled: !kReleaseMode,
+      builder: (context) => const AxisApp(),
+    ),
+  );
 }
 
 class AxisApp extends StatelessWidget {
@@ -48,6 +55,8 @@ class AxisApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Axis',
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
       debugShowCheckedModeBanner: false,
       theme: AxisTheme.dark,
       darkTheme: AxisTheme.dark,
