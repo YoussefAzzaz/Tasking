@@ -293,33 +293,39 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                       ),
                                       if (isPrayers) ...[
                                         const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: widget.color
-                                                .withValues(alpha: 0.15),
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                            border: Border.all(
-                                                color: widget.color
-                                                    .withValues(alpha: 0.3)),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.location_on_rounded,
-                                                  size: 10, color: widget.color),
-                                              const SizedBox(width: 2),
-                                              Text(
-                                                PrayerTimeService().currentCity,
-                                                style: TextStyle(
-                                                  color: widget.color,
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.bold,
+                                        Flexible(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: widget.color
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: Border.all(
+                                                  color: widget.color
+                                                      .withValues(alpha: 0.3)),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.location_on_rounded,
+                                                    size: 10, color: widget.color),
+                                                const SizedBox(width: 2),
+                                                Flexible(
+                                                  child: Text(
+                                                    PrayerTimeService().currentCity,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      color: widget.color,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -328,7 +334,7 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                   const SizedBox(height: 2),
                                   Text(
                                     isPrayers
-                                        ? '$done of $total prayers completed today'
+                                        ? '$done of $total prayers completed'
                                         : '$done of $total habits finished today',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -382,26 +388,6 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                             ),
                           const SizedBox(width: 6),
                           if (isPrayers) ...[
-                            IconButton(
-                              icon: const Icon(Icons.alarm_on_rounded,
-                                  size: 18, color: Color(0xFFEF4444)),
-                              tooltip: 'Adhan & Fajr Alarm Settings',
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                  minWidth: 26, minHeight: 26),
-                              onPressed: () => PrayerSettingsSheet.show(context),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.explore_rounded,
-                                  size: 18, color: AxisColors.success),
-                              tooltip: 'Qibla Direction Compass',
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                  minWidth: 26, minHeight: 26),
-                              onPressed: () => QiblaCompassSheet.show(context),
-                            ),
                             IconButton(
                               icon: const Icon(Icons.sync_rounded,
                                   size: 18, color: AxisColors.textDim),
@@ -527,6 +513,8 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                         Expanded(
                           child: Text(
                             'Qibla Direction (Live GPS & Compass)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -534,6 +522,7 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                             ),
                           ),
                         ),
+                        const SizedBox(width: 6),
                         Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 11,
@@ -572,18 +561,22 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                             children: [
                               Row(
                                 children: [
-                                  const Text(
-                                    'Adhan Alerts & Fajr Wake-Up Alarm',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFFEF4444),
+                                  const Flexible(
+                                    child: Text(
+                                      'Adhan Alerts & Fajr Alarm',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFFEF4444),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 4, vertical: 1),
+                                        horizontal: 5, vertical: 1.5),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFEF4444)
                                           .withValues(alpha: 0.2),
@@ -603,6 +596,8 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                               const SizedBox(height: 1),
                               const Text(
                                 'Anti-snooze mental verification enabled',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: AxisColors.textMuted,
@@ -611,6 +606,7 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                             ],
                           ),
                         ),
+                        const SizedBox(width: 6),
                         const Icon(
                           Icons.tune_rounded,
                           size: 14,
@@ -646,7 +642,9 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                   final habit = widget.habits[i];
                   final isDone = habit.isDoneToday;
 
-                  return ListTile(
+                  return Material(
+                    color: Colors.transparent,
+                    child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: AxisCheckbox(
                       checked: isDone,
@@ -689,56 +687,84 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(left: 27, top: 2),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 2,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (habit.remindTime != null &&
-                              habit.remindTime!.isNotEmpty)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (isPrayers) ...[
-                                  const Icon(Icons.access_time_filled_rounded,
-                                      size: 11, color: AxisColors.success),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    'Adan ${habit.remindTime!}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AxisColors.success,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ] else ...[
-                                  Text(
-                                    habit.remindTime!,
-                                    style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AxisColors.textMuted),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          if (habit.streakDays > 0)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.local_fire_department_rounded,
-                                    size: 12, color: AxisColors.warning),
-                                const SizedBox(width: 2),
-                                Text(
-                                  '${habit.streakDays}d streak',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AxisColors.warning,
-                                    fontWeight: FontWeight.bold,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Wrap(
+                            spacing: 8,
+                            runSpacing: 2,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              if (habit.remindTime != null &&
+                                  habit.remindTime!.isNotEmpty)
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                      maxWidth: constraints.maxWidth),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (isPrayers) ...[
+                                        const Icon(
+                                            Icons.access_time_filled_rounded,
+                                            size: 11,
+                                            color: AxisColors.success),
+                                        const SizedBox(width: 3),
+                                        Flexible(
+                                          child: Text(
+                                            'Adan ${habit.remindTime!}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AxisColors.success,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        Flexible(
+                                          child: Text(
+                                            habit.remindTime!,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AxisColors.textMuted),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                        ],
+                              if (habit.streakDays > 0)
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                      maxWidth: constraints.maxWidth),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                          Icons.local_fire_department_rounded,
+                                          size: 12,
+                                          color: AxisColors.warning),
+                                      const SizedBox(width: 2),
+                                      Flexible(
+                                        child: Text(
+                                          '${habit.streakDays}d streak',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AxisColors.warning,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                     trailing: Row(
@@ -792,7 +818,8 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                       ],
                     ),
                     onTap: () => widget.onEditHabit(habit),
-                  );
+                  ),
+                );
                 },
               ),
 
@@ -815,14 +842,18 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                     children: [
                       Icon(Icons.add, size: 14, color: widget.color),
                       const SizedBox(width: 6),
-                      Text(
-                        isPrayers
-                            ? 'Add Extra Prayer (e.g. Duha, Tahajjud)'
-                            : 'Add Habit to ${widget.category.name}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: widget.color,
+                      Flexible(
+                        child: Text(
+                          isPrayers
+                              ? 'Add Extra Prayer (e.g. Duha, Tahajjud)'
+                              : 'Add Habit to ${widget.category.name}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: widget.color,
+                          ),
                         ),
                       ),
                     ],
