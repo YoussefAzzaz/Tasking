@@ -13,6 +13,7 @@ class CreateProjectSheet extends StatefulWidget {
 
 class _CreateProjectSheetState extends State<CreateProjectSheet> {
   final _nameController = TextEditingController();
+  final _nameFocusNode = FocusNode();
   String _selectedColor = '#6366F1';
   bool _saving = false;
   String? _errorText;
@@ -27,8 +28,17 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
+    _nameFocusNode.dispose();
     super.dispose();
   }
 
@@ -68,11 +78,13 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Padding(
-        padding: EdgeInsets.only(bottom: insets.bottom),
+    return FocusScope(
+      autofocus: false,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: insets.bottom),
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.7,
@@ -164,6 +176,7 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                     const SizedBox(height: 6),
                     TextField(
                       controller: _nameController,
+                      focusNode: _nameFocusNode,
                       autofocus: false,
                       style: const TextStyle(
                         color: AxisColors.textHigh,
@@ -304,6 +317,7 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

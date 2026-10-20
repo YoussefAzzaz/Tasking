@@ -22,6 +22,8 @@ class CreateNoteSheet extends StatefulWidget {
 class _CreateNoteSheetState extends State<CreateNoteSheet> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
+  final _titleFocusNode = FocusNode();
+  final _bodyFocusNode = FocusNode();
   late String _category;
   String _selectedMood = 'HIGH ENERGY';
   bool _pinned = false;
@@ -38,6 +40,9 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
     if (widget.noteToEdit != null) {
       final n = widget.noteToEdit!;
       _titleController.text = n.title;
@@ -54,6 +59,8 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
+    _titleFocusNode.dispose();
+    _bodyFocusNode.dispose();
     super.dispose();
   }
 
@@ -113,11 +120,13 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Padding(
-        padding: EdgeInsets.only(bottom: insets.bottom),
+    return FocusScope(
+      autofocus: false,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: insets.bottom),
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.90,
@@ -227,6 +236,7 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
                     _SectionTitle(label: 'TITLE'),
                     TextField(
                       controller: _titleController,
+                      focusNode: _titleFocusNode,
                       autofocus: false,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: AxisColors.textHigh,
@@ -314,6 +324,8 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
                     _SectionTitle(label: 'CONTENT (MARKDOWN SUPPORTED)'),
                     TextField(
                       controller: _bodyController,
+                      focusNode: _bodyFocusNode,
+                      autofocus: false,
                       maxLines: 6,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AxisColors.textHigh,
@@ -425,7 +437,8 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 }
 

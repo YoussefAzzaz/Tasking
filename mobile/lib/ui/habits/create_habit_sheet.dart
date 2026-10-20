@@ -26,6 +26,7 @@ class CreateHabitSheet extends StatefulWidget {
 
 class _CreateHabitSheetState extends State<CreateHabitSheet> {
   final _nameController = TextEditingController();
+  final _nameFocusNode = FocusNode();
   final _categoryController = TextEditingController(text: 'Workout');
   final _categoryFocusNode = FocusNode();
 
@@ -64,6 +65,9 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
     if (widget.habitToEdit != null) {
       final h = widget.habitToEdit!;
       _nameController.text = h.name;
@@ -105,6 +109,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
   @override
   void dispose() {
     _nameController.dispose();
+    _nameFocusNode.dispose();
     _categoryController.dispose();
     _categoryFocusNode.dispose();
     super.dispose();
@@ -250,14 +255,16 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        setState(() => _showCategoryDropdown = false);
-      },
-      child: Padding(
-        padding: EdgeInsets.only(bottom: insets.bottom),
+    return FocusScope(
+      autofocus: false,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          setState(() => _showCategoryDropdown = false);
+        },
+        child: Padding(
+          padding: EdgeInsets.only(bottom: insets.bottom),
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.88,
@@ -351,6 +358,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                       const FieldLabel(label: 'HABIT NAME *'),
                       TextField(
                         controller: _nameController,
+                        focusNode: _nameFocusNode,
                         autofocus: false,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: AxisColors.textHigh,
@@ -591,6 +599,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

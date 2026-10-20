@@ -53,7 +53,7 @@ class UserProfileCard extends StatelessWidget {
             const SizedBox(height: 6),
             TextField(
               controller: nameCtrl,
-              autofocus: true,
+              autofocus: false,
               style: const TextStyle(color: AxisColors.textHigh),
               decoration: InputDecoration(
                 hintText: 'e.g. Alex Vance',

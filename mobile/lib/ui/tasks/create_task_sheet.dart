@@ -38,6 +38,8 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
   final _projectController = TextEditingController();
   final _tagInputController = TextEditingController();
 
+  final _titleFocusNode = FocusNode();
+  final _descFocusNode = FocusNode();
   final _projectFocusNode = FocusNode();
   final _tagFocusNode = FocusNode();
 
@@ -58,6 +60,9 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
     if (widget.taskToEdit != null) {
       final t = widget.taskToEdit!;
       _titleController.text = t.title;
@@ -117,6 +122,8 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     _descController.dispose();
     _projectController.dispose();
     _tagInputController.dispose();
+    _titleFocusNode.dispose();
+    _descFocusNode.dispose();
     _projectFocusNode.dispose();
     _tagFocusNode.dispose();
     super.dispose();
@@ -318,17 +325,19 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        setState(() {
-          _showProjectDropdown = false;
-          _showTagDropdown = false;
-        });
-      },
-      child: Padding(
-        padding: EdgeInsets.only(bottom: insets.bottom),
+    return FocusScope(
+      autofocus: false,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          setState(() {
+            _showProjectDropdown = false;
+            _showTagDropdown = false;
+          });
+        },
+        child: Padding(
+          padding: EdgeInsets.only(bottom: insets.bottom),
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.88,
@@ -419,6 +428,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                       const FieldLabel(label: 'TASK NAME *'),
                       TextField(
                         controller: _titleController,
+                        focusNode: _titleFocusNode,
                         autofocus: false,
                         style:
                             Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -458,6 +468,8 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                       const FieldLabel(label: 'DESCRIPTION & NOTES'),
                       TextField(
                         controller: _descController,
+                        focusNode: _descFocusNode,
+                        autofocus: false,
                         maxLines: 3,
                         style:
                             Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -814,6 +826,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

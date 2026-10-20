@@ -47,7 +47,7 @@ class TaskTagsSection extends StatelessWidget {
             const SizedBox(height: 6),
             TextField(
               controller: tagCtrl,
-              autofocus: true,
+              autofocus: false,
               style: const TextStyle(color: AxisColors.textHigh),
               decoration: InputDecoration(
                 prefixText: '@',

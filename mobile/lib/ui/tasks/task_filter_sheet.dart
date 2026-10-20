@@ -261,6 +261,9 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
     _selectedPriority = widget.filterCriteria.value.priority;
     _selectedDueDateOption = widget.filterCriteria.value.dueDateOption;
     _pickedCustomDate = widget.filterCriteria.value.customDate;
@@ -476,8 +479,13 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
 
         final matchCount = allTasks.where(_matchesCurrent).length;
 
-        return Container(
-          padding: EdgeInsets.only(
+        return FocusScope(
+          autofocus: false,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: Container(
+              padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom + 16,
           ),
           decoration: const BoxDecoration(
@@ -721,6 +729,7 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
                           child: TextField(
                             controller: _tagInputController,
                             focusNode: _tagFocusNode,
+                            autofocus: false,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: AxisColors.textHigh,
                                 ),
@@ -888,7 +897,9 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }

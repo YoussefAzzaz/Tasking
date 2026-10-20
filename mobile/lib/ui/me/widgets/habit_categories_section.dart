@@ -60,7 +60,7 @@ class HabitCategoriesSection extends StatelessWidget {
               const SizedBox(height: 6),
               TextField(
                 controller: catCtrl,
-                autofocus: true,
+                autofocus: false,
                 style: const TextStyle(color: AxisColors.textHigh),
                 decoration: InputDecoration(
                   hintText: 'e.g. Fitness, Meditation, Study',

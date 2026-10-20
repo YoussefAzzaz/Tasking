@@ -15,6 +15,7 @@ class QuickAddSheet extends StatefulWidget {
 
 class _QuickAddSheetState extends State<QuickAddSheet> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
   QuickAddResult? _parsed;
   bool _saving = false;
 
@@ -22,11 +23,15 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
   void initState() {
     super.initState();
     _controller.addListener(_onChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -74,11 +79,13 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
   @override
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Padding(
-        padding: EdgeInsets.only(bottom: insets.bottom),
+    return FocusScope(
+      autofocus: false,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: insets.bottom),
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -154,6 +161,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
               // Input field
               TextField(
                 controller: _controller,
+                focusNode: _focusNode,
                 autofocus: false,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AxisColors.textHigh,
@@ -418,7 +426,8 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 }
 

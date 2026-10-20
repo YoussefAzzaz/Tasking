@@ -167,6 +167,7 @@ class CategorySelectorField extends StatelessWidget {
           child: TextField(
             controller: controller,
             focusNode: focusNode,
+            autofocus: false,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AxisColors.textHigh,
                 ),
