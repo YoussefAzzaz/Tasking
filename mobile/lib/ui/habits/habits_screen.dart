@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
-import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/habit_repository.dart';
+import 'package:axis/data/habit_category_repository.dart';
 import 'package:axis/domain/streak_engine.dart';
 import 'package:axis/ui/habits/create_habit_sheet.dart';
 import 'package:axis/ui/habits/widgets/habit_continuity_card.dart';
@@ -20,18 +20,16 @@ class HabitsScreen extends StatefulWidget {
 
 class _HabitsScreenState extends State<HabitsScreen> {
   final _repo = HabitRepository();
-  late final Stream<List<Map<String, dynamic>>> _habitLogsStream;
-  late final Stream<List<Map<String, dynamic>>> _habitCategoriesStream;
+  late final Stream<List<StreakLog>> _habitLogsStream;
+  late final Stream<List<HabitCategory>> _habitCategoriesStream;
   late final Stream<List<Habit>> _habitsStream;
   static final Set<String> _locallyDeletedCategories = {};
 
   @override
   void initState() {
     super.initState();
-    _habitLogsStream =
-        db.watch('SELECT * FROM habit_logs ORDER BY log_date DESC');
-    _habitCategoriesStream =
-        db.watch('SELECT * FROM habit_categories ORDER BY name ASC');
+    _habitLogsStream = _repo.watchStreakLogs();
+    _habitCategoriesStream = HabitCategoryRepository().watchCategories();
     _habitsStream = _repo.watchHabits();
   }
 
@@ -110,14 +108,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // STREAK & CONTINUITY PULSE HERO
-          StreamBuilder<List<Map<String, dynamic>>>(
+          StreamBuilder<List<StreakLog>>(
             stream: _habitLogsStream,
             builder: (context, snapshot) {
-              final rows = snapshot.data ?? [];
-              final streakLogs = rows
-                  .map((r) =>
-                      StreakLog(r['log_date'] as String, r['status'] as String))
-                  .toList();
+              final streakLogs = snapshot.data ?? [];
 
               final now = DateTime.now();
               final todayStr = DateFormat('yyyy-MM-dd').format(now);
@@ -125,9 +119,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
                   StreakEngine.calculateStreak('daily', streakLogs, todayStr);
 
               // Calculate best streak historically
-              final doneDates = rows
-                  .where((r) => r['status'] == 'done')
-                  .map((r) => r['log_date'] as String)
+              final doneDates = streakLogs
+                  .where((r) => r.status == 'done')
+                  .map((r) => r.date)
                   .toSet();
 
               int bestStreak = currentStreak;
@@ -268,7 +262,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
           // DYNAMIC HABIT CATEGORY STREAM & LIST
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: StreamBuilder<List<Map<String, dynamic>>>(
+            child: StreamBuilder<List<HabitCategory>>(
               stream: _habitCategoriesStream,
               builder: (context, catSnapshot) {
                 return StreamBuilder<List<Habit>>(
@@ -287,17 +281,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                       );
                     }
 
-                    final catRows = catSnapshot.data ?? [];
+                    final customCategories = catSnapshot.data ?? [];
                     final allHabits = habitSnapshot.data ?? [];
-
-                    final customCategories = catRows
-                        .map((r) => HabitCategory(
-                              id: r['id'] as String,
-                              name: r['name'] as String,
-                              icon: (r['icon'] as String?) ?? 'fitness',
-                              color: (r['color'] as String?) ?? '#10B981',
-                            ))
-                        .toList();
 
                     // Discovered categories from habits' category if not in DB
                     final categoryNames = <String>{};
@@ -457,25 +442,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                 _locallyDeletedCategories.add(raw);
                               });
 
-                              try {
-                                await db.execute('''
-                                  DELETE FROM habit_categories
-                                  WHERE id = ? 
-                                     OR id = ?
-                                     OR LOWER(name) = LOWER(?)
-                                ''', [
-                                  category.id,
-                                  category.id.replaceFirst('discovered_', ''),
-                                  category.name
-                                ]);
-                                await db.execute('''
-                                  UPDATE habits 
-                                  SET kind = NULL 
-                                  WHERE LOWER(COALESCE(kind, '')) = LOWER(?)
-                                ''', [category.name]);
-                              } catch (e) {
-                                debugPrint('Error deleting category: $e');
-                              }
+                              await HabitCategoryRepository().deleteCategory(
+                                category.id,
+                                name: category.name,
+                              );
                             },
                           );
                         }),

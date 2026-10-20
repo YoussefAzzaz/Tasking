@@ -11,6 +11,8 @@ import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:device_preview/device_preview.dart';
 
+import 'dart:async';
+
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -27,25 +29,27 @@ Future<void> main() async {
   // Initialize local SQLite + Supabase connector
   await openDatabase();
 
-  // Initialize Focus session background service & notification channel
-  await FocusSessionService().init();
-
-  // Initialize Islamic prayer times & daily prayer habits
-  await PrayerTimeService().init();
-
-  // Initialize Adhan notification & Fajr wake-up alarm service
-  await AdhanAlarmService().init();
-
-  // Sync on-screen Android home widgets and start real-time reactive sync
-  AppWidgetSyncService().syncAll();
-  AppWidgetSyncService().startAutoSync();
-
   runApp(
     DevicePreview(
       enabled: !kReleaseMode,
       builder: (context) => const AxisApp(),
     ),
   );
+
+  // Launch non-critical background services asynchronously without blocking UI startup
+  unawaited(_initBackgroundServices());
+}
+
+Future<void> _initBackgroundServices() async {
+  try {
+    await FocusSessionService().init();
+    await PrayerTimeService().init();
+    await AdhanAlarmService().init();
+    AppWidgetSyncService().syncAll();
+    AppWidgetSyncService().startAutoSync();
+  } catch (e) {
+    debugPrint('Background services initialization error: $e');
+  }
 }
 
 class AxisApp extends StatelessWidget {

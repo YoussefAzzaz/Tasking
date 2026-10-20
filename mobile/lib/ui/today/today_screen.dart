@@ -3,13 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
-import 'package:axis/data/powersync_db.dart';
+import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/data/stats_repository.dart';
 import 'package:axis/domain/gamification_engine.dart';
-import 'package:axis/domain/streak_engine.dart';
 import 'package:axis/ui/tasks/create_task_sheet.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
-import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/ui/today/widgets/xp_cockpit_card.dart';
 import 'package:axis/ui/today/widgets/micro_slots_section.dart';
 import 'package:axis/ui/today/widgets/priority_task_card.dart';
@@ -30,115 +29,47 @@ class _TodayScreenState extends State<TodayScreen> {
   int _totalXp = 0;
   int _todayXp = 0;
   int _streakDays = 0;
-  StreamSubscription? _logsSub;
-  StreamSubscription? _habitLogsSub;
 
   @override
   void initState() {
     super.initState();
     _loadStats();
-    _logsSub = db.watch('SELECT id FROM logs').listen((_) => _loadStats());
-    _habitLogsSub =
-        db.watch('SELECT id FROM habit_logs').listen((_) => _loadStats());
+    globalUserLevel.addListener(_onGlobalLevelChanged);
   }
 
   @override
   void dispose() {
-    _logsSub?.cancel();
-    _habitLogsSub?.cancel();
+    globalUserLevel.removeListener(_onGlobalLevelChanged);
     super.dispose();
   }
 
-  Future<void> _loadStats() async {
+  void _onGlobalLevelChanged() {
+    _loadStats(forceRefresh: true);
+  }
+
+  Future<void> _loadStats({bool forceRefresh = false}) async {
     try {
-      final now = DateTime.now();
-      final todayStr = DateFormat('yyyy-MM-dd').format(now);
-
-      final logRows = await db.getAll('SELECT xp_earned, timestamp FROM logs');
-      final focusRows = await db.getAll(
-          'SELECT xp_earned, started_at FROM focus_sessions WHERE completed = 1');
-
-      int total = 0;
-      int today = 0;
-
-      for (final row in logRows) {
-        final xp = (row['xp_earned'] as num?)?.toInt() ?? 0;
-        total += xp;
-        final ts = row['timestamp'] as String?;
-        if (ts != null && ts.startsWith(todayStr)) {
-          today += xp;
-        }
-      }
-
-      for (final row in focusRows) {
-        final xp = (row['xp_earned'] as num?)?.toInt() ?? 0;
-        total += xp;
-        final sa = row['started_at'] as String?;
-        if (sa != null && sa.startsWith(todayStr)) {
-          today += xp;
-        }
-      }
-
-      final habitLogRows =
-          await db.getAll('SELECT log_date, status FROM habit_logs');
-      final streakLogs = habitLogRows
-          .map((r) => StreakLog(r['log_date'] as String, r['status'] as String))
-          .toList();
-      final streak = StreakEngine.calculateStreak('daily', streakLogs, todayStr);
-      await syncGlobalUserLevel();
-      AppWidgetSyncService().syncAll();
-
+      final stats = await StatsRepository().getUserStats(forceRefresh: forceRefresh);
       if (mounted) {
         setState(() {
-          _totalXp = total;
-          _todayXp = today;
-          _streakDays = streak;
+          _totalXp = stats.totalXp;
+          _todayXp = stats.todayXp;
+          _streakDays = stats.streakDays;
         });
       }
     } catch (_) {}
   }
 
   Future<void> _toggleTaskStatus(Task task, bool isDone) async {
-    final updated = Task(
-      id: task.id,
-      title: task.title,
-      notes: task.notes,
-      status: isDone ? 'done' : 'todo',
-      priority: task.priority,
-      projectId: task.projectId,
-      tags: task.tags,
-      dueDate: task.dueDate,
-      dueTime: task.dueTime,
-      estimateMin: task.estimateMin,
-      recurrenceRule: task.recurrenceRule,
-      recurrenceMode: task.recurrenceMode,
-    );
-    await TaskRepository().updateTask(updated);
+    // Optimistic UI update
+    final deltaXp = (task.priority == 1 ? 75 : (task.priority == 2 ? 50 : 25)) * (isDone ? 1 : -1);
+    setState(() {
+      _totalXp = (_totalXp + deltaXp).clamp(0, 9999999);
+      _todayXp = (_todayXp + deltaXp).clamp(0, 9999999);
+    });
 
-    if (isDone) {
-      final xp = task.priority == 1 ? 75 : (task.priority == 2 ? 50 : 25);
-      try {
-        await db.execute('''
-          INSERT INTO logs (id, task_id, event_type, xp_earned, timestamp)
-          VALUES (?, ?, ?, ?, ?)
-        ''', [
-          'log_${DateTime.now().microsecondsSinceEpoch}',
-          task.id,
-          'task_completed',
-          xp,
-          DateTime.now().toUtc().toIso8601String(),
-        ]);
-      } catch (_) {}
-    } else {
-      try {
-        await db.execute(
-          'DELETE FROM logs WHERE task_id = ? AND event_type = ?',
-          [task.id, 'task_completed'],
-        );
-      } catch (_) {}
-    }
-    await syncGlobalUserLevel();
-    _loadStats();
+    await TaskRepository().toggleTaskStatus(task, isDone);
+    _loadStats(forceRefresh: true);
   }
 
   @override

@@ -5,8 +5,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:axis/domain/gamification_engine.dart';
 
+import 'package:axis/core/cache/cache_service.dart';
+
 late PowerSyncDatabase db;
 bool _dbInitialized = false;
+bool get isDatabaseInitialized => _dbInitialized;
 final ValueNotifier<int> globalUserLevel = ValueNotifier<int>(1);
 
 // We define the schema based on SPEC.md §4 Core Data Entities
@@ -228,23 +231,34 @@ Future<void> initCustomLocalTables() async {
         );
       }
     }
+
+    // High-performance database indexes for filtering and sorting
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks(status, due_date)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_date ON habit_logs(habit_id, log_date)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_habit_logs_date_status ON habit_logs(log_date, status)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_habits_sort_order ON habits(sort_order)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_habits_kind ON habits(kind)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_logs_task_event ON logs(task_id, event_type)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_focus_sessions_completed ON focus_sessions(completed, started_at)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_pinned_created ON notes(pinned, created_at)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category)');
   } catch (_) {}
 }
 
 Future<void> syncGlobalUserLevel() async {
   if (!_dbInitialized) return;
   try {
-    final logRows = await db.getAll('SELECT xp_earned FROM logs');
-    final focusRows = await db.getAll(
-        'SELECT xp_earned FROM focus_sessions WHERE completed = 1');
-    int total = 0;
-    for (final r in logRows) {
-      total += (r['xp_earned'] as num?)?.toInt() ?? 0;
-    }
-    for (final r in focusRows) {
-      total += (r['xp_earned'] as num?)?.toInt() ?? 0;
-    }
-    final lvl = GamificationEngine.calculateLevel(total);
+    final logRow = await db.getOptional('SELECT COALESCE(SUM(xp_earned), 0) AS total FROM logs');
+    final focusRow = await db.getOptional(
+      'SELECT COALESCE(SUM(xp_earned), 0) AS total FROM focus_sessions WHERE completed = 1',
+    );
+    final logTotal = (logRow?['total'] as num?)?.toInt() ?? 0;
+    final focusTotal = (focusRow?['total'] as num?)?.toInt() ?? 0;
+    final lvl = GamificationEngine.calculateLevel(logTotal + focusTotal);
     globalUserLevel.value = lvl;
   } catch (_) {}
 }
@@ -263,6 +277,7 @@ Future<void> resetAllData() async {
     await db.execute('DELETE FROM habit_categories');
     await db.execute('DELETE FROM user_profile');
     globalUserLevel.value = 1;
+    CacheService().clear();
     await initCustomLocalTables();
   } catch (_) {}
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
-import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
@@ -199,39 +198,10 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                             backgroundColor: AxisColors.error),
                                         onPressed: () async {
                                           Navigator.pop(ctx);
-                                          final projId = widget.project.id;
-                                          final projName = widget.project.name;
-                                          final rawId = projId.replaceFirst('discovered_', '');
-
-                                          // First explicitly unassign all subtasks in memory
-                                          if (widget.subtasks.isNotEmpty) {
-                                            for (final t in widget.subtasks) {
-                                              try {
-                                                await db.execute('UPDATE tasks SET project_id = NULL WHERE id = ?', [t.id]);
-                                              } catch (_) {}
-                                            }
-                                          }
-
-                                          try {
-                                            await db.execute('''
-                                              UPDATE tasks 
-                                              SET project_id = NULL 
-                                              WHERE project_id = ? 
-                                                 OR project_id = ? 
-                                                 OR LOWER(COALESCE(project_id, '')) = LOWER(?) 
-                                                 OR LOWER(COALESCE(project_id, '')) = LOWER(?)
-                                            ''', [projId, rawId, projId, projName]);
-
-                                            await db.execute('''
-                                              DELETE FROM projects 
-                                              WHERE id = ? 
-                                                 OR id = ?
-                                                 OR LOWER(name) = LOWER(?)
-                                            ''', [projId, rawId, projName]);
-                                          } catch (e) {
-                                            debugPrint('Error deleting project: $e');
-                                          }
-
+                                          await widget.projectRepo.deleteProject(
+                                            widget.project.id,
+                                            projectName: widget.project.name,
+                                          );
                                           widget.onDelete?.call();
 
                                           if (context.mounted) {

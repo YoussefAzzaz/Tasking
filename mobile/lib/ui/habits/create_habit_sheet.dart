@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/habit_repository.dart';
-import 'package:axis/data/powersync_db.dart';
+import 'package:axis/data/habit_category_repository.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
@@ -117,34 +117,23 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
 
   Future<void> _loadCategories() async {
     try {
-      final rows =
-          await db.getAll('SELECT * FROM habit_categories ORDER BY name ASC');
-      if (rows.isNotEmpty) {
-        final list = rows
-            .map((r) => HabitCategory(
-                  id: r['id'] as String,
-                  name: r['name'] as String,
-                  icon: (r['icon'] as String?) ?? 'fitness',
-                  color: (r['color'] as String?) ?? '#10B981',
-                ))
-            .toList();
-        if (mounted) {
-          setState(() {
-            _categories = list;
-            if (widget.habitToEdit == null &&
-                _categoryController.text.trim().isNotEmpty) {
-              final cat = _categoryController.text.trim().toLowerCase();
-              final match = list.firstWhere(
-                (c) => c.name.toLowerCase() == cat,
-                orElse: () => const HabitCategory(id: '', name: ''),
-              );
-              if (match.name.isNotEmpty) {
-                _selectedIcon = match.icon;
-                _selectedColor = match.color;
-              }
+      final list = await HabitCategoryRepository().getCategories();
+      if (list.isNotEmpty && mounted) {
+        setState(() {
+          _categories = list;
+          if (widget.habitToEdit == null &&
+              _categoryController.text.trim().isNotEmpty) {
+            final cat = _categoryController.text.trim().toLowerCase();
+            final match = list.firstWhere(
+              (c) => c.name.toLowerCase() == cat,
+              orElse: () => const HabitCategory(id: '', name: ''),
+            );
+            if (match.name.isNotEmpty) {
+              _selectedIcon = match.icon;
+              _selectedColor = match.color;
             }
-          });
-        }
+          }
+        });
       }
     } catch (_) {}
   }
@@ -190,17 +179,11 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
         (c) => c.name.toLowerCase() == categoryName.toLowerCase(),
       );
       if (!exists) {
-        try {
-          await db.execute(
-            'INSERT OR IGNORE INTO habit_categories (id, name, icon, color) VALUES (?, ?, ?, ?)',
-            [
-              'cat_${DateTime.now().microsecondsSinceEpoch}',
-              categoryName,
-              _selectedIcon,
-              _selectedColor
-            ],
-          );
-        } catch (_) {}
+        await HabitCategoryRepository().addCategory(
+          name: categoryName,
+          icon: _selectedIcon,
+          color: _selectedColor,
+        );
       }
     }
 

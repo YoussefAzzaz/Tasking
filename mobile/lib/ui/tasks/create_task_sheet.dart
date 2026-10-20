@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/data/project_repository.dart';
-import 'package:axis/data/powersync_db.dart';
+import 'package:axis/data/tag_repository.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 import 'package:axis/ui/tasks/widgets/project_selector_field.dart';
@@ -132,30 +132,11 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
   Future<void> _loadExistingData() async {
     try {
       final projects = await ProjectRepository().getProjects();
-      final taskRows =
-          await db.getAll('SELECT tags FROM tasks WHERE tags IS NOT NULL');
-      final tagSet = <String>{
-        'urgent',
-        'deepwork',
-        'meeting',
-        'review',
-        'errand',
-        'backend',
-        'frontend'
-      };
-      for (final row in taskRows) {
-        final tagsStr = row['tags'] as String?;
-        if (tagsStr != null && tagsStr.isNotEmpty) {
-          for (final t in tagsStr.split(',')) {
-            final trimmed = t.trim().replaceAll('@', '');
-            if (trimmed.isNotEmpty) tagSet.add(trimmed);
-          }
-        }
-      }
+      final tags = await TagRepository().getTags();
       if (mounted) {
         setState(() {
           _existingProjects = projects;
-          _existingTags = tagSet.toList()..sort();
+          _existingTags = tags;
         });
       }
     } catch (_) {}

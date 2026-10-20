@@ -9,7 +9,7 @@ import 'package:axis/ui/notes/notes_screen.dart';
 import 'package:axis/ui/me/me_screen.dart';
 import 'package:axis/ui/focus/focus_screen.dart';
 import 'package:axis/ui/common/splash_screen.dart';
-import 'package:axis/data/powersync_db.dart';
+import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 
 // Bottom nav slots (5 real tabs — Me is 5th)
 // Bar layout: Today | Tasks | [+] | Habits | Notes

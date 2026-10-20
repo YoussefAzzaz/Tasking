@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
+import 'package:axis/data/stats_repository.dart';
 
 
 class Task {
@@ -153,56 +156,135 @@ class TaskRepository {
   }
 
   Future<void> addTask(Task task) async {
-    await db.execute('''
-      INSERT INTO tasks (
-        id, title, notes, status, priority, project_id, tags, due_date, due_time, estimate_min, recurrence_rule, recurrence_mode, created_at, updated_at
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-      )
-    ''', [
-      task.id,
-      task.title,
-      task.notes,
-      task.status,
-      task.priority,
-      task.projectId,
-      task.tags,
-      task.dueDate,
-      task.dueTime,
-      task.estimateMin,
-      task.recurrenceRule,
-      task.recurrenceMode,
-      DateTime.now().toUtc().toIso8601String(),
-      DateTime.now().toUtc().toIso8601String(),
-    ]);
+    try {
+      await db.execute('''
+        INSERT INTO tasks (
+          id, title, notes, status, priority, project_id, tags, due_date, due_time, estimate_min, recurrence_rule, recurrence_mode, created_at, updated_at
+        ) VALUES (
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+      ''', [
+        task.id,
+        task.title,
+        task.notes,
+        task.status,
+        task.priority,
+        task.projectId,
+        task.tags,
+        task.dueDate,
+        task.dueTime,
+        task.estimateMin,
+        task.recurrenceRule,
+        task.recurrenceMode,
+        DateTime.now().toUtc().toIso8601String(),
+        DateTime.now().toUtc().toIso8601String(),
+      ]).timeout(const Duration(seconds: 4));
+
+      if (task.tags != null && task.tags!.isNotEmpty) {
+        CacheService().invalidate('task_tags_list');
+      }
+    } catch (_) {}
+
     AppWidgetSyncService().syncTodayTasks();
   }
 
   Future<void> updateTask(Task task) async {
-    await db.execute('''
-      UPDATE tasks SET
-        title = ?, notes = ?, status = ?, priority = ?, project_id = ?, tags = ?, due_date = ?, due_time = ?, estimate_min = ?, recurrence_rule = ?, recurrence_mode = ?, updated_at = ?
-      WHERE id = ?
-    ''', [
-      task.title,
-      task.notes,
-      task.status,
-      task.priority,
-      task.projectId,
-      task.tags,
-      task.dueDate,
-      task.dueTime,
-      task.estimateMin,
-      task.recurrenceRule,
-      task.recurrenceMode,
-      DateTime.now().toUtc().toIso8601String(),
-      task.id,
-    ]);
+    try {
+      await db.execute('''
+        UPDATE tasks SET
+          title = ?, notes = ?, status = ?, priority = ?, project_id = ?, tags = ?, due_date = ?, due_time = ?, estimate_min = ?, recurrence_rule = ?, recurrence_mode = ?, updated_at = ?
+        WHERE id = ?
+      ''', [
+        task.title,
+        task.notes,
+        task.status,
+        task.priority,
+        task.projectId,
+        task.tags,
+        task.dueDate,
+        task.dueTime,
+        task.estimateMin,
+        task.recurrenceRule,
+        task.recurrenceMode,
+        DateTime.now().toUtc().toIso8601String(),
+        task.id,
+      ]).timeout(const Duration(seconds: 4));
+
+      if (task.tags != null && task.tags!.isNotEmpty) {
+        CacheService().invalidate('task_tags_list');
+      }
+    } catch (_) {}
+
     AppWidgetSyncService().syncTodayTasks();
   }
 
   Future<void> deleteTask(String id) async {
-    await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
+    try {
+      await db.execute('DELETE FROM tasks WHERE id = ?', [id]).timeout(const Duration(seconds: 4));
+    } catch (_) {}
+    AppWidgetSyncService().syncTodayTasks();
+  }
+
+  /// Toggles task completion status, records XP gamification event, and invalidates stats.
+  Future<void> toggleTaskStatus(Task task, bool isDone) async {
+    final updated = Task(
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      status: isDone ? 'done' : 'todo',
+      priority: task.priority,
+      projectId: task.projectId,
+      tags: task.tags,
+      dueDate: task.dueDate,
+      dueTime: task.dueTime,
+      estimateMin: task.estimateMin,
+      recurrenceRule: task.recurrenceRule,
+      recurrenceMode: task.recurrenceMode,
+    );
+
+    await updateTask(updated);
+
+    final now = DateTime.now().toUtc().toIso8601String();
+    if (isDone) {
+      final xp = task.priority == 1 ? 75 : (task.priority == 2 ? 50 : 25);
+      try {
+        await db.execute('''
+          INSERT INTO logs (id, task_id, event_type, xp_earned, timestamp)
+          VALUES (?, ?, ?, ?, ?)
+        ''', [
+          'log_${DateTime.now().microsecondsSinceEpoch}',
+          task.id,
+          'task_completed',
+          xp,
+          now,
+        ]).timeout(const Duration(seconds: 4));
+      } catch (_) {}
+    } else {
+      try {
+        await db.execute(
+          'DELETE FROM logs WHERE task_id = ? AND event_type = ?',
+          [task.id, 'task_completed'],
+        ).timeout(const Duration(seconds: 4));
+      } catch (_) {}
+    }
+
+    StatsRepository().invalidateStats();
+    await syncGlobalUserLevel();
+  }
+
+  /// Unlinks all tasks matching the specified project identifier in a single batch operation.
+  Future<void> unlinkTasksFromProject(String projectId, {String? projectName}) async {
+    final name = projectName ?? '';
+    try {
+      await db.execute('''
+        UPDATE tasks 
+        SET project_id = NULL 
+        WHERE project_id = ? 
+           OR project_id = ? 
+           OR LOWER(COALESCE(project_id, '')) = LOWER(?) 
+           OR LOWER(COALESCE(project_id, '')) = LOWER(?)
+      ''', [projectId, projectId.replaceFirst('discovered_', ''), projectId, name]).timeout(const Duration(seconds: 4));
+    } catch (_) {}
     AppWidgetSyncService().syncTodayTasks();
   }
 }

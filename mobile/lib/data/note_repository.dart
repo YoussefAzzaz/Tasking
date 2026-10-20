@@ -52,42 +52,48 @@ class NoteRepository {
 
   Future<void> addNote(Note note) async {
     final now = DateTime.now().toUtc().toIso8601String();
-    await db.execute('''
-      INSERT INTO notes (
-        id, title, body_md, pinned, category, mood, energy, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', [
-      note.id,
-      note.title,
-      note.bodyMd,
-      note.pinned ? 1 : 0,
-      note.category,
-      note.mood,
-      note.energy,
-      now,
-      now,
-    ]);
+    try {
+      await db.execute('''
+        INSERT INTO notes (
+          id, title, body_md, pinned, category, mood, energy, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        note.id,
+        note.title,
+        note.bodyMd,
+        note.pinned ? 1 : 0,
+        note.category,
+        note.mood,
+        note.energy,
+        now,
+        now,
+      ]).timeout(const Duration(seconds: 4));
+    } catch (_) {}
   }
 
   Future<void> updateNote(Note note) async {
     final now = DateTime.now().toUtc().toIso8601String();
-    await db.execute('''
-      UPDATE notes SET
-        title = ?, body_md = ?, pinned = ?, category = ?, mood = ?, energy = ?, updated_at = ?
-      WHERE id = ?
-    ''', [
-      note.title,
-      note.bodyMd,
-      note.pinned ? 1 : 0,
-      note.category,
-      note.mood,
-      note.energy,
-      now,
-      note.id,
-    ]);
+    try {
+      await db.execute('''
+        UPDATE notes SET
+          title = ?, body_md = ?, pinned = ?, category = ?, mood = ?, energy = ?, updated_at = ?
+        WHERE id = ?
+      ''', [
+        note.title,
+        note.bodyMd,
+        note.pinned ? 1 : 0,
+        note.category,
+        note.mood,
+        note.energy,
+        now,
+        note.id,
+      ]).timeout(const Duration(seconds: 4));
+    } catch (_) {}
   }
 
   Future<void> deleteNote(String id) async {
-    await db.execute('DELETE FROM notes WHERE id = ?', [id]);
+    try {
+      await db.execute('DELETE FROM notes WHERE id = ?', [id]).timeout(const Duration(seconds: 4));
+    } catch (_) {}
   }
 }

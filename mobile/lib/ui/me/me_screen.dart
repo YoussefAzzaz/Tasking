@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
-import 'package:axis/data/powersync_db.dart';
-import 'package:axis/domain/gamification_engine.dart';
+import 'package:axis/data/powersync_db.dart' show resetAllData;
+import 'package:axis/data/stats_repository.dart';
+import 'package:axis/data/user_profile_repository.dart';
+import 'package:axis/data/habit_category_repository.dart';
+import 'package:axis/data/tag_repository.dart';
 import 'package:axis/ui/me/widgets/user_profile_card.dart';
 import 'package:axis/ui/me/widgets/habit_categories_section.dart';
 import 'package:axis/ui/me/widgets/task_tags_section.dart';
@@ -35,31 +38,21 @@ class _MeScreenState extends State<MeScreen> {
   }
 
   Future<void> _loadAllUserData() async {
-    await _loadUserStats();
-    await _loadProfile();
-    await _loadHabitCategories();
-    await _loadTaskTags();
+    await Future.wait([
+      _loadUserStats(),
+      _loadProfile(),
+      _loadHabitCategories(),
+      _loadTaskTags(),
+    ]);
   }
 
   Future<void> _loadUserStats() async {
     try {
-      final logRows = await db.getAll('SELECT xp_earned FROM logs');
-      final focusRows = await db.getAll(
-          'SELECT xp_earned FROM focus_sessions WHERE completed = 1');
-
-      int total = 0;
-      for (final r in logRows) {
-        total += (r['xp_earned'] as num?)?.toInt() ?? 0;
-      }
-      for (final r in focusRows) {
-        total += (r['xp_earned'] as num?)?.toInt() ?? 0;
-      }
-
-      final lvl = GamificationEngine.calculateLevel(total);
+      final stats = await StatsRepository().getUserStats();
       if (mounted) {
         setState(() {
-          _totalXp = total;
-          _level = lvl;
+          _totalXp = stats.totalXp;
+          _level = stats.level;
         });
       }
     } catch (_) {}
@@ -67,27 +60,29 @@ class _MeScreenState extends State<MeScreen> {
 
   Future<void> _loadProfile() async {
     try {
-      final rows =
-          await db.getAll('SELECT name, title FROM user_profile LIMIT 1');
-      if (rows.isNotEmpty) {
-        final r = rows.first;
-        if (mounted) {
-          setState(() {
-            _userName = (r['name'] as String?) ?? _userName;
-            _userTitle = (r['title'] as String?) ?? _userTitle;
-          });
-        }
+      final profile = await UserProfileRepository().getProfile();
+      if (mounted) {
+        setState(() {
+          _userName = profile.name;
+          _userTitle = profile.title;
+        });
       }
     } catch (_) {}
   }
 
   Future<void> _loadHabitCategories() async {
     try {
-      final rows = await db.getAll(
-          'SELECT id, name, icon, color FROM habit_categories ORDER BY name ASC');
+      final cats = await HabitCategoryRepository().getCategories();
       if (mounted) {
         setState(() {
-          _habitCategories = rows;
+          _habitCategories = cats
+              .map((c) => {
+                    'id': c.id,
+                    'name': c.name,
+                    'icon': c.icon,
+                    'color': c.color,
+                  })
+              .toList();
         });
       }
     } catch (_) {}
@@ -95,88 +90,43 @@ class _MeScreenState extends State<MeScreen> {
 
   Future<void> _loadTaskTags() async {
     try {
-      final tagRows =
-          await db.getAll('SELECT name FROM tags ORDER BY name ASC');
-      final taskRows =
-          await db.getAll('SELECT tags FROM tasks WHERE tags IS NOT NULL');
-
-      final tagSet = <String>{};
-      for (final r in tagRows) {
-        final name = (r['name'] as String?)?.trim().replaceAll('@', '');
-        if (name != null && name.isNotEmpty) tagSet.add(name);
-      }
-      for (final r in taskRows) {
-        final tagsStr = r['tags'] as String?;
-        if (tagsStr != null && tagsStr.isNotEmpty) {
-          for (final t in tagsStr.split(',')) {
-            final clean = t.trim().replaceAll('@', '');
-            if (clean.isNotEmpty) tagSet.add(clean);
-          }
-        }
-      }
-
-      final list = tagSet.toList()..sort();
+      final tags = await TagRepository().getTags();
       if (mounted) {
         setState(() {
-          _taskTags = list;
+          _taskTags = tags;
         });
       }
     } catch (_) {}
   }
 
   Future<void> _saveProfile(String newName, String newTitle) async {
-    try {
-      await db.execute('''
-        INSERT OR REPLACE INTO user_profile (id, name, title)
-        VALUES ('singleton_profile', ?, ?)
-      ''', [newName, newTitle]);
-    } catch (_) {}
     setState(() {
       _userName = newName;
       _userTitle = newTitle;
     });
+    await UserProfileRepository().saveProfile(newName, newTitle);
   }
 
   Future<void> _addCategory(String catName, String selectedColor) async {
-    try {
-      await db.execute('''
-        INSERT OR IGNORE INTO habit_categories (id, name, icon, color)
-        VALUES (?, ?, 'category', ?)
-      ''', [
-        'cat_${DateTime.now().microsecondsSinceEpoch}',
-        catName,
-        selectedColor
-      ]);
-    } catch (_) {}
+    await HabitCategoryRepository().addCategory(
+      name: catName,
+      color: selectedColor,
+    );
     await _loadHabitCategories();
   }
 
   Future<void> _deleteCategory(String id, String name) async {
-    try {
-      await db.execute(
-          'DELETE FROM habit_categories WHERE id = ? OR name = ?', [id, name]);
-    } catch (_) {}
+    await HabitCategoryRepository().deleteCategory(id, name: name);
     await _loadHabitCategories();
   }
 
   Future<void> _addTag(String tagName) async {
-    try {
-      await db.execute('''
-        INSERT OR IGNORE INTO tags (id, name, color, created_at)
-        VALUES (?, ?, '#6366F1', ?)
-      ''', [
-        'tag_${DateTime.now().microsecondsSinceEpoch}',
-        tagName,
-        DateTime.now().toUtc().toIso8601String(),
-      ]);
-    } catch (_) {}
+    await TagRepository().addTag(tagName);
     await _loadTaskTags();
   }
 
   Future<void> _deleteTag(String tagName) async {
-    try {
-      await db.execute('DELETE FROM tags WHERE name = ?', [tagName]);
-    } catch (_) {}
+    await TagRepository().deleteTag(tagName);
     await _loadTaskTags();
   }
 
