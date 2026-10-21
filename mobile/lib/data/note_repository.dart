@@ -2,6 +2,7 @@ import 'package:axis/data/powersync_db.dart';
 
 class Note {
   final String id;
+  final String? userId;
   final String title;
   final String bodyMd;
   final String category; // 'note', 'journal', 'voice'
@@ -12,6 +13,7 @@ class Note {
 
   Note({
     required this.id,
+    this.userId,
     required this.title,
     required this.bodyMd,
     this.category = 'note',
@@ -24,6 +26,7 @@ class Note {
   factory Note.fromRow(Map<String, dynamic> row) {
     return Note(
       id: row['id'] as String,
+      userId: row['user_id'] as String?,
       title: (row['title'] as String?) ?? 'Untitled Note',
       bodyMd: (row['body_md'] as String?) ?? '',
       category: (row['category'] as String?) ?? 'note',
@@ -38,12 +41,27 @@ class Note {
 
 class NoteRepository {
   Stream<List<Note>> watchNotes({String? category}) {
+    final uid = currentUserId;
+    String query;
+    List<dynamic> params = [];
 
-    final query = category != null && category != 'all'
-        ? 'SELECT * FROM notes WHERE category = ? ORDER BY created_at DESC'
-        : 'SELECT * FROM notes ORDER BY pinned DESC, created_at DESC';
-
-    final params = (category != null && category != 'all') ? [category] : <dynamic>[];
+    if (uid.isNotEmpty) {
+      if (category != null && category != 'all') {
+        query = 'SELECT * FROM notes WHERE category = ? AND user_id = ? ORDER BY created_at DESC';
+        params = [category, uid];
+      } else {
+        query = 'SELECT * FROM notes WHERE user_id = ? ORDER BY pinned DESC, created_at DESC';
+        params = [uid];
+      }
+    } else {
+      if (category != null && category != 'all') {
+        query = 'SELECT * FROM notes WHERE category = ? ORDER BY created_at DESC';
+        params = [category];
+      } else {
+        query = 'SELECT * FROM notes ORDER BY pinned DESC, created_at DESC';
+        params = [];
+      }
+    }
 
     return db.watch(query, parameters: params).map((rows) {
       return rows.map((r) => Note.fromRow(r)).toList();
@@ -52,13 +70,15 @@ class NoteRepository {
 
   Future<void> addNote(Note note) async {
     final now = DateTime.now().toUtc().toIso8601String();
+    final uid = note.userId ?? currentUserId;
     try {
       await db.execute('''
         INSERT INTO notes (
-          id, title, body_md, pinned, category, mood, energy, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, user_id, title, body_md, pinned, category, mood, energy, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''', [
         note.id,
+        uid,
         note.title,
         note.bodyMd,
         note.pinned ? 1 : 0,
@@ -67,18 +87,21 @@ class NoteRepository {
         note.energy,
         now,
         now,
-      ]).timeout(const Duration(seconds: 4));
+      ]);
     } catch (_) {}
   }
 
   Future<void> updateNote(Note note) async {
     final now = DateTime.now().toUtc().toIso8601String();
+    final uid = currentUserId;
     try {
       await db.execute('''
         UPDATE notes SET
+          user_id = COALESCE(NULLIF(user_id, ''), ?),
           title = ?, body_md = ?, pinned = ?, category = ?, mood = ?, energy = ?, updated_at = ?
         WHERE id = ?
       ''', [
+        uid,
         note.title,
         note.bodyMd,
         note.pinned ? 1 : 0,
@@ -87,13 +110,13 @@ class NoteRepository {
         note.energy,
         now,
         note.id,
-      ]).timeout(const Duration(seconds: 4));
+      ]);
     } catch (_) {}
   }
 
   Future<void> deleteNote(String id) async {
     try {
-      await db.execute('DELETE FROM notes WHERE id = ?', [id]).timeout(const Duration(seconds: 4));
+      await db.execute('DELETE FROM notes WHERE id = ?', [id]);
     } catch (_) {}
   }
 }

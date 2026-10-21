@@ -33,13 +33,14 @@ class AppWidgetSyncService {
     stopAutoSync();
 
     try {
-      _tasksSub =
-          db.watch('SELECT id FROM tasks').listen((_) => _debouncedSyncTasks());
+      _tasksSub = db
+          .watch('SELECT id, status, updated_at FROM tasks')
+          .listen((_) => _debouncedSyncTasks());
       _habitsSub = db
-          .watch('SELECT id FROM habits')
+          .watch('SELECT id, updated_at FROM habits')
           .listen((_) => _debouncedSyncHabits());
       _habitLogsSub = db
-          .watch('SELECT id FROM habit_logs')
+          .watch('SELECT id, status, log_date FROM habit_logs')
           .listen((_) => _debouncedSyncHabits());
     } catch (e) {
       debugPrint('Error starting AppWidget auto-sync listeners: $e');
@@ -80,9 +81,12 @@ class AppWidgetSyncService {
       final formattedDate =
           DateFormat('EEEE, MMM d').format(now).toUpperCase();
 
-      final rows = await db.getAll(
-        "SELECT title, status, due_date, priority FROM tasks ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC",
-      );
+      final uid = currentUserId;
+      final taskQuery = uid.isNotEmpty
+          ? "SELECT title, status, due_date, priority FROM tasks WHERE user_id = ? ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC"
+          : "SELECT title, status, due_date, priority FROM tasks ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC";
+      final taskParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final rows = await db.getAll(taskQuery, taskParams);
 
       final todayTasks = rows.where((r) {
         final due = r['due_date'] as String?;
@@ -159,14 +163,19 @@ class AppWidgetSyncService {
     try {
       final now = DateTime.now();
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final uid = currentUserId;
 
-      final habitRows = await db.getAll(
-        'SELECT id, name, icon, color FROM habits ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC',
-      );
+      final habitQuery = uid.isNotEmpty
+          ? 'SELECT id, name, icon, color FROM habits WHERE user_id = ? ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC'
+          : 'SELECT id, name, icon, color FROM habits ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC';
+      final habitParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final habitRows = await db.getAll(habitQuery, habitParams);
 
-      final habitLogRows = await db.getAll(
-        'SELECT log_date, status, habit_id FROM habit_logs',
-      );
+      final habitLogQuery = uid.isNotEmpty
+          ? 'SELECT log_date, status, habit_id FROM habit_logs WHERE user_id = ?'
+          : 'SELECT log_date, status, habit_id FROM habit_logs';
+      final habitLogParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final habitLogRows = await db.getAll(habitLogQuery, habitLogParams);
 
       final streakLogs = habitLogRows
           .map((r) => StreakLog(r['log_date'] as String, r['status'] as String))

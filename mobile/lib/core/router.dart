@@ -9,7 +9,10 @@ import 'package:axis/ui/notes/notes_screen.dart';
 import 'package:axis/ui/me/me_screen.dart';
 import 'package:axis/ui/focus/focus_screen.dart';
 import 'package:axis/ui/common/splash_screen.dart';
+import 'package:axis/ui/auth/auth_screen.dart';
+import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
+import 'package:axis/data/network_service.dart';
 
 // Bottom nav slots (5 real tabs — Me is 5th)
 // Bar layout: Today | Tasks | [+] | Habits | Notes
@@ -137,34 +140,51 @@ class _AxisHeader extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 2),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Sync dot
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: AxisColors.tertiary,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AxisColors.tertiary.withValues(alpha: 0.7),
-                              blurRadius: 6,
-                            )
+                  ValueListenableBuilder<bool>(
+                    valueListenable: NetworkService().isOnlineNotifier,
+                    builder: (context, isOnline, _) {
+                      final dotColor = isOnline ? AxisColors.tertiary : AxisColors.warning;
+                      final label = isOnline ? 'SYNCED' : 'OFFLINE';
+
+                      return Tooltip(
+                        message: isOnline
+                            ? 'Online • PowerSync cloud sync is active'
+                            : 'Offline • Operating securely with local SQLite',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Sync dot (reactive to online / offline status)
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: dotColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: dotColor.withValues(alpha: 0.7),
+                                    blurRadius: 6,
+                                  )
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 300),
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                        color: isOnline ? AxisColors.textMuted : AxisColors.warning,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ) ??
+                                  const TextStyle(),
+                              child: Text(label),
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'SYNCED',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AxisColors.textMuted,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -362,10 +382,27 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final router = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/splash',
+  redirect: (context, state) {
+    final hasSession = AuthService().hasActiveSession;
+    final isAuthRoute = state.matchedLocation == '/auth';
+    final isSplashRoute = state.matchedLocation == '/splash';
+
+    if (!hasSession && !isAuthRoute && !isSplashRoute) {
+      return '/auth';
+    }
+    if (hasSession && isAuthRoute) {
+      return '/today';
+    }
+    return null;
+  },
   routes: [
     GoRoute(
       path: '/splash',
       builder: (context, state) => const SplashScreen(),
+    ),
+    GoRoute(
+      path: '/auth',
+      builder: (context, state) => const AuthScreen(),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {

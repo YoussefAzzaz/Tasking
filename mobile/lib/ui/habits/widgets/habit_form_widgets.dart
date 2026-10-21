@@ -46,17 +46,50 @@ class CategorySelectorField extends StatelessWidget {
   }
 
   List<Widget> _buildDropdownItems() {
-    final query = controller.text.trim().toLowerCase();
+    final rawText = controller.text.trim();
+    final query = rawText.toLowerCase();
     final items = <Widget>[];
 
-    final filtered = categories.where((c) {
-      if (query.isEmpty) return true;
-      return c.name.toLowerCase().contains(query);
+    final availableCategories = categories.where((c) {
+      final idLower = c.id.toLowerCase();
+      return idLower != 'cat_workout' &&
+          idLower != 'cat_reading' &&
+          idLower != 'cat_mindful' &&
+          idLower != 'cat_hydrate' &&
+          idLower != 'cat_code' &&
+          idLower != 'cat_rest' &&
+          idLower != 'cat_prayers' &&
+          c.name.toLowerCase() != 'prayers';
     }).toList();
 
+    final exactMatch = availableCategories.any(
+      (c) => c.name.toLowerCase() == query,
+    );
+    final isGeneral = query == 'general routines';
+
+    // Show all available categories if no filter is typed, or if current text is already a selected category/general,
+    // so the user can easily see their categories and pick one when opening the dropdown.
+    // Filter by query substring only when actively searching.
+    final filtered = (query.isEmpty || exactMatch || isGeneral)
+        ? availableCategories
+        : availableCategories
+            .where((c) => c.name.toLowerCase().contains(query))
+            .toList();
+
+    if (filtered.isEmpty && query.isEmpty) {
+      items.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Text(
+            'No custom categories yet. Type above to create one.',
+            style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+          ),
+        ),
+      );
+    }
+
     for (final cat in filtered) {
-      final isSel =
-          controller.text.trim().toLowerCase() == cat.name.toLowerCase();
+      final isSel = query == cat.name.toLowerCase();
       final color = _parseHex(cat.color);
 
       items.add(
@@ -113,13 +146,11 @@ class CategorySelectorField extends StatelessWidget {
       );
     }
 
-    final exactMatch = categories.any((c) => c.name.toLowerCase() == query);
-    if (query.isNotEmpty && !exactMatch) {
-      final typed = controller.text.trim();
+    if (query.isNotEmpty && !exactMatch && !isGeneral) {
       items.add(
         InkWell(
           onTap: () {
-            onSelectCategory(typed, 'fitness', '#10B981');
+            onSelectCategory(rawText, 'fitness', '#10B981');
             onOpenChanged(false);
             focusNode.unfocus();
           },
@@ -132,7 +163,7 @@ class CategorySelectorField extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Create category "$typed"',
+                    'Create category "$rawText"',
                     style: const TextStyle(
                       color: AxisColors.success,
                       fontSize: 13,

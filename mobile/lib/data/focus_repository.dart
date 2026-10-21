@@ -12,14 +12,16 @@ class FocusRepository {
     final now = DateTime.now().toUtc().toIso8601String();
     final id = IdGenerator.generateDeterministicId(
         'focus_${DateTime.now().microsecondsSinceEpoch}');
+    final uid = currentUserId;
 
     try {
       await db.execute('''
         INSERT INTO focus_sessions (
-          id, task_id, kind, planned_min, actual_min, started_at, ended_at, completed, xp_earned, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, user_id, task_id, kind, planned_min, actual_min, started_at, ended_at, completed, xp_earned, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''', [
         id,
+        uid,
         taskId,
         'pomodoro',
         durationMin,
@@ -36,9 +38,9 @@ class FocusRepository {
       final logId = IdGenerator.generateDeterministicId('xp_focus_$id');
       await db.execute('''
         INSERT OR REPLACE INTO logs (
-          id, task_id, event_type, xp_earned, timestamp
-        ) VALUES (?, ?, ?, ?, ?)
-      ''', [logId, taskId ?? 'focus_general', 'focus_completed', xpEarned, now]).timeout(const Duration(seconds: 4));
+          id, user_id, task_id, event_type, xp_earned, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      ''', [logId, uid, taskId ?? 'focus_general', 'focus_completed', xpEarned, now]).timeout(const Duration(seconds: 4));
 
       StatsRepository().invalidateStats();
       await syncGlobalUserLevel();

@@ -7,8 +7,54 @@ import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/location_service.dart';
 import 'package:axis/data/qibla_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
+import 'package:axis/data/stats_repository.dart';
+import 'package:axis/domain/id_generator.dart';
 
-/// Representation of a single daily Islamic prayer
+/// Database representation of a prayer from the dedicated `prayers` table.
+class Prayer {
+  final String id;
+  final String userId;
+  final String prayerCode; // 'fajr', 'dhuhr', 'asr', 'maghrib', 'isha'
+  final String name; // 'Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'
+  final String icon; // 'fajr', 'dhuhr', 'asr', 'maghrib', 'isha'
+  final String time; // e.g. '05:14 AM'
+  final int sortOrder; // 1..5
+  final bool isDone;
+  final String createdAt;
+  final String updatedAt;
+
+  const Prayer({
+    required this.id,
+    required this.userId,
+    required this.prayerCode,
+    required this.name,
+    required this.icon,
+    required this.time,
+    required this.sortOrder,
+    required this.isDone,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory Prayer.fromRow(Map<String, dynamic> row) {
+    final rawDone = row['is_done'];
+    final done = rawDone == 1 || rawDone == true || rawDone == 'true' || rawDone == '1';
+    return Prayer(
+      id: row['id'] as String,
+      userId: (row['user_id'] as String?) ?? '',
+      prayerCode: (row['prayer_code'] as String?) ?? '',
+      name: (row['name'] as String?) ?? '',
+      icon: (row['icon'] as String?) ?? '',
+      time: (row['time'] as String?) ?? '',
+      sortOrder: (row['sort_order'] as num?)?.toInt() ?? 1,
+      isDone: done,
+      createdAt: (row['created_at'] as String?) ?? '',
+      updatedAt: (row['updated_at'] as String?) ?? '',
+    );
+  }
+}
+
+/// Representation of a single daily Islamic prayer for calculations and alarms
 class PrayerItem {
   final String id;
   final String name;
@@ -29,7 +75,7 @@ class PrayerItem {
 
 /// Service that automatically resolves the user's location & timezone,
 /// calculates high-precision Islamic prayer (Adan) times using adhan_dart,
-/// and synchronizes the 5 daily prayer habits in the database with automatic daily rollover.
+/// and synchronizes the 5 daily prayers in the dedicated `prayers` table.
 class PrayerTimeService with WidgetsBindingObserver {
   static final PrayerTimeService _instance = PrayerTimeService._();
   factory PrayerTimeService() => _instance;
@@ -44,6 +90,7 @@ class PrayerTimeService with WidgetsBindingObserver {
   Timer? _midnightTimer;
   Timer? _heartbeatTimer;
   bool _isInitialized = false;
+  bool _isSyncing = false;
 
   String get currentCity => _currentCity;
   String get currentCountry => _currentCountry;
@@ -52,7 +99,7 @@ class PrayerTimeService with WidgetsBindingObserver {
   double get currentLng => _currentLng;
   String get lastSyncedDate => _lastSyncedDate;
 
-  /// Initializes the local prayer settings table and synchronizes prayer habits
+  /// Initializes the local prayer settings table and synchronizes prayers
   Future<void> init() async {
     try {
       await db.execute('''
@@ -71,7 +118,7 @@ class PrayerTimeService with WidgetsBindingObserver {
       ''');
 
       await _loadSavedSettings();
-      await syncPrayerHabits();
+      await syncPrayers();
 
       if (!_isInitialized) {
         WidgetsBinding.instance.addObserver(this);
@@ -90,12 +137,12 @@ class PrayerTimeService with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       if (_lastSyncedDate != todayStr) {
-        syncPrayerHabits();
+        syncPrayers();
       }
     }
   }
 
-  /// Schedules automatic recalculation when midnight arrives
+  /// Schedules automatic recalculation and daily rollover when midnight arrives
   void _scheduleMidnightRollover() {
     _midnightTimer?.cancel();
     final now = DateTime.now();
@@ -103,7 +150,7 @@ class PrayerTimeService with WidgetsBindingObserver {
     final delay = tomorrow.difference(now);
 
     _midnightTimer = Timer(delay, () async {
-      await syncPrayerHabits();
+      await syncPrayers();
       _scheduleMidnightRollover();
     });
   }
@@ -114,7 +161,7 @@ class PrayerTimeService with WidgetsBindingObserver {
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 30), (_) {
       final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       if (_lastSyncedDate != todayStr) {
-        syncPrayerHabits();
+        syncPrayers();
       }
     });
   }
@@ -162,7 +209,6 @@ class PrayerTimeService with WidgetsBindingObserver {
   }
 
   /// Resolves the user's geographical coordinates and timezone via LocationService.
-  /// Integrates hardware GPS (geolocator), IP geolocation, and regional timezone inference.
   Future<Coordinates> resolveCoordinates({bool forceRefresh = false}) async {
     if (!forceRefresh && _currentCity != 'Auto' && _currentLat != 0) {
       return Coordinates(_currentLat, _currentLng);
@@ -236,40 +282,40 @@ class PrayerTimeService with WidgetsBindingObserver {
 
     return [
       PrayerItem(
-        id: 'habit_prayer_fajr',
-        name: 'Fajr Prayer',
+        id: 'fajr',
+        name: 'Fajr',
         icon: 'fajr',
         sortOrder: 1,
         time: prayerTimes.fajr.toLocal(),
         formattedTime: formatAdan(prayerTimes.fajr),
       ),
       PrayerItem(
-        id: 'habit_prayer_dhuhr',
-        name: 'Dhuhr Prayer',
+        id: 'dhuhr',
+        name: 'Dhuhr',
         icon: 'dhuhr',
         sortOrder: 2,
         time: prayerTimes.dhuhr.toLocal(),
         formattedTime: formatAdan(prayerTimes.dhuhr),
       ),
       PrayerItem(
-        id: 'habit_prayer_asr',
-        name: 'Asr Prayer',
+        id: 'asr',
+        name: 'Asr',
         icon: 'asr',
         sortOrder: 3,
         time: prayerTimes.asr.toLocal(),
         formattedTime: formatAdan(prayerTimes.asr),
       ),
       PrayerItem(
-        id: 'habit_prayer_maghrib',
-        name: 'Maghrib Prayer',
+        id: 'maghrib',
+        name: 'Maghrib',
         icon: 'maghrib',
         sortOrder: 4,
         time: prayerTimes.maghrib.toLocal(),
         formattedTime: formatAdan(prayerTimes.maghrib),
       ),
       PrayerItem(
-        id: 'habit_prayer_isha',
-        name: 'Isha Prayer',
+        id: 'isha',
+        name: 'Isha',
         icon: 'isha',
         sortOrder: 5,
         time: prayerTimes.isha.toLocal(),
@@ -292,78 +338,300 @@ class PrayerTimeService with WidgetsBindingObserver {
     return tomorrowPrayers.isNotEmpty ? tomorrowPrayers.first : null;
   }
 
-  /// Synchronizes the 5 prayer habits with the local SQLite database.
-  /// Automatically creates the habits if they do not exist yet,
-  /// and updates their adan times (remind_time) dynamically every day.
-  Future<void> syncPrayerHabits({bool forceLocation = false}) async {
+  /// Canonical deterministic ID for each of the strictly 5 Islamic prayers.
+  /// Guarantees that IDs are 100% stable, persistent, and never duplicate or recreate.
+  static String prayerIdForCode(String code) =>
+      IdGenerator.generateDeterministicId('canonical_prayer_${code.toLowerCase()}');
+
+  /// Static fallback list of the 5 canonical daily Islamic prayers.
+  static List<Prayer> defaultPrayers([String? userId]) {
+    final uid = userId ?? currentUserId;
+    return [
+      Prayer(
+        id: prayerIdForCode('fajr'),
+        userId: uid,
+        prayerCode: 'fajr',
+        name: 'Fajr',
+        icon: 'fajr',
+        time: '05:30 AM',
+        sortOrder: 1,
+        isDone: false,
+        createdAt: '',
+        updatedAt: '',
+      ),
+      Prayer(
+        id: prayerIdForCode('dhuhr'),
+        userId: uid,
+        prayerCode: 'dhuhr',
+        name: 'Dhuhr',
+        icon: 'dhuhr',
+        time: '12:45 PM',
+        sortOrder: 2,
+        isDone: false,
+        createdAt: '',
+        updatedAt: '',
+      ),
+      Prayer(
+        id: prayerIdForCode('asr'),
+        userId: uid,
+        prayerCode: 'asr',
+        name: 'Asr',
+        icon: 'asr',
+        time: '04:15 PM',
+        sortOrder: 3,
+        isDone: false,
+        createdAt: '',
+        updatedAt: '',
+      ),
+      Prayer(
+        id: prayerIdForCode('maghrib'),
+        userId: uid,
+        prayerCode: 'maghrib',
+        name: 'Maghrib',
+        icon: 'maghrib',
+        time: '06:45 PM',
+        sortOrder: 4,
+        isDone: false,
+        createdAt: '',
+        updatedAt: '',
+      ),
+      Prayer(
+        id: prayerIdForCode('isha'),
+        userId: uid,
+        prayerCode: 'isha',
+        name: 'Isha',
+        icon: 'isha',
+        time: '08:15 PM',
+        sortOrder: 5,
+        isDone: false,
+        createdAt: '',
+        updatedAt: '',
+      ),
+    ];
+  }
+
+  /// Streams the 5 daily prayers from the dedicated `prayers` table.
+  /// Pure projection without side-effects to prevent recreation loops.
+  Stream<List<Prayer>> watchPrayers() {
+    final uid = currentUserId;
+    final query = uid.isNotEmpty
+        ? "SELECT id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at FROM prayers WHERE (user_id = ? OR user_id IS NULL OR user_id = '') ORDER BY sort_order ASC"
+        : 'SELECT id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at FROM prayers ORDER BY sort_order ASC';
+    final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+
+    return db.watch(query, parameters: params).map((rows) {
+      if (rows.isEmpty) {
+        return defaultPrayers(uid);
+      }
+      return rows.map((r) => Prayer.fromRow(r)).toList();
+    });
+  }
+
+  /// Synchronizes the 5 dedicated daily prayers into the `prayers` table.
+  /// Strictly maintains exactly 5 canonical rows (Fajr, Dhuhr, Asr, Maghrib, Isha).
+  /// Never duplicates prayers, preserves completion state, and protects against race conditions.
+  Future<void> syncPrayers({bool forceLocation = false}) async {
+    if (!isDatabaseInitialized || _isSyncing) return;
+    _isSyncing = true;
+
     try {
       final now = DateTime.now();
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final isNewDay = _lastSyncedDate.isNotEmpty && _lastSyncedDate != todayStr;
 
       if (forceLocation) {
         await resolveCoordinates(forceRefresh: true);
       }
 
-      // Ensure the 'Prayers' category exists
-      await db.execute('''
-        INSERT OR IGNORE INTO habit_categories (id, name, icon, color)
-        VALUES ('cat_prayers', 'Prayers', 'mosque', '#10B981')
-      ''');
+      // 1. Purge legacy prayers from habits table & prayer category from habit_categories
+      await db.execute("DELETE FROM habits WHERE kind = 'Prayers' OR id LIKE 'habit_prayer_%'");
+      await db.execute("DELETE FROM habit_categories WHERE id = 'cat_prayers' OR LOWER(name) = 'prayers'");
 
-      final prayers = await calculatePrayersForDate(now);
-      final existingHabits = await db.getAll(
-        "SELECT id, remind_time FROM habits WHERE kind = 'Prayers' OR id LIKE 'habit_prayer_%'",
-      );
-      final existingMap = {for (var h in existingHabits) h['id'] as String: h};
-
+      final prayerItems = await calculatePrayersForDate(now);
+      final uid = currentUserId;
       final utcNow = now.toUtc().toIso8601String();
 
-      for (final prayer in prayers) {
-        if (!existingMap.containsKey(prayer.id)) {
-          // Create the prayer habit
+      // Canonical 5 IDs
+      final canonicalIds = [
+        prayerIdForCode('fajr'),
+        prayerIdForCode('dhuhr'),
+        prayerIdForCode('asr'),
+        prayerIdForCode('maghrib'),
+        prayerIdForCode('isha'),
+      ];
+
+      // 2. Fetch existing records in dedicated prayers table
+      final existingRows = await db.getAll(
+        "SELECT id, prayer_code, is_done, time FROM prayers WHERE id IN (?, ?, ?, ?, ?)",
+        canonicalIds,
+      );
+      final existingMap = {
+        for (var r in existingRows)
+          (r['prayer_code'] as String? ?? '').toLowerCase(): r
+      };
+
+      // 3. Upsert exactly the 5 prayers by canonical ID
+      for (final item in prayerItems) {
+        final code = item.id.toLowerCase();
+        final prayerId = prayerIdForCode(code);
+        final existing = existingMap[code];
+
+        if (existing == null) {
           await db.execute('''
-            INSERT INTO habits (
-              id, name, kind, icon, color, schedule_type, remind_time, target_value, sort_order, created_at, updated_at
-            ) VALUES (?, ?, 'Prayers', ?, '#10B981', 'daily', ?, 25, ?, ?, ?)
+            INSERT INTO prayers (
+              id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              user_id = excluded.user_id,
+              name = excluded.name,
+              icon = excluded.icon,
+              time = excluded.time,
+              sort_order = excluded.sort_order,
+              updated_at = excluded.updated_at
           ''', [
-            prayer.id,
-            prayer.name,
-            prayer.icon,
-            prayer.formattedTime,
-            prayer.sortOrder,
+            prayerId,
+            uid,
+            code,
+            item.name,
+            item.icon,
+            item.formattedTime,
+            item.sortOrder,
             utcNow,
             utcNow,
           ]);
         } else {
-          // Update the daily adan time if it changed for today
-          final currentRemind = existingMap[prayer.id]?['remind_time'] as String?;
-          if (currentRemind != prayer.formattedTime || _lastSyncedDate != todayStr) {
+          // If rollover to a new day, reset is_done to 0
+          if (isNewDay) {
             await db.execute('''
-              UPDATE habits SET
-                remind_time = ?,
+              UPDATE prayers SET
+                user_id = ?,
+                name = ?,
+                icon = ?,
+                time = ?,
+                sort_order = ?,
+                is_done = 0,
+                updated_at = ?
+              WHERE id = ?
+            ''', [
+              uid,
+              item.name,
+              item.icon,
+              item.formattedTime,
+              item.sortOrder,
+              utcNow,
+              prayerId,
+            ]);
+          } else {
+            // Update time and details, PRESERVE existing is_done state
+            await db.execute('''
+              UPDATE prayers SET
+                user_id = ?,
+                name = ?,
+                icon = ?,
+                time = ?,
                 sort_order = ?,
                 updated_at = ?
               WHERE id = ?
             ''', [
-              prayer.formattedTime,
-              prayer.sortOrder,
+              uid,
+              item.name,
+              item.icon,
+              item.formattedTime,
+              item.sortOrder,
               utcNow,
-              prayer.id,
+              prayerId,
             ]);
           }
         }
       }
 
+      // 4. Clean up any rogue or duplicate prayer rows outside the 5 canonical IDs
+      await db.execute(
+        "DELETE FROM prayers WHERE id NOT IN (?, ?, ?, ?, ?)",
+        canonicalIds,
+      );
+
       _lastSyncedDate = todayStr;
       await _saveSettings();
 
       // Schedule Adhan notifications and Fajr Wake-Up Alarm
-      await AdhanAlarmService().scheduleAllPrayers(prayers);
+      await AdhanAlarmService().scheduleAllPrayers(prayerItems);
 
-      // Synchronize home screen widgets with updated prayer habits
+      // Synchronize home screen widgets
       AppWidgetSyncService().syncHabitStreak();
     } catch (e) {
-      debugPrint('Error syncing prayer habits: $e');
+      debugPrint('Error syncing prayers: $e');
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
+  /// Backward compatibility alias for syncPrayers
+  Future<void> syncPrayerHabits({bool forceLocation = false}) =>
+      syncPrayers(forceLocation: forceLocation);
+
+  /// Resets today's prayer tasks back to undone (`is_done = 0`).
+  /// CRITICAL GUARANTEES:
+  ///   - Does NOT delete or create rows (strictly preserves the 5 rows).
+  ///   - Keeps all previous EXP and streak progress intact.
+  ///   - Resets only the completion state back to undone.
+  Future<void> resetPrayers() async {
+    if (!isDatabaseInitialized) return;
+    final uid = currentUserId;
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+    try {
+      final query = uid.isNotEmpty
+          ? "UPDATE prayers SET is_done = 0, updated_at = ? WHERE (user_id = ? OR user_id IS NULL OR user_id = '')"
+          : 'UPDATE prayers SET is_done = 0, updated_at = ?';
+      final params = uid.isNotEmpty ? [nowUtc, uid] : [nowUtc];
+      await db.execute(query, params);
+      StatsRepository().invalidateStats();
+      AppWidgetSyncService().syncHabitStreak();
+    } catch (e) {
+      debugPrint('[PrayerTimeService] Error resetting prayers: $e');
+    }
+  }
+
+  /// Toggles completion of a single prayer and awards/reverts EXP without recreating any records.
+  Future<void> togglePrayer(String prayerId, bool isDone) async {
+    if (!isDatabaseInitialized) return;
+    final uid = currentUserId;
+    final now = DateTime.now();
+    final nowUtc = now.toUtc().toIso8601String();
+    final today = DateFormat('yyyy-MM-dd').format(now);
+    final logEventId = IdGenerator.generateDeterministicId('xpevent_${prayerId}_$today');
+    final habitLogId = IdGenerator.generateDeterministicId('habitlog_prayer_${prayerId}_$today');
+
+    try {
+      // 1. Update prayer status in dedicated table
+      await db.execute(
+        'UPDATE prayers SET is_done = ?, updated_at = ? WHERE id = ?',
+        [isDone ? 1 : 0, nowUtc, prayerId],
+      );
+
+      // 2. Award or remove XP in logs table & sync habit_logs for streak calculation
+      if (isDone) {
+        await db.execute('''
+          INSERT OR REPLACE INTO logs (
+            id, user_id, task_id, event_type, xp_earned, timestamp
+          ) VALUES (?, ?, ?, 'prayer_completed', 25, ?)
+        ''', [logEventId, uid, prayerId, nowUtc]);
+
+        await db.execute('''
+          INSERT OR REPLACE INTO habit_logs (
+            id, user_id, habit_id, log_date, status, value, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, 'done', 1, ?, ?)
+        ''', [habitLogId, uid, prayerId, today, nowUtc, nowUtc]);
+      } else {
+        await db.execute('DELETE FROM logs WHERE id = ?', [logEventId]);
+        await db.execute('DELETE FROM habit_logs WHERE id = ?', [habitLogId]);
+      }
+
+      StatsRepository().invalidateStats();
+      await syncGlobalUserLevel();
+      AppWidgetSyncService().syncHabitStreak();
+    } catch (e) {
+      debugPrint('[PrayerTimeService] Error toggling prayer: $e');
     }
   }
 

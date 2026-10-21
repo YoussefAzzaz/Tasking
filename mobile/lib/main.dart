@@ -4,12 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
 import 'package:axis/data/powersync_db.dart';
+import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:device_preview/device_preview.dart';
+import 'package:axis/data/network_service.dart';
 
 import 'dart:async';
 
@@ -28,6 +30,13 @@ Future<void> main() async {
 
   // Initialize local SQLite + Supabase connector
   await openDatabase();
+  await AuthService().init();
+
+  // Check online status via TCP socket packet to Supabase
+  final isOnline = await NetworkService().checkSupabaseConnectivity();
+  if (isOnline && AuthService().hasActiveSession) {
+    unawaited(AuthService().tryAutoLoginOrSync());
+  }
 
   runApp(
     DevicePreview(
@@ -42,6 +51,7 @@ Future<void> main() async {
 
 Future<void> _initBackgroundServices() async {
   try {
+    NetworkService().startMonitoring();
     await FocusSessionService().init();
     await PrayerTimeService().init();
     await AdhanAlarmService().init();

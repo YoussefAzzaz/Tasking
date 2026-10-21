@@ -58,11 +58,34 @@ class ProjectSelectorField extends StatelessWidget {
       ),
     );
 
-    // Filtered projects
-    final filtered = existingProjects.where((p) {
-      if (query.isEmpty) return true;
-      return p.name.toLowerCase().contains(query);
+    // Filtered projects (excluding legacy defaults)
+    final availableProjects = existingProjects.where((p) {
+      final idLower = p.id.toLowerCase();
+      return idLower != 'work' && idLower != 'personal' && idLower != 'growth';
     }).toList();
+
+    final exactMatch = availableProjects.any(
+      (p) => p.name.toLowerCase() == query,
+    );
+    final isInbox = query.isEmpty || query == 'inbox';
+
+    final filtered = (isInbox || exactMatch)
+        ? availableProjects
+        : availableProjects
+            .where((p) => p.name.toLowerCase().contains(query))
+            .toList();
+
+    if (filtered.isEmpty && query.isEmpty) {
+      items.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Text(
+            'No custom projects yet. Type above to create one.',
+            style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+          ),
+        ),
+      );
+    }
 
     for (final proj in filtered) {
       final isSelected = selectedProject != null &&
@@ -83,9 +106,6 @@ class ProjectSelectorField extends StatelessWidget {
     }
 
     // Quick-create new project if typed name doesn't match an existing project
-    final exactMatch = existingProjects.any(
-      (p) => p.name.toLowerCase() == query,
-    );
     if (query.isNotEmpty && !exactMatch && query != 'inbox') {
       final rawTyped = controller.text.trim();
       items.add(

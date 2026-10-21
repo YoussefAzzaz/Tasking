@@ -32,42 +32,47 @@ class TaskTagsSection extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'TAG NAME',
-              style: TextStyle(
-                color: AxisColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: tagCtrl,
-              autofocus: false,
-              style: const TextStyle(color: AxisColors.textHigh),
-              decoration: InputDecoration(
-                prefixText: '@',
-                prefixStyle: const TextStyle(
-                  color: AxisColors.primarySoft,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        actionsOverflowButtonSpacing: 8,
+        actionsOverflowDirection: VerticalDirection.down,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'TAG NAME',
+                style: TextStyle(
+                  color: AxisColors.textMuted,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
-                hintText: 'e.g. urgent, backend, review',
-                hintStyle: const TextStyle(color: AxisColors.textDim),
-                filled: true,
-                fillColor: AxisColors.surfaceHigh,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              TextField(
+                controller: tagCtrl,
+                autofocus: false,
+                style: const TextStyle(color: AxisColors.textHigh),
+                decoration: InputDecoration(
+                  prefixText: '@',
+                  prefixStyle: const TextStyle(
+                    color: AxisColors.primarySoft,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  hintText: 'e.g. urgent, backend, review',
+                  hintStyle: const TextStyle(color: AxisColors.textDim),
+                  filled: true,
+                  fillColor: AxisColors.surfaceHigh,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

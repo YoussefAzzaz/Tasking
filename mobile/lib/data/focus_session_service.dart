@@ -352,6 +352,21 @@ class FocusSessionService with WidgetsBindingObserver {
     _cancelNotification();
   }
 
+  /// Immediately terminates any active focus session, audio, notifications, and timer.
+  void terminateSession() {
+    _isRunning = false;
+    isRunningNotifier.value = false;
+    _ticker?.cancel();
+    _targetEndTime = null;
+    _soundService.stop();
+    _attachedTask = null;
+    attachedTaskNotifier.value = null;
+    _totalSeconds = _config.focusMinutes * 60;
+    _remainingSeconds = _totalSeconds;
+    remainingSecondsNotifier.value = _remainingSeconds;
+    _cancelNotification();
+  }
+
   Future<void> _onComplete() async {
     _isRunning = false;
     isRunningNotifier.value = false;

@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/stats_repository.dart';
+import 'package:axis/domain/id_generator.dart';
 
 
 class Task {
   final String id;
+  final String? userId;
   final String title;
   final String? notes;
   final String status;
@@ -21,6 +24,7 @@ class Task {
 
   Task({
     required this.id,
+    this.userId,
     required this.title,
     this.notes,
     this.status = 'todo',
@@ -37,6 +41,7 @@ class Task {
   factory Task.fromRow(Map<String, dynamic> row) {
     return Task(
       id: row['id'],
+      userId: row['user_id'],
       title: row['title'],
       notes: row['notes'],
       status: row['status'] ?? 'todo',
@@ -54,6 +59,7 @@ class Task {
   Map<String, dynamic> toRow() {
     return {
       'id': id,
+      'user_id': userId ?? currentUserId,
       'title': title,
       'notes': notes,
       'status': status,
@@ -150,21 +156,29 @@ int compareTasksByPriority(Task a, Task b) {
 
 class TaskRepository {
   Stream<List<Task>> watchTasks() {
-    return db.watch('SELECT * FROM tasks ORDER BY created_at DESC').map((rows) {
+    final uid = currentUserId;
+    final query = uid.isNotEmpty
+        ? 'SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC'
+        : 'SELECT * FROM tasks ORDER BY created_at DESC';
+    final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+
+    return db.watch(query, parameters: params).map((rows) {
       return rows.map((row) => Task.fromRow(row)).toList();
     });
   }
 
   Future<void> addTask(Task task) async {
+    final uid = task.userId ?? currentUserId;
     try {
       await db.execute('''
         INSERT INTO tasks (
-          id, title, notes, status, priority, project_id, tags, due_date, due_time, estimate_min, recurrence_rule, recurrence_mode, created_at, updated_at
+          id, user_id, title, notes, status, priority, project_id, tags, due_date, due_time, estimate_min, recurrence_rule, recurrence_mode, created_at, updated_at
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       ''', [
         task.id,
+        uid,
         task.title,
         task.notes,
         task.status,
@@ -178,7 +192,7 @@ class TaskRepository {
         task.recurrenceMode,
         DateTime.now().toUtc().toIso8601String(),
         DateTime.now().toUtc().toIso8601String(),
-      ]).timeout(const Duration(seconds: 4));
+      ]);
 
       if (task.tags != null && task.tags!.isNotEmpty) {
         CacheService().invalidate('task_tags_list');
@@ -189,12 +203,18 @@ class TaskRepository {
   }
 
   Future<void> updateTask(Task task) async {
+    final uid = task.userId ?? currentUserId;
     try {
+      final current = await db.getOptional('SELECT status FROM tasks WHERE id = ?', [task.id]);
+      final oldStatus = current?['status'] as String?;
+
       await db.execute('''
         UPDATE tasks SET
+          user_id = COALESCE(NULLIF(user_id, ''), ?),
           title = ?, notes = ?, status = ?, priority = ?, project_id = ?, tags = ?, due_date = ?, due_time = ?, estimate_min = ?, recurrence_rule = ?, recurrence_mode = ?, updated_at = ?
         WHERE id = ?
       ''', [
+        uid,
         task.title,
         task.notes,
         task.status,
@@ -208,20 +228,51 @@ class TaskRepository {
         task.recurrenceMode,
         DateTime.now().toUtc().toIso8601String(),
         task.id,
-      ]).timeout(const Duration(seconds: 4));
+      ]);
+
+      final now = DateTime.now().toUtc().toIso8601String();
+      if (task.status == 'done' && oldStatus != 'done') {
+        final xp = task.priority == 1 ? 75 : (task.priority == 2 ? 50 : 25);
+        final logId = IdGenerator.generateDeterministicId('xp_task_${task.id}_$now');
+        await db.execute('''
+          INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp)
+          VALUES (?, ?, ?, 'task_completed', ?, ?)
+        ''', [logId, uid, task.id, xp, now]);
+      } else if (task.status != 'done' && oldStatus == 'done') {
+        final deleteQuery = uid.isNotEmpty
+            ? "DELETE FROM logs WHERE task_id = ? AND event_type = 'task_completed' AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+            : "DELETE FROM logs WHERE task_id = ? AND event_type = 'task_completed'";
+        final deleteParams = uid.isNotEmpty ? [task.id, uid] : [task.id];
+        await db.execute(deleteQuery, deleteParams);
+      }
 
       if (task.tags != null && task.tags!.isNotEmpty) {
         CacheService().invalidate('task_tags_list');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[TaskRepository] Error updating task: $e');
+    }
 
+    StatsRepository().invalidateStats();
+    await syncGlobalUserLevel();
     AppWidgetSyncService().syncTodayTasks();
   }
 
   Future<void> deleteTask(String id) async {
+    final uid = currentUserId;
     try {
-      await db.execute('DELETE FROM tasks WHERE id = ?', [id]).timeout(const Duration(seconds: 4));
-    } catch (_) {}
+      final deleteLogQuery = uid.isNotEmpty
+          ? "DELETE FROM logs WHERE task_id = ? AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+          : 'DELETE FROM logs WHERE task_id = ?';
+      final deleteLogParams = uid.isNotEmpty ? [id, uid] : [id];
+      await db.execute(deleteLogQuery, deleteLogParams);
+
+      await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
+    } catch (e) {
+      debugPrint('[TaskRepository] Error deleting task: $e');
+    }
+    StatsRepository().invalidateStats();
+    await syncGlobalUserLevel();
     AppWidgetSyncService().syncTodayTasks();
   }
 
@@ -243,47 +294,36 @@ class TaskRepository {
     );
 
     await updateTask(updated);
-
-    final now = DateTime.now().toUtc().toIso8601String();
-    if (isDone) {
-      final xp = task.priority == 1 ? 75 : (task.priority == 2 ? 50 : 25);
-      try {
-        await db.execute('''
-          INSERT INTO logs (id, task_id, event_type, xp_earned, timestamp)
-          VALUES (?, ?, ?, ?, ?)
-        ''', [
-          'log_${DateTime.now().microsecondsSinceEpoch}',
-          task.id,
-          'task_completed',
-          xp,
-          now,
-        ]).timeout(const Duration(seconds: 4));
-      } catch (_) {}
-    } else {
-      try {
-        await db.execute(
-          'DELETE FROM logs WHERE task_id = ? AND event_type = ?',
-          [task.id, 'task_completed'],
-        ).timeout(const Duration(seconds: 4));
-      } catch (_) {}
-    }
-
-    StatsRepository().invalidateStats();
-    await syncGlobalUserLevel();
   }
 
   /// Unlinks all tasks matching the specified project identifier in a single batch operation.
   Future<void> unlinkTasksFromProject(String projectId, {String? projectName}) async {
     final name = projectName ?? '';
+    final uid = currentUserId;
     try {
-      await db.execute('''
-        UPDATE tasks 
-        SET project_id = NULL 
-        WHERE project_id = ? 
-           OR project_id = ? 
-           OR LOWER(COALESCE(project_id, '')) = LOWER(?) 
-           OR LOWER(COALESCE(project_id, '')) = LOWER(?)
-      ''', [projectId, projectId.replaceFirst('discovered_', ''), projectId, name]).timeout(const Duration(seconds: 4));
+      final query = uid.isNotEmpty
+          ? '''
+            UPDATE tasks 
+            SET project_id = NULL 
+            WHERE (project_id = ? 
+               OR project_id = ? 
+               OR LOWER(COALESCE(project_id, '')) = LOWER(?) 
+               OR LOWER(COALESCE(project_id, '')) = LOWER(?))
+              AND (user_id = ? OR user_id IS NULL OR user_id = '')
+          '''
+          : '''
+            UPDATE tasks 
+            SET project_id = NULL 
+            WHERE project_id = ? 
+               OR project_id = ? 
+               OR LOWER(COALESCE(project_id, '')) = LOWER(?) 
+               OR LOWER(COALESCE(project_id, '')) = LOWER(?)
+          ''';
+      final params = uid.isNotEmpty
+          ? [projectId, projectId.replaceFirst('discovered_', ''), projectId, name, uid]
+          : [projectId, projectId.replaceFirst('discovered_', ''), projectId, name];
+
+      await db.execute(query, params).timeout(const Duration(seconds: 4));
     } catch (_) {}
     AppWidgetSyncService().syncTodayTasks();
   }

@@ -14,11 +14,13 @@ class CreateHabitSheet extends StatefulWidget {
     required this.onHabitCreated,
     this.habitToEdit,
     this.initialCategory,
+    this.existingCategories,
   });
 
   final VoidCallback onHabitCreated;
   final Habit? habitToEdit;
   final String? initialCategory;
+  final List<HabitCategory>? existingCategories;
 
   @override
   State<CreateHabitSheet> createState() => _CreateHabitSheetState();
@@ -27,7 +29,7 @@ class CreateHabitSheet extends StatefulWidget {
 class _CreateHabitSheetState extends State<CreateHabitSheet> {
   final _nameController = TextEditingController();
   final _nameFocusNode = FocusNode();
-  final _categoryController = TextEditingController(text: 'Workout');
+  final _categoryController = TextEditingController();
   final _categoryFocusNode = FocusNode();
 
   bool _showCategoryDropdown = false;
@@ -39,28 +41,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
   bool _saving = false;
   String? _errorText;
 
-  List<HabitCategory> _categories = [
-    const HabitCategory(
-        id: 'cat_prayers',
-        name: 'Prayers',
-        icon: 'mosque',
-        color: '#10B981'),
-    const HabitCategory(
-        id: 'cat_workout', name: 'Workout', icon: 'fitness', color: '#10B981'),
-    const HabitCategory(
-        id: 'cat_reading', name: 'Reading', icon: 'book', color: '#38BDF8'),
-    const HabitCategory(
-        id: 'cat_mindful',
-        name: 'Mindful',
-        icon: 'meditation',
-        color: '#A855F7'),
-    const HabitCategory(
-        id: 'cat_hydrate', name: 'Hydrate', icon: 'water', color: '#06B6D4'),
-    const HabitCategory(
-        id: 'cat_code', name: 'Code', icon: 'code', color: '#6366F1'),
-    const HabitCategory(
-        id: 'cat_rest', name: 'Rest', icon: 'sleep', color: '#F59E0B'),
-  ];
+  List<HabitCategory> _categories = [];
 
   @override
   void initState() {
@@ -68,6 +49,9 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusManager.instance.primaryFocus?.unfocus();
     });
+    if (widget.existingCategories != null && widget.existingCategories!.isNotEmpty) {
+      _categories = List<HabitCategory>.from(widget.existingCategories!);
+    }
     if (widget.habitToEdit != null) {
       final h = widget.habitToEdit!;
       _nameController.text = h.name;
@@ -117,14 +101,24 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
 
   Future<void> _loadCategories() async {
     try {
-      final list = await HabitCategoryRepository().getCategories();
-      if (list.isNotEmpty && mounted) {
+      final list = await HabitCategoryRepository().getCategories(forceRefresh: true);
+      if (mounted) {
         setState(() {
-          _categories = list;
+          final merged = <HabitCategory>[...list];
+          final names = merged.map((c) => c.name.toLowerCase()).toSet();
+          if (widget.existingCategories != null) {
+            for (final ec in widget.existingCategories!) {
+              if (!names.contains(ec.name.toLowerCase())) {
+                names.add(ec.name.toLowerCase());
+                merged.add(ec);
+              }
+            }
+          }
+          _categories = merged;
           if (widget.habitToEdit == null &&
               _categoryController.text.trim().isNotEmpty) {
             final cat = _categoryController.text.trim().toLowerCase();
-            final match = list.firstWhere(
+            final match = _categories.firstWhere(
               (c) => c.name.toLowerCase() == cat,
               orElse: () => const HabitCategory(id: '', name: ''),
             );
@@ -191,7 +185,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
         ? '${_reminderTime!.hourOfPeriod == 0 ? 12 : _reminderTime!.hourOfPeriod}:${_reminderTime!.minute.toString().padLeft(2, '0')} ${_reminderTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
         : null;
 
-    final category = categoryName.isNotEmpty ? categoryName : 'Workout';
+    final category = categoryName.isNotEmpty ? categoryName : 'General Routines';
 
     if (widget.habitToEdit != null) {
       final updatedHabit = Habit(
@@ -232,6 +226,48 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
       Navigator.pop(context);
       widget.onHabitCreated();
     }
+  }
+
+  void _confirmDelete() {
+    if (widget.habitToEdit == null) return;
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AxisColors.surfaceHigh,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AxisColors.borderPrimary),
+        ),
+        title: Text(
+          'Delete "${widget.habitToEdit!.name}"?',
+          style: const TextStyle(color: AxisColors.textHigh),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this habit? All progress and logs will be removed.',
+          style: TextStyle(color: AxisColors.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AxisColors.textDim)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              setState(() => _saving = true);
+              await HabitRepository().deleteHabit(widget.habitToEdit!.id);
+              if (mounted) {
+                Navigator.pop(context);
+                widget.onHabitCreated();
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -574,6 +610,32 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                           ),
                         ),
                       ),
+                      if (widget.habitToEdit != null) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _saving ? null : _confirmDelete,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AxisColors.error,
+                            side: const BorderSide(
+                              color: AxisColors.error,
+                              width: 1.2,
+                            ),
+                            minimumSize: const Size(double.infinity, 46),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 18),
+                          label: const Text(
+                            'DELETE HABIT',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

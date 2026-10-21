@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:axis/data/auth_service.dart';
 
 /// Kinetic Splash Screen for Mobile & Desktop launch
 class SplashScreen extends StatefulWidget {
@@ -42,7 +44,12 @@ class _SplashScreenState extends State<SplashScreen>
     // Smooth transition to the main app after splash sequence
     Future.delayed(const Duration(milliseconds: 1600), () {
       if (mounted) {
-        context.go('/today');
+        if (AuthService().hasActiveSession) {
+          context.go('/today');
+          unawaited(AuthService().tryAutoLoginOrSync());
+        } else {
+          context.go('/auth');
+        }
       }
     });
   }

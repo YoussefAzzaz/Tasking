@@ -45,81 +45,86 @@ class HabitCategoriesSection extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'CATEGORY NAME',
-                style: TextStyle(
-                  color: AxisColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: catCtrl,
-                autofocus: false,
-                style: const TextStyle(color: AxisColors.textHigh),
-                decoration: InputDecoration(
-                  hintText: 'e.g. Fitness, Meditation, Study',
-                  hintStyle: const TextStyle(color: AxisColors.textDim),
-                  filled: true,
-                  fillColor: AxisColors.surfaceHigh,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: AxisColors.borderSubtle),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          actionsOverflowButtonSpacing: 8,
+          actionsOverflowDirection: VerticalDirection.down,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'CATEGORY NAME',
+                  style: TextStyle(
+                    color: AxisColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
                   ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'COLOR ACCENT',
-                style: TextStyle(
-                  color: AxisColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  '#10B981',
-                  '#38BDF8',
-                  '#6366F1',
-                  '#F59E0B',
-                  '#EC4899',
-                ].map((hex) {
-                  final col = _parseHex(hex);
-                  final isSel = selectedColor == hex;
-                  return InkWell(
-                    onTap: () => setDlgState(() => selectedColor = hex),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: col,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSel ? Colors.white : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                      child: isSel
-                          ? const Icon(Icons.check,
-                              size: 16, color: Colors.white)
-                          : null,
+                const SizedBox(height: 6),
+                TextField(
+                  controller: catCtrl,
+                  autofocus: false,
+                  style: const TextStyle(color: AxisColors.textHigh),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. Fitness, Meditation, Study',
+                    hintStyle: const TextStyle(color: AxisColors.textDim),
+                    filled: true,
+                    fillColor: AxisColors.surfaceHigh,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AxisColors.borderSubtle),
                     ),
-                  );
-                }).toList(),
-              ),
-            ],
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'COLOR ACCENT',
+                  style: TextStyle(
+                    color: AxisColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    '#10B981',
+                    '#38BDF8',
+                    '#6366F1',
+                    '#F59E0B',
+                    '#EC4899',
+                  ].map((hex) {
+                    final col = _parseHex(hex);
+                    final isSel = selectedColor == hex;
+                    return InkWell(
+                      onTap: () => setDlgState(() => selectedColor = hex),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: col,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSel ? Colors.white : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                        child: isSel
+                            ? const Icon(Icons.check,
+                                size: 16, color: Colors.white)
+                            : null,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(

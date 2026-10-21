@@ -7,9 +7,12 @@ import 'package:axis/domain/streak_engine.dart';
 import 'package:axis/ui/habits/create_habit_sheet.dart';
 import 'package:axis/ui/habits/widgets/habit_continuity_card.dart';
 import 'package:axis/ui/habits/widgets/habit_category_card.dart';
+import 'package:axis/ui/habits/widgets/prayer_times_card.dart';
+import 'package:axis/data/prayer_time_service.dart';
 
 export 'package:axis/ui/habits/widgets/habit_continuity_card.dart';
 export 'package:axis/ui/habits/widgets/habit_category_card.dart';
+export 'package:axis/ui/habits/widgets/prayer_times_card.dart';
 
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
@@ -23,7 +26,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
   late final Stream<List<StreakLog>> _habitLogsStream;
   late final Stream<List<HabitCategory>> _habitCategoriesStream;
   late final Stream<List<Habit>> _habitsStream;
+  late final Stream<List<Prayer>> _prayersStream;
   static final Set<String> _locallyDeletedCategories = {};
+  List<HabitCategory> _latestCategories = [];
 
   @override
   void initState() {
@@ -31,6 +36,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     _habitLogsStream = _repo.watchStreakLogs();
     _habitCategoriesStream = HabitCategoryRepository().watchCategories();
     _habitsStream = _repo.watchHabits();
+    _prayersStream = PrayerTimeService().watchPrayers();
   }
 
   Color _parseHex(String? hex) {
@@ -43,13 +49,14 @@ class _HabitsScreenState extends State<HabitsScreen> {
     }
   }
 
-  void _openCreateHabit({String? initialCategory}) {
+  void _openCreateHabit({String? initialCategory, List<HabitCategory>? existingCategories}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => CreateHabitSheet(
         initialCategory: initialCategory,
+        existingCategories: existingCategories ?? _latestCategories,
         onHabitCreated: () => setState(() {}),
       ),
     );
@@ -193,7 +200,31 @@ class _HabitsScreenState extends State<HabitsScreen> {
             },
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // DEDICATED ISLAMIC PRAYERS CARD (Fixed 5 prayers from dedicated table)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: StreamBuilder<List<Prayer>>(
+              stream: _prayersStream,
+              builder: (context, prayerSnapshot) {
+                final prayers = (prayerSnapshot.data != null && prayerSnapshot.data!.isNotEmpty)
+                    ? prayerSnapshot.data!
+                    : PrayerTimeService.defaultPrayers();
+                return PrayerTimesCard(
+                  prayers: prayers,
+                  onTogglePrayer: (prayer, done) =>
+                      PrayerTimeService().togglePrayer(prayer.id, done),
+                  onResetPrayers: () =>
+                      PrayerTimeService().resetPrayers(),
+                  onRefreshLocation: () =>
+                      PrayerTimeService().syncPrayers(forceLocation: true),
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 12),
 
           // HABIT CATEGORIES HEADER BANNER WITH "+ Add Habit" BUTTON
           Padding(
@@ -313,68 +344,23 @@ class _HabitsScreenState extends State<HabitsScreen> {
                     ].where((c) {
                       final idLower = c.id.toLowerCase();
                       final nameLower = c.name.toLowerCase();
-                      return !_locallyDeletedCategories.contains(idLower) &&
+                      return idLower != 'cat_prayers' &&
+                          nameLower != 'prayers' &&
+                          idLower != 'cat_workout' &&
+                          idLower != 'cat_reading' &&
+                          idLower != 'cat_mindful' &&
+                          idLower != 'cat_hydrate' &&
+                          idLower != 'cat_code' &&
+                          idLower != 'cat_rest' &&
+                          !_locallyDeletedCategories.contains(idLower) &&
                           !_locallyDeletedCategories.contains(nameLower) &&
                           !_locallyDeletedCategories
                               .contains(idLower.replaceFirst('discovered_', ''));
                     }).toList();
 
-                    // Defaults if empty
-                    if (allCategories.isEmpty) {
-                      final defaults = const [
-                        HabitCategory(
-                            id: 'cat_prayers',
-                            name: 'Prayers',
-                            icon: 'mosque',
-                            color: '#10B981'),
-                        HabitCategory(
-                            id: 'cat_workout',
-                            name: 'Workout',
-                            icon: 'fitness',
-                            color: '#10B981'),
-                        HabitCategory(
-                            id: 'cat_reading',
-                            name: 'Reading',
-                            icon: 'book',
-                            color: '#38BDF8'),
-                        HabitCategory(
-                            id: 'cat_mindful',
-                            name: 'Mindful',
-                            icon: 'meditation',
-                            color: '#A855F7'),
-                        HabitCategory(
-                            id: 'cat_hydrate',
-                            name: 'Hydrate',
-                            icon: 'water',
-                            color: '#06B6D4'),
-                        HabitCategory(
-                            id: 'cat_code',
-                            name: 'Code',
-                            icon: 'code',
-                            color: '#6366F1'),
-                        HabitCategory(
-                            id: 'cat_rest',
-                            name: 'Rest',
-                            icon: 'sleep',
-                            color: '#F59E0B'),
-                      ]
-                          .where((c) =>
-                              !_locallyDeletedCategories
-                                  .contains(c.id.toLowerCase()) &&
-                              !_locallyDeletedCategories
-                                  .contains(c.name.toLowerCase()))
-                          .toList();
-                      allCategories.addAll(defaults);
-                    }
-
-                    // Prioritize Prayers category at the top
-                    allCategories.sort((a, b) {
-                      final aIsPrayer = a.name.toLowerCase() == 'prayers';
-                      final bIsPrayer = b.name.toLowerCase() == 'prayers';
-                      if (aIsPrayer && !bIsPrayer) return -1;
-                      if (!aIsPrayer && bIsPrayer) return 1;
-                      return a.name.compareTo(b.name);
-                    });
+                    // Sort categories alphabetically
+                    allCategories.sort((a, b) => a.name.compareTo(b.name));
+                    _latestCategories = allCategories;
 
                     // Separate habits by category
                     final Map<String, List<Habit>> habitsByCategory = {};
@@ -382,8 +368,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
                     for (final h in allHabits) {
                       final catTrimmed = h.category.trim();
-                      if (catTrimmed.isEmpty) {
-                        unassignedHabits.add(h);
+                      if (catTrimmed.isEmpty || catTrimmed.toLowerCase() == 'prayers') {
                         continue;
                       }
 
@@ -405,6 +390,43 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
                     return Column(
                       children: [
+                        if (allCategories.isEmpty && unassignedHabits.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: AxisColors.surfaceLow,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AxisColors.borderSubtle),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.category_outlined, size: 36, color: AxisColors.textDim),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'No Habit Categories Yet',
+                                    style: TextStyle(
+                                      color: AxisColors.textHigh,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Tap "+ Add Habit" above to create your first habit or custom category.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: AxisColors.textDim,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ...allCategories.map((category) {
                           final habits = habitsByCategory[category.name] ?? [];
                           final color = _parseHex(category.color);
@@ -422,6 +444,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                 backgroundColor: Colors.transparent,
                                 builder: (_) => CreateHabitSheet(
                                   habitToEdit: habit,
+                                  existingCategories: allCategories,
                                   onHabitCreated: () => setState(() {}),
                                 ),
                               );
@@ -429,7 +452,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             onDeleteHabit: (habit) =>
                                 _repo.deleteHabit(habit.id),
                             onAddHabit: () => _openCreateHabit(
-                                initialCategory: category.name),
+                                initialCategory: category.name,
+                                existingCategories: allCategories),
                             onDeleteCategory: () async {
                               setState(() {
                                 _locallyDeletedCategories
@@ -471,6 +495,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                 backgroundColor: Colors.transparent,
                                 builder: (_) => CreateHabitSheet(
                                   habitToEdit: habit,
+                                  existingCategories: allCategories,
                                   onHabitCreated: () => setState(() {}),
                                 ),
                               );
@@ -478,7 +503,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             onDeleteHabit: (habit) =>
                                 _repo.deleteHabit(habit.id),
                             onAddHabit: () => _openCreateHabit(
-                                initialCategory: 'General Routines'),
+                                initialCategory: 'General Routines',
+                                existingCategories: allCategories),
                           ),
                         ],
                       ],

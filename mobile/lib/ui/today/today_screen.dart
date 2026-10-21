@@ -6,6 +6,7 @@ import 'package:axis/core/widgets.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/data/stats_repository.dart';
+import 'package:axis/data/network_service.dart';
 import 'package:axis/domain/gamification_engine.dart';
 import 'package:axis/ui/tasks/create_task_sheet.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
@@ -29,16 +30,27 @@ class _TodayScreenState extends State<TodayScreen> {
   int _totalXp = 0;
   int _todayXp = 0;
   int _streakDays = 0;
+  StreamSubscription<UserStats>? _statsSub;
 
   @override
   void initState() {
     super.initState();
     _loadStats();
+    _statsSub = StatsRepository().watchStats().listen((stats) {
+      if (mounted) {
+        setState(() {
+          _totalXp = stats.totalXp;
+          _todayXp = stats.todayXp;
+          _streakDays = stats.streakDays;
+        });
+      }
+    });
     globalUserLevel.addListener(_onGlobalLevelChanged);
   }
 
   @override
   void dispose() {
+    _statsSub?.cancel();
     globalUserLevel.removeListener(_onGlobalLevelChanged);
     super.dispose();
   }
@@ -236,56 +248,67 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _buildSyncStatusPill(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AxisColors.surfaceLow,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AxisColors.borderSubtle),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: AxisColors.tertiary,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AxisColors.tertiary.withValues(alpha: 0.6),
-                  blurRadius: 6,
-                )
-              ],
-            ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: NetworkService().isOnlineNotifier,
+      builder: (context, isOnline, _) {
+        final dotColor = isOnline ? AxisColors.tertiary : AxisColors.warning;
+        final statusText = isOnline ? 'ONLINE' : 'OFFLINE MODE';
+        final subText = isOnline ? '• CLOUD SYNCED' : '• LOCAL SQLITE';
+        final syncLabel = isOnline ? 'PowerSync Active' : 'Offline Ready';
+        final icon = isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded;
+        final iconColor = isOnline ? AxisColors.secondary : AxisColors.warning;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AxisColors.surfaceLow,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AxisColors.borderSubtle),
           ),
-          const SizedBox(width: 8),
-          Text(
-            'OFFLINE READY',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AxisColors.textHigh,
-                  fontWeight: FontWeight.bold,
+          child: Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: dotColor.withValues(alpha: 0.6),
+                      blurRadius: 6,
+                    )
+                  ],
                 ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                statusText,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AxisColors.textHigh,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                subText,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AxisColors.textMuted,
+                    ),
+              ),
+              const Spacer(),
+              Icon(icon, color: iconColor, size: 15),
+              const SizedBox(width: 4),
+              Text(
+                syncLabel,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: iconColor,
+                    ),
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-          Text(
-            '• 0MS LATENCY',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AxisColors.textMuted,
-                ),
-          ),
-          const Spacer(),
-          const Icon(Icons.cloud_done_rounded,
-              color: AxisColors.secondary, size: 15),
-          const SizedBox(width: 4),
-          Text(
-            'Instant Sync',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AxisColors.secondary,
-                ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

@@ -45,6 +45,21 @@ class StatsRepository {
 
   static const String _cacheKey = 'user_stats_summary';
 
+  /// Watches user statistics in real time, recalculating fresh UserStats
+  /// whenever logs change in SQLite (task done/undone, habit completed, focus session).
+  Stream<UserStats> watchStats() {
+    final uid = currentUserId;
+    final query = uid.isNotEmpty
+        ? "SELECT id, xp_earned, timestamp FROM logs WHERE user_id = ? OR user_id IS NULL OR user_id = ''"
+        : "SELECT id, xp_earned, timestamp FROM logs";
+    final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+
+    return db.watch(query, parameters: params).asyncMap((_) async {
+      CacheService().invalidate(_cacheKey);
+      return await _calculateStatsFromDatabase();
+    });
+  }
+
   /// Retrieves user statistics immediately from cache if available,
   /// otherwise calculates them using optimized SQL aggregates.
   Future<UserStats> getUserStats({bool forceRefresh = false}) async {
@@ -74,17 +89,26 @@ class StatsRepository {
     int totalXp = 0;
     int todayXp = 0;
 
+    final uid = currentUserId;
+
     try {
       // 1. Optimized aggregate query for general logs
-      final logRow = await db.getOptional(
-        '''
-        SELECT 
-          COALESCE(SUM(xp_earned), 0) AS total_xp,
-          COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
-        FROM logs
-        ''',
-        [todayPattern],
-      );
+      final logQuery = uid.isNotEmpty
+          ? '''
+          SELECT 
+            COALESCE(SUM(xp_earned), 0) AS total_xp,
+            COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
+          FROM logs
+          WHERE user_id = ?
+          '''
+          : '''
+          SELECT 
+            COALESCE(SUM(xp_earned), 0) AS total_xp,
+            COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
+          FROM logs
+          ''';
+      final logParams = uid.isNotEmpty ? [todayPattern, uid] : [todayPattern];
+      final logRow = await db.getOptional(logQuery, logParams);
 
       if (logRow != null) {
         totalXp += (logRow['total_xp'] as num?)?.toInt() ?? 0;
@@ -94,16 +118,23 @@ class StatsRepository {
 
     try {
       // 2. Optimized aggregate query for completed focus sessions
-      final focusRow = await db.getOptional(
-        '''
-        SELECT 
-          COALESCE(SUM(xp_earned), 0) AS total_xp,
-          COALESCE(SUM(CASE WHEN started_at LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
-        FROM focus_sessions 
-        WHERE completed = 1
-        ''',
-        [todayPattern],
-      );
+      final focusQuery = uid.isNotEmpty
+          ? '''
+          SELECT 
+            COALESCE(SUM(xp_earned), 0) AS total_xp,
+            COALESCE(SUM(CASE WHEN started_at LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
+          FROM focus_sessions 
+          WHERE completed = 1 AND user_id = ?
+          '''
+          : '''
+          SELECT 
+            COALESCE(SUM(xp_earned), 0) AS total_xp,
+            COALESCE(SUM(CASE WHEN started_at LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
+          FROM focus_sessions 
+          WHERE completed = 1
+          ''';
+      final focusParams = uid.isNotEmpty ? [todayPattern, uid] : [todayPattern];
+      final focusRow = await db.getOptional(focusQuery, focusParams);
 
       if (focusRow != null) {
         totalXp += (focusRow['total_xp'] as num?)?.toInt() ?? 0;
@@ -114,9 +145,12 @@ class StatsRepository {
     // 3. Compute streak days from habit logs
     int streakDays = 0;
     try {
-      final habitLogRows = await db.getAll(
-        'SELECT log_date, status FROM habit_logs ORDER BY log_date DESC LIMIT 365',
-      );
+      final habitLogQuery = uid.isNotEmpty
+          ? 'SELECT log_date, status FROM habit_logs WHERE user_id = ? ORDER BY log_date DESC LIMIT 365'
+          : 'SELECT log_date, status FROM habit_logs ORDER BY log_date DESC LIMIT 365';
+      final habitLogParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final habitLogRows = await db.getAll(habitLogQuery, habitLogParams);
+
       final streakLogs = habitLogRows
           .map((r) => StreakLog(r['log_date'] as String, r['status'] as String))
           .toList();

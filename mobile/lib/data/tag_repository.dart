@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
+import 'package:axis/domain/id_generator.dart';
 
 /// Repository managing task tags with caching, tag discovery, and non-blocking operations.
 class TagRepository {
@@ -41,9 +42,15 @@ class TagRepository {
     if (!isDatabaseInitialized) return defaultTags;
 
     final tagSet = <String>{...defaultTags};
+    final uid = currentUserId;
 
     try {
-      final tagRows = await db.getAll('SELECT name FROM tags ORDER BY name ASC');
+      final tagQuery = uid.isNotEmpty
+          ? 'SELECT name FROM tags WHERE user_id = ? ORDER BY name ASC'
+          : 'SELECT name FROM tags ORDER BY name ASC';
+      final tagParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final tagRows = await db.getAll(tagQuery, tagParams);
+
       for (final r in tagRows) {
         final name = (r['name'] as String?)?.trim().replaceAll('@', '');
         if (name != null && name.isNotEmpty) tagSet.add(name);
@@ -51,7 +58,12 @@ class TagRepository {
     } catch (_) {}
 
     try {
-      final taskRows = await db.getAll('SELECT tags FROM tasks WHERE tags IS NOT NULL');
+      final taskQuery = uid.isNotEmpty
+          ? 'SELECT tags FROM tasks WHERE tags IS NOT NULL AND user_id = ?'
+          : 'SELECT tags FROM tasks WHERE tags IS NOT NULL';
+      final taskParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final taskRows = await db.getAll(taskQuery, taskParams);
+
       for (final r in taskRows) {
         final tagsStr = r['tags'] as String?;
         if (tagsStr != null && tagsStr.isNotEmpty) {
@@ -76,12 +88,15 @@ class TagRepository {
 
     if (!isDatabaseInitialized) return;
 
+    final uid = currentUserId;
     try {
+      final tagId = IdGenerator.generateDeterministicId('tag_${clean.toLowerCase()}');
       await db.execute('''
-        INSERT OR IGNORE INTO tags (id, name, color, created_at)
-        VALUES (?, ?, '#6366F1', ?)
+        INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at)
+        VALUES (?, ?, ?, '#6366F1', ?)
       ''', [
-        'tag_${DateTime.now().microsecondsSinceEpoch}',
+        tagId,
+        uid,
         clean,
         DateTime.now().toUtc().toIso8601String(),
       ]).timeout(const Duration(seconds: 4));
@@ -100,10 +115,7 @@ class TagRepository {
     if (!isDatabaseInitialized) return;
 
     try {
-      await db.execute(
-        'DELETE FROM tags WHERE name = ?',
-        [clean],
-      ).timeout(const Duration(seconds: 4));
+      await db.execute('DELETE FROM tags WHERE name = ?', [clean]);
     } catch (e) {
       debugPrint('[TagRepository] Error deleting tag: $e');
     }

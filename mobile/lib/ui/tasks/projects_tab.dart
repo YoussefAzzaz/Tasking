@@ -85,22 +85,13 @@ class _ProjectsTabState extends State<ProjectsTab> {
             final allProjects = [...customProjects, ...discoveredProjects].where((p) {
               final idLower = p.id.toLowerCase();
               final nameLower = p.name.toLowerCase();
-              return !_locallyDeletedProjects.contains(idLower) &&
+              return idLower != 'work' &&
+                     idLower != 'personal' &&
+                     idLower != 'growth' &&
+                     !_locallyDeletedProjects.contains(idLower) &&
                      !_locallyDeletedProjects.contains(nameLower) &&
                      !_locallyDeletedProjects.contains(idLower.replaceFirst('discovered_', ''));
             }).toList();
-
-            // Defaults if empty and no project has been deleted
-            if (customProjects.isEmpty && discoveredProjects.isEmpty) {
-              final defaults = [
-                Project(id: 'work', name: 'Work', color: '#6366F1'),
-                Project(id: 'personal', name: 'Personal', color: '#10B981'),
-                Project(id: 'growth', name: 'Growth', color: '#F59E0B'),
-              ].where((p) =>
-                  !_locallyDeletedProjects.contains(p.id.toLowerCase()) &&
-                  !_locallyDeletedProjects.contains(p.name.toLowerCase())).toList();
-              allProjects.addAll(defaults);
-            }
 
             // Separate tasks by project
             final Map<String, List<Task>> tasksByProject = {};
@@ -187,6 +178,44 @@ class _ProjectsTabState extends State<ProjectsTab> {
                   ),
                 ),
                 const SizedBox(height: 14),
+
+                if (allProjects.isEmpty && unassignedTasks.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 4),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AxisColors.surfaceLow,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AxisColors.borderSubtle),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.folder_open_rounded, size: 36, color: AxisColors.textDim),
+                          SizedBox(height: 12),
+                          Text(
+                            'No Projects Created Yet',
+                            style: TextStyle(
+                              color: AxisColors.textHigh,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Tap "Add Project" above to create your first custom project.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AxisColors.textDim,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                 // List of Projects as Big Tasks
                 ...allProjects.map((project) {
