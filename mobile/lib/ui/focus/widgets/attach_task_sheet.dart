@@ -3,7 +3,7 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/data/task_repository.dart';
 
 /// Modal bottom sheet to select and attach an active task to the focus timer
-class AttachTaskSheet extends StatelessWidget {
+class AttachTaskSheet extends StatefulWidget {
   const AttachTaskSheet({
     super.key,
     required this.taskRepo,
@@ -12,6 +12,19 @@ class AttachTaskSheet extends StatelessWidget {
 
   final TaskRepository taskRepo;
   final ValueChanged<Task> onSelectTask;
+
+  @override
+  State<AttachTaskSheet> createState() => _AttachTaskSheetState();
+}
+
+class _AttachTaskSheetState extends State<AttachTaskSheet> {
+  late final Stream<List<Task>> _tasksStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _tasksStream = widget.taskRepo.watchTasks();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +61,7 @@ class AttachTaskSheet extends StatelessWidget {
           const SizedBox(height: 12),
           Expanded(
             child: StreamBuilder<List<Task>>(
-              stream: taskRepo.watchTasks(),
+              stream: _tasksStream,
               builder: (context, snapshot) {
                 final tasks = (snapshot.data ?? [])
                     .where((t) => t.status != 'done')
@@ -68,33 +81,57 @@ class AttachTaskSheet extends StatelessWidget {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     final t = tasks[i];
-                    return ListTile(
-                      tileColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                      shape: RoundedRectangleBorder(
+                    return Material(
+                      color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
                         borderRadius: BorderRadius.circular(10),
-                      ),
-                      title: Text(
-                        t.title,
-                        style: const TextStyle(color: AxisColors.textHigh),
-                      ),
-                      subtitle: t.dueDate != null
-                          ? Text(
-                              'Due: ${t.dueDate}',
-                              style: const TextStyle(
-                                color: AxisColors.textMuted,
-                                fontSize: 12,
+                        onTap: () {
+                          widget.onSelectTask(t);
+                          Navigator.pop(context);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      t.title,
+                                      style: const TextStyle(
+                                        color: AxisColors.textHigh,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    if (t.dueDate != null) ...[
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'Due: ${t.dueDate}',
+                                        style: const TextStyle(
+                                          color: AxisColors.textMuted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
-                            )
-                          : null,
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 14,
-                        color: AxisColors.secondary,
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 14,
+                                color: AxisColors.secondary,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      onTap: () {
-                        onSelectTask(t);
-                        Navigator.pop(context);
-                      },
                     );
                   },
                 );

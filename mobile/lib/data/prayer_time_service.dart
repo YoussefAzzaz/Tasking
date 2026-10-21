@@ -38,18 +38,50 @@ class Prayer {
 
   factory Prayer.fromRow(Map<String, dynamic> row) {
     final rawDone = row['is_done'];
-    final done = rawDone == 1 || rawDone == true || rawDone == 'true' || rawDone == '1';
+    bool done = rawDone == 1 || rawDone == true || rawDone == 'true' || rawDone == '1';
+    final updatedAt = (row['updated_at'] as String?) ?? '';
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    // Auto-reset completion flag if updated_at is from a previous day
+    if (done && updatedAt.isNotEmpty && !updatedAt.startsWith(today)) {
+      done = false;
+    }
+
+    final code = (row['prayer_code'] as String?) ?? '';
+    String name = (row['name'] as String?) ?? '';
+    if (name.isEmpty || name.length > 20 || name.contains('-')) {
+      // Clean display name if database had rogue user_id or empty name
+      switch (code.toLowerCase()) {
+        case 'fajr':
+          name = 'Fajr';
+          break;
+        case 'dhuhr':
+          name = 'Dhuhr';
+          break;
+        case 'asr':
+          name = 'Asr';
+          break;
+        case 'maghrib':
+          name = 'Maghrib';
+          break;
+        case 'isha':
+          name = 'Isha';
+          break;
+        default:
+          name = code.isNotEmpty ? '${code[0].toUpperCase()}${code.substring(1)}' : 'Prayer';
+      }
+    }
+
     return Prayer(
       id: row['id'] as String,
       userId: (row['user_id'] as String?) ?? '',
-      prayerCode: (row['prayer_code'] as String?) ?? '',
-      name: (row['name'] as String?) ?? '',
-      icon: (row['icon'] as String?) ?? '',
+      prayerCode: code,
+      name: name,
+      icon: (row['icon'] as String?) ?? code,
       time: (row['time'] as String?) ?? '',
       sortOrder: (row['sort_order'] as num?)?.toInt() ?? 1,
       isDone: done,
       createdAt: (row['created_at'] as String?) ?? '',
-      updatedAt: (row['updated_at'] as String?) ?? '',
+      updatedAt: updatedAt,
     );
   }
 }
@@ -179,7 +211,9 @@ class PrayerTimeService with WidgetsBindingObserver {
         _currentLng = (row['longitude'] as num?)?.toDouble() ?? _currentLng;
         _lastSyncedDate = (row['last_sync_date'] as String?) ?? '';
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[PrayerTimeService] _loadSavedSettings error: $e');
+    }
   }
 
   /// Saves resolved location to SQLite
@@ -205,7 +239,9 @@ class PrayerTimeService with WidgetsBindingObserver {
         _currentTimezone,
         _lastSyncedDate,
       ]);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[PrayerTimeService] _saveSettings error: $e');
+    }
   }
 
   /// Resolves the user's geographical coordinates and timezone via LocationService.
@@ -223,7 +259,8 @@ class PrayerTimeService with WidgetsBindingObserver {
       _currentTimezone = DateTime.now().timeZoneName;
       await _saveSettings();
       return Coordinates(_currentLat, _currentLng);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[PrayerTimeService] resolveCoordinates error: $e');
       return Coordinates(_currentLat, _currentLng);
     }
   }
@@ -339,16 +376,22 @@ class PrayerTimeService with WidgetsBindingObserver {
   }
 
   /// Canonical deterministic ID for each of the strictly 5 Islamic prayers.
-  /// Guarantees that IDs are 100% stable, persistent, and never duplicate or recreate.
-  static String prayerIdForCode(String code) =>
-      IdGenerator.generateDeterministicId('canonical_prayer_${code.toLowerCase()}');
+  /// Formatted as 'prayer_${userId}_${code}' to match Supabase seed trigger exactly.
+  static String prayerIdForCode(String code, [String? userId]) {
+    final uid = (userId != null && userId.isNotEmpty) ? userId : currentUserId;
+    final clean = code.toLowerCase().trim();
+    if (uid.isNotEmpty) {
+      return 'prayer_${uid}_$clean';
+    }
+    return 'prayer_$clean';
+  }
 
   /// Static fallback list of the 5 canonical daily Islamic prayers.
   static List<Prayer> defaultPrayers([String? userId]) {
     final uid = userId ?? currentUserId;
     return [
       Prayer(
-        id: prayerIdForCode('fajr'),
+        id: prayerIdForCode('fajr', uid),
         userId: uid,
         prayerCode: 'fajr',
         name: 'Fajr',
@@ -360,7 +403,7 @@ class PrayerTimeService with WidgetsBindingObserver {
         updatedAt: '',
       ),
       Prayer(
-        id: prayerIdForCode('dhuhr'),
+        id: prayerIdForCode('dhuhr', uid),
         userId: uid,
         prayerCode: 'dhuhr',
         name: 'Dhuhr',
@@ -372,7 +415,7 @@ class PrayerTimeService with WidgetsBindingObserver {
         updatedAt: '',
       ),
       Prayer(
-        id: prayerIdForCode('asr'),
+        id: prayerIdForCode('asr', uid),
         userId: uid,
         prayerCode: 'asr',
         name: 'Asr',
@@ -384,7 +427,7 @@ class PrayerTimeService with WidgetsBindingObserver {
         updatedAt: '',
       ),
       Prayer(
-        id: prayerIdForCode('maghrib'),
+        id: prayerIdForCode('maghrib', uid),
         userId: uid,
         prayerCode: 'maghrib',
         name: 'Maghrib',
@@ -396,7 +439,7 @@ class PrayerTimeService with WidgetsBindingObserver {
         updatedAt: '',
       ),
       Prayer(
-        id: prayerIdForCode('isha'),
+        id: prayerIdForCode('isha', uid),
         userId: uid,
         prayerCode: 'isha',
         name: 'Isha',
@@ -411,7 +454,7 @@ class PrayerTimeService with WidgetsBindingObserver {
   }
 
   /// Streams the 5 daily prayers from the dedicated `prayers` table.
-  /// Pure projection without side-effects to prevent recreation loops.
+  /// Pure projection with canonical 5-slot guarantees so prayers never disappear.
   Stream<List<Prayer>> watchPrayers() {
     final uid = currentUserId;
     final query = uid.isNotEmpty
@@ -420,10 +463,19 @@ class PrayerTimeService with WidgetsBindingObserver {
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
 
     return db.watch(query, parameters: params).map((rows) {
-      if (rows.isEmpty) {
-        return defaultPrayers(uid);
+      final defaults = defaultPrayers(uid);
+      final defaultMap = {for (var p in defaults) p.prayerCode.toLowerCase(): p};
+
+      final rowMap = <String, Prayer>{};
+      for (final r in rows) {
+        final code = (r['prayer_code'] as String? ?? '').toLowerCase();
+        if (defaultMap.containsKey(code)) {
+          rowMap[code] = Prayer.fromRow(r);
+        }
       }
-      return rows.map((r) => Prayer.fromRow(r)).toList();
+
+      const canonicalCodes = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+      return canonicalCodes.map((code) => rowMap[code] ?? defaultMap[code]!).toList();
     });
   }
 
@@ -447,25 +499,32 @@ class PrayerTimeService with WidgetsBindingObserver {
       await db.execute("DELETE FROM habits WHERE kind = 'Prayers' OR id LIKE 'habit_prayer_%'");
       await db.execute("DELETE FROM habit_categories WHERE id = 'cat_prayers' OR LOWER(name) = 'prayers'");
 
+      // Clean up any rogue / corrupted prayer records (such as non-canonical standalone UUID IDs)
+      await db.execute("DELETE FROM prayers WHERE id NOT LIKE 'prayer_%' OR prayer_code NOT IN ('fajr', 'dhuhr', 'asr', 'maghrib', 'isha')");
+
       final prayerItems = await calculatePrayersForDate(now);
       final uid = currentUserId;
       final utcNow = now.toUtc().toIso8601String();
 
-      // Canonical 5 IDs
+      // Canonical 5 IDs for this user
       final canonicalIds = [
-        prayerIdForCode('fajr'),
-        prayerIdForCode('dhuhr'),
-        prayerIdForCode('asr'),
-        prayerIdForCode('maghrib'),
-        prayerIdForCode('isha'),
+        prayerIdForCode('fajr', uid),
+        prayerIdForCode('dhuhr', uid),
+        prayerIdForCode('asr', uid),
+        prayerIdForCode('maghrib', uid),
+        prayerIdForCode('isha', uid),
       ];
 
       // 2. Fetch existing records in dedicated prayers table
       final existingRows = await db.getAll(
-        "SELECT id, prayer_code, is_done, time FROM prayers WHERE id IN (?, ?, ?, ?, ?)",
-        canonicalIds,
+        "SELECT id, prayer_code, is_done, time FROM prayers WHERE (user_id = ? OR user_id IS NULL OR user_id = '')",
+        uid.isNotEmpty ? [uid] : <dynamic>[],
       );
-      final existingMap = {
+      final existingById = {
+        for (var r in existingRows)
+          (r['id'] as String? ?? ''): r
+      };
+      final existingByCode = {
         for (var r in existingRows)
           (r['prayer_code'] as String? ?? '').toLowerCase(): r
       };
@@ -473,56 +532,29 @@ class PrayerTimeService with WidgetsBindingObserver {
       // 3. Upsert exactly the 5 prayers by canonical ID
       for (final item in prayerItems) {
         final code = item.id.toLowerCase();
-        final prayerId = prayerIdForCode(code);
-        final existing = existingMap[code];
+        final prayerId = prayerIdForCode(code, uid);
+        final existing = existingById[prayerId] ?? existingByCode[code];
 
         if (existing == null) {
-          await db.execute('''
-            INSERT INTO prayers (
-              id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-              user_id = excluded.user_id,
-              name = excluded.name,
-              icon = excluded.icon,
-              time = excluded.time,
-              sort_order = excluded.sort_order,
-              updated_at = excluded.updated_at
-          ''', [
-            prayerId,
-            uid,
-            code,
-            item.name,
-            item.icon,
-            item.formattedTime,
-            item.sortOrder,
-            utcNow,
-            utcNow,
-          ]);
-        } else {
-          // If rollover to a new day, reset is_done to 0
-          if (isNewDay) {
+          // Double-check with getOptional to be 100% immune to UNIQUE constraint race condition
+          final dbCheck = await db.getOptional('SELECT id FROM prayers WHERE id = ?', [prayerId]);
+          if (dbCheck == null) {
             await db.execute('''
-              UPDATE prayers SET
-                user_id = ?,
-                name = ?,
-                icon = ?,
-                time = ?,
-                sort_order = ?,
-                is_done = 0,
-                updated_at = ?
-              WHERE id = ?
+              INSERT INTO prayers (
+                id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
             ''', [
+              prayerId,
               uid,
+              code,
               item.name,
               item.icon,
               item.formattedTime,
               item.sortOrder,
               utcNow,
-              prayerId,
+              utcNow,
             ]);
           } else {
-            // Update time and details, PRESERVE existing is_done state
             await db.execute('''
               UPDATE prayers SET
                 user_id = ?,
@@ -542,14 +574,60 @@ class PrayerTimeService with WidgetsBindingObserver {
               prayerId,
             ]);
           }
+        } else {
+          final targetId = existing['id'] as String;
+          // If rollover to a new day, reset is_done to 0
+          if (isNewDay) {
+            await db.execute('''
+              UPDATE prayers SET
+                user_id = ?,
+                name = ?,
+                icon = ?,
+                time = ?,
+                sort_order = ?,
+                is_done = 0,
+                updated_at = ?
+              WHERE id = ?
+            ''', [
+              uid,
+              item.name,
+              item.icon,
+              item.formattedTime,
+              item.sortOrder,
+              utcNow,
+              targetId,
+            ]);
+          } else {
+            // Update time and details, PRESERVE existing is_done state
+            await db.execute('''
+              UPDATE prayers SET
+                user_id = ?,
+                name = ?,
+                icon = ?,
+                time = ?,
+                sort_order = ?,
+                updated_at = ?
+              WHERE id = ?
+            ''', [
+              uid,
+              item.name,
+              item.icon,
+              item.formattedTime,
+              item.sortOrder,
+              utcNow,
+              targetId,
+            ]);
+          }
         }
       }
 
-      // 4. Clean up any rogue or duplicate prayer rows outside the 5 canonical IDs
-      await db.execute(
-        "DELETE FROM prayers WHERE id NOT IN (?, ?, ?, ?, ?)",
-        canonicalIds,
-      );
+      // 4. Clean up any rogue rows outside the 5 canonical IDs for this user
+      if (uid.isNotEmpty) {
+        await db.execute(
+          "DELETE FROM prayers WHERE user_id = ? AND id NOT IN (?, ?, ?, ?, ?)",
+          [uid, ...canonicalIds],
+        );
+      }
 
       _lastSyncedDate = todayStr;
       await _saveSettings();
@@ -599,29 +677,83 @@ class PrayerTimeService with WidgetsBindingObserver {
     final now = DateTime.now();
     final nowUtc = now.toUtc().toIso8601String();
     final today = DateFormat('yyyy-MM-dd').format(now);
-    final logEventId = IdGenerator.generateDeterministicId('xpevent_${prayerId}_$today');
-    final habitLogId = IdGenerator.generateDeterministicId('habitlog_prayer_${prayerId}_$today');
+
+    // Deducing canonical prayer code reliably
+    String code = 'fajr';
+    final lowerId = prayerId.toLowerCase();
+    for (final c in ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']) {
+      if (lowerId.endsWith(c) || lowerId.contains(c)) {
+        code = c;
+        break;
+      }
+    }
+
+    final canonicalId = prayerIdForCode(code, uid);
+    final logEventId = IdGenerator.generateDeterministicId('xpevent_${canonicalId}_$today');
+    final habitLogId = IdGenerator.generateDeterministicId('habitlog_prayer_${canonicalId}_$today');
 
     try {
-      // 1. Update prayer status in dedicated table
-      await db.execute(
-        'UPDATE prayers SET is_done = ?, updated_at = ? WHERE id = ?',
-        [isDone ? 1 : 0, nowUtc, prayerId],
+      // 1. Check if the prayer exists by ID, or by prayer_code
+      final existingPrayer = await db.getOptional(
+        'SELECT id FROM prayers WHERE id = ? OR (prayer_code = ? AND (user_id = ? OR user_id IS NULL OR user_id = \'\'))',
+        [canonicalId, code, uid],
       );
+
+      if (existingPrayer == null) {
+        final defaultPrayer = defaultPrayers(uid).firstWhere((p) => p.prayerCode == code);
+        await db.execute('''
+          INSERT INTO prayers (
+            id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [
+          canonicalId,
+          uid,
+          code,
+          defaultPrayer.name,
+          defaultPrayer.icon,
+          defaultPrayer.time,
+          defaultPrayer.sortOrder,
+          isDone ? 1 : 0,
+          nowUtc,
+          nowUtc,
+        ]);
+      } else {
+        final actualId = existingPrayer['id'] as String;
+        await db.execute(
+          'UPDATE prayers SET is_done = ?, updated_at = ? WHERE id = ?',
+          [isDone ? 1 : 0, nowUtc, actualId],
+        );
+      }
 
       // 2. Award or remove XP in logs table & sync habit_logs for streak calculation
       if (isDone) {
-        await db.execute('''
-          INSERT OR REPLACE INTO logs (
-            id, user_id, task_id, event_type, xp_earned, timestamp
-          ) VALUES (?, ?, ?, 'prayer_completed', 25, ?)
-        ''', [logEventId, uid, prayerId, nowUtc]);
+        final existingLog = await db.getOptional('SELECT id FROM logs WHERE id = ?', [logEventId]);
+        if (existingLog != null) {
+          await db.execute(
+            'UPDATE logs SET xp_earned = 25, timestamp = ? WHERE id = ?',
+            [nowUtc, logEventId],
+          );
+        } else {
+          await db.execute('''
+            INSERT INTO logs (
+              id, user_id, task_id, event_type, xp_earned, timestamp
+            ) VALUES (?, ?, ?, 'prayer_completed', 25, ?)
+          ''', [logEventId, uid, canonicalId, nowUtc]);
+        }
 
-        await db.execute('''
-          INSERT OR REPLACE INTO habit_logs (
-            id, user_id, habit_id, log_date, status, value, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, 'done', 1, ?, ?)
-        ''', [habitLogId, uid, prayerId, today, nowUtc, nowUtc]);
+        final existingHabitLog = await db.getOptional('SELECT id FROM habit_logs WHERE id = ?', [habitLogId]);
+        if (existingHabitLog != null) {
+          await db.execute(
+            'UPDATE habit_logs SET status = ?, value = 1, updated_at = ? WHERE id = ?',
+            ['done', nowUtc, habitLogId],
+          );
+        } else {
+          await db.execute('''
+            INSERT INTO habit_logs (
+              id, user_id, habit_id, log_date, status, value, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, 'done', 1, ?, ?)
+          ''', [habitLogId, uid, canonicalId, today, nowUtc, nowUtc]);
+        }
       } else {
         await db.execute('DELETE FROM logs WHERE id = ?', [logEventId]);
         await db.execute('DELETE FROM habit_logs WHERE id = ?', [habitLogId]);

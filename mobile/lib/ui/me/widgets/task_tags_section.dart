@@ -107,13 +107,17 @@ class TaskTagsSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'TASK TAGS',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AxisColors.textMuted,
-                    fontWeight: FontWeight.bold,
-                  ),
+            Expanded(
+              child: Text(
+                'TASK TAGS',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AxisColors.textMuted,
+                      fontWeight: FontWeight.bold,
+                    ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+            const SizedBox(width: 8),
             InkWell(
               onTap: () => _showAddTagDialog(context),
               borderRadius: BorderRadius.circular(6),

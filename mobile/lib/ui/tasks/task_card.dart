@@ -128,6 +128,15 @@ class TaskCard extends StatelessWidget {
   Color _dueDateColor(String date) {
     if (date == 'today') return AxisColors.secondary;
     if (date == 'tmr') return AxisColors.primarySoft;
+    try {
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      if (date.compareTo(todayStr) < 0) {
+        return AxisColors.error;
+      } else if (date == todayStr) {
+        return AxisColors.secondary;
+      }
+    } catch (_) {}
     return AxisColors.textMuted;
   }
 }

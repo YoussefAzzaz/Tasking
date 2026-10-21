@@ -63,34 +63,41 @@ class NeonTimerDial extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        width: 250,
-        height: 250,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Ambient glow shadow
-            Container(
-              width: 190,
-              height: 190,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AxisColors.secondary.withValues(alpha: 0.12),
-                    blurRadius: 50,
-                    spreadRadius: 20,
+    return Semantics(
+      label: isBreak ? 'Break countdown timer' : 'Focus session timer',
+      value: timeDisplay,
+      child: Center(
+        child: SizedBox(
+          width: 250,
+          height: 250,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Ambient glow shadow
+              ExcludeSemantics(
+                child: Container(
+                  width: 190,
+                  height: 190,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AxisColors.secondary.withValues(alpha: 0.12),
+                        blurRadius: 50,
+                        spreadRadius: 20,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-            // Ring painter
-            CustomPaint(
-              size: const Size(250, 250),
-              painter: NeonProgressPainter(progress: progress),
-            ),
-            // Center Time Display
+              // Ring painter
+              ExcludeSemantics(
+                child: CustomPaint(
+                  size: const Size(250, 250),
+                  painter: NeonProgressPainter(progress: progress),
+                ),
+              ),
+              // Center Time Display
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -136,7 +143,7 @@ class NeonTimerDial extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 }

@@ -21,6 +21,16 @@ void main() {
     }
   });
 
+  test('RecurrenceEngine properly clamps monthly rollover without jumping months (Jan 31 -> Feb 28)', () {
+    final nextDue = RecurrenceEngine.calculateNextDueDate(
+      'RRULE:FREQ=MONTHLY;INTERVAL=1',
+      'fixed',
+      '2026-01-31',
+      '2026-01-31',
+    );
+    expect(nextDue, '2026-02-28');
+  });
+
   test('AutoScheduler matches contract vectors', () {
     final file = File('../contract/scheduler.json');
     final data = jsonDecode(file.readAsStringSync());

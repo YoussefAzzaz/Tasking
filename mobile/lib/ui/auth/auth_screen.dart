@@ -95,12 +95,39 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       return 'Password must contain at least 6 characters.';
     }
     if (err.contains('SocketException') || err.contains('Failed host lookup')) {
-      return 'Network connection error. Operating offline mode.';
+      return 'Network connection unavailable. Tap "Continue in Offline Mode" below to proceed offline.';
     }
     if (err.contains('over_email_send_rate_limit') || err.contains('rate limit exceeded')) {
       return 'Supabase email send limit reached. In Supabase Dashboard -> Auth -> Providers -> Email, turn off "Confirm email" to enable instant signup.';
     }
     return err.replaceAll('Exception:', '').replaceAll('AuthException:', '').trim();
+  }
+
+  Future<void> _continueOffline() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      await AuthService().saveLocalSession(
+        userId: 'local_guest',
+        email: 'guest@tasking.local',
+        displayName: 'Guest Operative',
+      );
+      if (!mounted) return;
+      context.go('/today');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Failed to initialize offline session: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -189,6 +216,8 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                               child: Image.asset(
                                 'assets/logo.png',
                                 fit: BoxFit.cover,
+                                cacheWidth: 128,
+                                cacheHeight: 128,
                               ),
                             ),
                           ),
@@ -448,7 +477,32 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                                   ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
+
+                        // Offline Mode fallback entrance
+                        SizedBox(
+                          height: 44,
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading ? null : _continueOffline,
+                            icon: const Icon(Icons.cloud_off_rounded,
+                                size: 16, color: AxisColors.textMuted),
+                            label: const Text(
+                              'CONTINUE IN OFFLINE MODE',
+                              style: TextStyle(
+                                color: AxisColors.textMuted,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AxisColors.borderSubtle),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
 
                         // Isolation & PowerSync Architecture notice
                         Row(

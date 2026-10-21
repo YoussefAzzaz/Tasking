@@ -13,6 +13,7 @@ import 'package:axis/ui/auth/auth_screen.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/network_service.dart';
+import 'package:axis/data/user_profile_repository.dart';
 
 // Bottom nav slots (5 real tabs — Me is 5th)
 // Bar layout: Today | Tasks | [+] | Habits | Notes
@@ -62,28 +63,52 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AxisColors.canvasBase,
-      body: Column(
-        children: [
-          // App Header — matches HTML design
-          _AxisHeader(onAvatarTap: _openMe),
-          // Content is the IndexedStack keeping all branch states alive!
-          Expanded(child: navigationShell),
-        ],
-      ),
-      bottomNavigationBar: _AxisBottomBar(
-        selected: navigationShell.currentIndex,
-        onTap: (barIdx) => _onTabTap(context, barIdx),
+    return PopScope(
+      canPop: navigationShell.currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          // If on /me or any other tab, return to /today before exiting app
+          navigationShell.goBranch(0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AxisColors.canvasBase,
+        body: Column(
+          children: [
+            // App Header — matches HTML design
+            _AxisHeader(
+              onAvatarTap: _openMe,
+              isMeSelected: navigationShell.currentIndex == 4,
+            ),
+            // Content is the IndexedStack keeping all branch states alive!
+            Expanded(child: navigationShell),
+          ],
+        ),
+        bottomNavigationBar: _AxisBottomBar(
+          selected: navigationShell.currentIndex,
+          onTap: (barIdx) => _onTabTap(context, barIdx),
+        ),
       ),
     );
   }
 }
 
 /// Top app header — Axis brand + sync status + LVL badge + avatar
-class _AxisHeader extends StatelessWidget {
-  const _AxisHeader({required this.onAvatarTap});
+class _AxisHeader extends StatefulWidget {
+  const _AxisHeader({required this.onAvatarTap, this.isMeSelected = false});
   final VoidCallback onAvatarTap;
+  final bool isMeSelected;
+
+  @override
+  State<_AxisHeader> createState() => _AxisHeaderState();
+}
+
+class _AxisHeaderState extends State<_AxisHeader> {
+  @override
+  void initState() {
+    super.initState();
+    UserProfileRepository().getProfile();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,6 +149,8 @@ class _AxisHeader extends StatelessWidget {
                   child: Image.asset(
                     'assets/logo.png',
                     fit: BoxFit.cover,
+                    cacheWidth: 64,
+                    cacheHeight: 64,
                   ),
                 ),
               ),
@@ -255,23 +282,36 @@ class _AxisHeader extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(width: 8),
-          // Avatar → opens Me
-          GestureDetector(
-            onTap: onAvatarTap,
-            child: Container(
-              width: 34, height: 34,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [AxisColors.primary, AxisColors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          // Avatar → opens Me (renders real user pfp if available with active border when selected)
+          ValueListenableBuilder<UserProfile>(
+            valueListenable: UserProfileRepository().profileNotifier,
+            builder: (context, profile, _) {
+              return Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: widget.isMeSelected ? AxisColors.primarySoft : Colors.transparent,
+                    width: 2,
+                  ),
+                  boxShadow: widget.isMeSelected
+                      ? [
+                          BoxShadow(
+                            color: AxisColors.primary.withValues(alpha: 0.5),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                      : null,
                 ),
-              ),
-              child: const Icon(Icons.person_rounded,
-                  color: AxisColors.textHigh, size: 18),
-            ),
+                child: AvatarWidget(
+                  avatarUrl: profile.avatarUrl,
+                  name: profile.name,
+                  avatarColor: profile.avatarColor,
+                  size: 34,
+                  onTap: widget.onAvatarTap,
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -382,6 +422,7 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final router = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/splash',
+  refreshListenable: AuthService().authStateNotifier,
   redirect: (context, state) {
     final hasSession = AuthService().hasActiveSession;
     final isAuthRoute = state.matchedLocation == '/auth';
@@ -454,6 +495,10 @@ final router = GoRouter(
     GoRoute(
       path: '/focus',
       builder: (context, state) => const FocusScreen(),
+    ),
+    GoRoute(
+      path: '/badges',
+      builder: (context, state) => const MasteryBadgesScreen(),
     ),
   ],
 );

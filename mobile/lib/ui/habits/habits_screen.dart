@@ -30,6 +30,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
   static final Set<String> _locallyDeletedCategories = {};
   List<HabitCategory> _latestCategories = [];
 
+  void _onCategoryAdded() {
+    final added = HabitCategoryRepository.categoryAddedNotifier.value;
+    if (added != null && added.isNotEmpty) {
+      setState(() {
+        _locallyDeletedCategories.remove(added.toLowerCase().trim());
+        _locallyDeletedCategories.remove('discovered_${added.toLowerCase().trim()}');
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +47,13 @@ class _HabitsScreenState extends State<HabitsScreen> {
     _habitCategoriesStream = HabitCategoryRepository().watchCategories();
     _habitsStream = _repo.watchHabits();
     _prayersStream = PrayerTimeService().watchPrayers();
+    HabitCategoryRepository.categoryAddedNotifier.addListener(_onCategoryAdded);
+  }
+
+  @override
+  void dispose() {
+    HabitCategoryRepository.categoryAddedNotifier.removeListener(_onCategoryAdded);
+    super.dispose();
   }
 
   Color _parseHex(String? hex) {
@@ -324,9 +341,18 @@ class _HabitsScreenState extends State<HabitsScreen> {
                     final discoveredCategories = <HabitCategory>[];
                     for (final h in allHabits) {
                       final catTrimmed = h.category.trim();
+                      final catLower = catTrimmed.toLowerCase();
                       if (catTrimmed.isNotEmpty &&
-                          !categoryNames.contains(catTrimmed.toLowerCase())) {
-                        categoryNames.add(catTrimmed.toLowerCase());
+                          catLower != 'general routines' &&
+                          catLower != 'prayers' &&
+                          catLower != 'workout' &&
+                          catLower != 'reading' &&
+                          catLower != 'mindful' &&
+                          catLower != 'hydrate' &&
+                          catLower != 'code' &&
+                          catLower != 'rest' &&
+                          !categoryNames.contains(catLower)) {
+                        categoryNames.add(catLower);
                         discoveredCategories.add(
                           HabitCategory(
                             id: 'discovered_$catTrimmed',
@@ -347,11 +373,19 @@ class _HabitsScreenState extends State<HabitsScreen> {
                       return idLower != 'cat_prayers' &&
                           nameLower != 'prayers' &&
                           idLower != 'cat_workout' &&
+                          nameLower != 'workout' &&
                           idLower != 'cat_reading' &&
+                          nameLower != 'reading' &&
                           idLower != 'cat_mindful' &&
+                          nameLower != 'mindful' &&
                           idLower != 'cat_hydrate' &&
+                          nameLower != 'hydrate' &&
                           idLower != 'cat_code' &&
+                          nameLower != 'code' &&
                           idLower != 'cat_rest' &&
+                          nameLower != 'rest' &&
+                          idLower != 'general_routines' &&
+                          nameLower != 'general routines' &&
                           !_locallyDeletedCategories.contains(idLower) &&
                           !_locallyDeletedCategories.contains(nameLower) &&
                           !_locallyDeletedCategories
@@ -368,16 +402,18 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
                     for (final h in allHabits) {
                       final catTrimmed = h.category.trim();
-                      if (catTrimmed.isEmpty || catTrimmed.toLowerCase() == 'prayers') {
+                      if (catTrimmed.toLowerCase() == 'prayers') {
                         continue;
                       }
 
-                      final matchedCat = allCategories.firstWhere(
-                        (c) =>
-                            c.id == catTrimmed ||
-                            c.name.toLowerCase() == catTrimmed.toLowerCase(),
-                        orElse: () => const HabitCategory(id: '', name: ''),
-                      );
+                      final matchedCat = catTrimmed.isNotEmpty
+                          ? allCategories.firstWhere(
+                              (c) =>
+                                  c.id == catTrimmed ||
+                                  c.name.toLowerCase() == catTrimmed.toLowerCase(),
+                              orElse: () => const HabitCategory(id: '', name: ''),
+                            )
+                          : const HabitCategory(id: '', name: '');
 
                       if (matchedCat.name.isNotEmpty) {
                         habitsByCategory

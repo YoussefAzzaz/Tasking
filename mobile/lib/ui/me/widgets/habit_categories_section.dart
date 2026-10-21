@@ -160,13 +160,17 @@ class HabitCategoriesSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'HABIT CATEGORIES',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AxisColors.textMuted,
-                    fontWeight: FontWeight.bold,
-                  ),
+            Expanded(
+              child: Text(
+                'HABIT CATEGORIES',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AxisColors.textMuted,
+                      fontWeight: FontWeight.bold,
+                    ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+            const SizedBox(width: 8),
             InkWell(
               onTap: () => _showAddCategoryDialog(context),
               borderRadius: BorderRadius.circular(6),
@@ -219,57 +223,56 @@ class HabitCategoriesSection extends StatelessWidget {
           AxisCard(
             tier: GlassTier.two,
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: categories.length,
-              separatorBuilder: (_, _) =>
-                  const Divider(color: AxisColors.borderSubtle, height: 1),
-              itemBuilder: (context, i) {
-                final cat = categories[i];
-                final id = (cat['id'] as String?) ?? '';
-                final name = (cat['name'] as String?) ?? 'Category';
-                final color = _parseHex(cat['color'] as String?);
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: color.withValues(alpha: 0.5),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: const TextStyle(
-                            color: AxisColors.textHigh,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int i = 0; i < categories.length; i++) ...[
+                  if (i > 0)
+                    const Divider(color: AxisColors.borderSubtle, height: 1),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: _parseHex(categories[i]['color'] as String?),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: _parseHex(categories[i]['color'] as String?)
+                                    .withValues(alpha: 0.5),
+                                blurRadius: 6,
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            size: 18, color: AxisColors.textDim),
-                        tooltip: 'Delete Category',
-                        onPressed: () => onDeleteCategory(id, name),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            (categories[i]['name'] as String?) ?? 'Category',
+                            style: const TextStyle(
+                              color: AxisColors.textHigh,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 18, color: AxisColors.textDim),
+                          tooltip: 'Delete Category',
+                          onPressed: () => onDeleteCategory(
+                            (categories[i]['id'] as String?) ?? '',
+                            (categories[i]['name'] as String?) ?? 'Category',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              },
+                ],
+              ],
             ),
           ),
       ],

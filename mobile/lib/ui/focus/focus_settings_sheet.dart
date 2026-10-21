@@ -110,12 +110,14 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle and Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle and Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
               child: Column(
                 children: [
                   Center(
@@ -130,32 +132,31 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
                   ),
                   const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AxisColors.primary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.tune_rounded,
-                                color: AxisColors.primary, size: 20),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'SESSION CONFIGURATION',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  color: AxisColors.textHigh,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                ),
-                          ),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AxisColors.primary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.tune_rounded,
+                            color: AxisColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'SESSION CONFIGURATION',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                color: AxisColors.textHigh,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close_rounded,
@@ -237,12 +238,15 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
                                     color: isSel ? AxisColors.secondary : AxisColors.borderSubtle,
                                   ),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    '${min}m',
-                                    style: TextStyle(
-                                      color: isSel ? AxisColors.secondary : AxisColors.textDim,
-                                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                 child: Center(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${min}m',
+                                      style: TextStyle(
+                                        color: isSel ? AxisColors.secondary : AxisColors.textDim,
+                                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -282,11 +286,14 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
                                   ),
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    '${min}m',
-                                    style: TextStyle(
-                                      color: isSel ? AxisColors.tertiary : AxisColors.textDim,
-                                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '${min}m',
+                                      style: TextStyle(
+                                        color: isSel ? AxisColors.tertiary : AxisColors.textDim,
+                                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -326,12 +333,15 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
                                   ),
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    '$c Cycles',
-                                    style: TextStyle(
-                                      color: isSel ? AxisColors.warning : AxisColors.textDim,
-                                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                                      fontSize: 12,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '$c Cycles',
+                                      style: TextStyle(
+                                        color: isSel ? AxisColors.warning : AxisColors.textDim,
+                                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -356,19 +366,23 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Auto-Start Breaks',
-                                      style: TextStyle(
-                                          color: AxisColors.textHigh,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13)),
-                                  Text('Begin countdown automatically',
-                                      style: TextStyle(
-                                          color: AxisColors.textMuted, fontSize: 11)),
-                                ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Auto-Start Breaks',
+                                        style: TextStyle(
+                                            color: AxisColors.textHigh,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13)),
+                                    const SizedBox(height: 2),
+                                    Text('Begin countdown automatically',
+                                        style: TextStyle(
+                                            color: AxisColors.textMuted, fontSize: 11)),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Switch(
                                 value: _autoStartBreaks,
                                 activeThumbColor: AxisColors.primary,
@@ -381,19 +395,23 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Neural Hums Auto-Play',
-                                      style: TextStyle(
-                                          color: AxisColors.textHigh,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13)),
-                                  Text('Play soundscape when session starts',
-                                      style: TextStyle(
-                                          color: AxisColors.textMuted, fontSize: 11)),
-                                ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Neural Hums Auto-Play',
+                                        style: TextStyle(
+                                            color: AxisColors.textHigh,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13)),
+                                    const SizedBox(height: 2),
+                                    Text('Play soundscape when session starts',
+                                        style: TextStyle(
+                                            color: AxisColors.textMuted, fontSize: 11)),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Switch(
                                 value: _soundscapeAutoPlay,
                                 activeThumbColor: AxisColors.secondary,
@@ -429,24 +447,30 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
                             ),
                           ],
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.check_rounded,
-                                color: Colors.white, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'APPLY CONFIGURATION',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelLarge
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                  ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.check_rounded,
+                                    color: Colors.white, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'APPLY CONFIGURATION',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelLarge
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -457,7 +481,8 @@ class _FocusSettingsSheetState extends State<FocusSettingsSheet> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -476,28 +501,33 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                color: AxisColors.textHigh,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.1,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AxisColors.textHigh,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.1,
+                ),
               ),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: AxisColors.textMuted,
-                fontSize: 11,
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AxisColors.textMuted,
+                  fontSize: 11,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        const SizedBox(width: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(

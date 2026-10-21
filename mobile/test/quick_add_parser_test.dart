@@ -31,4 +31,10 @@ void main() {
       expect(parsedTags, expectedTags, reason: 'Tags mismatch for "$input"');
     }
   });
+
+  test('QuickAddParser handles times without minutes (e.g. at 5)', () {
+    final parsed = QuickAddParser.parse('Call mom at 5');
+    expect(parsed.dueTime, '05:00');
+    expect(parsed.title, 'Call mom');
+  });
 }

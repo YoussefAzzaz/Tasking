@@ -26,11 +26,22 @@ class _NotesScreenState extends State<NotesScreen> {
   final _repo = NoteRepository();
   int _selectedSegmentIndex = 0; // 0: 'all', 1: 'note', 2: 'journal'
   DateTime? _filterDate;
+  late Stream<List<Note>> _notesStream;
 
   static const _segmentKeys = ['all', 'note', 'journal'];
   static const _segmentLabels = ['All Notes', 'Notes', 'Journal'];
 
   String get _selectedSegment => _segmentKeys[_selectedSegmentIndex];
+
+  @override
+  void initState() {
+    super.initState();
+    _updateStream();
+  }
+
+  void _updateStream() {
+    _notesStream = _repo.watchNotes(category: _selectedSegment);
+  }
 
   void _openCreateNote({String category = 'note', Note? noteToEdit}) {
     showModalBottomSheet(
@@ -205,7 +216,10 @@ class _NotesScreenState extends State<NotesScreen> {
                 end: Alignment.bottomRight,
               ),
               onSegmentSelected: (index) {
-                setState(() => _selectedSegmentIndex = index);
+                setState(() {
+                  _selectedSegmentIndex = index;
+                  _updateStream();
+                });
               },
             ),
           ),
@@ -238,7 +252,7 @@ class _NotesScreenState extends State<NotesScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: StreamBuilder<List<Note>>(
-              stream: _repo.watchNotes(category: _selectedSegment),
+              stream: _notesStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(

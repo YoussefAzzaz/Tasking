@@ -56,7 +56,10 @@ class RecurrenceEngine {
         int daysInMonth = DateTime(nextDate.year, nextDate.month + 1, 0).day;
         nextDate = DateTime(nextDate.year, nextDate.month, day > daysInMonth ? daysInMonth : day);
       } else {
-        nextDate = DateTime(baseDate.year, baseDate.month + interval, baseDate.day);
+        final targetMonth = DateTime(baseDate.year, baseDate.month + interval, 1);
+        final daysInMonth = DateTime(targetMonth.year, targetMonth.month + 1, 0).day;
+        final targetDay = baseDate.day > daysInMonth ? daysInMonth : baseDate.day;
+        nextDate = DateTime(targetMonth.year, targetMonth.month, targetDay);
       }
     }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
@@ -114,7 +115,9 @@ class StatsRepository {
         totalXp += (logRow['total_xp'] as num?)?.toInt() ?? 0;
         todayXp += (logRow['today_xp'] as num?)?.toInt() ?? 0;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[StatsRepository] Error querying log XP: $e');
+    }
 
     try {
       // 2. Optimized aggregate query for completed focus sessions
@@ -140,7 +143,9 @@ class StatsRepository {
         totalXp += (focusRow['total_xp'] as num?)?.toInt() ?? 0;
         todayXp += (focusRow['today_xp'] as num?)?.toInt() ?? 0;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[StatsRepository] Error querying focus session XP: $e');
+    }
 
     // 3. Compute streak days from habit logs
     int streakDays = 0;
@@ -155,7 +160,9 @@ class StatsRepository {
           .map((r) => StreakLog(r['log_date'] as String, r['status'] as String))
           .toList();
       streakDays = StreakEngine.calculateStreak('daily', streakLogs, todayStr);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[StatsRepository] Error calculating habit streak days: $e');
+    }
 
     final level = GamificationEngine.calculateLevel(totalXp);
     globalUserLevel.value = level;

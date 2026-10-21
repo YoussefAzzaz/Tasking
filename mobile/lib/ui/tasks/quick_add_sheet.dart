@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/domain/quick_add_parser.dart';
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/data/tag_repository.dart';
 import 'package:axis/domain/id_generator.dart';
 
 /// Public sheet — called directly from the nav bar orb
@@ -72,6 +73,14 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     );
 
     await TaskRepository().addTask(task);
+
+    for (final tag in parsed.tags) {
+      final clean = tag.trim().replaceAll('@', '');
+      if (clean.isNotEmpty) {
+        await TagRepository().addTag(clean);
+      }
+    }
+
     if (mounted) Navigator.pop(context);
     widget.onTaskAdded();
   }
@@ -86,10 +95,12 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
         onTap: () => FocusScope.of(context).unfocus(),
         child: Padding(
           padding: EdgeInsets.only(bottom: insets.bottom),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
-          ),
+          child: SafeArea(
+            bottom: true,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
         decoration: BoxDecoration(
           color: const Color(0xF5131A2A),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -324,9 +335,9 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
                     ),
                     const SizedBox(width: 6),
                     _TokenInsertChip(
-                      label: '@urgent (Tag)',
+                      label: '@tag (Tag)',
                       color: AxisColors.primary,
-                      onTap: () => _insertToken('@urgent'),
+                      onTap: () => _insertToken('@'),
                     ),
                     const SizedBox(width: 6),
                     _TokenInsertChip(
@@ -427,6 +438,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
       ),
     ),
   ),
+),
 );
 }
 }

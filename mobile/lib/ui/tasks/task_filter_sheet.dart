@@ -462,7 +462,7 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
         final allTasks = snapshot.data ?? [];
 
         // Collect all distinct tags from existing tasks
-        final tagSet = <String>{'urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend'};
+        final tagSet = <String>{};
         for (final t in allTasks) {
           if (t.tags != null) {
             for (final tag in t.tags!.split(',')) {

@@ -31,10 +31,12 @@ class _TodayScreenState extends State<TodayScreen> {
   int _todayXp = 0;
   int _streakDays = 0;
   StreamSubscription<UserStats>? _statsSub;
+  late final Stream<List<Task>> _tasksStream;
 
   @override
   void initState() {
     super.initState();
+    _tasksStream = TaskRepository().watchTasks();
     _loadStats();
     _statsSub = StatsRepository().watchStats().listen((stats) {
       if (mounted) {
@@ -101,7 +103,7 @@ class _TodayScreenState extends State<TodayScreen> {
         : (level >= 5 ? 'CYBER OPERATIVE' : 'CYBER INITIATE');
 
     return StreamBuilder<List<Task>>(
-      stream: TaskRepository().watchTasks(),
+      stream: _tasksStream,
       builder: (context, snapshot) {
         final allTasks = snapshot.data ?? [];
         final todayStr = DateFormat('yyyy-MM-dd').format(now);

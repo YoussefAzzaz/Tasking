@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
+import 'package:axis/core/config/app_config.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/focus_session_service.dart';
@@ -32,15 +32,10 @@ Future<void> main() async {
   await openDatabase();
   await AuthService().init();
 
-  // Check online status via TCP socket packet to Supabase
-  final isOnline = await NetworkService().checkSupabaseConnectivity();
-  if (isOnline && AuthService().hasActiveSession) {
-    unawaited(AuthService().tryAutoLoginOrSync());
-  }
-
+  // Instant UI startup — mount widget tree immediately without network blocking
   runApp(
     DevicePreview(
-      enabled: !kReleaseMode,
+      enabled: AppConfig.useDevicePreview,
       builder: (context) => const AxisApp(),
     ),
   );
@@ -50,16 +45,39 @@ Future<void> main() async {
 }
 
 Future<void> _initBackgroundServices() async {
+  // 1. Asynchronous network probe & auto-sync without blocking cold launch
+  unawaited(() async {
+    try {
+      final isOnline = await NetworkService().checkSupabaseConnectivity();
+      if (isOnline && AuthService().hasActiveSession) {
+        await AuthService().tryAutoLoginOrSync();
+      }
+    } catch (e) {
+      debugPrint('[Background] Connectivity probe error: $e');
+    }
+  }());
+
+  // 2. Deterministic notification engine initialization first
   try {
-    NetworkService().startMonitoring();
     await FocusSessionService().init();
-    await PrayerTimeService().init();
-    await AdhanAlarmService().init();
-    AppWidgetSyncService().syncAll();
-    AppWidgetSyncService().startAutoSync();
   } catch (e) {
-    debugPrint('Background services initialization error: $e');
+    debugPrint('[Background] FocusSessionService/Notification init error: $e');
   }
+
+  // 3. Parallel background service inits once notification channels are verified active
+  await Future.wait<void>([
+    Future(() => NetworkService().startMonitoring()),
+    Future(() => AdhanAlarmService().init().catchError((e) {
+      debugPrint('[Background] AdhanAlarmService init error: $e');
+    })),
+    Future(() => PrayerTimeService().init().catchError((e) {
+      debugPrint('[Background] PrayerTimeService init error: $e');
+    })),
+    Future(() {
+      AppWidgetSyncService().syncAll();
+      AppWidgetSyncService().startAutoSync();
+    }),
+  ], eagerError: false);
 }
 
 class AxisApp extends StatelessWidget {

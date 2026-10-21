@@ -38,6 +38,38 @@ class Task {
     this.recurrenceMode,
   });
 
+  Task copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? notes,
+    String? status,
+    int? priority,
+    String? projectId,
+    String? tags,
+    String? dueDate,
+    String? dueTime,
+    int? estimateMin,
+    String? recurrenceRule,
+    String? recurrenceMode,
+  }) {
+    return Task(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      notes: notes ?? this.notes,
+      status: status ?? this.status,
+      priority: priority ?? this.priority,
+      projectId: projectId ?? this.projectId,
+      tags: tags ?? this.tags,
+      dueDate: dueDate ?? this.dueDate,
+      dueTime: dueTime ?? this.dueTime,
+      estimateMin: estimateMin ?? this.estimateMin,
+      recurrenceRule: recurrenceRule ?? this.recurrenceRule,
+      recurrenceMode: recurrenceMode ?? this.recurrenceMode,
+    );
+  }
+
   factory Task.fromRow(Map<String, dynamic> row) {
     return Task(
       id: row['id'],
@@ -197,7 +229,9 @@ class TaskRepository {
       if (task.tags != null && task.tags!.isNotEmpty) {
         CacheService().invalidate('task_tags_list');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[TaskRepository] Error creating task: $e');
+    }
 
     AppWidgetSyncService().syncTodayTasks();
   }
@@ -278,19 +312,8 @@ class TaskRepository {
 
   /// Toggles task completion status, records XP gamification event, and invalidates stats.
   Future<void> toggleTaskStatus(Task task, bool isDone) async {
-    final updated = Task(
-      id: task.id,
-      title: task.title,
-      notes: task.notes,
+    final updated = task.copyWith(
       status: isDone ? 'done' : 'todo',
-      priority: task.priority,
-      projectId: task.projectId,
-      tags: task.tags,
-      dueDate: task.dueDate,
-      dueTime: task.dueTime,
-      estimateMin: task.estimateMin,
-      recurrenceRule: task.recurrenceRule,
-      recurrenceMode: task.recurrenceMode,
     );
 
     await updateTask(updated);
@@ -324,7 +347,9 @@ class TaskRepository {
           : [projectId, projectId.replaceFirst('discovered_', ''), projectId, name];
 
       await db.execute(query, params).timeout(const Duration(seconds: 4));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[TaskRepository] Error detaching project from tasks: $e');
+    }
     AppWidgetSyncService().syncTodayTasks();
   }
 }

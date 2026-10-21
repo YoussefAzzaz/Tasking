@@ -78,7 +78,6 @@ void main() {
       await auth.saveLocalSession(
         userId: 'test_user_offline_uuid',
         email: 'operative@tasking.local',
-        password: 'secretPassword123',
         displayName: 'Offline Operative',
       );
 

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/focus_session_service.dart';
+import 'package:axis/data/prayer_time_service.dart';
 
 /// Full-stack Authentication Service bridging Supabase Auth & PowerSync multi-tenant isolation.
 /// Provides offline session persistence, background auto-login, and seamless reconnect sync.
@@ -21,6 +22,9 @@ class AuthService {
 
   Map<String, dynamic>? _lastSavedSession;
   bool _isAutoLoggingIn = false;
+
+  /// Reactive notifier for GoRouter refreshListenable & auth state observers
+  final ValueNotifier<bool> authStateNotifier = ValueNotifier<bool>(false);
 
   Map<String, dynamic>? get lastSavedSession => _lastSavedSession;
 
@@ -95,34 +99,38 @@ class AuthService {
           'user_id': uid,
           'email': email,
           'display_name': name,
-          'cached_password': null,
           'last_login_at': DateTime.now().toUtc().toIso8601String(),
         };
         await db.execute('''
-          INSERT OR REPLACE INTO local_auth_session (
-            id, user_id, email, display_name, cached_password, last_login_at
-          ) VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO local_auth_session (
+            id, user_id, email, display_name, last_login_at
+          ) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            user_id = excluded.user_id,
+            email = excluded.email,
+            display_name = excluded.display_name,
+            last_login_at = excluded.last_login_at
         ''', [
           'active_session',
           uid,
           email,
           name,
-          null,
           DateTime.now().toUtc().toIso8601String(),
         ]);
       }
       await purgeForeignUserData();
+      authStateNotifier.value = hasActiveSession;
     } catch (e) {
       debugPrint('[AuthService] Error reading local auth session: $e');
     }
   }
 
-  /// Persist session and login credentials locally in SQLite for offline access and auto-login
+  /// Persist session metadata locally in SQLite for offline access
   Future<void> saveLocalSession({
     required String userId,
     required String email,
-    required String password,
     String? displayName,
+    String? avatarUrl,
   }) async {
     setCachedUserId(userId);
     _lastSavedSession = {
@@ -130,22 +138,29 @@ class AuthService {
       'user_id': userId,
       'email': email,
       'display_name': displayName,
-      'cached_password': password,
+      'avatar_url': avatarUrl,
       'last_login_at': DateTime.now().toUtc().toIso8601String(),
     };
+    authStateNotifier.value = true;
 
     if (isDatabaseInitialized) {
       try {
         await db.execute('''
-          INSERT OR REPLACE INTO local_auth_session (
-            id, user_id, email, display_name, cached_password, last_login_at
+          INSERT INTO local_auth_session (
+            id, user_id, email, display_name, avatar_url, last_login_at
           ) VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            user_id = excluded.user_id,
+            email = excluded.email,
+            display_name = excluded.display_name,
+            avatar_url = COALESCE(excluded.avatar_url, local_auth_session.avatar_url),
+            last_login_at = excluded.last_login_at
         ''', [
           'active_session',
           userId,
           email,
           displayName,
-          password,
+          avatarUrl,
           DateTime.now().toUtc().toIso8601String(),
         ]);
         await purgeForeignUserData();
@@ -159,6 +174,7 @@ class AuthService {
   Future<void> clearLocalSession() async {
     _lastSavedSession = null;
     setCachedUserId('');
+    authStateNotifier.value = false;
     if (isDatabaseInitialized) {
       try {
         await db.execute('DELETE FROM local_auth_session WHERE id = ?', ['active_session']);
@@ -182,27 +198,6 @@ class AuthService {
           db.connect(connector: SupabaseConnector());
         }
         return;
-      }
-
-      // 2. If no active session, attempt silent login using saved credentials
-      final email = _lastSavedSession?['email'] as String?;
-      final password = _lastSavedSession?['cached_password'] as String?;
-
-      if (email != null &&
-          password != null &&
-          email.isNotEmpty &&
-          password.isNotEmpty) {
-        try {
-          final res = await client.auth.signInWithPassword(
-            email: email.trim(),
-            password: password,
-          );
-          if (res.session != null && isDatabaseInitialized) {
-            db.connect(connector: SupabaseConnector());
-          }
-        } catch (e) {
-          debugPrint('[AuthService] Background auto-login skipped (offline/network): $e');
-        }
       }
     } catch (e) {
       debugPrint('[AuthService] tryAutoLoginOrSync error: $e');
@@ -232,13 +227,13 @@ class AuthService {
       await saveLocalSession(
         userId: uid,
         email: email.trim(),
-        password: password,
         displayName: name,
       );
 
       // Connect PowerSync with new user credentials
       if (response.session != null && isDatabaseInitialized) {
         db.connect(connector: SupabaseConnector());
+        unawaited(PrayerTimeService().syncPrayers());
       }
 
       return response;
@@ -272,13 +267,13 @@ class AuthService {
       await saveLocalSession(
         userId: uid,
         email: email.trim(),
-        password: password,
         displayName: cleanName,
       );
 
       // Auto-connect if session is immediately active
       if (response.session != null && isDatabaseInitialized) {
         db.connect(connector: SupabaseConnector());
+        unawaited(PrayerTimeService().syncPrayers());
       }
 
       return response;

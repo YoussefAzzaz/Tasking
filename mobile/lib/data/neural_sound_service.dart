@@ -95,12 +95,13 @@ class NeuralSoundService {
       return file;
     }
 
-    final bytes = _generateWavBytes(trackName);
+    final bytes = await compute(_generateWavBytesIsolate, trackName);
     await file.writeAsBytes(bytes);
     return file;
   }
+}
 
-  Uint8List _generateWavBytes(String trackName) {
+Uint8List _generateWavBytesIsolate(String trackName) {
     const sampleRate = 22050;
     const durationSeconds = 4; // 4 second looping buffer
     const totalSamples = sampleRate * durationSeconds;
@@ -160,47 +161,46 @@ class NeuralSoundService {
     }
 
     return _buildWavHeader(samples, sampleRate);
+}
+
+Uint8List _buildWavHeader(Int16List samples, int sampleRate) {
+  final byteData = ByteData(44 + samples.length * 2);
+  // RIFF header
+  byteData.setUint8(0, 0x52); // R
+  byteData.setUint8(1, 0x49); // I
+  byteData.setUint8(2, 0x46); // F
+  byteData.setUint8(3, 0x46); // F
+  byteData.setUint32(4, 36 + samples.length * 2, Endian.little);
+  byteData.setUint8(8, 0x57); // W
+  byteData.setUint8(9, 0x41); // A
+  byteData.setUint8(10, 0x56); // V
+  byteData.setUint8(11, 0x45); // E
+
+  // fmt subchunk
+  byteData.setUint8(12, 0x66); // f
+  byteData.setUint8(13, 0x6D); // m
+  byteData.setUint8(14, 0x74); // t
+  byteData.setUint8(15, 0x20); // ' '
+  byteData.setUint32(16, 16, Endian.little);
+  byteData.setUint16(20, 1, Endian.little); // PCM
+  byteData.setUint16(22, 1, Endian.little); // Mono
+  byteData.setUint32(24, sampleRate, Endian.little);
+  byteData.setUint32(28, sampleRate * 2, Endian.little);
+  byteData.setUint16(32, 2, Endian.little);
+  byteData.setUint16(34, 16, Endian.little); // 16-bit
+
+  // data subchunk
+  byteData.setUint8(36, 0x64); // d
+  byteData.setUint8(37, 0x61); // a
+  byteData.setUint8(38, 0x74); // t
+  byteData.setUint8(39, 0x61); // a
+  byteData.setUint32(40, samples.length * 2, Endian.little);
+
+  int offset = 44;
+  for (int i = 0; i < samples.length; i++) {
+    byteData.setInt16(offset, samples[i], Endian.little);
+    offset += 2;
   }
 
-  Uint8List _buildWavHeader(Int16List samples, int sampleRate) {
-    final byteData = ByteData(44 + samples.length * 2);
-    // RIFF header
-    byteData.setUint8(0, 0x52); // R
-    byteData.setUint8(1, 0x49); // I
-    byteData.setUint8(2, 0x46); // F
-    byteData.setUint8(3, 0x46); // F
-    byteData.setUint32(4, 36 + samples.length * 2, Endian.little);
-    byteData.setUint8(8, 0x57); // W
-    byteData.setUint8(9, 0x41); // A
-    byteData.setUint8(10, 0x56); // V
-    byteData.setUint8(11, 0x45); // E
-
-    // fmt subchunk
-    byteData.setUint8(12, 0x66); // f
-    byteData.setUint8(13, 0x6D); // m
-    byteData.setUint8(14, 0x74); // t
-    byteData.setUint8(15, 0x20); // ' '
-    byteData.setUint32(16, 16, Endian.little);
-    byteData.setUint16(20, 1, Endian.little); // PCM
-    byteData.setUint16(22, 1, Endian.little); // Mono
-    byteData.setUint32(24, sampleRate, Endian.little);
-    byteData.setUint32(28, sampleRate * 2, Endian.little);
-    byteData.setUint16(32, 2, Endian.little);
-    byteData.setUint16(34, 16, Endian.little); // 16-bit
-
-    // data subchunk
-    byteData.setUint8(36, 0x64); // d
-    byteData.setUint8(37, 0x61); // a
-    byteData.setUint8(38, 0x74); // t
-    byteData.setUint8(39, 0x61); // a
-    byteData.setUint32(40, samples.length * 2, Endian.little);
-
-    int offset = 44;
-    for (int i = 0; i < samples.length; i++) {
-      byteData.setInt16(offset, samples[i], Endian.little);
-      offset += 2;
-    }
-
-    return byteData.buffer.asUint8List();
-  }
+  return byteData.buffer.asUint8List();
 }

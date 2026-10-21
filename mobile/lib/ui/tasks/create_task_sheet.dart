@@ -258,6 +258,14 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
       }
     }
 
+    // Persist any user-defined tags so they can be viewed and managed
+    for (final tag in allTags) {
+      final clean = tag.trim().replaceAll('@', '');
+      if (clean.isNotEmpty) {
+        await TagRepository().addTag(clean);
+      }
+    }
+
     if (widget.taskToEdit != null) {
       final updated = Task(
         id: widget.taskToEdit!.id,

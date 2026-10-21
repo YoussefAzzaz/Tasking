@@ -116,7 +116,9 @@ class LocationService {
             resolvedCity = ipLoc.city;
             resolvedCountry = ipLoc.country;
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[LocationService] IP geolocation city resolution failed: $e');
+        }
       }
 
       if (resolvedCity.isEmpty || resolvedCity == 'GPS Location') {
@@ -160,8 +162,8 @@ class LocationService {
           );
         }
       }
-    } catch (_) {
-      // Network unavailable or timed out
+    } catch (e) {
+      debugPrint('[LocationService] IP Geolocation attempt failed (network offline/timeout): $e');
     }
     return null;
   }

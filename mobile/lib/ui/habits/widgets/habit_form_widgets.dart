@@ -294,37 +294,36 @@ class ColorAccentSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
       children: colors.map((c) {
         final isSel = selectedColor == c['hex'];
         final col = c['color'] as Color;
-        return Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: InkWell(
-            onTap: () => onSelectColor(c['hex'] as String),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: col,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSel ? Colors.white : Colors.transparent,
-                  width: 2.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: col.withValues(alpha: 0.4),
-                    blurRadius: 8,
-                  ),
-                ],
+        return InkWell(
+          onTap: () => onSelectColor(c['hex'] as String),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: col,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSel ? Colors.white : Colors.transparent,
+                width: 2.5,
               ),
-              child: isSel
-                  ? const Icon(Icons.check_rounded,
-                      size: 18, color: Colors.white)
-                  : null,
+              boxShadow: [
+                BoxShadow(
+                  color: col.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                ),
+              ],
             ),
+            child: isSel
+                ? const Icon(Icons.check_rounded,
+                    size: 18, color: Colors.white)
+                : null,
           ),
         );
       }).toList(),

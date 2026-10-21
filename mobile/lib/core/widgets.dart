@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'package:axis/core/theme.dart';
 
@@ -11,6 +12,7 @@ class AxisCard extends StatelessWidget {
     this.padding,
     this.borderRadius,
     this.accentBorder = false,
+    this.useBlur = false,
   });
 
   final Widget child;
@@ -18,29 +20,39 @@ class AxisCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final double? borderRadius;
   final bool accentBorder;
+  final bool useBlur;
 
   @override
   Widget build(BuildContext context) {
     final (bgColor, bgAlpha, blurSigma, borderColor) = switch (tier) {
-      GlassTier.one => (AxisColors.glassTier1, 0.65, 16.0, AxisColors.borderSubtle),
-      GlassTier.two => (AxisColors.glassTier2, 0.82, 20.0, AxisColors.borderGlass2),
+      GlassTier.one => (AxisColors.glassTier1, 0.85, 16.0, AxisColors.borderSubtle),
+      GlassTier.two => (AxisColors.glassTier2, 0.90, 20.0, AxisColors.borderGlass2),
     };
     final radius = borderRadius ?? 12.0;
     final border = accentBorder ? AxisColors.borderPrimary : borderColor;
+
+    final container = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: bgColor.withValues(alpha: bgAlpha),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: border, width: 1),
+      ),
+      child: child,
+    );
+
+    if (!useBlur) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: container,
+      );
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: bgColor.withValues(alpha: bgAlpha),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: border, width: 1),
-          ),
-          child: child,
-        ),
+        child: container,
       ),
     );
   }
@@ -238,6 +250,7 @@ class _AxisCheckboxState extends State<AxisCheckbox>
   }
 
   void _toggle() {
+    HapticFeedback.mediumImpact();
     _ctrl.forward().then((_) => _ctrl.reverse());
     widget.onChanged(!widget.checked);
   }

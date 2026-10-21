@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/ui/me/widgets/avatar_widget.dart';
 
 /// User Profile cockpit card with user avatar, title, level, total XP, and profile editing dialog
 class UserProfileCard extends StatelessWidget {
@@ -11,6 +12,10 @@ class UserProfileCard extends StatelessWidget {
     required this.level,
     required this.totalXp,
     required this.onSaveProfile,
+    this.avatarUrl,
+    this.avatarColor,
+    this.isUploadingAvatar = false,
+    this.onAvatarTap,
   });
 
   final String userName;
@@ -18,6 +23,10 @@ class UserProfileCard extends StatelessWidget {
   final int level;
   final int totalXp;
   final void Function(String name, String title) onSaveProfile;
+  final String? avatarUrl;
+  final String? avatarColor;
+  final bool isUploadingAvatar;
+  final VoidCallback? onAvatarTap;
 
   void _showEditProfileDialog(BuildContext context) {
     final nameCtrl = TextEditingController(text: userName);
@@ -132,25 +141,15 @@ class UserProfileCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [AxisColors.primary, AxisColors.secondary],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AxisColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-            child: const Icon(Icons.person_rounded,
-                color: Colors.white, size: 30),
+          AvatarWidget(
+            avatarUrl: avatarUrl,
+            name: userName,
+            avatarColor: avatarColor,
+            size: 60,
+            isUploading: isUploadingAvatar,
+            showEditBadge: true,
+            onTap: onAvatarTap,
+            heroTag: 'user_profile_avatar',
           ),
           const SizedBox(width: 14),
           Expanded(

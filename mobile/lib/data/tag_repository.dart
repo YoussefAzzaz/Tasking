@@ -12,17 +12,30 @@ class TagRepository {
 
   static const String _cacheKey = 'task_tags_list';
 
-  static const List<String> defaultTags = [
-    'urgent',
-    'deepwork',
-    'meeting',
-    'review',
-    'errand',
-    'backend',
-    'frontend'
-  ];
+  /// Watches tags stream for real-time reactive UI.
+  Stream<List<String>> watchTags() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(<String>[]);
+    }
+    final uid = currentUserId;
+    final tagQuery = uid.isNotEmpty
+        ? "SELECT name FROM tags WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) NOT IN ('urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend') ORDER BY name ASC"
+        : "SELECT name FROM tags WHERE LOWER(name) NOT IN ('urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend') ORDER BY name ASC";
+    final tagParams = uid.isNotEmpty ? [uid] : <dynamic>[];
 
-  /// Retrieves all available tags from cache or database in a non-blocking manner.
+    return db.watch(tagQuery, parameters: tagParams).map((rows) {
+      final tagSet = <String>{};
+      for (final r in rows) {
+        final name = (r['name'] as String?)?.trim().replaceAll('@', '');
+        if (name != null && name.isNotEmpty) tagSet.add(name);
+      }
+      final result = tagSet.toList()..sort();
+      CacheService().set<List<String>>(_cacheKey, result, ttl: const Duration(minutes: 10));
+      return result;
+    });
+  }
+
+  /// Retrieves all available user-created tags from cache or database in a non-blocking manner.
   Future<List<String>> getTags({bool forceRefresh = false}) async {
     if (forceRefresh) {
       CacheService().invalidate(_cacheKey);
@@ -34,20 +47,20 @@ class TagRepository {
       ttl: const Duration(minutes: 10),
       staleWhileRevalidate: true,
       timeout: const Duration(seconds: 3),
-      fallback: defaultTags,
+      fallback: <String>[],
     );
   }
 
   Future<List<String>> _fetchTagsFromDb() async {
-    if (!isDatabaseInitialized) return defaultTags;
+    if (!isDatabaseInitialized) return [];
 
-    final tagSet = <String>{...defaultTags};
+    final tagSet = <String>{};
     final uid = currentUserId;
 
     try {
       final tagQuery = uid.isNotEmpty
-          ? 'SELECT name FROM tags WHERE user_id = ? ORDER BY name ASC'
-          : 'SELECT name FROM tags ORDER BY name ASC';
+          ? "SELECT name FROM tags WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) NOT IN ('urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend') ORDER BY name ASC"
+          : "SELECT name FROM tags WHERE LOWER(name) NOT IN ('urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend') ORDER BY name ASC";
       final tagParams = uid.isNotEmpty ? [uid] : <dynamic>[];
       final tagRows = await db.getAll(tagQuery, tagParams);
 
@@ -55,25 +68,9 @@ class TagRepository {
         final name = (r['name'] as String?)?.trim().replaceAll('@', '');
         if (name != null && name.isNotEmpty) tagSet.add(name);
       }
-    } catch (_) {}
-
-    try {
-      final taskQuery = uid.isNotEmpty
-          ? 'SELECT tags FROM tasks WHERE tags IS NOT NULL AND user_id = ?'
-          : 'SELECT tags FROM tasks WHERE tags IS NOT NULL';
-      final taskParams = uid.isNotEmpty ? [uid] : <dynamic>[];
-      final taskRows = await db.getAll(taskQuery, taskParams);
-
-      for (final r in taskRows) {
-        final tagsStr = r['tags'] as String?;
-        if (tagsStr != null && tagsStr.isNotEmpty) {
-          for (final t in tagsStr.split(',')) {
-            final clean = t.trim().replaceAll('@', '');
-            if (clean.isNotEmpty) tagSet.add(clean);
-          }
-        }
-      }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[TagRepository] Error fetching custom tags: $e');
+    }
 
     final result = tagSet.toList()..sort();
     return result;
@@ -105,7 +102,7 @@ class TagRepository {
     }
   }
 
-  /// Deletes a tag from the database and invalidates the tag cache.
+  /// Deletes a tag from the database and any task associations, then invalidates the tag cache.
   Future<void> deleteTag(String tagName) async {
     final clean = tagName.trim().replaceAll('@', '');
     if (clean.isEmpty) return;
@@ -115,7 +112,31 @@ class TagRepository {
     if (!isDatabaseInitialized) return;
 
     try {
-      await db.execute('DELETE FROM tags WHERE name = ?', [clean]);
+      // 1. Delete from tags table
+      await db.execute('DELETE FROM tags WHERE LOWER(name) = LOWER(?)', [clean]);
+
+      // 2. Disassociate this tag from any tasks that currently have it
+      final uid = currentUserId;
+      final taskQuery = uid.isNotEmpty
+          ? "SELECT id, tags FROM tasks WHERE tags IS NOT NULL AND tags != '' AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+          : "SELECT id, tags FROM tasks WHERE tags IS NOT NULL AND tags != ''";
+      final taskParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final taskRows = await db.getAll(taskQuery, taskParams);
+
+      for (final row in taskRows) {
+        final id = row['id'] as String;
+        final tagsStr = row['tags'] as String? ?? '';
+        final tagsList = tagsStr
+            .split(',')
+            .map((t) => t.trim().replaceAll('@', ''))
+            .where((t) => t.isNotEmpty)
+            .toList();
+        if (tagsList.any((t) => t.toLowerCase() == clean.toLowerCase())) {
+          tagsList.removeWhere((t) => t.toLowerCase() == clean.toLowerCase());
+          final newTags = tagsList.isEmpty ? null : tagsList.join(',');
+          await db.execute('UPDATE tasks SET tags = ? WHERE id = ?', [newTags, id]);
+        }
+      }
     } catch (e) {
       debugPrint('[TagRepository] Error deleting tag: $e');
     }

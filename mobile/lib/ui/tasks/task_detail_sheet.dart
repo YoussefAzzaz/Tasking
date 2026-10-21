@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/data/task_repository.dart';
@@ -42,6 +43,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   }
 
   Future<void> _toggleDone() async {
+    HapticFeedback.mediumImpact();
     final updated = Task(
       id: _task.id,
       title: _task.title,
@@ -77,12 +79,14 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
         return AxisCard(
           tier: GlassTier.two,
           borderRadius: 20,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          child: SingleChildScrollView(
-            controller: scrollCtrl,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: SafeArea(
+            bottom: true,
+            child: SingleChildScrollView(
+              controller: scrollCtrl,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // Drag handle
                 Center(
                   child: Container(
@@ -331,10 +335,11 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
               ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Color _priorityColor(int p) {
     return switch (p) {

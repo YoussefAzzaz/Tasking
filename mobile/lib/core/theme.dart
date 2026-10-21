@@ -38,7 +38,7 @@ class AxisColors {
   // Text
   static const Color textHigh          = Color(0xFFF8FAFC); // Primary headings, active
   static const Color textMuted         = Color(0xFF94A3B8); // Secondary metrics, timestamps
-  static const Color textDim           = Color(0xFF475569); // Disabled states
+  static const Color textDim           = Color(0xFF8292A6); // Disabled & subtle labels (WCAG AA 4.8:1)
 
   // Borders
   static const Color borderSubtle      = Color(0x0FFFFFFF); // 6% white (glass tier 1 border)

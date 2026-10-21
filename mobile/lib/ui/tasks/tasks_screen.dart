@@ -7,12 +7,14 @@ import 'package:axis/ui/tasks/create_project_sheet.dart';
 import 'package:axis/ui/common/axis_sliding_segmented_bar.dart';
 import 'package:axis/ui/tasks/inbox_tab.dart';
 import 'package:axis/ui/tasks/upcoming_tab.dart';
+import 'package:axis/ui/tasks/outdated_tab.dart';
 import 'package:axis/ui/tasks/projects_tab.dart';
 import 'package:axis/ui/tasks/task_filter_sheet.dart';
 
 export 'package:axis/ui/tasks/task_filter_sheet.dart' show TaskFilterCriteria, TaskFilterSheet;
 export 'package:axis/ui/tasks/inbox_tab.dart' show InboxTab;
 export 'package:axis/ui/tasks/upcoming_tab.dart' show UpcomingTab;
+export 'package:axis/ui/tasks/outdated_tab.dart' show OutdatedTab;
 export 'package:axis/ui/tasks/projects_tab.dart' show ProjectsTab;
 export 'package:axis/ui/tasks/project_big_task_card.dart' show ProjectBigTaskCard;
 export 'package:axis/ui/tasks/tasks_empty_state.dart' show TasksEmptyState;
@@ -30,7 +32,7 @@ class _TasksScreenState extends State<TasksScreen> {
   final _projectRepo = ProjectRepository();
   int _currentTabIndex = 0;
 
-  static const _segments = ['Inbox', 'Upcoming', 'Projects'];
+  static const _segments = ['Inbox', 'Upcoming', 'Outdated', 'Projects'];
   late final List<Widget> _tabs;
   final _filterCriteria = ValueNotifier<TaskFilterCriteria>(const TaskFilterCriteria());
 
@@ -40,7 +42,14 @@ class _TasksScreenState extends State<TasksScreen> {
     // Instantiate all tab panels once so switching between them does not recreate them
     _tabs = [
       InboxTab(repo: _taskRepo, filterCriteria: _filterCriteria),
-      UpcomingTab(repo: _taskRepo, filterCriteria: _filterCriteria),
+      UpcomingTab(
+        repo: _taskRepo,
+        filterCriteria: _filterCriteria,
+        onNavigateToOutdated: () {
+          setState(() => _currentTabIndex = 2);
+        },
+      ),
+      OutdatedTab(repo: _taskRepo, filterCriteria: _filterCriteria),
       ProjectsTab(
         taskRepo: _taskRepo,
         projectRepo: _projectRepo,

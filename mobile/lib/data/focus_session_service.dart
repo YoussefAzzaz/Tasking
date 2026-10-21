@@ -10,6 +10,8 @@ import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/ui/focus/focus_settings_sheet.dart';
 
+import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized;
+
 class NotificationController {
   static ReceivePort? _receivePort;
 
@@ -17,9 +19,14 @@ class NotificationController {
     if (_receivePort != null) return;
 
     _receivePort = ReceivePort('notification_action_port');
-    _receivePort!.listen((actionKey) {
-      if (actionKey is String) {
-        _handleAction(actionKey);
+    _receivePort!.listen((data) {
+      if (data is Map) {
+        final key = data['key'] as String? ?? '';
+        final payload = (data['payload'] as Map?)?.cast<String, String?>();
+        final channelKey = data['channelKey'] as String?;
+        _handleAction(key, payload: payload, channelKey: channelKey);
+      } else if (data is String) {
+        _handleAction(data);
       }
     });
 
@@ -54,24 +61,31 @@ class NotificationController {
     final channelKey = receivedAction.channelKey;
     final payload = receivedAction.payload;
 
-    if (channelKey == 'fajr_alarm_channel' || key == 'DISMISS_FAJR_ALARM') {
-      AdhanAlarmService().handleFajrAlarmAction();
-      return;
-    }
-
-    if (key == 'MARK_DONE' && payload != null && payload['prayer_id'] != null) {
-      HabitRepository().toggleHabit(payload['prayer_id']!, true);
-      return;
-    }
-
-    if (key.isEmpty) return;
+    final actionData = {
+      'key': key,
+      'channelKey': channelKey,
+      'payload': payload,
+    };
 
     final sendPort =
         IsolateNameServer.lookupPortByName('notification_action_port');
     if (sendPort != null) {
-      sendPort.send(key);
+      sendPort.send(actionData);
     } else {
-      _handleAction(key, payload: payload, channelKey: channelKey);
+      // Running in headless background isolate without main thread port
+      try {
+        if (key == 'DISMISS_FAJR_ALARM' || channelKey == 'fajr_alarm_channel') {
+          AdhanAlarmService().stopAlarmSound();
+        } else if (key == 'MARK_DONE' && payload != null && payload['prayer_id'] != null) {
+          if (isDatabaseInitialized) {
+            await HabitRepository().toggleHabit(payload['prayer_id']!, true);
+          } else {
+            debugPrint('[NotificationController] Background isolate skipped direct DB write: DB not initialized in isolate');
+          }
+        }
+      } catch (e) {
+        debugPrint('[NotificationController] Background isolate notification action error: $e');
+      }
     }
   }
 
@@ -327,8 +341,11 @@ class FocusSessionService with WidgetsBindingObserver {
       }
     }
 
-    // Dynamic continuous countdown in notification
-    _showPinnedNotification();
+    // Throttle notification updates to prevent battery drain and IPC saturation.
+    // Full countdown is still updated every second in-app via remainingSecondsNotifier.
+    if (_remainingSeconds % 30 == 0 || _remainingSeconds <= 10) {
+      _showPinnedNotification();
+    }
   }
 
   void pauseTimer() {

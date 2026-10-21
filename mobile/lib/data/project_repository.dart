@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/task_repository.dart';
@@ -105,7 +106,9 @@ class ProjectRepository {
         project.color,
         project.createdAt.toUtc().toIso8601String(),
       ]).timeout(const Duration(seconds: 4));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ProjectRepository] Error adding project: $e');
+    }
   }
 
   /// Deletes a project, unlinks any associated tasks, and cleans the cache without N+1 queries.
@@ -138,6 +141,8 @@ class ProjectRepository {
       final params = uid.isNotEmpty ? [id, rawId, name, uid] : [id, rawId, name];
 
       await db.execute(query, params).timeout(const Duration(seconds: 4));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ProjectRepository] Error deleting project: $e');
+    }
   }
 }

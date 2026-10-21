@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:axis/data/powersync_db.dart';
 
 class Note {
@@ -88,7 +89,9 @@ class NoteRepository {
         now,
         now,
       ]);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[NoteRepository] Error adding note: $e');
+    }
   }
 
   Future<void> updateNote(Note note) async {
@@ -111,12 +114,16 @@ class NoteRepository {
         now,
         note.id,
       ]);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[NoteRepository] Error updating note: $e');
+    }
   }
 
   Future<void> deleteNote(String id) async {
     try {
       await db.execute('DELETE FROM notes WHERE id = ?', [id]);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[NoteRepository] Error deleting note: $e');
+    }
   }
 }

@@ -74,27 +74,34 @@ class LiveHabitCard extends StatelessWidget {
                 ),
               ),
             ),
-            ListTile(
-              leading:
-                  const Icon(Icons.edit_outlined, color: AxisColors.secondary),
-              title: const Text('Edit Habit',
-                  style: TextStyle(
-                      color: AxisColors.textHigh, fontWeight: FontWeight.w600)),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
               onTap: () {
                 Navigator.pop(ctx);
                 onEdit();
               },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_outlined,
+                        color: AxisColors.secondary, size: 20),
+                    SizedBox(width: 14),
+                    Text(
+                      'Edit Habit',
+                      style: TextStyle(
+                        color: AxisColors.textHigh,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline_rounded,
-                  color: AxisColors.error),
-              title: const Text('Delete Habit',
-                  style: TextStyle(
-                      color: AxisColors.error, fontWeight: FontWeight.w600)),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+            const SizedBox(height: 4),
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
               onTap: () {
                 Navigator.pop(ctx);
                 showDialog(

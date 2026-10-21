@@ -13,10 +13,12 @@ class UpcomingTab extends StatefulWidget {
     super.key,
     required this.repo,
     required this.filterCriteria,
+    this.onNavigateToOutdated,
   });
 
   final TaskRepository repo;
   final ValueNotifier<TaskFilterCriteria> filterCriteria;
+  final VoidCallback? onNavigateToOutdated;
 
   @override
   State<UpcomingTab> createState() => _UpcomingTabState();
@@ -75,11 +77,12 @@ class _UpcomingTabState extends State<UpcomingTab> {
               }
             }
 
-            if (overdue.isEmpty &&
-                today.isEmpty &&
-                tomorrow.isEmpty &&
-                upcoming.isEmpty &&
-                noDate.isEmpty) {
+            final hasUpcoming = today.isNotEmpty ||
+                tomorrow.isNotEmpty ||
+                upcoming.isNotEmpty ||
+                noDate.isNotEmpty;
+
+            if (!hasUpcoming && overdue.isEmpty) {
               return TasksEmptyState(
                 isFiltered: criteria.isActive,
                 onReset: () =>
@@ -97,12 +100,78 @@ class _UpcomingTabState extends State<UpcomingTab> {
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
-                if (overdue.isNotEmpty)
+                if (overdue.isNotEmpty && widget.onNavigateToOutdated != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: InkWell(
+                      onTap: widget.onNavigateToOutdated,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AxisColors.error.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AxisColors.error.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: AxisColors.error,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '${overdue.length} outdated ${overdue.length == 1 ? 'task' : 'tasks'} pending',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AxisColors.textHigh,
+                                ),
+                              ),
+                            ),
+                            const Text(
+                              'View Outdated',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AxisColors.error,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 11,
+                              color: AxisColors.error,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else if (overdue.isNotEmpty)
                   UpcomingSection(
                     title: 'OVERDUE',
                     color: AxisColors.error,
                     tasks: overdue,
                     repo: widget.repo,
+                  ),
+                if (!hasUpcoming && overdue.isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        'No upcoming tasks scheduled',
+                        style: TextStyle(
+                          color: AxisColors.textDim,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
                   ),
                 if (today.isNotEmpty)
                   UpcomingSection(

@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/core/config/app_config.dart';
 
 /// Network Connectivity Service using direct TCP socket handshakes to Supabase.
 ///
@@ -34,14 +34,27 @@ class NetworkService with WidgetsBindingObserver {
     bool connected = false;
 
     try {
-      final url = const String.fromEnvironment('SUPABASE_URL', defaultValue: kDefaultSupabaseUrl);
+      final url = AppConfig.supabaseUrl;
       final uri = Uri.parse(url);
       final host = uri.host.isNotEmpty ? uri.host : 'hzyvdkgdkxbxooatrzwy.supabase.co';
       final port = (uri.hasPort && uri.port != 0) ? uri.port : 443;
 
       // TCP Handshake: sends SYN and awaits SYN-ACK response
-      socket = await Socket.connect(host, port, timeout: timeout);
-      connected = true;
+      try {
+        socket = await Socket.connect(host, port, timeout: timeout);
+        connected = true;
+      } catch (socketError) {
+        // Fallback: If raw TCP socket is blocked by network carrier/proxy, try HTTPS request
+        try {
+          final client = HttpClient()..connectionTimeout = timeout;
+          final request = await client.getUrl(Uri.parse('$url/rest/v1/'));
+          final response = await request.close().timeout(timeout);
+          client.close(force: true);
+          connected = response.statusCode > 0;
+        } catch (_) {
+          connected = false;
+        }
+      }
     } catch (_) {
       connected = false;
     } finally {

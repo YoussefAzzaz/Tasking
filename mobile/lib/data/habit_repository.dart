@@ -21,11 +21,12 @@ class Habit {
   final bool isDoneToday;
   final int streakDays;
   final int sortOrder;
+  final String? createdAt;
 
   Habit({
     required this.id,
     required this.name,
-    this.category = 'Workout',
+    this.category = '',
     this.icon = 'fitness',
     this.color = '#10B981',
     this.scheduleType = 'daily',
@@ -34,23 +35,14 @@ class Habit {
     this.isDoneToday = false,
     this.streakDays = 0,
     this.sortOrder = 999,
+    this.createdAt,
   });
 
   factory Habit.fromRow(Map<String, dynamic> row, {bool isDone = false, int streak = 0}) {
     String cat = (row['kind'] as String?)?.trim() ?? '';
     if (cat.isEmpty) {
       final icon = (row['icon'] as String?) ?? '';
-      if (icon == 'book') {
-        cat = 'Reading';
-      } else if (icon == 'meditation') {
-        cat = 'Mindful';
-      } else if (icon == 'water') {
-        cat = 'Hydrate';
-      } else if (icon == 'code') {
-        cat = 'Code';
-      } else if (icon == 'sleep') {
-        cat = 'Rest';
-      } else if (icon == 'mosque' ||
+      if (icon == 'mosque' ||
           icon == 'prayer' ||
           icon == 'fajr' ||
           icon == 'dhuhr' ||
@@ -58,8 +50,6 @@ class Habit {
           icon == 'maghrib' ||
           icon == 'isha') {
         cat = 'Prayers';
-      } else {
-        cat = 'Workout';
       }
     }
 
@@ -75,6 +65,7 @@ class Habit {
       isDoneToday: isDone,
       streakDays: streak,
       sortOrder: (row['sort_order'] as num?)?.toInt() ?? 999,
+      createdAt: row['created_at'] as String?,
     );
   }
 }
@@ -82,29 +73,68 @@ class Habit {
 class HabitRepository {
   String _todayStr() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
+  /// Returns the cycle start date ('yyyy-MM-dd') for a habit based on its scheduleType.
+  /// - 'daily' & 'weekdays': resets at 00:00 every day (start = todayStr).
+  /// - 'weekly': resets every Friday at 00:00.
+  /// - 'every_3_days': resets every 3 days at 00:00 from creation date.
+  static String calculateCycleStartDate({
+    required String scheduleType,
+    required DateTime now,
+    String? createdAtStr,
+  }) {
+    final type = scheduleType.toLowerCase().trim();
+    if (type == 'weekly') {
+      int daysSinceFriday = (now.weekday - DateTime.friday) % 7;
+      if (daysSinceFriday < 0) daysSinceFriday += 7;
+      final lastFriday = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysSinceFriday));
+      return DateFormat('yyyy-MM-dd').format(lastFriday);
+    } else if (type == 'every_3_days' || type == '3days' || type == 'each_3_days') {
+      DateTime createdDate;
+      try {
+        final dt = DateTime.parse(createdAtStr ?? '').toLocal();
+        createdDate = DateTime(dt.year, dt.month, dt.day);
+      } catch (_) {
+        createdDate = DateTime(now.year, now.month, now.day);
+      }
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final daysDiff = todayDate.difference(createdDate).inDays;
+      final cycleIndex = daysDiff >= 0 ? daysDiff ~/ 3 : 0;
+      final currentCycleStart = createdDate.add(Duration(days: cycleIndex * 3));
+      return DateFormat('yyyy-MM-dd').format(currentCycleStart);
+    } else {
+      return DateFormat('yyyy-MM-dd').format(now);
+    }
+  }
+
   Stream<List<Habit>> watchHabits() {
-    final today = _todayStr();
+    final now = DateTime.now();
     final uid = currentUserId;
 
     final query = uid.isNotEmpty
-        ? 'SELECT habits.*, habit_logs.status AS today_status '
-          'FROM habits '
-          'LEFT JOIN habit_logs ON habits.id = habit_logs.habit_id AND habit_logs.log_date = ? AND (habit_logs.user_id = ? OR habit_logs.user_id IS NULL OR habit_logs.user_id = \'\') '
-          'WHERE (habits.user_id = ? OR habits.user_id IS NULL OR habits.user_id = \'\') '
-          'ORDER BY COALESCE(habits.sort_order, 999) ASC, habits.created_at ASC'
-        : 'SELECT habits.*, habit_logs.status AS today_status '
-          'FROM habits '
-          'LEFT JOIN habit_logs ON habits.id = habit_logs.habit_id AND habit_logs.log_date = ? '
-          'ORDER BY COALESCE(habits.sort_order, 999) ASC, habits.created_at ASC';
-    final params = uid.isNotEmpty ? [today, uid, uid] : [today];
+        ? 'SELECT * FROM habits '
+          'WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') '
+          'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC'
+        : 'SELECT * FROM habits '
+          'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC';
+    final params = uid.isNotEmpty ? [uid] : <dynamic>[];
 
     return db
         .watch(query, parameters: params)
         .asyncMap((habitRows) async {
-      final doneSet = <String>{};
-      for (final row in habitRows) {
-        if (row['today_status'] == 'done') {
-          doneSet.add(row['id'] as String);
+      // Fetch recent completed logs (last 14 days) for schedule cycle completion check
+      final cutoffStr = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 14)));
+      final logsQuery = uid.isNotEmpty
+          ? 'SELECT habit_id, log_date FROM habit_logs WHERE status = ? AND log_date >= ? AND (user_id = ? OR user_id IS NULL OR user_id = \'\')'
+          : 'SELECT habit_id, log_date FROM habit_logs WHERE status = ? AND log_date >= ?';
+      final logsParams = uid.isNotEmpty ? ['done', cutoffStr, uid] : ['done', cutoffStr];
+
+      final recentLogs = await db.getAll(logsQuery, logsParams);
+      final logsByHabit = <String, Set<String>>{};
+      for (final r in recentLogs) {
+        final hId = r['habit_id'] as String? ?? '';
+        final lDate = r['log_date'] as String? ?? '';
+        if (hId.isNotEmpty && lDate.isNotEmpty) {
+          logsByHabit.putIfAbsent(hId, () => {}).add(lDate);
         }
       }
 
@@ -112,19 +142,33 @@ class HabitRepository {
       final streakMap = await CacheService().getOrFetch<Map<String, int>>(
         streakKey,
         () async {
-          final streakQuery = uid.isNotEmpty
-              ? 'SELECT habit_id, COUNT(*) as streak FROM habit_logs WHERE status = ? AND user_id = ? GROUP BY habit_id'
-              : 'SELECT habit_id, COUNT(*) as streak FROM habit_logs WHERE status = ? GROUP BY habit_id';
-          final streakParams = uid.isNotEmpty ? ['done', uid] : ['done'];
+          final streakLogsQuery = uid.isNotEmpty
+              ? 'SELECT habit_id, log_date, status FROM habit_logs WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') ORDER BY log_date DESC'
+              : 'SELECT habit_id, log_date, status FROM habit_logs ORDER BY log_date DESC';
+          final streakLogsParams = uid.isNotEmpty ? [uid] : <dynamic>[];
 
           final allDoneLogs = await db.getAll(
-            streakQuery,
-            streakParams,
+            streakLogsQuery,
+            streakLogsParams,
           ).timeout(const Duration(seconds: 3));
 
-          final map = <String, int>{};
+          final habitLogsMap = <String, List<StreakLog>>{};
           for (final row in allDoneLogs) {
-            map[row['habit_id'] as String] = (row['streak'] as num?)?.toInt() ?? 0;
+            final hId = row['habit_id'] as String? ?? '';
+            final d = row['log_date'] as String? ?? '';
+            final s = row['status'] as String? ?? '';
+            if (hId.isNotEmpty && d.isNotEmpty) {
+              habitLogsMap.putIfAbsent(hId, () => []).add(StreakLog(d, s));
+            }
+          }
+
+          final todayStr = DateFormat('yyyy-MM-dd').format(now);
+          final map = <String, int>{};
+          for (final row in habitRows) {
+            final hId = row['id'] as String;
+            final sched = (row['schedule_type'] as String?) ?? 'daily';
+            final logs = habitLogsMap[hId] ?? [];
+            map[hId] = StreakEngine.calculateStreak(sched, logs, todayStr);
           }
           return map;
         },
@@ -135,9 +179,20 @@ class HabitRepository {
 
       return habitRows.map((row) {
         final id = row['id'] as String;
+        final scheduleType = (row['schedule_type'] as String?) ?? 'daily';
+        final createdAtStr = row['created_at'] as String?;
+        final cycleStart = calculateCycleStartDate(
+          scheduleType: scheduleType,
+          now: now,
+          createdAtStr: createdAtStr,
+        );
+
+        final doneDates = logsByHabit[id] ?? const {};
+        final isDone = doneDates.any((d) => d.compareTo(cycleStart) >= 0);
+
         return Habit.fromRow(
           row,
-          isDone: doneSet.contains(id),
+          isDone: isDone,
           streak: streakMap[id] ?? 0,
         );
       }).toList();
@@ -154,7 +209,9 @@ class HabitRepository {
           : 'DELETE FROM habit_logs';
       final params = uid.isNotEmpty ? [uid] : <dynamic>[];
       await db.execute(query, params).timeout(const Duration(seconds: 4));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[HabitRepository] Error resetting streak logs: $e');
+    }
     AppWidgetSyncService().syncHabitStreak();
   }
 
@@ -181,7 +238,9 @@ class HabitRepository {
         now,
         now,
       ]);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[HabitRepository] Error adding habit: $e');
+    }
     AppWidgetSyncService().syncHabitStreak();
   }
 
@@ -220,39 +279,70 @@ class HabitRepository {
     StatsRepository().invalidateStats();
 
     final today = _todayStr();
-    final now = DateTime.now().toUtc().toIso8601String();
+    final now = DateTime.now();
+    final nowUtc = now.toUtc().toIso8601String();
     final logEventId = IdGenerator.generateDeterministicId('xpevent_${habitId}_$today');
 
     if (done) {
       final logId = IdGenerator.generateDeterministicId('habitlog_${habitId}_$today');
       try {
-        await db.execute('''
-          INSERT OR REPLACE INTO habit_logs (
-            id, user_id, habit_id, log_date, status, value, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', [logId, uid, habitId, today, 'done', 1, now, now]);
+        final existingLog = await db.getOptional('SELECT id FROM habit_logs WHERE id = ?', [logId]);
+        if (existingLog != null) {
+          await db.execute('''
+            UPDATE habit_logs SET status = 'done', value = 1, updated_at = ? WHERE id = ?
+          ''', [nowUtc, logId]);
+        } else {
+          await db.execute('''
+            INSERT INTO habit_logs (
+              id, user_id, habit_id, log_date, status, value, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, 'done', 1, ?, ?)
+          ''', [logId, uid, habitId, today, nowUtc, nowUtc]);
+        }
 
-        await db.execute('''
-          INSERT OR REPLACE INTO logs (
-            id, user_id, task_id, event_type, xp_earned, timestamp
-          ) VALUES (?, ?, ?, ?, ?, ?)
-        ''', [logEventId, uid, habitId, 'habit_completed', 20, now]);
-      } catch (_) {}
+        final existingXp = await db.getOptional('SELECT id FROM logs WHERE id = ?', [logEventId]);
+        if (existingXp != null) {
+          await db.execute('''
+            UPDATE logs SET xp_earned = 20, timestamp = ? WHERE id = ?
+          ''', [nowUtc, logEventId]);
+        } else {
+          await db.execute('''
+            INSERT INTO logs (
+              id, user_id, task_id, event_type, xp_earned, timestamp
+            ) VALUES (?, ?, ?, 'habit_completed', 20, ?)
+          ''', [logEventId, uid, habitId, nowUtc]);
+        }
+      } catch (e) {
+        debugPrint('[HabitRepository] Error toggling habit on: $e');
+      }
     } else {
       try {
-        await db.execute('DELETE FROM habit_logs WHERE habit_id = ? AND log_date = ?', [habitId, today]);
+        final habitRow = await db.getOptional('SELECT schedule_type, created_at FROM habits WHERE id = ?', [habitId]);
+        final scheduleType = (habitRow?['schedule_type'] as String?) ?? 'daily';
+        final createdAtStr = habitRow?['created_at'] as String?;
+        final cycleStart = calculateCycleStartDate(
+          scheduleType: scheduleType,
+          now: now,
+          createdAtStr: createdAtStr,
+        );
+
         await db.execute(
-          "DELETE FROM logs WHERE id = ? OR (task_id = ? AND event_type = 'habit_completed' AND timestamp LIKE ?)",
-          [logEventId, habitId, '$today%'],
+          'DELETE FROM habit_logs WHERE habit_id = ? AND log_date >= ?',
+          [habitId, cycleStart],
+        );
+        await db.execute(
+          "DELETE FROM logs WHERE id = ? OR (task_id = ? AND event_type = 'habit_completed' AND timestamp >= ?)",
+          [logEventId, habitId, cycleStart],
         );
       } catch (e) {
-        // Ignored or logged
+        debugPrint('[HabitRepository] Error toggling habit off: $e');
       }
     }
 
     try {
       await syncGlobalUserLevel();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[HabitRepository] Error syncing global user level: $e');
+    }
 
     AppWidgetSyncService().syncHabitStreak();
   }

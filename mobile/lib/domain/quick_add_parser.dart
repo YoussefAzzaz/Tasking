@@ -86,7 +86,7 @@ class QuickAddParser {
       } else {
         List<String> parts = timeStr.split(':');
         int h = int.parse(parts[0]);
-        int m = int.parse(parts[1]);
+        int m = parts.length > 1 ? int.parse(parts[1]) : 0;
         result.dueTime = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
       }
       remaining = remaining.replaceFirst(timeMatch.group(0)!, '');

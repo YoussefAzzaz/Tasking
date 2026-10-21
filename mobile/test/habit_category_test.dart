@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/data/habit_repository.dart';
+import 'package:axis/data/habit_category_repository.dart';
 
 void main() {
   group('Habit Category & Grouping', () {
-    test('Habit model defaults category to Workout and retains custom category', () {
+    test('Habit model defaults category to empty string and retains custom category', () {
       final defaultHabit = Habit(id: 'h1', name: 'Pushups');
-      expect(defaultHabit.category, 'Workout');
+      expect(defaultHabit.category, '');
 
       final customHabit = Habit(
         id: 'h2',
@@ -16,7 +17,7 @@ void main() {
       expect(customHabit.category, 'Code');
     });
 
-    test('Habit.fromRow extracts kind as category with fallback heuristics', () {
+    test('Habit.fromRow extracts kind as category without ghost fallbacks', () {
       // With explicit kind
       final rowWithKind = {
         'id': 'h1',
@@ -28,7 +29,7 @@ void main() {
       final h1 = Habit.fromRow(rowWithKind);
       expect(h1.category, 'Hydrate');
 
-      // Without kind, falls back based on icon
+      // Without kind, does not invent ghost category
       final rowNoKind = {
         'id': 'h2',
         'name': 'Read Clean Code',
@@ -37,7 +38,17 @@ void main() {
         'color': '#38BDF8',
       };
       final h2 = Habit.fromRow(rowNoKind);
-      expect(h2.category, 'Reading');
+      expect(h2.category, '');
+
+      // Islamic prayer icon correctly routes to Prayers
+      final rowPrayer = {
+        'id': 'h3',
+        'name': 'Fajr',
+        'kind': '',
+        'icon': 'mosque',
+      };
+      final h3 = Habit.fromRow(rowPrayer);
+      expect(h3.category, 'Prayers');
     });
 
     test('Habits group correctly by category with completion calculations', () {
@@ -67,6 +78,46 @@ void main() {
       final readingDone = readingHabits.where((h) => h.isDoneToday).length;
       final readingTotal = readingHabits.length;
       expect(readingDone == readingTotal, true);
+    });
+
+    test('Deleted category leaves habits unassigned without morphing to Workout', () {
+      final unlinkedHabitRow = {
+        'id': 'h_orphan',
+        'name': 'Morning Jog',
+        'kind': null,
+        'icon': 'fitness',
+      };
+      final habit = Habit.fromRow(unlinkedHabitRow);
+      expect(habit.category, '');
+      expect(habit.category.toLowerCase(), isNot('workout'));
+
+      // In habit grouping, habits with empty or unassigned category go into unassignedHabits
+      final allCategories = [
+        const HabitCategory(id: 'cat_med', name: 'Meditation'),
+      ];
+      final unassignedHabits = <Habit>[];
+      final Map<String, List<Habit>> habitsByCategory = {};
+
+      final habits = [habit];
+      for (final h in habits) {
+        final catTrimmed = h.category.trim();
+        final matchedCat = catTrimmed.isNotEmpty
+            ? allCategories.firstWhere(
+                (c) => c.name.toLowerCase() == catTrimmed.toLowerCase(),
+                orElse: () => const HabitCategory(id: '', name: ''),
+              )
+            : const HabitCategory(id: '', name: '');
+
+        if (matchedCat.name.isNotEmpty) {
+          habitsByCategory.putIfAbsent(matchedCat.name, () => []).add(h);
+        } else {
+          unassignedHabits.add(h);
+        }
+      }
+
+      expect(unassignedHabits.length, 1);
+      expect(unassignedHabits.first.name, 'Morning Jog');
+      expect(habitsByCategory.containsKey('Workout'), false);
     });
   });
 }

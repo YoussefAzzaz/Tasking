@@ -273,6 +273,9 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
   @override
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final availableHeight =
+        (screenHeight - insets.bottom).clamp(260.0, screenHeight);
 
     return FocusScope(
       autofocus: false,
@@ -284,252 +287,295 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
         },
         child: Padding(
           padding: EdgeInsets.only(bottom: insets.bottom),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.88,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xF50A1422),
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                blurRadius: 30,
-                spreadRadius: 5,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle and Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
-                child: Column(
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AxisColors.borderGlass2,
-                          borderRadius: BorderRadius.circular(9999),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color:
-                                    AxisColors.success.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.local_fire_department_rounded,
-                                color: AxisColors.success,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              widget.habitToEdit != null
-                                  ? 'EDIT HABIT ROUTINE'
-                                  : 'NEW HABIT ROUTINE',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    color: AxisColors.textHigh,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.5,
-                                  ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              color: AxisColors.textMuted, size: 22),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ],
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: availableHeight * 0.90,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xF50A1422),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 30,
+                  spreadRadius: 5,
                 ),
-              ),
-              const Divider(color: AxisColors.borderSubtle, height: 1),
-
-              // Form Body
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle and Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Name
-                      const FieldLabel(label: 'HABIT NAME *'),
-                      TextField(
-                        controller: _nameController,
-                        focusNode: _nameFocusNode,
-                        autofocus: false,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: AxisColors.textHigh,
-                            ),
-                        cursorColor: AxisColors.success,
-                        decoration: InputDecoration(
-                          hintText: 'e.g. Read 20 Pages, Morning Run',
-                          hintStyle: TextStyle(color: AxisColors.textDim),
-                          errorText: _errorText,
-                          filled: true,
-                          fillColor:
-                              AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AxisColors.borderSubtle),
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AxisColors.borderGlass2,
+                            borderRadius: BorderRadius.circular(9999),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AxisColors.borderSubtle),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                                color: AxisColors.success, width: 1.5),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
                         ),
                       ),
-                      const SizedBox(height: 18),
-
-                      // Category Dropdown Selector
-                      const FieldLabel(label: 'CATEGORY'),
-                      CategorySelectorField(
-                        controller: _categoryController,
-                        focusNode: _categoryFocusNode,
-                        categories: _categories,
-                        isOpen: _showCategoryDropdown,
-                        onOpenChanged: (open) =>
-                            setState(() => _showCategoryDropdown = open),
-                        onSelectCategory: (name, icon, color) {
-                          setState(() {
-                            _categoryController.text = name;
-                            _selectedIcon = icon;
-                            _selectedColor = color;
-                          });
-                        },
-                        onClear: () {
-                          _categoryController.clear();
-                          setState(() {});
-                        },
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Frequency & Reminder
+                      const SizedBox(height: 12),
                       Row(
                         children: [
-                          // Frequency
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
-                                const FieldLabel(label: 'FREQUENCY'),
-                                DropdownButtonFormField<String>(
-                                  initialValue: _scheduleType,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: AxisColors.surfaceHigh
-                                        .withValues(alpha: 0.5),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                          color: AxisColors.borderSubtle),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                          color: AxisColors.borderSubtle),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AxisColors.success
+                                        .withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  dropdownColor: AxisColors.surfaceHigh,
-                                  style: const TextStyle(
-                                      color: AxisColors.textHigh, fontSize: 13),
-                                  items: const [
-                                    DropdownMenuItem(
-                                        value: 'daily', child: Text('Daily')),
-                                    DropdownMenuItem(
-                                        value: 'weekdays',
-                                        child: Text('Weekdays')),
-                                    DropdownMenuItem(
-                                        value: 'weekly',
-                                        child: Text('3x / Week')),
-                                  ],
-                                  onChanged: (v) => setState(
-                                      () => _scheduleType = v ?? 'daily'),
+                                  child: const Icon(
+                                    Icons.local_fire_department_rounded,
+                                    color: AxisColors.success,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      widget.habitToEdit != null
+                                          ? 'EDIT HABIT ROUTINE'
+                                          : 'NEW HABIT ROUTINE',
+                                      maxLines: 1,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color: AxisColors.textHigh,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.2,
+                                          ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 10),
-
-                          // Time of Day
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const FieldLabel(label: 'TIME'),
-                                InkWell(
-                                  onTap: _pickTime,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    height: 48,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: AxisColors.surfaceHigh
-                                          .withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                          color: AxisColors.borderSubtle),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.alarm_rounded,
-                                            size: 18,
-                                            color: AxisColors.success),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          _reminderTime != null
-                                              ? '${_reminderTime!.hourOfPeriod == 0 ? 12 : _reminderTime!.hourOfPeriod}:${_reminderTime!.minute.toString().padLeft(2, '0')} ${_reminderTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
-                                              : 'Set Time',
-                                          style: TextStyle(
-                                            color: _reminderTime != null
-                                                ? AxisColors.textHigh
-                                                : AxisColors.textDim,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                color: AxisColors.textMuted, size: 22),
+                            onPressed: () => Navigator.pop(context),
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                ),
+                const Divider(color: AxisColors.borderSubtle, height: 1),
+
+                // Form Body
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Name
+                        const FieldLabel(label: 'HABIT NAME *'),
+                        TextField(
+                          controller: _nameController,
+                          focusNode: _nameFocusNode,
+                          autofocus: false,
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: AxisColors.textHigh,
+                                  ),
+                          cursorColor: AxisColors.success,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Read 20 Pages, Morning Run',
+                            hintStyle: TextStyle(color: AxisColors.textDim),
+                            errorText: _errorText,
+                            filled: true,
+                            fillColor:
+                                AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AxisColors.borderSubtle),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AxisColors.borderSubtle),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AxisColors.success, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Category Dropdown Selector
+                        const FieldLabel(label: 'CATEGORY'),
+                        CategorySelectorField(
+                          controller: _categoryController,
+                          focusNode: _categoryFocusNode,
+                          categories: _categories,
+                          isOpen: _showCategoryDropdown,
+                          onOpenChanged: (open) =>
+                              setState(() => _showCategoryDropdown = open),
+                          onSelectCategory: (name, icon, color) {
+                            setState(() {
+                              _categoryController.text = name;
+                              _selectedIcon = icon;
+                              _selectedColor = color;
+                            });
+                          },
+                          onClear: () {
+                            _categoryController.clear();
+                            setState(() {});
+                          },
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Frequency & Reminder
+                        Row(
+                          children: [
+                            // Frequency
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const FieldLabel(label: 'FREQUENCY'),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: _scheduleType,
+                                    isExpanded: true,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: AxisColors.surfaceHigh
+                                          .withValues(alpha: 0.5),
+                                      border: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        borderSide: const BorderSide(
+                                            color: AxisColors.borderSubtle),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        borderSide: const BorderSide(
+                                            color: AxisColors.borderSubtle),
+                                      ),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 12),
+                                    ),
+                                    dropdownColor: AxisColors.surfaceHigh,
+                                    style: const TextStyle(
+                                        color: AxisColors.textHigh,
+                                        fontSize: 13),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'daily',
+                                        child: Text(
+                                          'Daily (00:00)',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'weekly',
+                                        child: Text(
+                                          'Weekly (Fri)',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'every_3_days',
+                                        child: Text(
+                                          'Every 3 Days',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'weekdays',
+                                        child: Text(
+                                          'Weekdays',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                    onChanged: (v) => setState(
+                                        () => _scheduleType = v ?? 'daily'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+
+                            // Time of Day
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const FieldLabel(label: 'TIME'),
+                                  InkWell(
+                                    onTap: _pickTime,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      height: 48,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        color: AxisColors.surfaceHigh
+                                            .withValues(alpha: 0.5),
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: AxisColors.borderSubtle),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.alarm_rounded,
+                                              size: 18,
+                                              color: AxisColors.success),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              _reminderTime != null
+                                                  ? '${_reminderTime!.hourOfPeriod == 0 ? 12 : _reminderTime!.hourOfPeriod}:${_reminderTime!.minute.toString().padLeft(2, '0')} ${_reminderTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
+                                                  : 'Set Time',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: _reminderTime != null
+                                                    ? AxisColors.textHigh
+                                                    : AxisColors.textDim,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       const SizedBox(height: 18),
 
                       // Color Accent

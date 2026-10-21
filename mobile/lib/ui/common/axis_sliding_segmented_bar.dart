@@ -93,8 +93,8 @@ class AxisSlidingSegmentedBar extends StatelessWidget {
                             fontWeight: isSelected
                                 ? FontWeight.bold
                                 : FontWeight.w500,
-                            fontSize: 12,
-                            letterSpacing: 0.3,
+                            fontSize: count > 3 ? 11.5 : 12,
+                            letterSpacing: count > 3 ? 0.1 : 0.3,
                           ),
                           child: Text(
                             segments[i],

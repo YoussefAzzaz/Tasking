@@ -94,7 +94,9 @@ class AdhanAlarmService {
         final prayers = await PrayerTimeService().calculatePrayersForDate(DateTime.now());
         await scheduleAllPrayers(prayers);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] setAdhanNotificationsEnabled error: $e');
+    }
   }
 
   /// Toggles the persistent Fajr Wake-Up Alarm (+1 min after Fajr)
@@ -111,7 +113,9 @@ class AdhanAlarmService {
         final prayers = await PrayerTimeService().calculatePrayersForDate(DateTime.now());
         await scheduleAllPrayers(prayers);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] setFajrAlarmEnabled error: $e');
+    }
   }
 
   /// Schedules daily Adhan notifications and the +1 min Fajr Wake-Up Alarm
@@ -309,7 +313,9 @@ class AdhanAlarmService {
       _alarmPlayer ??= AudioPlayer();
       await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
       await _alarmPlayer!.play(DeviceFileSource(wavFile.path));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] startAlarmSound error: $e');
+    }
 
     _vibrationTimer?.cancel();
     _vibrationTimer = Timer.periodic(const Duration(milliseconds: 900), (_) {
@@ -325,7 +331,9 @@ class AdhanAlarmService {
 
     try {
       await _alarmPlayer?.stop();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] stopAlarmSound error: $e');
+    }
 
     await AwesomeNotifications().cancel(9991);
   }

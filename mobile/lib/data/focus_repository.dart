@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/stats_repository.dart';
 import 'package:axis/domain/id_generator.dart';
@@ -36,14 +37,23 @@ class FocusRepository {
 
       // Award XP in logs
       final logId = IdGenerator.generateDeterministicId('xp_focus_$id');
-      await db.execute('''
-        INSERT OR REPLACE INTO logs (
-          id, user_id, task_id, event_type, xp_earned, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?)
-      ''', [logId, uid, taskId ?? 'focus_general', 'focus_completed', xpEarned, now]).timeout(const Duration(seconds: 4));
+      final existingLog = await db.getOptional('SELECT id FROM logs WHERE id = ?', [logId]);
+      if (existingLog != null) {
+        await db.execute('''
+          UPDATE logs SET xp_earned = ?, timestamp = ? WHERE id = ?
+        ''', [xpEarned, now, logId]).timeout(const Duration(seconds: 4));
+      } else {
+        await db.execute('''
+          INSERT INTO logs (
+            id, user_id, task_id, event_type, xp_earned, timestamp
+          ) VALUES (?, ?, ?, ?, ?, ?)
+        ''', [logId, uid, taskId ?? 'focus_general', 'focus_completed', xpEarned, now]).timeout(const Duration(seconds: 4));
+      }
 
       StatsRepository().invalidateStats();
       await syncGlobalUserLevel();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[FocusRepository] Error logging focus session: $e');
+    }
   }
 }

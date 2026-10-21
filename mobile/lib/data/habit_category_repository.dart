@@ -16,8 +16,14 @@ class HabitCategoryRepository {
 
   static const String _cacheKey = 'habit_categories_list';
 
+  /// Broadcasts newly added category names so UI components can clear any local deletion exclusions.
+  static final ValueNotifier<String?> categoryAddedNotifier = ValueNotifier<String?>(null);
+
   /// Watches habit categories stream for real-time reactive UI.
   Stream<List<HabitCategory>> watchCategories() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(<HabitCategory>[]);
+    }
     final uid = currentUserId;
     final query = uid.isNotEmpty
         ? "SELECT id, name, icon, color FROM habit_categories WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) != 'prayers' AND id != 'cat_prayers' ORDER BY sort_order ASC, name ASC"
@@ -42,26 +48,6 @@ class HabitCategoryRepository {
           ));
         }
       }
-
-      // Merge from local_habit_categories fallback table
-      try {
-        final localQuery = uid.isNotEmpty
-            ? "SELECT id, name, icon, color FROM local_habit_categories WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) != 'prayers' AND id != 'cat_prayers' ORDER BY sort_order ASC, name ASC"
-            : "SELECT id, name, icon, color FROM local_habit_categories WHERE LOWER(name) != 'prayers' AND id != 'cat_prayers' ORDER BY sort_order ASC, name ASC";
-        final localRows = await db.getAll(localQuery, params);
-        for (final r in localRows) {
-          final name = (r['name'] as String?)?.trim() ?? '';
-          if (name.isNotEmpty && !knownNames.contains(name.toLowerCase())) {
-            knownNames.add(name.toLowerCase());
-            categories.add(HabitCategory(
-              id: r['id'] as String,
-              name: name,
-              icon: (r['icon'] as String?) ?? 'fitness',
-              color: (r['color'] as String?) ?? '#10B981',
-            ));
-          }
-        }
-      } catch (_) {}
 
       // Keep cache updated with latest stream emission
       CacheService().set<List<HabitCategory>>(_cacheKey, categories, ttl: const Duration(minutes: 5));
@@ -111,25 +97,7 @@ class HabitCategoryRepository {
         }
       }
 
-      // Also read from local_habit_categories fallback table
-      try {
-        final localQuery = uid.isNotEmpty
-            ? "SELECT id, name, icon, color FROM local_habit_categories WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) != 'prayers' AND id != 'cat_prayers' ORDER BY sort_order ASC, name ASC"
-            : "SELECT id, name, icon, color FROM local_habit_categories WHERE LOWER(name) != 'prayers' AND id != 'cat_prayers' ORDER BY sort_order ASC, name ASC";
-        final localRows = await db.getAll(localQuery, params);
-        for (final r in localRows) {
-          final name = (r['name'] as String?)?.trim() ?? '';
-          if (name.isNotEmpty && !knownNames.contains(name.toLowerCase())) {
-            knownNames.add(name.toLowerCase());
-            categories.add(HabitCategory(
-              id: r['id'] as String,
-              name: name,
-              icon: (r['icon'] as String?) ?? 'fitness',
-              color: (r['color'] as String?) ?? '#10B981',
-            ));
-          }
-        }
-      } catch (_) {}
+
 
       // Discover categories from habits table as well
       final habitQuery = uid.isNotEmpty
@@ -181,13 +149,7 @@ class HabitCategoryRepository {
     if (!isDatabaseInitialized) return;
 
     try {
-      // 1. Save into local_habit_categories (local backup table, never purged by remote sync)
-      await db.execute('''
-        INSERT OR REPLACE INTO local_habit_categories (id, user_id, name, icon, color, sort_order, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 99, ?, ?)
-      ''', [id, uid, cleanName, icon, color, nowUtc, nowUtc]);
-
-      // 2. Save into PowerSync habit_categories view (queues sync upload)
+      // 1. Save into PowerSync habit_categories (persists in SQLite offline and syncs automatically)
       final existing = await db.getOptional(
         'SELECT id FROM habit_categories WHERE id = ? OR (LOWER(name) = LOWER(?) AND (user_id = ? OR user_id IS NULL OR user_id = \'\'))',
         [id, cleanName, uid],
@@ -204,7 +166,7 @@ class HabitCategoryRepository {
         );
       }
 
-      // 3. Direct upsert to Supabase if connected
+      // 2. Direct upsert to Supabase if connected
       if (Supabase.instance.client.auth.currentSession != null && uid.isNotEmpty) {
         try {
           await Supabase.instance.client.from('habit_categories').upsert({
@@ -221,6 +183,9 @@ class HabitCategoryRepository {
           debugPrint('[HabitCategoryRepository] Direct Supabase upsert notice: $e');
         }
       }
+
+      // Notify UI that a category was added
+      categoryAddedNotifier.value = cleanName;
     } catch (e) {
       debugPrint('[HabitCategoryRepository] Error adding category: $e');
     }
@@ -235,31 +200,23 @@ class HabitCategoryRepository {
     try {
       final uid = currentUserId;
       final rawId = id.replaceFirst('discovered_', '');
-      final catName = name ?? '';
+      final catName = (name ?? '').trim();
 
-      // 1. Delete from local backup
-      final localDeleteQuery = uid.isNotEmpty
-          ? "DELETE FROM local_habit_categories WHERE (id = ? OR id = ? OR LOWER(name) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-          : 'DELETE FROM local_habit_categories WHERE id = ? OR id = ? OR LOWER(name) = LOWER(?)';
-      await db.execute(localDeleteQuery, uid.isNotEmpty ? [id, rawId, catName, uid] : [id, rawId, catName]);
-
-      // 2. Delete from PowerSync habit_categories
+      // 1. Delete from PowerSync habit_categories
       final deleteQuery = uid.isNotEmpty
           ? "DELETE FROM habit_categories WHERE (id = ? OR id = ? OR LOWER(name) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
           : 'DELETE FROM habit_categories WHERE id = ? OR id = ? OR LOWER(name) = LOWER(?)';
       final deleteParams = uid.isNotEmpty ? [id, rawId, catName, uid] : [id, rawId, catName];
       await db.execute(deleteQuery, deleteParams);
 
-      // 3. Unset category from habits
-      if (catName.isNotEmpty) {
-        final updateQuery = uid.isNotEmpty
-            ? "UPDATE habits SET kind = NULL WHERE LOWER(COALESCE(kind, '')) = LOWER(?) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-            : "UPDATE habits SET kind = NULL WHERE LOWER(COALESCE(kind, '')) = LOWER(?)";
-        final updateParams = uid.isNotEmpty ? [catName, uid] : [catName];
-        await db.execute(updateQuery, updateParams);
-      }
+      // 2. Unset category from habits table so habits move cleanly to General Routines
+      final updateQuery = uid.isNotEmpty
+          ? "UPDATE habits SET kind = NULL WHERE (LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+          : "UPDATE habits SET kind = NULL WHERE LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)";
+      final updateParams = uid.isNotEmpty ? [catName, id, rawId, uid] : [catName, id, rawId];
+      await db.execute(updateQuery, updateParams);
 
-      // 4. Delete directly from Supabase if connected
+      // 3. Delete directly from Supabase if connected
       if (Supabase.instance.client.auth.currentSession != null && uid.isNotEmpty) {
         try {
           await Supabase.instance.client
@@ -267,6 +224,11 @@ class HabitCategoryRepository {
               .delete()
               .eq('user_id', uid)
               .or('id.eq.$id,id.eq.$rawId,name.ilike.$catName');
+          await Supabase.instance.client
+              .from('habits')
+              .update({'kind': null})
+              .eq('user_id', uid)
+              .or('kind.ilike.$catName,kind.eq.$id,kind.eq.$rawId');
         } catch (_) {}
       }
     } catch (e) {

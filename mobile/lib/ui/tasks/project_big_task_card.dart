@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/widgets.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
@@ -162,12 +163,10 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                           if (widget.project.id != 'inbox_general')
                             IconButton(
                               icon: const Icon(Icons.delete_outline_rounded,
-                                  size: 18, color: AxisColors.textDim),
+                                  size: 20, color: AxisColors.textDim),
                               tooltip: 'Delete project',
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
-                                  minWidth: 26, minHeight: 26),
+                                  minWidth: 48, minHeight: 48),
                               onPressed: () {
                                 showDialog(
                                   context: context,
@@ -306,72 +305,93 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                   final task = sortedSubtasks[i];
                   final isDone = task.status == 'done';
 
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Checkbox(
-                      value: isDone,
-                      activeColor: widget.color,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4)),
-                      side: const BorderSide(color: AxisColors.borderSubtle),
-                      onChanged: (checked) async {
-                        final updated = Task(
-                          id: task.id,
-                          title: task.title,
-                          notes: task.notes,
-                          status: (checked ?? false) ? 'done' : 'todo',
-                          priority: task.priority,
-                          projectId: task.projectId,
-                          tags: task.tags,
-                          dueDate: task.dueDate,
-                          dueTime: task.dueTime,
-                          estimateMin: task.estimateMin,
-                          recurrenceRule: task.recurrenceRule,
-                          recurrenceMode: task.recurrenceMode,
-                        );
-                        await widget.taskRepo.updateTask(updated);
-                      },
-                    ),
-                    title: Text(
-                      task.title,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color:
-                            isDone ? AxisColors.textDim : AxisColors.textHigh,
-                        decoration: isDone ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                    subtitle: task.dueDate != null
-                        ? Text(
-                            'Due: ${task.dueDate}',
-                            style: const TextStyle(
-                                fontSize: 11, color: AxisColors.textMuted),
-                          )
-                        : null,
-                    trailing: task.priority != null
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _getPriorityColor(task.priority!)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'P${task.priority}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: _getPriorityColor(task.priority!),
-                              ),
-                            ),
-                          )
-                        : null,
+                  return InkWell(
                     onTap: () => showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (_) => TaskDetailSheet(task: task),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          AxisCheckbox(
+                            checked: isDone,
+                            onChanged: (checked) async {
+                              final updated = Task(
+                                id: task.id,
+                                title: task.title,
+                                notes: task.notes,
+                                status: checked ? 'done' : 'todo',
+                                priority: task.priority,
+                                projectId: task.projectId,
+                                tags: task.tags,
+                                dueDate: task.dueDate,
+                                dueTime: task.dueTime,
+                                estimateMin: task.estimateMin,
+                                recurrenceRule: task.recurrenceRule,
+                                recurrenceMode: task.recurrenceMode,
+                              );
+                              await widget.taskRepo.updateTask(updated);
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  task.title,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDone
+                                        ? AxisColors.textDim
+                                        : AxisColors.textHigh,
+                                    decoration: isDone
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
+                                if (task.dueDate != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Due: ${task.dueDate}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AxisColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (task.priority != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _getPriorityColor(task.priority!)
+                                    .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'P${task.priority}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getPriorityColor(task.priority!),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   );
                 },

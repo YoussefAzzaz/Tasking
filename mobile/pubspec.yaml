@@ -39,7 +39,6 @@ dependencies:
   powersync: ^2.4.0
   sqlite_async: ^0.14.6
   sqlite3: ^3.5.0
-  flutter_riverpod: ^3.4.3
   go_router: ^18.0.2
   rrule: ^0.2.18
   google_fonts: ^9.0.0
@@ -54,6 +53,8 @@ dependencies:
   geolocator: ^14.1.2
   flutter_compass: ^0.8.1
   device_preview: ^1.2.0
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -122,3 +123,8 @@ flutter_native_splash:
   android: true
   ios: true
   web: false
+
+hooks:
+  user_defines:
+    sqlite3:
+      url_pattern: "https://ghproxy.net/https://github.com/simolus3/sqlite3.dart/releases/download/$RELEASE_TAG/$FILENAME"

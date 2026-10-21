@@ -504,101 +504,114 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                 final prayer = widget.prayers[i];
                 final isDone = prayer.isDone;
 
-                return Material(
-                  color: Colors.transparent,
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: AxisCheckbox(
-                      checked: isDone,
-                      onChanged: (checked) =>
-                          widget.onTogglePrayer(prayer, checked),
-                    ),
-                    title: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Icon(
-                            _prayerIcon(prayer.icon),
-                            size: 14,
-                            color: isDone ? AxisColors.textDim : prayerColor,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            prayer.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDone ? AxisColors.textDim : AxisColors.textHigh,
-                              decoration: isDone ? TextDecoration.lineThrough : null,
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      AxisCheckbox(
+                        checked: isDone,
+                        onChanged: (checked) =>
+                            widget.onTogglePrayer(prayer, checked),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    _prayerIcon(prayer.icon),
+                                    size: 14,
+                                    color: isDone ? AxisColors.textDim : prayerColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    prayer.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDone ? AxisColors.textDim : AxisColors.textHigh,
+                                      decoration: isDone ? TextDecoration.lineThrough : null,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(left: 27, top: 2),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.access_time_filled_rounded,
-                              size: 11, color: AxisColors.success),
-                          const SizedBox(width: 3),
-                          Flexible(
-                            child: Text(
-                              'Adan ${prayer.time}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AxisColors.success,
-                                fontWeight: FontWeight.w600,
+                            const SizedBox(height: 3),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 27),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.access_time_filled_rounded,
+                                      size: 11, color: AxisColors.success),
+                                  const SizedBox(width: 3),
+                                  Flexible(
+                                    child: Text(
+                                      'Adan ${prayer.time}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AxisColors.success,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isDone
-                            ? AxisColors.surfaceLow
-                            : AxisColors.success.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isDone
-                              ? AxisColors.borderSubtle
-                              : AxisColors.success.withValues(alpha: 0.35),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isDone) ...[
-                            const Icon(Icons.check_rounded,
-                                size: 11, color: AxisColors.success),
-                            const SizedBox(width: 3),
-                          ],
-                          Text(
-                            isDone ? 'DONE' : '+25 XP',
-                            style: TextStyle(
-                              color: isDone ? AxisColors.textDim : AxisColors.success,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                            ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isDone
+                              ? AxisColors.surfaceLow
+                              : AxisColors.success.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isDone
+                                ? AxisColors.borderSubtle
+                                : AxisColors.success.withValues(alpha: 0.35),
                           ),
-                        ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isDone) ...[
+                              const Icon(Icons.check_rounded,
+                                  size: 11, color: AxisColors.success),
+                              const SizedBox(width: 3),
+                            ],
+                            Text(
+                              isDone ? 'DONE' : '+25 XP',
+                              style: TextStyle(
+                                color: isDone ? AxisColors.textDim : AxisColors.success,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 );
               },
