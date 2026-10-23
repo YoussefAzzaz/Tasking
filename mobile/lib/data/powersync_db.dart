@@ -221,41 +221,8 @@ Future<void> initCustomLocalTables() async {
     // Purge legacy predefined categories from habits table so default categories don't ghost-reappear
     await db.execute("UPDATE habits SET kind = NULL WHERE LOWER(kind) IN ('workout', 'reading', 'mindful', 'hydrate', 'code', 'rest', 'cat_workout', 'cat_reading', 'cat_mindful', 'cat_hydrate', 'cat_code', 'cat_rest')");
 
-    // High-performance database indexes for user isolation, filtering and sorting
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_habits_user_id ON habits(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_habit_logs_user_id ON habit_logs(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_focus_sessions_user_id ON focus_sessions(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_logs_user_id ON logs(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_habit_categories_user_id ON habit_categories(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_prayers_user_id ON prayers(user_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_prayers_user_sort ON prayers(user_id, sort_order)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id)');
-
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks(status, due_date)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_date ON habit_logs(habit_id, log_date)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_habit_logs_date_status ON habit_logs(log_date, status)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_habits_sort_order ON habits(sort_order)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_habits_kind ON habits(kind)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_logs_task_event ON logs(task_id, event_type)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_focus_sessions_completed ON focus_sessions(completed, started_at)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_pinned_created ON notes(pinned, created_at)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category)');
-
-    // Covering compound indexes for ultra-fast single-pass metric aggregations
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user_status ON tasks(user_id, status)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user_status_priority ON tasks(user_id, status, priority)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_focus_user_completed ON focus_sessions(user_id, completed, actual_min)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_habit_logs_user_status ON habit_logs(user_id, status)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_user_pinned ON notes(user_id, pinned)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_prayers_user_done ON prayers(user_id, is_done)');
+    // Index local SQLite tables (PowerSync tables have their indexes managed natively in appSchema)
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_local_auth_session_user_id ON local_auth_session(user_id)');
   } catch (e) {
     debugPrint('[PowerSync] Error in initCustomLocalTables: $e');
   }

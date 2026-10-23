@@ -7,6 +7,7 @@ import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/streak_engine.dart';
 import 'package:axis/data/location_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/data/habit_repository.dart';
 
 /// Centralized service to keep Android Home Screen widgets synchronized
 /// with local database changes in real time.
@@ -34,13 +35,13 @@ class AppWidgetSyncService {
 
     try {
       _tasksSub = db
-          .watch('SELECT id, status, updated_at FROM tasks')
+          .watch('SELECT * FROM tasks')
           .listen((_) => _debouncedSyncTasks());
       _habitsSub = db
-          .watch('SELECT id, updated_at FROM habits')
+          .watch('SELECT * FROM habits')
           .listen((_) => _debouncedSyncHabits());
       _habitLogsSub = db
-          .watch('SELECT id, status, log_date FROM habit_logs')
+          .watch('SELECT * FROM habit_logs')
           .listen((_) => _debouncedSyncHabits());
     } catch (e) {
       debugPrint('Error starting AppWidget auto-sync listeners: $e');
@@ -83,7 +84,7 @@ class AppWidgetSyncService {
 
       final uid = currentUserId;
       final taskQuery = uid.isNotEmpty
-          ? "SELECT title, status, due_date, priority FROM tasks WHERE user_id = ? ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC"
+          ? "SELECT title, status, due_date, priority FROM tasks WHERE (user_id = ? OR user_id IS NULL OR user_id = '') ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC"
           : "SELECT title, status, due_date, priority FROM tasks ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC";
       final taskParams = uid.isNotEmpty ? [uid] : <dynamic>[];
       final rows = await db.getAll(taskQuery, taskParams);
@@ -150,6 +151,7 @@ class AppWidgetSyncService {
       await HomeWidget.updateWidget(
         name: 'TodayTasksWidgetProvider',
         androidName: 'TodayTasksWidgetProvider',
+        qualifiedAndroidName: 'com.axis.axis.TodayTasksWidgetProvider',
       );
     } catch (e) {
       if (e is! MissingPluginException) {
@@ -165,22 +167,20 @@ class AppWidgetSyncService {
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
       final uid = currentUserId;
 
+      // Filter strictly for daily frequency habits, excluding prayers and non-daily frequencies
       final habitQuery = uid.isNotEmpty
-          ? 'SELECT id, name, icon, color FROM habits WHERE user_id = ? ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC'
-          : 'SELECT id, name, icon, color FROM habits ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC';
+          ? "SELECT id, name, icon, color FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(COALESCE(schedule_type, 'daily')) = 'daily' AND LOWER(COALESCE(kind, '')) != 'prayers' AND id NOT LIKE 'habit_prayer_%' ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC"
+          : "SELECT id, name, icon, color FROM habits WHERE LOWER(COALESCE(schedule_type, 'daily')) = 'daily' AND LOWER(COALESCE(kind, '')) != 'prayers' AND id NOT LIKE 'habit_prayer_%' ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC";
       final habitParams = uid.isNotEmpty ? [uid] : <dynamic>[];
       final habitRows = await db.getAll(habitQuery, habitParams);
 
       final habitLogQuery = uid.isNotEmpty
-          ? 'SELECT log_date, status, habit_id FROM habit_logs WHERE user_id = ?'
-          : 'SELECT log_date, status, habit_id FROM habit_logs';
+          ? "SELECT log_date, status, habit_id FROM habit_logs WHERE (user_id = ? OR user_id IS NULL OR user_id = '')"
+          : "SELECT log_date, status, habit_id FROM habit_logs";
       final habitLogParams = uid.isNotEmpty ? [uid] : <dynamic>[];
       final habitLogRows = await db.getAll(habitLogQuery, habitLogParams);
 
-      final streakLogs = habitLogRows
-          .map((r) => StreakLog(r['log_date'] as String, r['status'] as String))
-          .toList();
-
+      final streakLogs = await HabitRepository().getDailyStreakLogs();
       final streak =
           StreakEngine.calculateStreak('daily', streakLogs, todayStr);
 
@@ -205,7 +205,7 @@ class AppWidgetSyncService {
       }
 
       final content = lines.isEmpty
-          ? 'No habits created yet. Tap to add.'
+          ? 'No daily habits created yet. Tap to add.'
           : lines.join('\n');
 
       await HomeWidget.saveWidgetData<String>(
@@ -235,6 +235,7 @@ class AppWidgetSyncService {
       await HomeWidget.updateWidget(
         name: 'HabitStreakWidgetProvider',
         androidName: 'HabitStreakWidgetProvider',
+        qualifiedAndroidName: 'com.axis.axis.HabitStreakWidgetProvider',
       );
     } catch (e) {
       if (e is! MissingPluginException) {

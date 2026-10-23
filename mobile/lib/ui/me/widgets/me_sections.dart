@@ -142,7 +142,6 @@ class MasteryBadgesSection extends StatefulWidget {
 
 class _MasteryBadgesSectionState extends State<MasteryBadgesSection> {
   List<MasteryBadgeData> _allBadges = [];
-  List<MasteryBadgeData> _spotlightBadges = [];
   bool _loading = true;
 
   @override
@@ -154,11 +153,9 @@ class _MasteryBadgesSectionState extends State<MasteryBadgesSection> {
   Future<void> _loadBadges() async {
     final repo = MasteryBadgeRepository();
     final list = await repo.getMasteryBadges();
-    final spotlight = await repo.getSpotlightBadges();
     if (mounted) {
       setState(() {
         _allBadges = list;
-        _spotlightBadges = spotlight;
         _loading = false;
       });
     }
@@ -369,121 +366,6 @@ class _MasteryBadgesSectionState extends State<MasteryBadgesSection> {
               ],
             ),
           ),
-
-          // Next Milestones Spotlight (Compact 2-item progress preview)
-          if (_spotlightBadges.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: AxisColors.surfaceHigh.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AxisColors.primary.withValues(alpha: 0.18),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Row(
-                        children: [
-                          Icon(Icons.bolt_rounded,
-                              size: 14, color: AxisColors.secondary),
-                          SizedBox(width: 4),
-                          Text(
-                            'NEXT MILESTONES IN REACH',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AxisColors.secondary,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ..._spotlightBadges.take(2).map((badge) {
-                    final pct = (badge.progress * 100).toInt();
-
-                    return InkWell(
-                      onTap: () => _showBadgeDetail(badge),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: badge.color.withValues(alpha: 0.15),
-                              ),
-                              child: Icon(badge.icon,
-                                  size: 14, color: badge.color),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          badge.title,
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: AxisColors.textHigh,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '$pct%',
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: badge.color,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(999),
-                                    child: LinearProgressIndicator(
-                                      value: badge.progress,
-                                      minHeight: 3,
-                                      backgroundColor:
-                                          AxisColors.surfaceLowest,
-                                      valueColor:
-                                          AlwaysStoppedAnimation<Color>(
-                                              badge.color),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ],
         ],
       ],
     );

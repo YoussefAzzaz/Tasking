@@ -62,7 +62,12 @@ class NoteCardWidget extends StatelessWidget {
                 const SizedBox(height: 4),
                 if (note.bodyMd.isNotEmpty)
                   Text(
-                    note.bodyMd,
+                    note.bodyMd
+                        .replaceAll(RegExp(r'#+\s*'), '')
+                        .replaceAll('**', '')
+                        .replaceAll('*', '')
+                        .replaceAll(RegExp(r'>\s*'), '')
+                        .trim(),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

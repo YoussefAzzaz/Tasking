@@ -147,5 +147,42 @@ void main() {
       expect(find.text('Overdue Bugfix'), findsNothing);
       expect(find.text('Completed Feature'), findsOneWidget);
     });
+
+    testWidgets('groups outdated tasks by date with formatted date group headers', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AxisTheme.dark,
+          home: Scaffold(
+            body: OutdatedTab(
+              repo: fakeRepo,
+              filterCriteria: filterCriteria,
+            ),
+          ),
+        ),
+      );
+
+      final taskDay1 = Task(
+        id: 't_day1',
+        title: 'Task Day 1',
+        dueDate: '2020-05-10',
+        status: 'todo',
+      );
+      final taskDay2 = Task(
+        id: 't_day2',
+        title: 'Task Day 2',
+        dueDate: '2020-05-12',
+        status: 'todo',
+      );
+
+      fakeRepo.emit([taskDay1, taskDay2]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('OUTDATED'), findsOneWidget);
+      expect(find.text('Task Day 1'), findsOneWidget);
+      expect(find.text('Task Day 2'), findsOneWidget);
+
+      // Verify date headers exist (they contain DAYS OVERDUE)
+      expect(find.byIcon(Icons.history_toggle_off_rounded), findsNWidgets(2));
+    });
   });
 }

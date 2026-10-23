@@ -516,20 +516,31 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                                         ),
                                       ),
                                     ],
-                                    onChanged: (v) => setState(
-                                        () => _scheduleType = v ?? 'daily'),
+                                    onChanged: (v) {
+                                      final newType = v ?? 'daily';
+                                      setState(() {
+                                        _scheduleType = newType;
+                                        if (_scheduleType != 'daily' && widget.habitToEdit == null) {
+                                          _reminderTime = null;
+                                        }
+                                      });
+                                    },
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 10),
 
-                            // Time of Day
+                            // Time of Day (Optional for non-daily habits)
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const FieldLabel(label: 'TIME'),
+                                  FieldLabel(
+                                    label: _scheduleType == 'daily'
+                                        ? 'TIME *'
+                                        : 'TIME (OPTIONAL)',
+                                  ),
                                   InkWell(
                                     onTap: _pickTime,
                                     borderRadius: BorderRadius.circular(12),
@@ -543,19 +554,26 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                                         borderRadius:
                                             BorderRadius.circular(12),
                                         border: Border.all(
-                                            color: AxisColors.borderSubtle),
+                                          color: _reminderTime != null
+                                              ? AxisColors.success.withValues(alpha: 0.5)
+                                              : AxisColors.borderSubtle,
+                                        ),
                                       ),
                                       child: Row(
                                         children: [
-                                          const Icon(Icons.alarm_rounded,
-                                              size: 18,
-                                              color: AxisColors.success),
+                                          Icon(
+                                            Icons.alarm_rounded,
+                                            size: 18,
+                                            color: _reminderTime != null
+                                                ? AxisColors.success
+                                                : AxisColors.textDim,
+                                          ),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: Text(
                                               _reminderTime != null
                                                   ? '${_reminderTime!.hourOfPeriod == 0 ? 12 : _reminderTime!.hourOfPeriod}:${_reminderTime!.minute.toString().padLeft(2, '0')} ${_reminderTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
-                                                  : 'Set Time',
+                                                  : (_scheduleType == 'daily' ? 'Set Time' : 'Anytime'),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
@@ -567,6 +585,16 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                                               ),
                                             ),
                                           ),
+                                          if (_reminderTime != null)
+                                            GestureDetector(
+                                              onTap: () => setState(() => _reminderTime = null),
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(4),
+                                                child: Icon(Icons.close_rounded,
+                                                    size: 16,
+                                                    color: AxisColors.textDim),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -575,6 +603,58 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                               ),
                             ),
                           ],
+                        ),
+                      if (_reminderTime != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AxisColors.success.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AxisColors.success.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.notifications_active_rounded,
+                                    size: 13, color: AxisColors.success),
+                                SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Reminders: 10m & 5m before habit time',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AxisColors.success,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (_scheduleType != 'daily')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.info_outline_rounded,
+                                  size: 13, color: AxisColors.textDim),
+                              SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  'Non-daily habits do not require an exact time of day.',
+                                  style: TextStyle(
+                                      fontSize: 11, color: AxisColors.textDim),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       const SizedBox(height: 18),
 

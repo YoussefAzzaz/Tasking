@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/note_repository.dart';
 import 'package:axis/domain/id_generator.dart';
+import 'package:axis/ui/common/axis_markdown_viewer.dart';
+import 'package:axis/ui/common/markdown_list_text_input_formatter.dart';
+import 'package:axis/ui/notes/widgets/note_format_toolbar.dart';
 
 class CreateNoteSheet extends StatefulWidget {
   const CreateNoteSheet({
@@ -28,6 +32,8 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
   String _selectedMood = 'HIGH ENERGY';
   bool _pinned = false;
   bool _saving = false;
+  bool _previewMode = false;
+  bool _isBodyExpanded = false;
   String? _errorText;
 
   static const _moods = [
@@ -47,12 +53,28 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
       final n = widget.noteToEdit!;
       _titleController.text = n.title;
       _bodyController.text = n.bodyMd;
+      if (n.bodyMd.trim().isNotEmpty) {
+        _isBodyExpanded = true;
+      }
       _category = n.category;
       if (n.mood != null) _selectedMood = n.mood!;
       _pinned = n.pinned;
     } else {
       _category = widget.initialCategory;
+      if (_category == 'journal') {
+        _titleController.text = 'Daily Journal • ${DateFormat('EEE, MMM d').format(DateTime.now())}';
+      }
     }
+
+    _bodyFocusNode.addListener(() {
+      if (_bodyFocusNode.hasFocus) {
+        if (!_isBodyExpanded) {
+          setState(() {
+            _isBodyExpanded = true;
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -226,7 +248,16 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
                           label: 'Journal',
                           icon: Icons.auto_stories_rounded,
                           isSelected: _category == 'journal',
-                          onTap: () => setState(() => _category = 'journal'),
+                          onTap: () {
+                            setState(() {
+                              _category = 'journal';
+                              if (_titleController.text.trim().isEmpty ||
+                                  _titleController.text.startsWith('Untitled')) {
+                                _titleController.text =
+                                    'Daily Journal • ${DateFormat('EEE, MMM d').format(DateTime.now())}';
+                              }
+                            });
+                          },
                         ),
                       ],
                     ),
@@ -320,42 +351,243 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Body
-                    _SectionTitle(label: 'CONTENT (MARKDOWN SUPPORTED)'),
-                    TextField(
-                      controller: _bodyController,
-                      focusNode: _bodyFocusNode,
-                      autofocus: false,
-                      maxLines: 6,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AxisColors.textHigh,
-                            height: 1.4,
-                          ),
-                      cursorColor: AxisColors.secondary,
-                      decoration: InputDecoration(
-                        hintText: _category == 'journal'
-                            ? 'How is your energy today? What was accomplished? Any blockers?'
-                            : 'Write down thoughts, checklists (- [ ] task), or architectural decisions...',
-                        hintStyle: TextStyle(color: AxisColors.textDim),
-                        filled: true,
-                        fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                    // Body with markup formatting toolbar and preview toggle
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _SectionTitle(label: 'CONTENT (MARKDOWN & LISTS)'),
+                        Row(
+                          children: [
+                            if (_category == 'journal')
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6, bottom: 8),
+                                child: InkWell(
+                                  onTap: () {
+                                    const template = '### 📅 What Happened Today\n- \n\n### 🏆 Key Wins & Accomplishments\n1. \n\n### 💭 Thoughts & Reflections\n> ';
+                                    if (_bodyController.text.trim().isEmpty) {
+                                      _bodyController.text = template;
+                                    } else {
+                                      _bodyController.text = '${_bodyController.text}\n\n$template';
+                                    }
+                                    setState(() {});
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AxisColors.secondary
+                                          .withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: AxisColors.secondary
+                                            .withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.playlist_add_rounded,
+                                            size: 13,
+                                            color: AxisColors.secondary),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Template',
+                                          style: TextStyle(
+                                            color: AxisColors.secondary,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  InkWell(
+                                    key: const ValueKey('note_expand_toggle'),
+                                    onTap: () => setState(
+                                        () => _isBodyExpanded = !_isBodyExpanded),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: _isBodyExpanded
+                                            ? AxisColors.secondary
+                                                .withValues(alpha: 0.25)
+                                            : AxisColors.surfaceHigh
+                                                .withValues(alpha: 0.5),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: _isBodyExpanded
+                                              ? AxisColors.secondary
+                                              : AxisColors.borderSubtle,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            _isBodyExpanded
+                                                ? Icons.unfold_less_rounded
+                                                : Icons.unfold_more_rounded,
+                                            size: 13,
+                                            color: _isBodyExpanded
+                                                ? AxisColors.secondary
+                                                : AxisColors.textMuted,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _isBodyExpanded ? 'Compact' : 'Expand',
+                                            style: TextStyle(
+                                              color: _isBodyExpanded
+                                                  ? AxisColors.secondary
+                                                  : AxisColors.textMuted,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    onTap: () =>
+                                        setState(() => _previewMode = !_previewMode),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: _previewMode
+                                            ? AxisColors.secondary
+                                                .withValues(alpha: 0.25)
+                                            : AxisColors.surfaceHigh
+                                                .withValues(alpha: 0.5),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: _previewMode
+                                              ? AxisColors.secondary
+                                              : AxisColors.borderSubtle,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            _previewMode
+                                                ? Icons.edit_note_rounded
+                                                : Icons.visibility_outlined,
+                                            size: 13,
+                                            color: _previewMode
+                                                ? AxisColors.secondary
+                                                : AxisColors.textMuted,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _previewMode ? 'Edit' : 'Preview',
+                                            style: TextStyle(
+                                              color: _previewMode
+                                                  ? AxisColors.secondary
+                                                  : AxisColors.textMuted,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: AxisColors.secondary, width: 1.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
-                      ),
+                      ],
                     ),
+
+                    if (!_previewMode) ...[
+                      NoteFormatToolbar(
+                        controller: _bodyController,
+                        focusNode: _bodyFocusNode,
+                        onChanged: () => setState(() {}),
+                      ),
+                      TextField(
+                        controller: _bodyController,
+                        focusNode: _bodyFocusNode,
+                        autofocus: false,
+                        minLines: _isBodyExpanded ? 10 : 4,
+                        maxLines: _isBodyExpanded ? 26 : 7,
+                        scrollPadding: const EdgeInsets.only(bottom: 120),
+                        onTap: () {
+                          if (!_isBodyExpanded) {
+                            setState(() => _isBodyExpanded = true);
+                          }
+                        },
+                        inputFormatters: const [
+                          MarkdownListTextInputFormatter(),
+                        ],
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AxisColors.textHigh,
+                              height: 1.4,
+                            ),
+                        cursorColor: AxisColors.secondary,
+                        decoration: InputDecoration(
+                          hintText: _category == 'journal'
+                              ? 'Log events (e.g. **14:00** - Event), what happened, accomplishments, blockers...'
+                              : 'Write notes, ordered lists (1. ), bullet points (- ), or checklists (- [ ] )...',
+                          hintStyle: TextStyle(color: AxisColors.textDim),
+                          filled: true,
+                          fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide:
+                                const BorderSide(color: AxisColors.borderSubtle),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide:
+                                const BorderSide(color: AxisColors.borderSubtle),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: AxisColors.secondary, width: 1.5),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 14),
+                        ),
+                      ),
+                    ] else ...[
+                      Container(
+                        width: double.infinity,
+                        constraints: BoxConstraints(
+                          minHeight: _isBodyExpanded ? 240 : 140,
+                        ),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AxisColors.secondary.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: AxisMarkdownViewer(
+                          markdown: _bodyController.text,
+                          onMarkdownChanged: (updatedBody) {
+                            setState(() => _bodyController.text = updatedBody);
+                          },
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
 
                     // Pin Option

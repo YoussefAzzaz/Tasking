@@ -55,6 +55,8 @@ dependencies:
   device_preview: ^1.2.0
   image_picker: ^1.1.2
   cached_network_image: ^3.4.1
+  file_picker: ^13.1.0
+  crypto: ^3.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

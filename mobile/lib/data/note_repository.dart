@@ -38,10 +38,37 @@ class Note {
           DateTime.now(),
     );
   }
+
+  Note copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? bodyMd,
+    String? category,
+    String? mood,
+    String? energy,
+    bool? pinned,
+    DateTime? createdAt,
+  }) {
+    return Note(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      bodyMd: bodyMd ?? this.bodyMd,
+      category: category ?? this.category,
+      mood: mood ?? this.mood,
+      energy: energy ?? this.energy,
+      pinned: pinned ?? this.pinned,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
 
 class NoteRepository {
   Stream<List<Note>> watchNotes({String? category}) {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const <Note>[]);
+    }
     final uid = currentUserId;
     String query;
     List<dynamic> params = [];

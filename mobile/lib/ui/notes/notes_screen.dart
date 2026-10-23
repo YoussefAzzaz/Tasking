@@ -7,12 +7,13 @@ import 'package:axis/ui/notes/create_note_sheet.dart';
 import 'package:axis/ui/common/axis_sliding_segmented_bar.dart';
 import 'package:axis/ui/notes/widgets/note_detail_sheet.dart';
 import 'package:axis/ui/notes/widgets/note_card_widget.dart';
-import 'package:axis/ui/notes/widgets/daily_review_prompt_card.dart';
+import 'package:axis/ui/notes/widgets/daily_journal_card.dart';
 import 'package:axis/ui/notes/widgets/note_date_filter_toolbar.dart';
 
 export 'package:axis/ui/notes/widgets/note_detail_sheet.dart';
 export 'package:axis/ui/notes/widgets/note_card_widget.dart';
 export 'package:axis/ui/notes/widgets/daily_review_prompt_card.dart';
+export 'package:axis/ui/notes/widgets/daily_journal_card.dart';
 export 'package:axis/ui/notes/widgets/note_date_filter_toolbar.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -237,18 +238,7 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Daily Review Prompt Card (when in All or Journal view)
-          if (_selectedSegment == 'all' || _selectedSegment == 'journal')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: DailyReviewPromptCard(
-                onTapRecord: () => _openCreateNote(category: 'journal'),
-              ),
-            ),
-
-          const SizedBox(height: 16),
-
-          // Notes List separated by Date
+          // StreamBuilder for Notes & Daily Journal
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: StreamBuilder<List<Note>>(
@@ -264,7 +254,19 @@ class _NotesScreenState extends State<NotesScreen> {
                   );
                 }
 
-                var notes = snapshot.data ?? [];
+                final rawNotes = snapshot.data ?? [];
+                final now = DateTime.now();
+
+                // Find today's journal entry in raw notes
+                final todayJournal = rawNotes.cast<Note?>().firstWhere(
+                  (n) =>
+                      n != null &&
+                      n.category == 'journal' &&
+                      _isSameDay(n.createdAt, now),
+                  orElse: () => null,
+                );
+
+                var notes = rawNotes;
 
                 // Filter by date if filter active
                 if (_filterDate != null) {
@@ -273,138 +275,151 @@ class _NotesScreenState extends State<NotesScreen> {
                       .toList();
                 }
 
-                if (notes.isEmpty) {
-                  return AxisCard(
-                    tier: GlassTier.two,
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Icon(Icons.notes_rounded,
-                              size: 40, color: AxisColors.textDim),
-                          const SizedBox(height: 8),
-                          Text(
-                            _filterDate != null
-                                ? 'No entries found for ${DateFormat.yMMMd().format(_filterDate!)}'
-                                : 'No entries in this view',
-                            style: const TextStyle(color: AxisColors.textDim),
-                          ),
-                          const SizedBox(height: 12),
-                          if (_filterDate != null)
-                            OutlinedButton(
-                              onPressed: () =>
-                                  setState(() => _filterDate = null),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(
-                                    color: AxisColors.secondary),
-                              ),
-                              child: const Text('Clear Date Filter',
-                                  style:
-                                      TextStyle(color: AxisColors.secondary)),
-                            )
-                          else
-                            ElevatedButton.icon(
-                              onPressed: () => _openCreateNote(),
-                              icon: const Icon(Icons.add, size: 16),
-                              label: const Text('Create New Entry'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AxisColors.secondary,
-                                foregroundColor: Colors.black,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                // Group notes by calendar date
-                final Map<DateTime, List<Note>> grouped = {};
-                for (final note in notes) {
-                  final key = DateTime(
-                    note.createdAt.year,
-                    note.createdAt.month,
-                    note.createdAt.day,
-                  );
-                  grouped.putIfAbsent(key, () => []).add(note);
-                }
-
-                // Sort dates descending
-                final sortedDates = grouped.keys.toList()
-                  ..sort((a, b) => b.compareTo(a));
-
                 return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: sortedDates.map((date) {
-                    final dayNotes = grouped[date]!;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Date Group Header
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Daily Journal Card (when in All or Journal view, and no specific date filter active)
+                    if ((_selectedSegment == 'all' || _selectedSegment == 'journal') &&
+                        _filterDate == null) ...[
+                      DailyJournalCard(
+                        todayJournal: todayJournal,
+                        onOpenTodayJournal: (note) =>
+                            _openCreateNote(category: 'journal', noteToEdit: note),
+                        onStartNewJournal: () =>
+                            _openCreateNote(category: 'journal'),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    if (notes.isEmpty)
+                      AxisCard(
+                        tier: GlassTier.two,
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Column(
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: const BoxDecoration(
-                                      color: AxisColors.secondary,
-                                      shape: BoxShape.circle,
-                                    ),
+                              const Icon(Icons.notes_rounded,
+                                  size: 40, color: AxisColors.textDim),
+                              const SizedBox(height: 8),
+                              Text(
+                                _filterDate != null
+                                    ? 'No entries found for ${DateFormat.yMMMd().format(_filterDate!)}'
+                                    : 'No entries in this view',
+                                style: const TextStyle(color: AxisColors.textDim),
+                              ),
+                              const SizedBox(height: 12),
+                              if (_filterDate != null)
+                                OutlinedButton(
+                                  onPressed: () =>
+                                      setState(() => _filterDate = null),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                        color: AxisColors.secondary),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _formatDateHeader(date).toUpperCase(),
-                                    style: const TextStyle(
-                                      color: AxisColors.secondary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11,
-                                      letterSpacing: 1.1,
+                                  child: const Text('Clear Date Filter',
+                                      style:
+                                          TextStyle(color: AxisColors.secondary)),
+                                )
+                              else
+                                ElevatedButton.icon(
+                                  onPressed: () => _openCreateNote(),
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Create New Entry'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AxisColors.secondary,
+                                    foregroundColor: Colors.black,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else ...() {
+                      final Map<DateTime, List<Note>> grouped = {};
+                      for (final note in notes) {
+                        final key = DateTime(
+                          note.createdAt.year,
+                          note.createdAt.month,
+                          note.createdAt.day,
+                        );
+                        grouped.putIfAbsent(key, () => []).add(note);
+                      }
+
+                      final sortedDates = grouped.keys.toList()
+                        ..sort((a, b) => b.compareTo(a));
+
+                      return sortedDates.map((date) {
+                        final dayNotes = grouped[date]!;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Date Group Header
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: const BoxDecoration(
+                                          color: AxisColors.secondary,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _formatDateHeader(date).toUpperCase(),
+                                        style: const TextStyle(
+                                          color: AxisColors.secondary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AxisColors.surfaceHigh,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: AxisColors.borderSubtle),
+                                    ),
+                                    child: Text(
+                                      '${dayNotes.length} ${dayNotes.length == 1 ? 'entry' : 'entries'}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: AxisColors.textMuted,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AxisColors.surfaceHigh,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                      color: AxisColors.borderSubtle),
-                                ),
-                                child: Text(
-                                  '${dayNotes.length} ${dayNotes.length == 1 ? 'entry' : 'entries'}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AxisColors.textMuted,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Notes for this date
-                        ...dayNotes.map((note) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: InkWell(
-                              onTap: () => _showNoteDetail(note),
-                              borderRadius: BorderRadius.circular(12),
-                              child: NoteCardWidget(note: note),
                             ),
-                          );
-                        }),
-                        const SizedBox(height: 8),
-                      ],
-                    );
-                  }).toList(),
+
+                            // Notes for this date
+                            ...dayNotes.map((note) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: InkWell(
+                                  onTap: () => _showNoteDetail(note),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: NoteCardWidget(note: note),
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 8),
+                          ],
+                        );
+                      }).toList();
+                    }(),
+                  ],
                 );
               },
             ),

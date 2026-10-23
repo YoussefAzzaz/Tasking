@@ -124,10 +124,11 @@ class _OutdatedTabState extends State<OutdatedTab> {
                 if (showOutdated && outdated.isNotEmpty)
                   _OutdatedSection(
                     title: 'OUTDATED',
-                    subtitle: 'Past due date • tap checkbox to mark complete',
+                    subtitle: 'Past due date • grouped by date • tap checkbox to mark complete',
                     color: AxisColors.error,
                     tasks: outdated,
                     repo: widget.repo,
+                    groupByDate: true,
                   ),
 
                 if (showOutdated &&
@@ -366,6 +367,7 @@ class _OutdatedSection extends StatelessWidget {
     required this.color,
     required this.tasks,
     required this.repo,
+    this.groupByDate = false,
   });
 
   final String title;
@@ -373,6 +375,41 @@ class _OutdatedSection extends StatelessWidget {
   final Color color;
   final List<Task> tasks;
   final TaskRepository repo;
+  final bool groupByDate;
+
+  Map<String, List<Task>> _groupTasksByDate(List<Task> tasks) {
+    final Map<String, List<Task>> map = {};
+    for (final t in tasks) {
+      final key = (t.dueDate != null && t.dueDate!.trim().isNotEmpty)
+          ? t.dueDate!.trim()
+          : 'no_date';
+      map.putIfAbsent(key, () => []).add(t);
+    }
+    return map;
+  }
+
+  String _formatDateHeader(String dateStr) {
+    if (dateStr == 'no_date') return 'NO DUE DATE';
+    final dt = DateTime.tryParse(dateStr);
+    if (dt == null) return dateStr.toUpperCase();
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(dt.year, dt.month, dt.day);
+    final diffDays = today.difference(target).inDays;
+
+    final dateFormatted = DateFormat('EEE, MMM d').format(dt);
+
+    if (diffDays == 1) {
+      return 'YESTERDAY • $dateFormatted';
+    } else if (diffDays > 1) {
+      return '$diffDays DAYS OVERDUE • $dateFormatted';
+    } else if (diffDays == 0) {
+      return 'TODAY • $dateFormatted';
+    } else {
+      return dateFormatted.toUpperCase();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -433,37 +470,126 @@ class _OutdatedSection extends StatelessWidget {
             ],
           ),
         ),
-        ...tasks.map(
-          (task) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: TaskCard(
-              task: task,
-              onToggle: (checked) async {
-                final updated = Task(
-                  id: task.id,
-                  title: task.title,
-                  notes: task.notes,
-                  status: checked ? 'done' : 'todo',
-                  priority: task.priority,
-                  projectId: task.projectId,
-                  tags: task.tags,
-                  dueDate: task.dueDate,
-                  dueTime: task.dueTime,
-                  estimateMin: task.estimateMin,
-                  recurrenceRule: task.recurrenceRule,
-                  recurrenceMode: task.recurrenceMode,
-                );
-                await repo.updateTask(updated);
-              },
-              onTap: () => showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) => TaskDetailSheet(task: task),
+        if (groupByDate) ...[
+          for (final entry in _groupTasksByDate(tasks).entries) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 6),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.22),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.history_toggle_off_rounded,
+                            size: 13, color: color),
+                        const SizedBox(width: 6),
+                        Text(
+                          _formatDateHeader(entry.key),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${entry.value.length}',
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            ...entry.value.map(
+              (task) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TaskCard(
+                  task: task,
+                  onToggle: (checked) async {
+                    final updated = Task(
+                      id: task.id,
+                      title: task.title,
+                      notes: task.notes,
+                      status: checked ? 'done' : 'todo',
+                      priority: task.priority,
+                      projectId: task.projectId,
+                      tags: task.tags,
+                      dueDate: task.dueDate,
+                      dueTime: task.dueTime,
+                      estimateMin: task.estimateMin,
+                      recurrenceRule: task.recurrenceRule,
+                      recurrenceMode: task.recurrenceMode,
+                    );
+                    await repo.updateTask(updated);
+                  },
+                  onTap: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => TaskDetailSheet(task: task),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ] else ...[
+          ...tasks.map(
+            (task) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TaskCard(
+                task: task,
+                onToggle: (checked) async {
+                  final updated = Task(
+                    id: task.id,
+                    title: task.title,
+                    notes: task.notes,
+                    status: checked ? 'done' : 'todo',
+                    priority: task.priority,
+                    projectId: task.projectId,
+                    tags: task.tags,
+                    dueDate: task.dueDate,
+                    dueTime: task.dueTime,
+                    estimateMin: task.estimateMin,
+                    recurrenceRule: task.recurrenceRule,
+                    recurrenceMode: task.recurrenceMode,
+                  );
+                  await repo.updateTask(updated);
+                },
+                onTap: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => TaskDetailSheet(task: task),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }

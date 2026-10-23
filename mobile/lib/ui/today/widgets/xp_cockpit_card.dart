@@ -24,7 +24,7 @@ class XpCockpitCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 120,
+      height: 128,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -102,24 +102,27 @@ class XpCockpitCard extends StatelessWidget {
                                       Theme.of(context).textTheme.displaySmall,
                                 ),
                                 const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 7,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AxisColors.secondary
-                                        .withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    rank,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: AxisColors.secondarySoft,
-                                        ),
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AxisColors.secondary
+                                          .withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      rank,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: AxisColors.secondarySoft,
+                                          ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -138,9 +141,12 @@ class XpCockpitCard extends StatelessWidget {
                                       ),
                                 ),
                                 const SizedBox(width: 4),
-                                Text(
-                                  'earned today',
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                Flexible(
+                                  child: Text(
+                                    'earned today',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
                                 ),
                               ],
                             ),

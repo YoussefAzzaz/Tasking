@@ -3,6 +3,8 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/project_big_task_card.dart';
+import 'package:axis/ui/common/category_filter_slider.dart';
+import 'package:axis/ui/common/cyber_search_bar.dart';
 
 /// PROJECTS TAB (Projects as Big Tasks with Subtasks & Progress Bars)
 class ProjectsTab extends StatefulWidget {
@@ -17,7 +19,7 @@ class ProjectsTab extends StatefulWidget {
   final TaskRepository taskRepo;
   final ProjectRepository projectRepo;
   final VoidCallback onAddProject;
-  final VoidCallback onAddTask;
+  final void Function({String? initialProject}) onAddTask;
 
   @override
   State<ProjectsTab> createState() => _ProjectsTabState();
@@ -28,11 +30,94 @@ class _ProjectsTabState extends State<ProjectsTab> {
   late final Stream<List<Task>> _tasksStream;
   static final Set<String> _locallyDeletedProjects = {};
 
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedProjectId = 'all';
+
   @override
   void initState() {
     super.initState();
     _projectsStream = widget.projectRepo.watchProjects();
     _tasksStream = widget.taskRepo.watchTasks();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildEmptySearchState({
+    required String query,
+    required VoidCallback onClear,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AxisColors.surfaceLow,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AxisColors.borderSubtle),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AxisColors.secondary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.search_off_rounded,
+                  size: 32, color: AxisColors.secondary),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'No tasks found for "$query"',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AxisColors.textHigh,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Try checking your spelling or search with a different keyword.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AxisColors.textDim,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onClear,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                    color: AxisColors.secondary.withValues(alpha: 0.4)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+              icon: const Icon(Icons.close_rounded,
+                  size: 14, color: AxisColors.secondary),
+              label: const Text(
+                'Clear Search',
+                style: TextStyle(
+                  color: AxisColors.secondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Color _parseHex(String hex) {
@@ -119,69 +204,218 @@ class _ProjectsTabState extends State<ProjectsTab> {
               }
             }
 
+            // Sort projects: active/in-progress projects first, done/100% completed projects at the end
+            allProjects.sort((a, b) {
+              final tasksA = tasksByProject[a.name] ?? [];
+              final isDoneA = tasksA.isNotEmpty && tasksA.every((t) => t.status == 'done');
+
+              final tasksB = tasksByProject[b.name] ?? [];
+              final isDoneB = tasksB.isNotEmpty && tasksB.every((t) => t.status == 'done');
+
+              if (isDoneA != isDoneB) {
+                return isDoneA ? 1 : -1;
+              }
+              return a.createdAt.compareTo(b.createdAt);
+            });
+
+            // Build horizontal category filter slider items
+            final sliderItems = <CategorySliderItem>[
+              CategorySliderItem(
+                id: 'all',
+                label: 'All Projects',
+                iconData: Icons.hub_rounded,
+                color: AxisColors.secondary,
+                count: allTasks.length,
+              ),
+              ...allProjects.map((project) {
+                final subtasks = tasksByProject[project.name] ?? [];
+                return CategorySliderItem(
+                  id: project.id,
+                  label: project.name,
+                  iconData: Icons.folder_rounded,
+                  color: _parseHex(project.color),
+                  count: subtasks.length,
+                );
+              }),
+              if (unassignedTasks.isNotEmpty)
+                CategorySliderItem(
+                  id: 'inbox_general',
+                  label: 'Inbox & General',
+                  iconData: Icons.inbox_rounded,
+                  color: const Color(0xFF64748B),
+                  count: unassignedTasks.length,
+                ),
+            ];
+
+            final isSearching = _searchQuery.isNotEmpty;
+
+            // Filter projects based on slider selection and search query
+            final displayedProjects = allProjects.where((project) {
+              if (_selectedProjectId != 'all') {
+                final matches = project.id.toLowerCase() == _selectedProjectId.toLowerCase() ||
+                    project.name.toLowerCase() == _selectedProjectId.toLowerCase();
+                if (!matches) return false;
+              }
+
+              if (isSearching) {
+                final subtasks = tasksByProject[project.name] ?? [];
+                final hasMatchingSubtask = subtasks.any((t) =>
+                    t.title.toLowerCase().contains(_searchQuery) ||
+                    (t.notes?.toLowerCase().contains(_searchQuery) ?? false));
+                final matchesProjectName = project.name.toLowerCase().contains(_searchQuery);
+                return hasMatchingSubtask || matchesProjectName;
+              }
+
+              return true;
+            }).toList();
+
+            final showUnassignedProject = (_selectedProjectId == 'all' ||
+                    _selectedProjectId.toLowerCase() == 'inbox_general') &&
+                unassignedTasks.isNotEmpty;
+
+            final displayedUnassignedTasks = showUnassignedProject
+                ? (!isSearching
+                    ? unassignedTasks
+                    : unassignedTasks
+                        .where((t) =>
+                            t.title.toLowerCase().contains(_searchQuery) ||
+                            (t.notes?.toLowerCase().contains(_searchQuery) ?? false))
+                        .toList())
+                : <Task>[];
+
+            // Count total matching tasks across displayed projects
+            int totalMatchingTasks = displayedUnassignedTasks.length;
+            for (final proj in displayedProjects) {
+              final raw = tasksByProject[proj.name] ?? [];
+              final filtered = (!isSearching || proj.name.toLowerCase().contains(_searchQuery))
+                  ? raw
+                  : raw
+                      .where((t) =>
+                          t.title.toLowerCase().contains(_searchQuery) ||
+                          (t.notes?.toLowerCase().contains(_searchQuery) ?? false))
+                      .toList();
+              totalMatchingTasks += filtered.length;
+            }
+
             return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 // Header banner
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AxisColors.surfaceLow.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AxisColors.borderSubtle),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: const [
-                            Icon(Icons.hub_rounded,
-                                color: AxisColors.secondary, size: 18),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'PROJECT OBJECTIVES',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AxisColors.secondary,
-                                  letterSpacing: 1.1,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AxisColors.surfaceLow.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AxisColors.borderSubtle),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: const [
+                              Icon(Icons.hub_rounded,
+                                  color: AxisColors.secondary, size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'PROJECT OBJECTIVES',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AxisColors.secondary,
+                                    letterSpacing: 1.1,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: widget.onAddProject,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          backgroundColor:
-                              AxisColors.secondary.withValues(alpha: 0.15),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          visualDensity: VisualDensity.compact,
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: widget.onAddProject,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            backgroundColor:
+                                AxisColors.secondary.withValues(alpha: 0.15),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.add_rounded,
+                              size: 14, color: AxisColors.secondary),
+                          label: const Text('Add Project',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AxisColors.secondary)),
                         ),
-                        icon: const Icon(Icons.add_rounded,
-                            size: 14, color: AxisColors.secondary),
-                        label: const Text('Add Project',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AxisColors.secondary)),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
-                if (allProjects.isEmpty && unassignedTasks.isEmpty)
+                // Search bar for tasks and projects
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: CyberSearchBar(
+                    controller: _searchController,
+                    hintText: 'Search tasks or projects...',
+                    accentColor: AxisColors.secondary,
+                    onChanged: (val) {
+                      setState(() {
+                        _searchQuery = val.trim().toLowerCase();
+                      });
+                    },
+                    onClear: () {
+                      setState(() {
+                        _searchController.clear();
+                        _searchQuery = '';
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Horizontal category filter slider
+                if (sliderItems.length > 1) ...[
+                  CategoryFilterSlider(
+                    items: sliderItems,
+                    selectedId: _selectedProjectId,
+                    onSelected: (id) {
+                      setState(() {
+                        if (_selectedProjectId == id && id != 'all') {
+                          _selectedProjectId = 'all';
+                        } else {
+                          _selectedProjectId = id;
+                        }
+                      });
+                    },
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
+                // Empty search results state
+                if (isSearching && totalMatchingTasks == 0)
+                  _buildEmptySearchState(
+                    query: _searchController.text.trim(),
+                    onClear: () {
+                      setState(() {
+                        _searchController.clear();
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                // No projects created state
+                else if (!isSearching && allProjects.isEmpty && unassignedTasks.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -215,47 +449,67 @@ class _ProjectsTabState extends State<ProjectsTab> {
                         ],
                       ),
                     ),
-                  ),
+                  )
+                // Render filtered project cards
+                else ...[
+                  ...displayedProjects.map((project) {
+                    final rawSubtasks = tasksByProject[project.name] ?? [];
+                    final subtasks = (!isSearching || project.name.toLowerCase().contains(_searchQuery))
+                        ? List<Task>.from(rawSubtasks)
+                        : rawSubtasks
+                            .where((t) =>
+                                t.title.toLowerCase().contains(_searchQuery) ||
+                                (t.notes?.toLowerCase().contains(_searchQuery) ?? false))
+                            .toList();
+                    subtasks.sort(compareTasksByDueDate);
+                    final color = _parseHex(project.color);
 
-                // List of Projects as Big Tasks
-                ...allProjects.map((project) {
-                  final subtasks = List<Task>.from(tasksByProject[project.name] ?? [])
-                    ..sort(compareTasksByDueDate);
-                  final color = _parseHex(project.color);
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ProjectBigTaskCard(
+                        project: project,
+                        color: color,
+                        subtasks: subtasks,
+                        forceExpand: isSearching,
+                        taskRepo: widget.taskRepo,
+                        projectRepo: widget.projectRepo,
+                        onAddSubtask: () =>
+                            widget.onAddTask(initialProject: project.name),
+                        onDelete: () {
+                          setState(() {
+                            if (_selectedProjectId == project.id ||
+                                _selectedProjectId.toLowerCase() == project.name.toLowerCase()) {
+                              _selectedProjectId = 'all';
+                            }
+                            _locallyDeletedProjects.add(project.id.toLowerCase());
+                            _locallyDeletedProjects.add(project.name.toLowerCase());
+                            final raw = project.id.toLowerCase().replaceFirst('discovered_', '');
+                            _locallyDeletedProjects.add(raw);
+                          });
+                        },
+                      ),
+                    );
+                  }),
 
-                  return ProjectBigTaskCard(
-                    project: project,
-                    color: color,
-                    subtasks: subtasks,
-                    taskRepo: widget.taskRepo,
-                    projectRepo: widget.projectRepo,
-                    onAddSubtask: widget.onAddTask,
-                    onDelete: () {
-                      setState(() {
-                        _locallyDeletedProjects.add(project.id.toLowerCase());
-                        _locallyDeletedProjects.add(project.name.toLowerCase());
-                        final raw = project.id.toLowerCase().replaceFirst('discovered_', '');
-                        _locallyDeletedProjects.add(raw);
-                      });
-                    },
-                  );
-                }),
-
-                // Unassigned / General Tasks section if any
-                if (unassignedTasks.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  ProjectBigTaskCard(
-                    project: Project(
-                      id: 'inbox_general',
-                      name: 'Inbox & General Tasks',
-                      color: '#64748B',
+                  // Unassigned / General Tasks section if any
+                  if (displayedUnassignedTasks.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ProjectBigTaskCard(
+                        project: Project(
+                          id: 'inbox_general',
+                          name: 'Inbox & General Tasks',
+                          color: '#64748B',
+                        ),
+                        color: const Color(0xFF64748B),
+                        subtasks: List<Task>.from(displayedUnassignedTasks)..sort(compareTasksByDueDate),
+                        forceExpand: isSearching,
+                        taskRepo: widget.taskRepo,
+                        projectRepo: widget.projectRepo,
+                        onAddSubtask: () => widget.onAddTask(),
+                      ),
                     ),
-                    color: const Color(0xFF64748B),
-                    subtasks: List<Task>.from(unassignedTasks)..sort(compareTasksByDueDate),
-                    taskRepo: widget.taskRepo,
-                    projectRepo: widget.projectRepo,
-                    onAddSubtask: widget.onAddTask,
-                  ),
+                  ],
                 ],
                 const SizedBox(height: 32),
               ],

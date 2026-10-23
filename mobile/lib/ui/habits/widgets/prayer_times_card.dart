@@ -302,11 +302,14 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                               }
                             },
                           ),
-                          Icon(
-                            _expanded
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            color: AxisColors.textMuted,
+                          AnimatedRotation(
+                            turns: _expanded ? 0.5 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                            child: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AxisColors.textMuted,
+                            ),
                           ),
                         ],
                       ),
@@ -360,9 +363,19 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
             ),
           ),
 
-          // Prayer Breakdown & Actions
-          if (_expanded) ...[
-            const Divider(color: AxisColors.borderSubtle, height: 1),
+          // Prayer Breakdown & Actions (animated expand & shrink)
+          ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOutCubic,
+              alignment: Alignment.topCenter,
+              child: ExcludeSemantics(
+                excluding: !_expanded,
+                child: _expanded
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                        const Divider(color: AxisColors.borderSubtle, height: 1),
 
             // Qibla Direction Button
             Padding(
@@ -617,7 +630,12 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
               },
             ),
             const SizedBox(height: 6),
-          ],
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+              ),
+            ),
+          ),
         ],
       ),
     );

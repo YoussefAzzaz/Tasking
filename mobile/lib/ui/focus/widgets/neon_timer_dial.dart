@@ -55,36 +55,45 @@ class NeonTimerDial extends StatelessWidget {
     required this.progress,
     required this.timeDisplay,
     required this.isBreak,
+    this.size = 250,
+    this.isRunning = false,
   });
 
   final double progress;
   final String timeDisplay;
   final bool isBreak;
+  final double size;
+  final bool isRunning;
 
   @override
   Widget build(BuildContext context) {
+    final innerGlow = size * 0.76;
+    final fontSize = size * 0.208;
+
     return Semantics(
       label: isBreak ? 'Break countdown timer' : 'Focus session timer',
       value: timeDisplay,
       child: Center(
         child: SizedBox(
-          width: 250,
-          height: 250,
+          width: size,
+          height: size,
           child: Stack(
             alignment: Alignment.center,
             children: [
               // Ambient glow shadow
               ExcludeSemantics(
-                child: Container(
-                  width: 190,
-                  height: 190,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 600),
+                  width: innerGlow,
+                  height: innerGlow,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AxisColors.secondary.withValues(alpha: 0.12),
-                        blurRadius: 50,
-                        spreadRadius: 20,
+                        color: (isBreak ? AxisColors.warning : AxisColors.secondary)
+                            .withValues(alpha: isRunning ? 0.22 : 0.12),
+                        blurRadius: isRunning ? 65 : 45,
+                        spreadRadius: isRunning ? 25 : 15,
                       ),
                     ],
                   ),
@@ -93,57 +102,58 @@ class NeonTimerDial extends StatelessWidget {
               // Ring painter
               ExcludeSemantics(
                 child: CustomPaint(
-                  size: const Size(250, 250),
+                  size: Size(size, size),
                   painter: NeonProgressPainter(progress: progress),
                 ),
               ),
               // Center Time Display
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'DEEP WAVE BETA',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AxisColors.secondary,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  timeDisplay,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 52,
-                    fontWeight: FontWeight.bold,
-                    color: AxisColors.textHigh,
-                    letterSpacing: -2,
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AxisColors.surfaceHigh.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AxisColors.borderSubtle),
-                  ),
-                  child: Text(
-                    isBreak ? 'REBOOT BREAK' : 'QUANTUM 01/02',
-                    style: const TextStyle(
-                      fontSize: 10,
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isBreak ? 'REST & RECOVER' : (isRunning ? 'FLOW STATE ACTIVE' : 'DEEP WAVE BETA'),
+                    style: TextStyle(
+                      fontSize: size > 260 ? 12 : 11,
+                      color: isBreak ? AxisColors.warning : AxisColors.secondary,
                       fontWeight: FontWeight.bold,
-                      color: AxisColors.primarySoft,
-                      letterSpacing: 1.2,
+                      letterSpacing: 2,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(height: 4),
+                  Text(
+                    timeDisplay,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: AxisColors.textHigh,
+                      letterSpacing: -2,
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AxisColors.surfaceHigh.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AxisColors.borderSubtle),
+                    ),
+                    child: Text(
+                      isBreak ? 'REBOOT BREAK' : 'QUANTUM FOCUS',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: AxisColors.primarySoft,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      )),
+      ),
     );
   }
 }

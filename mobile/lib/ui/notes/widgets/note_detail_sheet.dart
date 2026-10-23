@@ -2,23 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/note_repository.dart';
+import 'package:axis/ui/common/axis_markdown_viewer.dart';
 
 /// Modal bottom sheet displaying detailed note view, markdown content, mood badge and edit/delete actions
-class NoteDetailSheet extends StatelessWidget {
+class NoteDetailSheet extends StatefulWidget {
   const NoteDetailSheet({
     super.key,
     required this.note,
     required this.onEdit,
     required this.onDelete,
+    this.onNoteUpdated,
   });
 
   final Note note;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final ValueChanged<Note>? onNoteUpdated;
+
+  @override
+  State<NoteDetailSheet> createState() => _NoteDetailSheetState();
+}
+
+class _NoteDetailSheetState extends State<NoteDetailSheet> {
+  late Note _note;
+
+  @override
+  void initState() {
+    super.initState();
+    _note = widget.note;
+  }
+
+  @override
+  void didUpdateWidget(covariant NoteDetailSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.note != oldWidget.note) {
+      _note = widget.note;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isJournal = note.category == 'journal';
+    final isJournal = _note.category == 'journal';
 
     return Container(
       constraints: BoxConstraints(
@@ -59,7 +83,7 @@ class NoteDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      note.category.toUpperCase(),
+                      _note.category.toUpperCase(),
                       style: const TextStyle(
                         color: AxisColors.secondary,
                         fontWeight: FontWeight.bold,
@@ -78,7 +102,7 @@ class NoteDetailSheet extends StatelessWidget {
                       tooltip: 'Edit Entry',
                       onPressed: () {
                         Navigator.pop(context);
-                        onEdit();
+                        widget.onEdit();
                       },
                     ),
                     IconButton(
@@ -87,7 +111,7 @@ class NoteDetailSheet extends StatelessWidget {
                       tooltip: 'Delete Entry',
                       onPressed: () {
                         Navigator.pop(context);
-                        onDelete();
+                        widget.onDelete();
                       },
                     ),
                   ],
@@ -96,7 +120,7 @@ class NoteDetailSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              note.title,
+              _note.title,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: AxisColors.textHigh,
                     fontWeight: FontWeight.bold,
@@ -104,13 +128,13 @@ class NoteDetailSheet extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              DateFormat('EEEE, d MMM yyyy • HH:mm').format(note.createdAt),
+              DateFormat('EEEE, d MMM yyyy • HH:mm').format(_note.createdAt),
               style: Theme.of(context)
                   .textTheme
                   .labelSmall
                   ?.copyWith(color: AxisColors.textMuted),
             ),
-            if (note.mood != null) ...[
+            if (_note.mood != null) ...[
               const SizedBox(height: 12),
               Container(
                 padding:
@@ -125,10 +149,10 @@ class NoteDetailSheet extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.bolt_rounded,
-                        size: 14, color: AxisColors.warning),
+                      size: 14, color: AxisColors.warning),
                     const SizedBox(width: 4),
                     Text(
-                      note.mood!,
+                      _note.mood!,
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
@@ -140,14 +164,14 @@ class NoteDetailSheet extends StatelessWidget {
               ),
             ],
             const Divider(color: AxisColors.borderSubtle, height: 28),
-            Text(
-              note.bodyMd.isEmpty
-                  ? 'No additional notes provided.'
-                  : note.bodyMd,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AxisColors.textHigh,
-                    height: 1.5,
-                  ),
+            AxisMarkdownViewer(
+              markdown: _note.bodyMd,
+              onMarkdownChanged: (updatedBody) async {
+                final updated = _note.copyWith(bodyMd: updatedBody);
+                setState(() => _note = updated);
+                await NoteRepository().updateNote(updated);
+                widget.onNoteUpdated?.call(updated);
+              },
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -155,7 +179,7 @@ class NoteDetailSheet extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  onEdit();
+                  widget.onEdit();
                 },
                 icon: const Icon(Icons.edit_outlined, size: 16),
                 label: const Text('Edit Entry'),

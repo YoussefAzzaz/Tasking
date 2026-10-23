@@ -8,6 +8,9 @@ import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 import 'package:axis/ui/tasks/widgets/project_selector_field.dart';
 import 'package:axis/ui/tasks/widgets/tag_selector_field.dart';
+import 'package:axis/ui/common/axis_markdown_viewer.dart';
+import 'package:axis/ui/common/markdown_list_text_input_formatter.dart';
+import 'package:axis/ui/notes/widgets/note_format_toolbar.dart';
 
 export 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 export 'package:axis/ui/tasks/widgets/project_selector_field.dart';
@@ -45,12 +48,14 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
 
   bool _showProjectDropdown = false;
   bool _showTagDropdown = false;
+  bool _previewDescMode = false;
+  bool _isDescExpanded = false;
 
   int? _priority = 1; // Default to P1
   String? _selectedProject;
   final Set<String> _selectedTags = {};
   DateTime? _selectedDate = DateTime.now();
-  TimeOfDay? _selectedTime;
+  int? _estimateMin;
   bool _saving = false;
   String? _errorText;
 
@@ -67,6 +72,9 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
       final t = widget.taskToEdit!;
       _titleController.text = t.title;
       _descController.text = t.notes ?? '';
+      if ((t.notes ?? '').trim().isNotEmpty) {
+        _isDescExpanded = true;
+      }
       _priority = t.priority ?? 1;
       _selectedProject = t.projectId;
       if (t.projectId != null) {
@@ -80,22 +88,29 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
       }
       _selectedDate =
           t.dueDate != null ? DateTime.tryParse(t.dueDate!) : null;
-      if (t.dueTime != null) {
-        final parts = t.dueTime!.split(':');
-        if (parts.length >= 2) {
-          final h = int.tryParse(parts[0]);
-          final m = int.tryParse(parts[1]);
-          if (h != null && m != null) {
-            _selectedTime = TimeOfDay(hour: h, minute: m);
-          }
-        }
-      }
+      _estimateMin = t.estimateMin;
     } else if (widget.initialProject != null &&
         widget.initialProject!.trim().isNotEmpty) {
       _selectedProject = widget.initialProject!.trim();
       _projectController.text = widget.initialProject!.trim();
     }
     _loadExistingData();
+
+    _descFocusNode.addListener(() {
+      if (_descFocusNode.hasFocus) {
+        if (!_isDescExpanded) {
+          setState(() {
+            _isDescExpanded = true;
+          });
+        }
+        if (_showProjectDropdown || _showTagDropdown) {
+          setState(() {
+            _showProjectDropdown = false;
+            _showTagDropdown = false;
+          });
+        }
+      }
+    });
 
     _projectFocusNode.addListener(() {
       if (_projectFocusNode.hasFocus) {
@@ -183,28 +198,340 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     }
   }
 
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
+  Future<void> _pickDuration() async {
+    int current = _estimateMin ?? 15;
+    final controller = TextEditingController(text: current.toString());
+
+    await showModalBottomSheet(
       context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-      builder: (context, child) {
-        return Theme(
-          data: AxisTheme.dark.copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AxisColors.primary,
-              onPrimary: AxisColors.textHigh,
-              surface: AxisColors.surfaceHigh,
-              onSurface: AxisColors.textHigh,
-            ),
-          ),
-          child: child!,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isMicro = current <= 15 && current > 0;
+            return Container(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              decoration: const BoxDecoration(
+                color: AxisColors.surfaceLow,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border(
+                  top: BorderSide(color: AxisColors.borderPrimary, width: 1.5),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AxisColors.borderSubtle,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (isMicro ? AxisColors.secondary : AxisColors.primary)
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          isMicro ? Icons.bolt_rounded : Icons.timer_outlined,
+                          color: isMicro ? AxisColors.secondary : AxisColors.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TASK DURATION TIMER',
+                              style: TextStyle(
+                                color: AxisColors.textHigh,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            Text(
+                              'Estimate how much time this task will take from you',
+                              style: TextStyle(
+                                color: AxisColors.textMuted,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Micro-slot indicator banner (≤ 15 min detection)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isMicro
+                          ? AxisColors.secondary.withValues(alpha: 0.15)
+                          : AxisColors.surfaceHigh.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isMicro
+                            ? AxisColors.secondary
+                            : AxisColors.borderSubtle,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isMicro
+                              ? Icons.bolt_rounded
+                              : Icons.hourglass_empty_rounded,
+                          color: isMicro
+                              ? AxisColors.secondary
+                              : AxisColors.textDim,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isMicro
+                                    ? '15M MICRO-SLOT READY (≤ 15 MIN)'
+                                    : 'STANDARD TASK (> 15 MIN)',
+                                style: TextStyle(
+                                  color: isMicro
+                                      ? AxisColors.secondary
+                                      : AxisColors.textHigh,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isMicro
+                                    ? 'Auto-scheduled in 15M Micro Slots on Today dashboard.'
+                                    : 'Scheduled in longer focus blocks and project sprints.',
+                                style: const TextStyle(
+                                  color: AxisColors.textMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Stepper & Large display
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton.filledTonal(
+                        onPressed: current > 5
+                            ? () {
+                                setModalState(() {
+                                  current = (current - 5).clamp(1, 360);
+                                  controller.text = current.toString();
+                                });
+                              }
+                            : null,
+                        icon: const Icon(Icons.remove_rounded),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AxisColors.surfaceHigh,
+                          foregroundColor: AxisColors.textHigh,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceHigh,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isMicro
+                                ? AxisColors.secondary
+                                : AxisColors.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$current',
+                              style: const TextStyle(
+                                color: AxisColors.textHigh,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'MIN',
+                              style: TextStyle(
+                                color: AxisColors.textMuted,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      IconButton.filledTonal(
+                        onPressed: () {
+                          setModalState(() {
+                            current = (current + 5).clamp(1, 360);
+                            controller.text = current.toString();
+                          });
+                        },
+                        icon: const Icon(Icons.add_rounded),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AxisColors.surfaceHigh,
+                          foregroundColor: AxisColors.textHigh,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Quick presets
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [5, 10, 15, 25, 30, 45, 60].map((m) {
+                      final isSelected = current == m;
+                      final isMicroPreset = m <= 15;
+                      return ChoiceChip(
+                        avatar: isMicroPreset
+                            ? const Icon(Icons.bolt_rounded,
+                                size: 14, color: AxisColors.secondary)
+                            : null,
+                        label: Text(
+                          m == 25 ? '25m (Pomo)' : '${m}m',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? (isMicroPreset
+                                    ? AxisColors.secondary
+                                    : AxisColors.primary)
+                                : AxisColors.textMuted,
+                          ),
+                        ),
+                        selected: isSelected,
+                        selectedColor: (isMicroPreset
+                                ? AxisColors.secondary
+                                : AxisColors.primary)
+                            .withValues(alpha: 0.2),
+                        backgroundColor:
+                            AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: isSelected
+                                ? (isMicroPreset
+                                    ? AxisColors.secondary
+                                    : AxisColors.primary)
+                                : AxisColors.borderSubtle,
+                          ),
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setModalState(() {
+                              current = m;
+                              controller.text = current.toString();
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() => _estimateMin = null);
+                            Navigator.pop(sheetCtx);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AxisColors.textDim,
+                            side: const BorderSide(
+                                color: AxisColors.borderSubtle),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Clear Timer'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() => _estimateMin = current);
+                            Navigator.pop(sheetCtx);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isMicro
+                                ? AxisColors.secondary
+                                : AxisColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Apply ${current}m Timer',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
-
-    if (picked != null) {
-      setState(() => _selectedTime = picked);
-    }
   }
 
   Future<void> _saveTask() async {
@@ -222,9 +549,6 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     final notes = _descController.text.trim();
     final dueDateStr = _selectedDate != null
         ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
-        : null;
-    final dueTimeStr = _selectedTime != null
-        ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
         : null;
 
     final allTags = Set<String>.from(_selectedTags);
@@ -276,8 +600,8 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
         projectId: project,
         tags: allTags.isEmpty ? null : allTags.join(','),
         dueDate: dueDateStr,
-        dueTime: dueTimeStr,
-        estimateMin: widget.taskToEdit!.estimateMin,
+        dueTime: widget.taskToEdit!.dueTime,
+        estimateMin: _estimateMin,
         recurrenceRule: widget.taskToEdit!.recurrenceRule,
         recurrenceMode: widget.taskToEdit!.recurrenceMode,
       );
@@ -299,7 +623,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
       projectId: project,
       tags: allTags.isEmpty ? null : allTags.join(','),
       dueDate: dueDateStr,
-      dueTime: dueTimeStr,
+      estimateMin: _estimateMin,
     );
 
     await TaskRepository().addTask(task);
@@ -453,44 +777,207 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Description / Notes
-                      const FieldLabel(label: 'DESCRIPTION & NOTES'),
-                      TextField(
-                        controller: _descController,
-                        focusNode: _descFocusNode,
-                        autofocus: false,
-                        maxLines: 3,
-                        style:
-                            Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AxisColors.textHigh,
+                      // Description / Notes (with Markup & Markdown support)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Expanded(
+                            child: FieldLabel(
+                                label: 'DESCRIPTION (MARKDOWN & LISTS)'),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  key: const ValueKey('desc_expand_toggle'),
+                                  onTap: () => setState(
+                                      () => _isDescExpanded = !_isDescExpanded),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: _isDescExpanded
+                                          ? AxisColors.primary
+                                              .withValues(alpha: 0.2)
+                                          : AxisColors.surfaceHigh
+                                              .withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: _isDescExpanded
+                                            ? AxisColors.primary
+                                                .withValues(alpha: 0.6)
+                                            : AxisColors.borderSubtle,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          _isDescExpanded
+                                              ? Icons.unfold_less_rounded
+                                              : Icons.unfold_more_rounded,
+                                          size: 13,
+                                          color: _isDescExpanded
+                                              ? AxisColors.primary
+                                              : AxisColors.textMuted,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _isDescExpanded ? 'Compact' : 'Expand',
+                                          style: TextStyle(
+                                            color: _isDescExpanded
+                                                ? AxisColors.primary
+                                                : AxisColors.textMuted,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                        cursorColor: AxisColors.primary,
-                        decoration: InputDecoration(
-                          hintText:
-                              'Add context, sub-items, or relevant links...',
-                          hintStyle: TextStyle(color: AxisColors.textDim),
-                          filled: true,
-                          fillColor:
-                              AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AxisColors.borderSubtle),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () => setState(
+                                      () => _previewDescMode = !_previewDescMode),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: _previewDescMode
+                                          ? AxisColors.secondary
+                                              .withValues(alpha: 0.25)
+                                          : AxisColors.surfaceHigh
+                                              .withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: _previewDescMode
+                                            ? AxisColors.secondary
+                                            : AxisColors.borderSubtle,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          _previewDescMode
+                                              ? Icons.edit_note_rounded
+                                              : Icons.visibility_outlined,
+                                          size: 13,
+                                          color: _previewDescMode
+                                              ? AxisColors.secondary
+                                              : AxisColors.textMuted,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _previewDescMode ? 'Edit' : 'Preview',
+                                          style: TextStyle(
+                                            color: _previewDescMode
+                                                ? AxisColors.secondary
+                                                : AxisColors.textMuted,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AxisColors.borderSubtle),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                                color: AxisColors.primary, width: 1.5),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
-                        ),
+                        ],
                       ),
+                      if (!_previewDescMode) ...[
+                        NoteFormatToolbar(
+                          controller: _descController,
+                          focusNode: _descFocusNode,
+                          onChanged: () => setState(() {}),
+                        ),
+                        TextField(
+                          controller: _descController,
+                          focusNode: _descFocusNode,
+                          autofocus: false,
+                          minLines: _isDescExpanded ? 8 : 3,
+                          maxLines: _isDescExpanded ? 24 : 5,
+                          scrollPadding: const EdgeInsets.only(bottom: 120),
+                          onTap: () {
+                            if (!_isDescExpanded) {
+                              setState(() => _isDescExpanded = true);
+                            }
+                          },
+                          inputFormatters: const [
+                            MarkdownListTextInputFormatter(),
+                          ],
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AxisColors.textHigh,
+                                  ),
+                          cursorColor: AxisColors.primary,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Add markdown formatted notes, lists (- or 1.), checklists (- [ ]), links...',
+                            hintStyle:
+                                const TextStyle(color: AxisColors.textDim),
+                            filled: true,
+                            fillColor:
+                                AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AxisColors.borderSubtle),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AxisColors.borderSubtle),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AxisColors.primary, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                          ),
+                        ),
+                      ] else ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          constraints: BoxConstraints(
+                            minHeight: _isDescExpanded ? 200 : 80,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AxisColors.surfaceHigh.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color:
+                                    AxisColors.secondary.withValues(alpha: 0.4)),
+                          ),
+                          child: _descController.text.trim().isEmpty
+                              ? const Text(
+                                  'Nothing to preview yet. Switch to Edit to write markdown notes.',
+                                  style: TextStyle(
+                                    color: AxisColors.textDim,
+                                    fontStyle: FontStyle.italic,
+                                    fontSize: 12,
+                                  ),
+                                )
+                              : AxisMarkdownViewer(
+                                  markdown: _descController.text,
+                                  onMarkdownChanged: (updatedDesc) {
+                                    setState(() {
+                                      _descController.text = updatedDesc;
+                                    });
+                                  },
+                                ),
+                        ),
+                      ],
                       const SizedBox(height: 18),
 
                       // Priority Selector
@@ -532,8 +1019,24 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Date & Time Picker
-                      const FieldLabel(label: 'DUE DATE & TIME'),
+                      // Date & Duration Timer Picker
+                      Row(
+                        children: [
+                          const Expanded(
+                            flex: 3,
+                            child: FieldLabel(label: 'DUE DATE'),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 3,
+                            child: FieldLabel(
+                              label: _estimateMin != null && _estimateMin! <= 15
+                                  ? 'TIMER (≤15M MICRO)'
+                                  : 'TASK DURATION (TIMER)',
+                            ),
+                          ),
+                        ],
+                      ),
                       Row(
                         children: [
                           Expanded(
@@ -595,9 +1098,9 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            flex: 2,
+                            flex: 3,
                             child: InkWell(
-                              onTap: _pickTime,
+                              onTap: _pickDuration,
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -607,39 +1110,46 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                                       .withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: _selectedTime != null
-                                        ? AxisColors.primary
+                                    color: _estimateMin != null
+                                        ? (_estimateMin! <= 15
+                                            ? AxisColors.secondary
+                                            : AxisColors.primary)
                                         : AxisColors.borderSubtle,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     Icon(
-                                      Icons.access_time_rounded,
+                                      _estimateMin != null && _estimateMin! <= 15
+                                          ? Icons.bolt_rounded
+                                          : Icons.timer_outlined,
                                       size: 18,
-                                      color: _selectedTime != null
-                                        ? AxisColors.primary
-                                        : AxisColors.textMuted,
+                                      color: _estimateMin != null
+                                          ? (_estimateMin! <= 15
+                                              ? AxisColors.secondary
+                                              : AxisColors.primary)
+                                          : AxisColors.textMuted,
                                     ),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
-                                        _selectedTime != null
-                                            ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
-                                            : 'Time',
+                                        _estimateMin != null
+                                            ? '$_estimateMin min'
+                                            : 'Set Timer',
                                         style: TextStyle(
-                                          color: _selectedTime != null
+                                          color: _estimateMin != null
                                               ? AxisColors.textHigh
                                               : AxisColors.textDim,
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    if (_selectedTime != null)
+                                    if (_estimateMin != null)
                                       GestureDetector(
                                         onTap: () => setState(
-                                            () => _selectedTime = null),
+                                            () => _estimateMin = null),
                                         child: const Icon(Icons.clear_rounded,
                                             size: 16,
                                             color: AxisColors.textDim),
@@ -650,6 +1160,65 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                             ),
                           ),
                         ],
+                      ),
+                      // Quick Duration Presets for 1-tap micro selection
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final min in [5, 10, 15, 25, 30, 45, 60]) ...[
+                              InkWell(
+                                onTap: () => setState(() => _estimateMin = min),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 9, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _estimateMin == min
+                                        ? (min <= 15
+                                            ? AxisColors.secondary.withValues(alpha: 0.25)
+                                            : AxisColors.primary.withValues(alpha: 0.25))
+                                        : AxisColors.surfaceHigh.withValues(alpha: 0.4),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: _estimateMin == min
+                                          ? (min <= 15
+                                              ? AxisColors.secondary
+                                              : AxisColors.primary)
+                                          : AxisColors.borderSubtle,
+                                      width: _estimateMin == min ? 1.5 : 1.0,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (min <= 15) ...[
+                                        const Icon(Icons.bolt_rounded,
+                                            size: 12,
+                                            color: AxisColors.secondary),
+                                        const SizedBox(width: 2),
+                                      ],
+                                      Text(
+                                        '${min}m',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: _estimateMin == min
+                                              ? FontWeight.bold
+                                              : FontWeight.w500,
+                                          color: _estimateMin == min
+                                              ? AxisColors.textHigh
+                                              : AxisColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 8),
 

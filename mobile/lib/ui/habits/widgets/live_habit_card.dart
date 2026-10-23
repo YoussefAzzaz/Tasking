@@ -198,12 +198,29 @@ class LiveHabitCard extends StatelessWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             if (habit.remindTime != null)
-                              Text(
-                                habit.remindTime!,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(color: AxisColors.textMuted),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.notifications_active_outlined,
+                                    size: 11,
+                                    color: isDone
+                                        ? AxisColors.textDim
+                                        : AxisColors.success,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    habit.remindTime!,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: isDone
+                                              ? AxisColors.textDim
+                                              : AxisColors.textMuted,
+                                        ),
+                                  ),
+                                ],
                               ),
                             if (habit.streakDays > 0)
                               Row(

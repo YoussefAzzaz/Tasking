@@ -5,6 +5,7 @@ import 'package:axis/core/widgets.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/focus/focus_screen.dart';
 import 'package:axis/ui/tasks/create_task_sheet.dart';
+import 'package:axis/ui/common/axis_markdown_viewer.dart';
 
 /// Task detail bottom sheet — glass tier 2, full DESIGN.md spec
 class TaskDetailSheet extends StatefulWidget {
@@ -168,12 +169,14 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: _task.notes != null && _task.notes!.trim().isNotEmpty
-                          ? SelectableText(
-                              _task.notes!,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AxisColors.textHigh,
-                                    height: 1.5,
-                                  ),
+                          ? AxisMarkdownViewer(
+                              markdown: _task.notes!,
+                              onMarkdownChanged: (updatedNotes) async {
+                                final updated = _task.copyWith(notes: updatedNotes);
+                                setState(() => _task = updated);
+                                await _repo.updateTask(updated);
+                                widget.onTaskUpdated?.call(updated);
+                              },
                             )
                           : InkWell(
                               onTap: _openEditTask,

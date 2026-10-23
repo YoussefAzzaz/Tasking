@@ -14,6 +14,8 @@ import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/network_service.dart';
 import 'package:axis/data/user_profile_repository.dart';
+import 'package:axis/data/focus_session_service.dart';
+// import 'package:axis/ui/desktop/desktop_command_center.dart';
 
 // Bottom nav slots (5 real tabs — Me is 5th)
 // Bar layout: Today | Tasks | [+] | Habits | Notes
@@ -63,6 +65,12 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Desktop layout toggle temporarily disabled pending redesign.
+    // final isDesktop = MediaQuery.of(context).size.width >= 960;
+    // if (isDesktop) {
+    //   return const DesktopCommandCenter();
+    // }
+
     return PopScope(
       canPop: navigationShell.currentIndex == 0,
       onPopInvokedWithResult: (didPop, result) {
@@ -80,6 +88,8 @@ class AppShell extends StatelessWidget {
               onAvatarTap: _openMe,
               isMeSelected: navigationShell.currentIndex == 4,
             ),
+            // Floating Focus Session Bar under the top header
+            const FloatingFocusSessionBar(),
             // Content is the IndexedStack keeping all branch states alive!
             Expanded(child: navigationShell),
           ],
@@ -89,6 +99,187 @@ class AppShell extends StatelessWidget {
           onTap: (barIdx) => _onTabTap(context, barIdx),
         ),
       ),
+    );
+  }
+}
+
+/// Floating persistent indicator shown under the top app header whenever a focus session is active
+class FloatingFocusSessionBar extends StatelessWidget {
+  const FloatingFocusSessionBar({super.key, this.onTap});
+  final VoidCallback? onTap;
+
+  void _handleTap(BuildContext context) {
+    if (onTap != null) {
+      onTap!();
+      return;
+    }
+    try {
+      context.push('/focus');
+    } catch (_) {
+      try {
+        router.push('/focus');
+      } catch (_) {
+        // Fallback or testing environment
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionService = FocusSessionService();
+
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        sessionService.isRunningNotifier,
+        sessionService.remainingSecondsNotifier,
+      ]),
+      builder: (context, _) {
+        final isRunning = sessionService.isRunning;
+        if (!isRunning) {
+          return const SizedBox.shrink();
+        }
+
+        final remaining = sessionService.remainingSeconds;
+        final minutes = remaining ~/ 60;
+        final seconds = remaining % 60;
+        final timeDisplay =
+            '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+        final attachedTask = sessionService.attachedTask;
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _handleTap(context),
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AxisColors.primary.withValues(alpha: 0.22),
+                      AxisColors.secondary.withValues(alpha: 0.18),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AxisColors.secondary.withValues(alpha: 0.45),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AxisColors.secondary.withValues(alpha: 0.14),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Pulsing amber/cyan live dot indicator
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AxisColors.secondary,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AxisColors.secondary.withValues(alpha: 0.8),
+                            blurRadius: 6,
+                            spreadRadius: 1.5,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Title and time
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Text(
+                            'FOCUS ACTIVE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.1,
+                              color: AxisColors.secondary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            timeDisplay,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AxisColors.textHigh,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          if (attachedTask != null) ...[
+                            const SizedBox(width: 8),
+                            const Text(
+                              '•',
+                              style: TextStyle(color: AxisColors.textDim, fontSize: 10),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                attachedTask.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AxisColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Return pill button
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AxisColors.secondary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AxisColors.secondary.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'RESUME',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AxisColors.secondary,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 12,
+                            color: AxisColors.secondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -9,6 +9,8 @@ import 'package:axis/data/neural_sound_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/ui/focus/focus_settings_sheet.dart';
+import 'package:axis/core/router.dart';
+import 'package:axis/data/habit_notification_service.dart';
 
 import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized;
 
@@ -51,6 +53,15 @@ class NotificationController {
       if (prayerId != null) {
         HabitRepository().toggleHabit(prayerId, true);
       }
+      final habitId = payload?['habit_id'];
+      if (habitId != null) {
+        HabitRepository().toggleHabit(habitId, true);
+        HabitNotificationService().onHabitCompletedToday(habitId);
+      }
+    } else if (key == 'OPEN_HABITS' || channelKey == 'habit_reminder_channel') {
+      try {
+        router.go('/habits');
+      } catch (_) {}
     }
   }
 
@@ -76,11 +87,14 @@ class NotificationController {
       try {
         if (key == 'DISMISS_FAJR_ALARM' || channelKey == 'fajr_alarm_channel') {
           AdhanAlarmService().stopAlarmSound();
-        } else if (key == 'MARK_DONE' && payload != null && payload['prayer_id'] != null) {
-          if (isDatabaseInitialized) {
-            await HabitRepository().toggleHabit(payload['prayer_id']!, true);
-          } else {
-            debugPrint('[NotificationController] Background isolate skipped direct DB write: DB not initialized in isolate');
+        } else if (key == 'MARK_DONE' && payload != null) {
+          final targetId = payload['habit_id'] ?? payload['prayer_id'];
+          if (targetId != null) {
+            if (isDatabaseInitialized) {
+              await HabitRepository().toggleHabit(targetId, true);
+            } else {
+              debugPrint('[NotificationController] Background isolate skipped direct DB write: DB not initialized in isolate');
+            }
           }
         }
       } catch (e) {
@@ -95,7 +109,18 @@ class NotificationController {
 
   @pragma("vm:entry-point")
   static Future<void> onNotificationDisplayedMethod(
-      ReceivedNotification receivedNotification) async {}
+      ReceivedNotification receivedNotification) async {
+    if (receivedNotification.channelKey == 'habit_reminder_channel') {
+      final habitId = receivedNotification.payload?['habit_id'];
+      if (habitId != null) {
+        final isDone =
+            await HabitNotificationService().isHabitCompletedToday(habitId);
+        if (isDone && receivedNotification.id != null) {
+          await AwesomeNotifications().dismiss(receivedNotification.id!);
+        }
+      }
+    }
+  }
 
   @pragma("vm:entry-point")
   static Future<void> onDismissActionReceivedMethod(
@@ -121,7 +146,7 @@ class FocusSessionService with WidgetsBindingObserver {
   Task? _attachedTask;
   Task? get attachedTask => _attachedTask;
 
-  String _selectedSoundscape = 'Deep Theta 40Hz';
+  String _selectedSoundscape = 'Gentle Rain';
   String get selectedSoundscape => _selectedSoundscape;
 
   int _totalSeconds = 25 * 60;
@@ -144,7 +169,7 @@ class FocusSessionService with WidgetsBindingObserver {
   final ValueNotifier<bool> isRunningNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<Task?> attachedTaskNotifier = ValueNotifier<Task?>(null);
   final ValueNotifier<String> soundscapeNotifier =
-      ValueNotifier<String>('Deep Theta 40Hz');
+      ValueNotifier<String>('Gentle Rain');
   final ValueNotifier<FocusSessionConfig> configNotifier =
       ValueNotifier<FocusSessionConfig>(const FocusSessionConfig());
 
@@ -206,6 +231,17 @@ class FocusSessionService with WidgetsBindingObserver {
             playSound: true,
             enableVibration: true,
             criticalAlerts: true,
+          ),
+          NotificationChannel(
+            channelKey: HabitNotificationService.channelKey,
+            channelName: 'Habit Reminders',
+            channelDescription:
+                'Notifications for upcoming habits (10m and 5m before scheduled time)',
+            defaultColor: const Color(0xFF10B981),
+            importance: NotificationImportance.High,
+            channelShowBadge: true,
+            playSound: true,
+            enableVibration: true,
           ),
         ],
         debug: false,
@@ -355,6 +391,18 @@ class FocusSessionService with WidgetsBindingObserver {
     _targetEndTime = null;
     _soundService.stop();
     _showPinnedNotification(isPaused: true);
+  }
+
+  void addSeconds(int seconds) {
+    _remainingSeconds += seconds;
+    _totalSeconds += seconds;
+    if (_isRunning && _targetEndTime != null) {
+      _targetEndTime = _targetEndTime!.add(Duration(seconds: seconds));
+    }
+    remainingSecondsNotifier.value = _remainingSeconds;
+    if (_isRunning) {
+      _showPinnedNotification();
+    }
   }
 
   void resetTimer({int? minutes}) {

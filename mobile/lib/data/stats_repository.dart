@@ -5,6 +5,7 @@ import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/gamification_engine.dart';
 import 'package:axis/domain/streak_engine.dart';
+import 'package:axis/data/habit_repository.dart';
 
 /// Immutable model representing user gamification and productivity statistics.
 class UserStats {
@@ -147,18 +148,10 @@ class StatsRepository {
       debugPrint('[StatsRepository] Error querying focus session XP: $e');
     }
 
-    // 3. Compute streak days from habit logs
+    // 3. Compute streak days from habit logs (only when all scheduled habits completed)
     int streakDays = 0;
     try {
-      final habitLogQuery = uid.isNotEmpty
-          ? 'SELECT log_date, status FROM habit_logs WHERE user_id = ? ORDER BY log_date DESC LIMIT 365'
-          : 'SELECT log_date, status FROM habit_logs ORDER BY log_date DESC LIMIT 365';
-      final habitLogParams = uid.isNotEmpty ? [uid] : <dynamic>[];
-      final habitLogRows = await db.getAll(habitLogQuery, habitLogParams);
-
-      final streakLogs = habitLogRows
-          .map((r) => StreakLog(r['log_date'] as String, r['status'] as String))
-          .toList();
+      final streakLogs = await HabitRepository().getDailyStreakLogs();
       streakDays = StreakEngine.calculateStreak('daily', streakLogs, todayStr);
     } catch (e) {
       debugPrint('[StatsRepository] Error calculating habit streak days: $e');

@@ -15,6 +15,7 @@ class ProjectBigTaskCard extends StatefulWidget {
     required this.projectRepo,
     required this.onAddSubtask,
     this.onDelete,
+    this.forceExpand = false,
   });
 
   final Project project;
@@ -24,6 +25,7 @@ class ProjectBigTaskCard extends StatefulWidget {
   final ProjectRepository projectRepo;
   final VoidCallback onAddSubtask;
   final VoidCallback? onDelete;
+  final bool forceExpand;
 
   @override
   State<ProjectBigTaskCard> createState() => _ProjectBigTaskCardState();
@@ -31,6 +33,14 @@ class ProjectBigTaskCard extends StatefulWidget {
 
 class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
   bool _expanded = true;
+
+  @override
+  void didUpdateWidget(covariant ProjectBigTaskCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.forceExpand && !_expanded) {
+      _expanded = true;
+    }
+  }
 
   Color _getPriorityColor(int priority) {
     switch (priority) {
@@ -222,11 +232,14 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                 );
                               },
                             ),
-                          Icon(
-                            _expanded
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            color: AxisColors.textMuted,
+                          AnimatedRotation(
+                            turns: _expanded ? 0.5 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                            child: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AxisColors.textMuted,
+                            ),
                           ),
                         ],
                       ),
@@ -279,9 +292,19 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
             ),
           ),
 
-          // Subtasks breakdown
-          if (_expanded) ...[
-            const Divider(color: AxisColors.borderSubtle, height: 1),
+          // Subtasks breakdown (animated expand and shrink)
+          ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOutCubic,
+              alignment: Alignment.topCenter,
+              child: ExcludeSemantics(
+                excluding: !_expanded,
+                child: _expanded
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                        const Divider(color: AxisColors.borderSubtle, height: 1),
             if (sortedSubtasks.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -428,7 +451,12 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                 ),
               ),
             ),
-          ],
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+              ),
+            ),
+          ),
         ],
       ),
     );

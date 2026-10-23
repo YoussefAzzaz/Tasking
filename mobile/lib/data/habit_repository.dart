@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/cache/cache_service.dart';
@@ -6,6 +7,7 @@ import 'package:axis/domain/id_generator.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/stats_repository.dart';
 import 'package:axis/domain/streak_engine.dart';
+import 'package:axis/data/habit_notification_service.dart';
 
 export 'package:axis/domain/streak_engine.dart' show StreakLog;
 
@@ -73,6 +75,39 @@ class Habit {
 class HabitRepository {
   String _todayStr() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
+  /// Parses human-readable time strings like '07:30 AM', '2:15 PM', or '14:00' into minutes from midnight.
+  /// If null or unparseable, returns a large sentinel (1440 + 999) so unscheduled habits sort to the end.
+  static int parseTimeToMinutes(String? timeStr) {
+    if (timeStr == null || timeStr.trim().isEmpty) {
+      return 24 * 60 + 999;
+    }
+    final clean = timeStr.trim().toUpperCase();
+    try {
+      final isPm = clean.contains('PM');
+      final isAm = clean.contains('AM');
+      final stripped = clean.replaceAll('AM', '').replaceAll('PM', '').trim();
+      final parts = stripped.split(':');
+      if (parts.length >= 2) {
+        int hour = int.parse(parts[0].trim());
+        final minute = int.parse(parts[1].trim());
+        if (isPm && hour != 12) hour += 12;
+        if (isAm && hour == 12) hour = 0;
+        return (hour * 60) + minute;
+      }
+    } catch (_) {}
+    return 24 * 60 + 999;
+  }
+
+  /// Chronological comparator for habits based on time of day (remindTime).
+  /// Habits with earlier times come first; ties are broken by sortOrder, then name.
+  static int compareByTime(Habit a, Habit b) {
+    final timeA = parseTimeToMinutes(a.remindTime);
+    final timeB = parseTimeToMinutes(b.remindTime);
+    if (timeA != timeB) return timeA.compareTo(timeB);
+    if (a.sortOrder != b.sortOrder) return a.sortOrder.compareTo(b.sortOrder);
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  }
+
   /// Returns the cycle start date ('yyyy-MM-dd') for a habit based on its scheduleType.
   /// - 'daily' & 'weekdays': resets at 00:00 every day (start = todayStr).
   /// - 'weekly': resets every Friday at 00:00.
@@ -107,15 +142,20 @@ class HabitRepository {
   }
 
   Stream<List<Habit>> watchHabits() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const <Habit>[]);
+    }
     final now = DateTime.now();
     final uid = currentUserId;
 
     final query = uid.isNotEmpty
-        ? 'SELECT * FROM habits '
-          'WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') '
-          'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC'
-        : 'SELECT * FROM habits '
-          'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC';
+        ? 'SELECT DISTINCT h.* FROM habits h '
+          'LEFT JOIN habit_logs hl ON hl.habit_id = h.id '
+          'WHERE (h.user_id = ? OR h.user_id IS NULL OR h.user_id = \'\') '
+          'ORDER BY COALESCE(h.sort_order, 999) ASC, h.created_at ASC'
+        : 'SELECT DISTINCT h.* FROM habits h '
+          'LEFT JOIN habit_logs hl ON hl.habit_id = h.id '
+          'ORDER BY COALESCE(h.sort_order, 999) ASC, h.created_at ASC';
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
 
     return db
@@ -242,6 +282,7 @@ class HabitRepository {
       debugPrint('[HabitRepository] Error adding habit: $e');
     }
     AppWidgetSyncService().syncHabitStreak();
+    unawaited(HabitNotificationService().scheduleHabitReminders(habit));
   }
 
   Future<void> updateHabit(Habit habit) async {
@@ -271,6 +312,7 @@ class HabitRepository {
       debugPrint('[HabitRepository] Error updating habit: $e');
     }
     AppWidgetSyncService().syncHabitStreak();
+    unawaited(HabitNotificationService().scheduleHabitReminders(habit));
   }
 
   Future<void> toggleHabit(String habitId, bool done) async {
@@ -311,6 +353,8 @@ class HabitRepository {
             ) VALUES (?, ?, ?, 'habit_completed', 20, ?)
           ''', [logEventId, uid, habitId, nowUtc]);
         }
+
+        await db.execute('UPDATE habits SET updated_at = ? WHERE id = ?', [nowUtc, habitId]);
       } catch (e) {
         debugPrint('[HabitRepository] Error toggling habit on: $e');
       }
@@ -333,6 +377,8 @@ class HabitRepository {
           "DELETE FROM logs WHERE id = ? OR (task_id = ? AND event_type = 'habit_completed' AND timestamp >= ?)",
           [logEventId, habitId, cycleStart],
         );
+
+        await db.execute('UPDATE habits SET updated_at = ? WHERE id = ?', [nowUtc, habitId]);
       } catch (e) {
         debugPrint('[HabitRepository] Error toggling habit off: $e');
       }
@@ -342,6 +388,10 @@ class HabitRepository {
       await syncGlobalUserLevel();
     } catch (e) {
       debugPrint('[HabitRepository] Error syncing global user level: $e');
+    }
+
+    if (done) {
+      unawaited(HabitNotificationService().onHabitCompletedToday(habitId));
     }
 
     AppWidgetSyncService().syncHabitStreak();
@@ -358,20 +408,148 @@ class HabitRepository {
       debugPrint('[HabitRepository] Error deleting habit: $e');
     }
     AppWidgetSyncService().syncHabitStreak();
+    unawaited(HabitNotificationService().cancelHabitReminders(habitId));
   }
 
-  /// Watches streak logs with optimized indexed query
+  /// Computes the daily completion status for each date based on whether
+  /// ALL scheduled habits were completed on that date.
+  /// A date is 'done' if and only if all user habits scheduled on that date have status 'done'.
+  static List<StreakLog> computeDailyStreakLogs({
+    required List<Map<String, dynamic>> habits,
+    required List<Map<String, dynamic>> habitLogs,
+  }) {
+    // 1. Exclude legacy prayer records if any remain in habits
+    final validHabits = habits.where((h) {
+      final id = (h['id'] as String? ?? '').toLowerCase();
+      final kind = (h['kind'] as String? ?? '').toLowerCase();
+      return !id.startsWith('prayer_') &&
+          !id.startsWith('habit_prayer_') &&
+          kind != 'prayers';
+    }).toList();
+
+    if (validHabits.isEmpty) {
+      return const [];
+    }
+
+    final validHabitIds = validHabits.map((h) => h['id'] as String).toSet();
+
+    // 2. Group done logs by habit_id -> Set of log_date strings
+    final doneDatesByHabit = <String, Set<String>>{};
+    final allDatesWithActivity = <String>{};
+
+    for (final row in habitLogs) {
+      final status = (row['status'] as String? ?? '').toLowerCase();
+      final habitId = row['habit_id'] as String? ?? '';
+      final logDate = row['log_date'] as String? ?? '';
+      if (status == 'done' &&
+          validHabitIds.contains(habitId) &&
+          logDate.isNotEmpty) {
+        doneDatesByHabit.putIfAbsent(habitId, () => {}).add(logDate);
+        allDatesWithActivity.add(logDate);
+      }
+    }
+
+    if (allDatesWithActivity.isEmpty) {
+      return const [];
+    }
+
+    final result = <StreakLog>[];
+
+    for (final dateStr in allDatesWithActivity) {
+      final date = DateTime.tryParse(dateStr);
+      if (date == null) continue;
+
+      bool allHabitsDoneOnDate = true;
+      int scheduledCount = 0;
+
+      for (final h in validHabits) {
+        final id = h['id'] as String;
+        final createdAtStr = h['created_at'] as String?;
+
+        // Check if habit existed on dateStr
+        if (createdAtStr != null && createdAtStr.isNotEmpty) {
+          final createdDateStr = createdAtStr.length >= 10
+              ? createdAtStr.substring(0, 10)
+              : '';
+          if (createdDateStr.isNotEmpty && createdDateStr.compareTo(dateStr) > 0) {
+            // Habit created after this date, not required
+            continue;
+          }
+        }
+
+        final sched =
+            (h['schedule_type'] as String?)?.toLowerCase().trim() ?? 'daily';
+
+        if (sched == 'weekdays') {
+          if (date.weekday == DateTime.saturday ||
+              date.weekday == DateTime.sunday) {
+            // Weekday habit not scheduled on weekend
+            continue;
+          }
+        }
+
+        scheduledCount++;
+
+        final cycleStart = calculateCycleStartDate(
+          scheduleType: sched,
+          now: date,
+          createdAtStr: createdAtStr,
+        );
+
+        final doneDates = doneDatesByHabit[id] ?? const {};
+        // Habit is done if it has a completed log between cycleStart and dateStr
+        final isDone = doneDates.any(
+            (d) => d.compareTo(cycleStart) >= 0 && d.compareTo(dateStr) <= 0);
+
+        if (!isDone) {
+          allHabitsDoneOnDate = false;
+          break;
+        }
+      }
+
+      if (scheduledCount > 0 && allHabitsDoneOnDate) {
+        result.add(StreakLog(dateStr, 'done'));
+      }
+    }
+
+    result.sort((a, b) => b.date.compareTo(a.date));
+    return result;
+  }
+
+  /// Fetches daily streak logs where each date is 'done' only if all scheduled habits are completed.
+  Future<List<StreakLog>> getDailyStreakLogs() async {
+    final uid = currentUserId;
+    final habitsQuery = uid.isNotEmpty
+        ? 'SELECT id, kind, schedule_type, created_at FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\')'
+        : 'SELECT id, kind, schedule_type, created_at FROM habits';
+    final habitsParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+    final habitRows = await db.getAll(habitsQuery, habitsParams);
+
+    final logsQuery = uid.isNotEmpty
+        ? 'SELECT habit_id, log_date, status FROM habit_logs WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') AND status = ?'
+        : 'SELECT habit_id, log_date, status FROM habit_logs WHERE status = ?';
+    final logsParams = uid.isNotEmpty ? [uid, 'done'] : ['done'];
+    final logRows = await db.getAll(logsQuery, logsParams);
+
+    return computeDailyStreakLogs(
+      habits: habitRows,
+      habitLogs: logRows,
+    );
+  }
+
+  /// Watches streak logs reactively, updating when habits or habit_logs change,
+  /// ensuring each date is only counted as 'done' when all scheduled habits are completed.
   Stream<List<StreakLog>> watchStreakLogs() {
     final uid = currentUserId;
-    final query = uid.isNotEmpty
-        ? 'SELECT log_date, status FROM habit_logs WHERE user_id = ? ORDER BY log_date DESC'
-        : 'SELECT log_date, status FROM habit_logs ORDER BY log_date DESC';
-    final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+    final watchQuery = uid.isNotEmpty
+        ? 'SELECT id FROM habit_logs WHERE user_id = ? OR user_id IS NULL OR user_id = \'\' '
+          'UNION ALL '
+          'SELECT id FROM habits WHERE user_id = ? OR user_id IS NULL OR user_id = \'\''
+        : 'SELECT id FROM habit_logs UNION ALL SELECT id FROM habits';
+    final watchParams = uid.isNotEmpty ? [uid, uid] : <dynamic>[];
 
-    return db
-        .watch(query, parameters: params)
-        .map((rows) => rows
-            .map((r) => StreakLog(r['log_date'] as String, r['status'] as String))
-            .toList());
+    return db.watch(watchQuery, parameters: watchParams).asyncMap((_) async {
+      return getDailyStreakLogs();
+    });
   }
 }

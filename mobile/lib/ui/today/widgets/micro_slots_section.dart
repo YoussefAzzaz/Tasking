@@ -23,20 +23,26 @@ class MicroSlotsSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: AxisColors.secondary,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '15M MICRO SLOTS',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
+            Expanded(
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AxisColors.secondary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '15M MICRO SLOTS',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             InkWell(
               borderRadius: BorderRadius.circular(6),
               onTap: () {

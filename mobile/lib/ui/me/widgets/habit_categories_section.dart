@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/ui/common/cyber_color_picker.dart';
 
 /// Section managing custom habit categories with add and delete capabilities
 class HabitCategoriesSection extends StatelessWidget {
@@ -90,38 +91,73 @@ class HabitCategoriesSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    '#10B981',
-                    '#38BDF8',
-                    '#6366F1',
-                    '#F59E0B',
-                    '#EC4899',
-                  ].map((hex) {
-                    final col = _parseHex(hex);
-                    final isSel = selectedColor == hex;
-                    return InkWell(
-                      onTap: () => setDlgState(() => selectedColor = hex),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: col,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSel ? Colors.white : Colors.transparent,
-                            width: 2,
+                Builder(
+                  builder: (context) {
+                    const presetList = [
+                      '#10B981',
+                      '#38BDF8',
+                      '#6366F1',
+                      '#F59E0B',
+                      '#EC4899',
+                    ];
+                    final isCustom = !presetList.any(
+                        (p) => p.toUpperCase() == selectedColor.toUpperCase());
+
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        ...presetList.map((hex) {
+                          final col = _parseHex(hex);
+                          final isSel =
+                              selectedColor.toUpperCase() == hex.toUpperCase();
+                          return InkWell(
+                            onTap: () => setDlgState(() => selectedColor = hex),
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: col,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color:
+                                      isSel ? Colors.white : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: isSel
+                                  ? const Icon(Icons.check,
+                                      size: 16, color: Colors.white)
+                                  : null,
+                            ),
+                          );
+                        }),
+                        if (isCustom)
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: _parseHex(selectedColor),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2,
+                              ),
+                            ),
+                            child: const Icon(Icons.check,
+                                size: 16, color: Colors.white),
                           ),
+                        RainbowColorPickerButton(
+                          selectedColor: selectedColor,
+                          size: 28,
+                          borderWidth: 2.0,
+                          onColorSelected: (newHex) {
+                            setDlgState(() => selectedColor = newHex);
+                          },
                         ),
-                        child: isSel
-                            ? const Icon(Icons.check,
-                                size: 16, color: Colors.white)
-                            : null,
-                      ),
+                      ],
                     );
-                  }).toList(),
+                  },
                 ),
               ],
             ),

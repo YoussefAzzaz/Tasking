@@ -16,19 +16,9 @@ class UserMetricsService {
 
   static const String _cacheKey = 'user_productivity_metrics_snapshot';
 
-  /// Ensures high-performance covering indexes exist in SQLite
+  /// Indexes are defined and managed natively by PowerSync Schema (appSchema)
   Future<void> ensureCoveringIndexes() async {
-    if (!isDatabaseInitialized) return;
-    try {
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user_status ON tasks(user_id, status)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user_status_priority ON tasks(user_id, status, priority)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_focus_user_completed ON focus_sessions(user_id, completed, actual_min)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_habit_logs_user_status ON habit_logs(user_id, status)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_user_pinned ON notes(user_id, pinned)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_prayers_user_done ON prayers(user_id, is_done)');
-    } catch (e) {
-      debugPrint('[UserMetricsService] Notice creating covering indexes: $e');
-    }
+    // Managed natively via PowerSync appSchema Table indexes
   }
 
   /// Fetches a consolidated UserProductivityMetrics snapshot using single-pass aggregation

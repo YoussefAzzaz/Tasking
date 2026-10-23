@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/domain/id_generator.dart';
+import 'package:axis/ui/common/cyber_color_picker.dart';
 
 class CreateProjectSheet extends StatefulWidget {
   const CreateProjectSheet({super.key, required this.onProjectCreated});
@@ -228,44 +229,84 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
                           child: Row(
-                            children: _palette.map((item) {
-                              final hex = item['hex'] as String;
-                              final color = item['color'] as Color;
-                              final isSelected = _selectedColor == hex;
+                            children: [
+                              ..._palette.map((item) {
+                                final hex = item['hex'] as String;
+                                final color = item['color'] as Color;
+                                final isSelected = _selectedColor.toUpperCase() == hex.toUpperCase();
 
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: InkWell(
-                                  onTap: () => setState(() => _selectedColor = hex),
-                                  borderRadius: BorderRadius.circular(20),
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 12),
+                                  child: InkWell(
+                                    onTap: () => setState(() => _selectedColor = hex),
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 180),
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: color.withValues(alpha: isSelected ? 0.35 : 0.15),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isSelected ? color : AxisColors.borderSubtle,
+                                          width: isSelected ? 2.5 : 1,
+                                        ),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: color.withValues(alpha: 0.4),
+                                                  blurRadius: 10,
+                                                  spreadRadius: 1,
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: isSelected
+                                          ? Icon(Icons.check_rounded, color: color, size: 20)
+                                          : null,
+                                    ),
+                                  ),
+                                );
+                              }),
+                              // If user picked a custom color not in presets, display it as selected
+                              if (!_palette.any((p) => (p['hex'] as String).toUpperCase() == _selectedColor.toUpperCase())) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 12),
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 180),
                                     width: 42,
                                     height: 42,
                                     decoration: BoxDecoration(
-                                      color: color.withValues(alpha: isSelected ? 0.35 : 0.15),
+                                      color: _parseHex(_selectedColor).withValues(alpha: 0.35),
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: isSelected ? color : AxisColors.borderSubtle,
-                                        width: isSelected ? 2.5 : 1,
+                                        color: _parseHex(_selectedColor),
+                                        width: 2.5,
                                       ),
-                                      boxShadow: isSelected
-                                          ? [
-                                              BoxShadow(
-                                                color: color.withValues(alpha: 0.4),
-                                                blurRadius: 10,
-                                                spreadRadius: 1,
-                                              ),
-                                            ]
-                                          : null,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: _parseHex(_selectedColor).withValues(alpha: 0.4),
+                                          blurRadius: 10,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
                                     ),
-                                    child: isSelected
-                                        ? Icon(Icons.check_rounded, color: color, size: 20)
-                                        : null,
+                                    child: Icon(Icons.check_rounded, color: _parseHex(_selectedColor), size: 20),
                                   ),
                                 ),
-                              );
-                            }).toList(),
+                              ],
+                              // Rainbow custom color picker button
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: RainbowColorPickerButton(
+                                  selectedColor: _selectedColor,
+                                  size: 42,
+                                  onColorSelected: (newHex) {
+                                    setState(() => _selectedColor = newHex);
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 24),

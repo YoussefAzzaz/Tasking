@@ -148,5 +148,103 @@ void main() {
       expect(prayer.isDone, false);
       expect(prayer.prayerCode, 'fajr');
     });
+
+    test('Prayer.fromRow preserves isDone when completed today or synced via habit_logs', () {
+      final now = DateTime.now();
+      final todayIso = now.toUtc().toIso8601String();
+
+      // Checked today directly on prayers table
+      final todayRow = {
+        'id': 'prayer_user1_fajr',
+        'user_id': 'user1',
+        'prayer_code': 'fajr',
+        'name': 'Fajr',
+        'icon': 'fajr',
+        'time': '05:30 AM',
+        'sort_order': 1,
+        'is_done': 1,
+        'created_at': todayIso,
+        'updated_at': todayIso,
+      };
+      final prayerToday = Prayer.fromRow(todayRow);
+      expect(prayerToday.isDone, true);
+
+      // Synced from second device via habit_logs today_log_status
+      final syncedRow = {
+        'id': 'prayer_user1_fajr',
+        'user_id': 'user1',
+        'prayer_code': 'fajr',
+        'name': 'Fajr',
+        'icon': 'fajr',
+        'time': '05:30 AM',
+        'sort_order': 1,
+        'is_done': 0, // Even if local prayer row hasn't updated yet
+        'created_at': '2026-10-20T05:00:00Z',
+        'updated_at': '2026-10-20T05:00:00Z',
+        'today_log_status': 'done', // Synced today log
+      };
+      final prayerSynced = Prayer.fromRow(syncedRow);
+      expect(prayerSynced.isDone, true);
+    });
+
+    test('computeDailyStreakLogs requires ALL scheduled habits done before day counts', () {
+      final habits = [
+        {'id': 'h1', 'schedule_type': 'daily', 'created_at': '2026-10-01T00:00:00Z'},
+        {'id': 'h2', 'schedule_type': 'daily', 'created_at': '2026-10-01T00:00:00Z'},
+        {'id': 'h3', 'schedule_type': 'daily', 'created_at': '2026-10-01T00:00:00Z'},
+      ];
+
+      // Day 1: Only 1 habit done -> NOT done
+      final logsOnlyOne = [
+        {'habit_id': 'h1', 'log_date': '2026-10-22', 'status': 'done'},
+      ];
+      final resultOne = HabitRepository.computeDailyStreakLogs(
+        habits: habits,
+        habitLogs: logsOnlyOne,
+      );
+      expect(resultOne, isEmpty);
+
+      // Day 1: 2 habits done out of 3 -> NOT done
+      final logsTwo = [
+        {'habit_id': 'h1', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'h2', 'log_date': '2026-10-22', 'status': 'done'},
+      ];
+      final resultTwo = HabitRepository.computeDailyStreakLogs(
+        habits: habits,
+        habitLogs: logsTwo,
+      );
+      expect(resultTwo, isEmpty);
+
+      // Day 1: All 3 habits done -> DONE!
+      final logsAll = [
+        {'habit_id': 'h1', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'h2', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'h3', 'log_date': '2026-10-22', 'status': 'done'},
+      ];
+      final resultAll = HabitRepository.computeDailyStreakLogs(
+        habits: habits,
+        habitLogs: logsAll,
+      );
+      expect(resultAll.length, 1);
+      expect(resultAll.first.date, '2026-10-22');
+      expect(resultAll.first.status, 'done');
+    });
+
+    test('Prayer logs do not pollute habit tracker streak', () {
+      final habits = [
+        {'id': 'h1', 'schedule_type': 'daily', 'created_at': '2026-10-01T00:00:00Z'},
+      ];
+
+      // User checked Fajr prayer at 6 AM, but did not do h1 yet
+      final logsWithPrayerOnly = [
+        {'habit_id': 'prayer_user1_fajr', 'log_date': '2026-10-22', 'status': 'done'},
+      ];
+      final result = HabitRepository.computeDailyStreakLogs(
+        habits: habits,
+        habitLogs: logsWithPrayerOnly,
+      );
+      // Streak logs must remain empty because user habit h1 was not done!
+      expect(result, isEmpty);
+    });
   });
 }

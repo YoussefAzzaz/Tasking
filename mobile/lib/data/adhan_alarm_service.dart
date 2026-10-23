@@ -23,6 +23,7 @@ class AdhanAlarmService {
   bool _adhanNotificationsEnabled = true;
   bool _fajrAlarmEnabled = true;
   AudioPlayer? _alarmPlayer;
+  Process? _alarmProcess;
   Timer? _vibrationTimer;
   bool _isAlarmRinging = false;
   bool _isModalShowing = false;
@@ -310,9 +311,24 @@ class AdhanAlarmService {
 
     try {
       final wavFile = await _getOrGenerateAlarmWav();
-      _alarmPlayer ??= AudioPlayer();
-      await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
-      await _alarmPlayer!.play(DeviceFileSource(wavFile.path));
+      if (Platform.isWindows) {
+        final path = wavFile.path.replaceAll('/', '\\');
+        _alarmProcess = await Process.start(
+          'powershell',
+          [
+            '-WindowStyle',
+            'Hidden',
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            "\$sp = New-Object System.Media.SoundPlayer '$path'; \$sp.PlayLooping(); while(\$true){ Start-Sleep -Seconds 1 }",
+          ],
+        );
+      } else {
+        _alarmPlayer ??= AudioPlayer();
+        await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
+        await _alarmPlayer!.play(DeviceFileSource(wavFile.path));
+      }
     } catch (e) {
       debugPrint('[AdhanAlarmService] startAlarmSound error: $e');
     }
@@ -329,10 +345,19 @@ class AdhanAlarmService {
     _vibrationTimer?.cancel();
     _vibrationTimer = null;
 
-    try {
-      await _alarmPlayer?.stop();
-    } catch (e) {
-      debugPrint('[AdhanAlarmService] stopAlarmSound error: $e');
+    if (_alarmProcess != null) {
+      try {
+        _alarmProcess!.kill();
+      } catch (_) {}
+      _alarmProcess = null;
+    }
+
+    if (!Platform.isWindows && _alarmPlayer != null) {
+      try {
+        await _alarmPlayer?.stop();
+      } catch (e) {
+        debugPrint('[AdhanAlarmService] stopAlarmSound error: $e');
+      }
     }
 
     await AwesomeNotifications().cancel(9991);

@@ -9,6 +9,7 @@ import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
+import 'package:axis/data/habit_notification_service.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:axis/data/network_service.dart';
@@ -72,6 +73,9 @@ Future<void> _initBackgroundServices() async {
     })),
     Future(() => PrayerTimeService().init().catchError((e) {
       debugPrint('[Background] PrayerTimeService init error: $e');
+    })),
+    Future(() => HabitNotificationService().init().catchError((e) {
+      debugPrint('[Background] HabitNotificationService init error: $e');
     })),
     Future(() {
       AppWidgetSyncService().syncAll();

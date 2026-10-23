@@ -6,21 +6,42 @@ import 'package:axis/core/widgets.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/data/stats_repository.dart';
-import 'package:axis/data/network_service.dart';
+import 'package:axis/data/mastery_badge_repository.dart';
 import 'package:axis/domain/gamification_engine.dart';
+import 'package:axis/ui/me/widgets/me_sections.dart' show BadgeDetailSheet;
 import 'package:axis/ui/tasks/create_task_sheet.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
 import 'package:axis/ui/today/widgets/xp_cockpit_card.dart';
 import 'package:axis/ui/today/widgets/micro_slots_section.dart';
 import 'package:axis/ui/today/widgets/priority_task_card.dart';
+import 'package:axis/ui/today/widgets/next_milestones_card.dart';
+import 'package:axis/ui/today/widgets/today_prayer_times_card.dart';
+import 'package:axis/ui/notes/widgets/daily_journal_card.dart';
+import 'package:axis/ui/notes/create_note_sheet.dart';
+import 'package:axis/ui/notes/widgets/note_detail_sheet.dart';
+import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/data/note_repository.dart';
 
 export 'package:axis/ui/today/widgets/priority_task_card.dart';
 export 'package:axis/ui/today/widgets/time_slot_card.dart';
 export 'package:axis/ui/today/widgets/xp_cockpit_card.dart';
 export 'package:axis/ui/today/widgets/micro_slots_section.dart';
+export 'package:axis/ui/today/widgets/next_milestones_card.dart';
+export 'package:axis/ui/today/widgets/today_prayer_times_card.dart';
 
 class TodayScreen extends StatefulWidget {
-  const TodayScreen({super.key});
+  const TodayScreen({
+    super.key,
+    this.taskRepo,
+    this.statsRepo,
+    this.prayerService,
+    this.noteRepo,
+  });
+
+  final TaskRepository? taskRepo;
+  final StatsRepository? statsRepo;
+  final PrayerTimeService? prayerService;
+  final NoteRepository? noteRepo;
 
   @override
   State<TodayScreen> createState() => _TodayScreenState();
@@ -30,15 +51,29 @@ class _TodayScreenState extends State<TodayScreen> {
   int _totalXp = 0;
   int _todayXp = 0;
   int _streakDays = 0;
+  List<MasteryBadgeData> _spotlightBadges = [];
   StreamSubscription<UserStats>? _statsSub;
   late final Stream<List<Task>> _tasksStream;
+  late final Stream<List<Prayer>> _prayersStream;
+  late final Stream<List<Note>> _notesStream;
+  late final TaskRepository _taskRepo;
+  late final StatsRepository _statsRepo;
+  late final PrayerTimeService _prayerService;
+  late final NoteRepository _noteRepo;
 
   @override
   void initState() {
     super.initState();
-    _tasksStream = TaskRepository().watchTasks();
+    _taskRepo = widget.taskRepo ?? TaskRepository();
+    _statsRepo = widget.statsRepo ?? StatsRepository();
+    _prayerService = widget.prayerService ?? PrayerTimeService();
+    _noteRepo = widget.noteRepo ?? NoteRepository();
+    _tasksStream = _taskRepo.watchTasks();
+    _prayersStream = _prayerService.watchPrayers();
+    _notesStream = _noteRepo.watchNotes();
     _loadStats();
-    _statsSub = StatsRepository().watchStats().listen((stats) {
+    _loadMilestones();
+    _statsSub = _statsRepo.watchStats().listen((stats) {
       if (mounted) {
         setState(() {
           _totalXp = stats.totalXp;
@@ -59,11 +94,12 @@ class _TodayScreenState extends State<TodayScreen> {
 
   void _onGlobalLevelChanged() {
     _loadStats(forceRefresh: true);
+    _loadMilestones();
   }
 
   Future<void> _loadStats({bool forceRefresh = false}) async {
     try {
-      final stats = await StatsRepository().getUserStats(forceRefresh: forceRefresh);
+      final stats = await _statsRepo.getUserStats(forceRefresh: forceRefresh);
       if (mounted) {
         setState(() {
           _totalXp = stats.totalXp;
@@ -74,6 +110,55 @@ class _TodayScreenState extends State<TodayScreen> {
     } catch (_) {}
   }
 
+  Future<void> _loadMilestones() async {
+    try {
+      final spotlight = await MasteryBadgeRepository().getSpotlightBadges();
+      if (mounted) {
+        setState(() {
+          _spotlightBadges = spotlight;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _showBadgeDetail(MasteryBadgeData badge) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => BadgeDetailSheet(badge: badge),
+    );
+  }
+
+  void _openCreateJournal({Note? noteToEdit}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CreateNoteSheet(
+        initialCategory: 'journal',
+        noteToEdit: noteToEdit,
+        onNoteCreated: () => setState(() {}),
+      ),
+    );
+  }
+
+  void _showJournalDetail(Note note) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => NoteDetailSheet(
+        note: note,
+        onEdit: () => _openCreateJournal(noteToEdit: note),
+        onDelete: () async {
+          await _noteRepo.deleteNote(note.id);
+          setState(() {});
+        },
+      ),
+    );
+  }
+
   Future<void> _toggleTaskStatus(Task task, bool isDone) async {
     // Optimistic UI update
     final deltaXp = (task.priority == 1 ? 75 : (task.priority == 2 ? 50 : 25)) * (isDone ? 1 : -1);
@@ -82,8 +167,10 @@ class _TodayScreenState extends State<TodayScreen> {
       _todayXp = (_todayXp + deltaXp).clamp(0, 9999999);
     });
 
-    await TaskRepository().toggleTaskStatus(task, isDone);
+    await _taskRepo.toggleTaskStatus(task, isDone);
     _loadStats(forceRefresh: true);
+    MasteryBadgeRepository().invalidateCache();
+    _loadMilestones();
   }
 
   @override
@@ -137,22 +224,27 @@ class _TodayScreenState extends State<TodayScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          dayLabel,
-                          style:
-                              Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    color: AxisColors.primarySoft,
-                                  ),
-                        ),
-                        Text(
-                          dateLabel,
-                          style: Theme.of(context).textTheme.displaySmall,
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            dayLabel,
+                            style:
+                                Theme.of(context).textTheme.labelLarge?.copyWith(
+                                      color: AxisColors.primarySoft,
+                                    ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            dateLabel,
+                            style: Theme.of(context).textTheme.displaySmall,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     StreakBadge(
                       days: _streakDays,
                       isActive: _streakDays > 0,
@@ -160,34 +252,26 @@ class _TodayScreenState extends State<TodayScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // ── XP Cockpit Card ──────────────────────────────────────
-                XpCockpitCard(
-                  level: level,
-                  rank: rank,
-                  todayXp: _todayXp,
-                  totalXp: _totalXp,
-                  nextLevelXp: nextLevelXp,
-                  progress: progress,
+                // ── Dedicated Islamic Prayer Telemetry Widget ─────────────
+                StreamBuilder<List<Prayer>>(
+                  stream: _prayersStream,
+                  builder: (context, prayerSnapshot) {
+                    final prayers = (prayerSnapshot.data != null && prayerSnapshot.data!.isNotEmpty)
+                        ? prayerSnapshot.data!
+                        : PrayerTimeService.defaultPrayers();
+                    return TodayPrayerTimesCard(
+                      prayers: prayers,
+                      onTogglePrayer: (prayer, done) =>
+                          _prayerService.togglePrayer(prayer.id, done),
+                    );
+                  },
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                // ── Offline / Sync status pill ───────────────────────────
-                _buildSyncStatusPill(context),
-
-                const SizedBox(height: 24),
-
-                // ── 15M Auto-Scheduler section ───────────────────────────
-                MicroSlotsSection(
-                  slottedTasks: slottedTasks,
-                  onToggleTask: _toggleTaskStatus,
-                ),
-
-                const SizedBox(height: 24),
-
-                // ── Priority Matrix ───────────────────────────────────────
+                // ── 1. Priority Matrix (Today's Mission - First Thing User Sees) ───
                 _buildPriorityMatrixHeader(context, pendingTasks.length),
 
                 const SizedBox(height: 10),
@@ -232,13 +316,69 @@ class _TodayScreenState extends State<TodayScreen> {
                             backgroundColor: Colors.transparent,
                             builder: (_) => TaskDetailSheet(
                               task: task,
-                              onTaskUpdated: (_) => _loadStats(),
+                              onTaskUpdated: (_) {
+                                _loadStats();
+                                _loadMilestones();
+                              },
                             ),
                           );
                         },
                       ),
                     );
                   }),
+
+                const SizedBox(height: 16),
+
+                // ── Daily Journal Entry ────────────────────────────────────
+                StreamBuilder<List<Note>>(
+                  stream: _notesStream,
+                  builder: (context, noteSnapshot) {
+                    final notes = noteSnapshot.data ?? [];
+                    final todayJournal = notes.cast<Note?>().firstWhere(
+                      (n) =>
+                          n != null &&
+                          n.category == 'journal' &&
+                          n.createdAt.year == now.year &&
+                          n.createdAt.month == now.month &&
+                          n.createdAt.day == now.day,
+                      orElse: () => null,
+                    );
+
+                    return DailyJournalCard(
+                      todayJournal: todayJournal,
+                      onOpenTodayJournal: (note) => _showJournalDetail(note),
+                      onStartNewJournal: () => _openCreateJournal(),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── 2. Next Milestones in Reach (Moved from Me Screen) ─────
+                NextMilestonesCard(
+                  spotlightBadges: _spotlightBadges,
+                  onTapBadge: _showBadgeDetail,
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── 3. 15M Auto-Scheduler section ──────────────────────────
+                MicroSlotsSection(
+                  slottedTasks: slottedTasks,
+                  onToggleTask: _toggleTaskStatus,
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── 4. XP Cockpit Card (Daily Level & XP Progress) ────────
+                XpCockpitCard(
+                  level: level,
+                  rank: rank,
+                  todayXp: _todayXp,
+                  totalXp: _totalXp,
+                  nextLevelXp: nextLevelXp,
+                  progress: progress,
+                ),
 
                 const SizedBox(height: 32),
               ],
@@ -249,86 +389,27 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  Widget _buildSyncStatusPill(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: NetworkService().isOnlineNotifier,
-      builder: (context, isOnline, _) {
-        final dotColor = isOnline ? AxisColors.tertiary : AxisColors.warning;
-        final statusText = isOnline ? 'ONLINE' : 'OFFLINE MODE';
-        final subText = isOnline ? '• CLOUD SYNCED' : '• LOCAL SQLITE';
-        final syncLabel = isOnline ? 'PowerSync Active' : 'Offline Ready';
-        final icon = isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded;
-        final iconColor = isOnline ? AxisColors.secondary : AxisColors.warning;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AxisColors.surfaceLow,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AxisColors.borderSubtle),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: dotColor.withValues(alpha: 0.6),
-                      blurRadius: 6,
-                    )
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                statusText,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AxisColors.textHigh,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                subText,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AxisColors.textMuted,
-                    ),
-              ),
-              const Spacer(),
-              Icon(icon, color: iconColor, size: 15),
-              const SizedBox(width: 4),
-              Text(
-                syncLabel,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: iconColor,
-                    ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildPriorityMatrixHeader(BuildContext context, int count) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            const Icon(Icons.view_timeline_rounded,
-                color: AxisColors.primarySoft, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'PRIORITY MATRIX',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ],
+        Expanded(
+          child: Row(
+            children: [
+              const Icon(Icons.view_timeline_rounded,
+                  color: AxisColors.primarySoft, size: 18),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'PRIORITY MATRIX',
+                  style: Theme.of(context).textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(width: 8),
         Text(
           '$count REMAINING',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -384,7 +465,10 @@ class _TodayScreenState extends State<TodayScreen> {
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (ctx) => CreateTaskSheet(
-                    onTaskCreated: () => _loadStats(),
+                    onTaskCreated: () {
+                      _loadStats();
+                      _loadMilestones();
+                    },
                   ),
                 );
               },

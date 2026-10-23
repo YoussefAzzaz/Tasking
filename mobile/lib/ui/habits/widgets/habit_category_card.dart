@@ -18,6 +18,7 @@ class HabitCategoryCard extends StatefulWidget {
     required this.onDeleteHabit,
     required this.onAddHabit,
     this.onDeleteCategory,
+    this.forceExpand = false,
   });
 
   final HabitCategory category;
@@ -28,6 +29,7 @@ class HabitCategoryCard extends StatefulWidget {
   final void Function(Habit habit) onDeleteHabit;
   final VoidCallback onAddHabit;
   final VoidCallback? onDeleteCategory;
+  final bool forceExpand;
 
   @override
   State<HabitCategoryCard> createState() => _HabitCategoryCardState();
@@ -35,6 +37,22 @@ class HabitCategoryCard extends StatefulWidget {
 
 class _HabitCategoryCardState extends State<HabitCategoryCard> {
   bool _expanded = true;
+  final Map<String, bool> _optimisticDone = {};
+
+  @override
+  void didUpdateWidget(covariant HabitCategoryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.forceExpand && !_expanded) {
+      _expanded = true;
+    }
+    // Clean up optimistic state when database stream catches up
+    for (final habit in widget.habits) {
+      if (_optimisticDone.containsKey(habit.id) &&
+          _optimisticDone[habit.id] == habit.isDoneToday) {
+        _optimisticDone.remove(habit.id);
+      }
+    }
+  }
 
   IconData _iconData(String icon) {
     switch (icon) {
@@ -136,7 +154,11 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
   @override
   Widget build(BuildContext context) {
     final total = widget.habits.length;
-    final done = widget.habits.where((h) => h.isDoneToday).length;
+    final done = widget.habits.where((h) {
+      return _optimisticDone.containsKey(h.id)
+          ? _optimisticDone[h.id]!
+          : h.isDoneToday;
+    }).length;
     final progress = total > 0 ? (done / total) : 0.0;
     final percent = (progress * 100).toInt();
     final isComplete = total > 0 && done == total;
@@ -268,11 +290,14 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                   minWidth: 48, minHeight: 48),
                               onPressed: () => _confirmDeleteCategory(context),
                             ),
-                          Icon(
-                            _expanded
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            color: AxisColors.textMuted,
+                          AnimatedRotation(
+                            turns: _expanded ? 0.5 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                            child: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AxisColors.textMuted,
+                            ),
                           ),
                         ],
                       ),
@@ -328,9 +353,19 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
             ),
           ),
 
-          // Habits breakdown
-          if (_expanded) ...[
-            const Divider(color: AxisColors.borderSubtle, height: 1),
+          // Habits breakdown (animated expand and shrink)
+          ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOutCubic,
+              alignment: Alignment.topCenter,
+              child: ExcludeSemantics(
+                excluding: !_expanded,
+                child: _expanded
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                        const Divider(color: AxisColors.borderSubtle, height: 1),
             if (widget.habits.isEmpty)
               Padding(
                 padding:
@@ -343,18 +378,24 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                   ),
                 ),
               )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                itemCount: widget.habits.length,
-                separatorBuilder: (_, _) =>
-                    const Divider(color: AxisColors.borderGlass2, height: 1),
-                itemBuilder: (context, i) {
-                  final habit = widget.habits[i];
-                  final isDone = habit.isDoneToday;
+            else ...[
+              Builder(builder: (context) {
+                final sortedHabits = List<Habit>.from(widget.habits)
+                  ..sort(HabitRepository.compareByTime);
+
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  itemCount: sortedHabits.length,
+                  separatorBuilder: (_, _) =>
+                      const Divider(color: AxisColors.borderGlass2, height: 1),
+                  itemBuilder: (context, i) {
+                    final habit = sortedHabits[i];
+                    final isDone = _optimisticDone.containsKey(habit.id)
+                        ? _optimisticDone[habit.id]!
+                        : habit.isDoneToday;
 
                   return InkWell(
                     onTap: () => widget.onEditHabit(habit),
@@ -366,8 +407,12 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                         children: [
                           AxisCheckbox(
                             checked: isDone,
-                            onChanged: (checked) =>
-                                widget.onToggleHabit(habit, checked),
+                            onChanged: (checked) {
+                              setState(() {
+                                _optimisticDone[habit.id] = checked;
+                              });
+                              widget.onToggleHabit(habit, checked);
+                            },
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -607,7 +652,9 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                     ),
                   );
                 },
-              ),
+              );
+            }),
+          ],
 
             // Bottom Add Habit button
             Padding(
@@ -645,7 +692,12 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                 ),
               ),
             ),
-          ],
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+              ),
+            ),
+          ),
         ],
       ),
     );

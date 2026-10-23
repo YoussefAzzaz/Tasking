@@ -8,6 +8,7 @@ import 'package:axis/ui/focus/focus_settings_sheet.dart';
 import 'package:axis/ui/focus/widgets/neon_timer_dial.dart';
 import 'package:axis/ui/focus/widgets/soundscape_selector_grid.dart';
 import 'package:axis/ui/focus/widgets/attach_task_sheet.dart';
+import 'package:axis/ui/common/axis_markdown_viewer.dart';
 
 export 'package:axis/ui/focus/widgets/neon_timer_dial.dart';
 export 'package:axis/ui/focus/widgets/soundscape_selector_grid.dart';
@@ -28,6 +29,9 @@ class _FocusScreenState extends State<FocusScreen>
   final _soundService = NeuralSoundService();
   StreamSubscription<int>? _completionSubscription;
 
+  bool? _zenModeOverride;
+  bool get _isZenMode => _zenModeOverride ?? _isRunning;
+
   FocusSessionConfig get _config => _sessionService.config;
   int get _totalSeconds => _sessionService.totalSeconds;
   int get _remainingSeconds => _sessionService.remainingSeconds;
@@ -35,32 +39,7 @@ class _FocusScreenState extends State<FocusScreen>
   Task? get _attachedTask => _sessionService.attachedTask;
   String get _selectedSoundscape => _sessionService.selectedSoundscape;
 
-  static const _soundscapes = [
-    SoundscapeTrack(
-      title: 'Deep Theta 40Hz',
-      subtitle: 'Cognitive Entrainment',
-      icon: Icons.waves_rounded,
-      color: AxisColors.secondary,
-    ),
-    SoundscapeTrack(
-      title: 'Neon Rain',
-      subtitle: 'Spatial Ambient',
-      icon: Icons.grain_rounded,
-      color: AxisColors.primary,
-    ),
-    SoundscapeTrack(
-      title: 'Quantum Void',
-      subtitle: 'Sub-bass Drone',
-      icon: Icons.blur_circular_rounded,
-      color: AxisColors.tertiary,
-    ),
-    SoundscapeTrack(
-      title: 'Cyber Coffee',
-      subtitle: 'Binaural Lo-Fi',
-      icon: Icons.coffee_rounded,
-      color: AxisColors.warning,
-    ),
-  ];
+  static const _soundscapes = kRelaxingSoundscapes;
 
   @override
   void initState() {
@@ -109,6 +88,27 @@ class _FocusScreenState extends State<FocusScreen>
 
   void _toggleTimer() {
     _sessionService.toggleTimer();
+    // When timer starts running, automatically enter Zen Fullscreen mode
+    if (_sessionService.isRunning) {
+      _zenModeOverride = null;
+    }
+    setState(() {});
+  }
+
+  void _addFiveMinutes() {
+    _sessionService.addSeconds(5 * 60);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          '+5 Minutes Added to Focus Session',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AxisColors.surfaceHigh,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
     setState(() {});
   }
 
@@ -210,6 +210,18 @@ class _FocusScreenState extends State<FocusScreen>
     );
   }
 
+  void _openSoundscapeModal() {
+    SoundscapeSelectorGrid.showSoundscapeSheet(
+      context: context,
+      selectedSoundscape: _selectedSoundscape,
+      soundService: _soundService,
+      onSelectSoundscape: (soundscape) {
+        _sessionService.setSoundscape(soundscape);
+        setState(() {});
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final progress = _totalSeconds > 0
@@ -223,143 +235,478 @@ class _FocusScreenState extends State<FocusScreen>
 
     return Scaffold(
       backgroundColor: AxisColors.canvasBase,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            backgroundColor: AxisColors.canvasBase,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded,
-                  color: AxisColors.textHigh),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-            title: Row(
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        switchInCurve: Curves.easeInOutCubic,
+        switchOutCurve: Curves.easeInOutCubic,
+        layoutBuilder: (currentChild, previousChildren) {
+          return Stack(
+            alignment: Alignment.topCenter,
+            children: <Widget>[
+              ...previousChildren.map((child) => ExcludeSemantics(child: child)),
+              ?currentChild,
+            ],
+          );
+        },
+        child: _isZenMode
+            ? _buildZenFullscreenView(context, progress, timeDisplay)
+            : _buildSetupView(context, progress, timeDisplay),
+      ),
+    );
+  }
+
+  /// Zen Fullscreen Pomodoro View: 100% Distraction-free, hero timer takes the screen
+  Widget _buildZenFullscreenView(
+    BuildContext context,
+    double progress,
+    String timeDisplay,
+  ) {
+    final isBreak = _totalSeconds <= 600;
+
+    return SafeArea(
+      key: const ValueKey('zen_fullscreen_view'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Column(
+          children: [
+            // Zen Minimal Top Bar
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AxisColors.primary.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: AxisColors.primary.withValues(alpha: 0.4),
+                IconButton(
+                  tooltip: 'Minimize / Exit Focus',
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      color: AxisColors.textHigh),
+                  onPressed: () {
+                    if (_isRunning) {
+                      setState(() => _zenModeOverride = false);
+                    } else {
+                      Navigator.of(context).maybePop();
+                    }
+                  },
+                ),
+                // Target Objective Pill (Tap to view task description if attached, or attach task)
+                Flexible(
+                  child: InkWell(
+                    onTap: () {
+                      if (_attachedTask != null) {
+                        _showTaskDescriptionSheet(_attachedTask!);
+                      } else {
+                        _pickTask();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AxisColors.surfaceHigh.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _attachedTask != null
+                              ? AxisColors.secondary.withValues(alpha: 0.4)
+                              : AxisColors.borderPrimary,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _attachedTask != null
+                                ? Icons.radio_button_checked_rounded
+                                : Icons.bolt_rounded,
+                            size: 14,
+                            color: isBreak
+                                ? AxisColors.warning
+                                : AxisColors.secondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              _attachedTask?.title ??
+                                  (isBreak ? 'Reboot Break' : 'Deep Work Cycle'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AxisColors.textHigh,
+                              ),
+                            ),
+                          ),
+                          if (_attachedTask != null) ...[
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.description_outlined,
+                              size: 13,
+                              color: AxisColors.secondary,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    'DEEP WORK',
-                    style: TextStyle(
-                      color: AxisColors.primarySoft,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
+                ),
+                // Toggle back to Setup & Details
+                IconButton(
+                  tooltip: 'View Setup & Stats',
+                  icon: const Icon(Icons.tune_rounded,
+                      color: AxisColors.textMuted),
+                  onPressed: () => setState(() => _zenModeOverride = false),
+                ),
+              ],
+            ),
+
+            const Spacer(flex: 1),
+
+            // Hero Fullscreen Pomodoro Timer Dial
+            NeonTimerDial(
+              size: 290,
+              progress: progress,
+              timeDisplay: timeDisplay,
+              isBreak: isBreak,
+              isRunning: _isRunning,
+            ),
+
+            const Spacer(flex: 1),
+
+            // Hero Pause / Engage Button
+            _buildEngageButton(),
+            const SizedBox(height: 12),
+
+            // Zen Quick Auxiliary Actions
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AxisColors.textHigh,
+                      side: const BorderSide(color: AxisColors.borderSubtle),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: _addFiveMinutes,
+                    icon: const Icon(Icons.add_alarm_rounded,
+                        size: 16, color: AxisColors.secondary),
+                    label: const Text('+5 Min Focus',
+                        style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AxisColors.textHigh,
+                      side: const BorderSide(color: AxisColors.borderSubtle),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: isBreak ? () => _resetTimer() : _setBreak,
+                    icon: Icon(
+                      isBreak ? Icons.play_arrow_rounded : Icons.coffee_rounded,
+                      size: 16,
+                      color: AxisColors.warning,
+                    ),
+                    label: Text(
+                      isBreak ? 'End Break' : 'Take Break',
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ),
               ],
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.tune_rounded,
-                    color: AxisColors.textHigh),
-                tooltip: 'Session Settings',
-                onPressed: _openSettings,
+            const SizedBox(height: 16),
+
+            // Ambient Soundscape Floating Bar (Tappable for Quick Sound Change)
+            _buildZenSoundscapeBar(),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Compact Zen Ambient Soundscape Bar
+  Widget _buildZenSoundscapeBar() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _soundService.isPlayingNotifier,
+      builder: (context, isPlaying, _) {
+        return InkWell(
+          onTap: _openSoundscapeModal,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AxisColors.surfaceLow.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isPlaying
+                    ? AxisColors.secondary.withValues(alpha: 0.4)
+                    : AxisColors.borderSubtle,
               ),
-            ],
-          ),
-        ],
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            children: [
-              // Target Task Capsule
-              InkWell(
-                onTap: _pickTask,
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AxisColors.surfaceHigh.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AxisColors.borderPrimary),
-                  ),
-                  child: Row(
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isPlaying ? Icons.music_note_rounded : Icons.music_off_rounded,
+                  size: 18,
+                  color: isPlaying ? AxisColors.secondary : AxisColors.textDim,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.radio_button_checked_rounded,
-                          size: 16, color: AxisColors.secondary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'TARGET OBJECTIVE',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: AxisColors.textMuted,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                            Text(
-                              _attachedTask?.title ??
-                                  'Tap to attach a task...',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: _attachedTask != null
-                                    ? AxisColors.textHigh
-                                    : AxisColors.textDim,
-                              ),
-                            ),
-                          ],
+                      const Text(
+                        'AMBIENT SOUNDSCAPE',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: AxisColors.textMuted,
+                          letterSpacing: 1.1,
                         ),
                       ),
-                      const Icon(Icons.unfold_more_rounded,
-                          size: 18, color: AxisColors.textDim),
+                      Text(
+                        _selectedSoundscape,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AxisColors.textHigh,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 28),
+                IconButton(
+                  iconSize: 20,
+                  tooltip: isPlaying ? 'Mute Sound' : 'Play Sound',
+                  icon: Icon(
+                    isPlaying
+                        ? Icons.volume_up_rounded
+                        : Icons.volume_off_rounded,
+                    color: isPlaying ? AxisColors.secondary : AxisColors.textDim,
+                  ),
+                  onPressed: () => _soundService.toggle(_selectedSoundscape),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AxisColors.surfaceHigh,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AxisColors.borderSubtle),
+                  ),
+                  child: const Text(
+                    'CHANGE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AxisColors.primarySoft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-              // Neon Radial Glow Timer Dial
-              NeonTimerDial(
+  /// Setup View: Full session dashboard with target picker, settings, yield stats, and sound rack
+  Widget _buildSetupView(
+    BuildContext context,
+    double progress,
+    String timeDisplay,
+  ) {
+    return NestedScrollView(
+      key: const ValueKey('setup_view'),
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        SliverAppBar(
+          floating: true,
+          snap: true,
+          backgroundColor: AxisColors.canvasBase,
+          elevation: 0,
+          leading: IconButton(
+            icon:
+                const Icon(Icons.arrow_back_rounded, color: AxisColors.textHigh),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AxisColors.primary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AxisColors.primary.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Text(
+                  'DEEP WORK',
+                  style: TextStyle(
+                    color: AxisColors.primarySoft,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.tune_rounded, color: AxisColors.textHigh),
+              tooltip: 'Session Settings',
+              onPressed: _openSettings,
+            ),
+          ],
+        ),
+      ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Column(
+          children: [
+            // Target Task Capsule (Tap to view description if attached, or attach task)
+            InkWell(
+              onTap: () {
+                if (_attachedTask != null) {
+                  _showTaskDescriptionSheet(_attachedTask!);
+                } else {
+                  _pickTask();
+                }
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AxisColors.surfaceHigh.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _attachedTask != null
+                        ? AxisColors.secondary.withValues(alpha: 0.4)
+                        : AxisColors.borderPrimary,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _attachedTask != null
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.bolt_rounded,
+                      size: 16,
+                      color: AxisColors.secondary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'TARGET OBJECTIVE',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AxisColors.textMuted,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                              if (_attachedTask != null) ...[
+                                const SizedBox(width: 6),
+                                const Text(
+                                  '• Tap for description',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: AxisColors.secondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _attachedTask?.title ??
+                                'Tap to attach a task...',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _attachedTask != null
+                                  ? AxisColors.textHigh
+                                  : AxisColors.textDim,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_attachedTask != null)
+                      IconButton(
+                        tooltip: 'Change Target Task',
+                        icon: const Icon(Icons.swap_horiz_rounded,
+                            size: 18, color: AxisColors.textDim),
+                        onPressed: _pickTask,
+                      )
+                    else
+                      const Icon(Icons.unfold_more_rounded,
+                          size: 18, color: AxisColors.textDim),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // Neon Radial Glow Timer Dial (Tappable to return to fullscreen when running)
+            InkWell(
+              onTap: _isRunning
+                  ? () => setState(() => _zenModeOverride = true)
+                  : null,
+              borderRadius: BorderRadius.circular(150),
+              child: NeonTimerDial(
+                size: 250,
                 progress: progress,
                 timeDisplay: timeDisplay,
                 isBreak: _totalSeconds <= 600,
+                isRunning: _isRunning,
               ),
-              const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 24),
 
-              // Yield Prediction Live Strip
-              _buildYieldStrip(),
-              const SizedBox(height: 24),
+            // Yield Prediction Live Strip
+            _buildYieldStrip(),
+            const SizedBox(height: 24),
 
-              // Primary Engagement Action
-              _buildEngageButton(),
-              const SizedBox(height: 10),
+            // Primary Engagement Action / Return to Fullscreen
+            _buildEngageButton(timeDisplay: timeDisplay),
+            const SizedBox(height: 10),
 
-              // Auxiliary Actions
-              _buildAuxiliaryButtons(),
-              const SizedBox(height: 28),
+            // Auxiliary Actions
+            _buildAuxiliaryButtons(),
+            const SizedBox(height: 28),
 
-              // Neural Soundscapes Selector
-              SoundscapeSelectorGrid(
-                soundscapes: _soundscapes,
-                selectedSoundscape: _selectedSoundscape,
-                soundService: _soundService,
-                onSelectSoundscape: (soundscape) {
-                  _sessionService.setSoundscape(soundscape);
-                  setState(() {});
-                },
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
+            // Redesigned Neural Soundscapes Rack
+            SoundscapeSelectorGrid(
+              soundscapes: _soundscapes,
+              selectedSoundscape: _selectedSoundscape,
+              soundService: _soundService,
+              onSelectSoundscape: (soundscape) {
+                _sessionService.setSoundscape(soundscape);
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: 32),
+          ],
         ),
       ),
     );
@@ -367,7 +714,7 @@ class _FocusScreenState extends State<FocusScreen>
 
   Widget _buildYieldStrip() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: AxisColors.surfaceLowest.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12),
@@ -377,36 +724,38 @@ class _FocusScreenState extends State<FocusScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.card_giftcard_rounded,
-                  size: 16, color: AxisColors.tertiary),
-              SizedBox(width: 6),
+                  size: 15, color: AxisColors.tertiary),
+              SizedBox(width: 4),
               Text(
-                'Yield Prediction:',
-                style: TextStyle(fontSize: 12, color: AxisColors.textMuted),
+                'Yield:',
+                style: TextStyle(fontSize: 11, color: AxisColors.textMuted),
               ),
             ],
           ),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 '+75 Base',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: AxisColors.tertiary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               const Text(
                 '+38 Boost',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: AxisColors.secondary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -417,7 +766,7 @@ class _FocusScreenState extends State<FocusScreen>
                 child: const Text(
                   '113 XP',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: AxisColors.textHigh,
                   ),
@@ -430,7 +779,289 @@ class _FocusScreenState extends State<FocusScreen>
     );
   }
 
-  Widget _buildEngageButton() {
+  void _showTaskDescriptionSheet(Task task) {
+    Task currentTask = task;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) => Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xF50C1626),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Modal Drag Handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AxisColors.borderGlass2,
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                ),
+              ),
+
+              // Header: Icon + Title + Close Button
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AxisColors.secondary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AxisColors.secondary.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.assignment_rounded,
+                      color: AxisColors.secondary,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'TARGET OBJECTIVE',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AxisColors.textMuted,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          currentTask.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AxisColors.textHigh,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close description',
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, color: AxisColors.textDim),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(color: AxisColors.borderSubtle, height: 1),
+              const SizedBox(height: 14),
+
+              // Description Body (Markdown rendered)
+              Flexible(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'DESCRIPTION / NOTES',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AxisColors.secondary,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (currentTask.notes != null && currentTask.notes!.trim().isNotEmpty)
+                        AxisMarkdownViewer(
+                          markdown: currentTask.notes!,
+                          selectable: true,
+                          onMarkdownChanged: (updatedNotes) async {
+                            final updatedTask = currentTask.copyWith(notes: updatedNotes);
+                            setSheetState(() => currentTask = updatedTask);
+                            if (_attachedTask?.id == task.id) {
+                              _sessionService.setAttachedTask(updatedTask);
+                              setState(() {});
+                            }
+                            await TaskRepository().updateTask(updatedTask);
+                          },
+                        )
+                    else
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceLow.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AxisColors.borderSubtle),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.notes_rounded,
+                                size: 16, color: AxisColors.textDim),
+                            SizedBox(width: 8),
+                            Text(
+                              'No description provided for this task.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AxisColors.textDim,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AxisColors.textHigh,
+                      side: const BorderSide(color: AxisColors.borderSubtle),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _pickTask();
+                    },
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                    label: const Text('Switch Task', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AxisColors.secondary,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text(
+                      'Back to Focus',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+  Widget _buildEngageButton({String? timeDisplay}) {
+    if (_isRunning && !_isZenMode) {
+      return Column(
+        children: [
+          // Primary Action: Return directly to Zen Fullscreen Pomodoro
+          InkWell(
+            onTap: () => setState(() => _zenModeOverride = true),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: double.infinity,
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AxisColors.primary, AxisColors.secondary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: AxisColors.secondary.withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.fullscreen_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      timeDisplay != null
+                          ? 'RETURN TO FULLSCREEN ($timeDisplay)'
+                          : 'RETURN TO FULLSCREEN',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Secondary Action: Pause Session
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AxisColors.warning,
+              side: BorderSide(
+                color: AxisColors.warning.withValues(alpha: 0.6),
+                width: 1.2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              minimumSize: const Size(double.infinity, 44),
+            ),
+            onPressed: _toggleTimer,
+            icon: const Icon(Icons.pause_rounded, size: 18),
+            label: const Text(
+              'PAUSE SESSION',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return InkWell(
       onTap: _toggleTimer,
       borderRadius: BorderRadius.circular(14),

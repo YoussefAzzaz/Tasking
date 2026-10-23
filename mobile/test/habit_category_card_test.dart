@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/widgets.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
 import 'package:axis/ui/habits/widgets/habit_category_card.dart';
@@ -139,4 +140,68 @@ void main() {
     await tester.pumpAndSettle();
     expect(deletedHabit?.id, equals('habit_pushups'));
   });
+
+  testWidgets('HabitCategoryCard toggling checkbox updates optimistic state and triggers callback',
+      (WidgetTester tester) async {
+    const workoutCategory = HabitCategory(
+      id: 'cat_workout',
+      name: 'Workout',
+      icon: 'fitness',
+      color: '#10B981',
+    );
+
+    Habit? toggledHabit;
+    bool? toggledState;
+
+    final habit = Habit(
+      id: 'habit_pushups',
+      name: 'Morning Pushups',
+      category: 'Workout',
+      icon: 'fitness',
+      remindTime: '07:00 AM',
+      isDoneToday: false,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AxisTheme.dark,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: HabitCategoryCard(
+              category: workoutCategory,
+              color: const Color(0xFF10B981),
+              habits: [habit],
+              onToggleHabit: (h, done) {
+                toggledHabit = h;
+                toggledState = done;
+              },
+              onEditHabit: (_) {},
+              onDeleteHabit: (_) {},
+              onAddHabit: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Initial state: 0 of 1 habits finished today
+    expect(find.text('0 of 1 habits finished today'), findsOneWidget);
+
+    // Tap on checkbox to complete habit
+    final checkbox = find.byType(AxisCheckbox);
+    expect(checkbox, findsOneWidget);
+    await tester.tap(checkbox);
+    await tester.pump();
+
+    // Verify callback was invoked
+    expect(toggledHabit?.id, equals('habit_pushups'));
+    expect(toggledState, isTrue);
+
+    // Verify UI updated optimistically to 1 of 1 habits finished today & DONE badges
+    expect(find.text('1 of 1 habits finished today'), findsOneWidget);
+    expect(find.text('DONE'), findsWidgets);
+  });
 }
+

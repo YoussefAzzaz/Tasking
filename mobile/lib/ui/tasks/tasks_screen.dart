@@ -54,7 +54,8 @@ class _TasksScreenState extends State<TasksScreen> {
         taskRepo: _taskRepo,
         projectRepo: _projectRepo,
         onAddProject: _openCreateProject,
-        onAddTask: _openCreateTask,
+        onAddTask: ({initialProject}) =>
+            _openCreateTask(initialProject: initialProject),
       ),
     ];
   }

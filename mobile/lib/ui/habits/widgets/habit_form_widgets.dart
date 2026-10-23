@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/ui/common/cyber_color_picker.dart';
 
 class HabitCategory {
   final String id;
@@ -292,41 +293,87 @@ class ColorAccentSelector extends StatelessWidget {
     {'hex': '#EC4899', 'color': Color(0xFFEC4899), 'label': 'Rose'},
   ];
 
+  Color _parseHex(String hex) {
+    try {
+      final clean = hex.replaceAll('#', '').trim();
+      if (clean.length == 6) {
+        return Color(int.parse('FF$clean', radix: 16));
+      } else if (clean.length == 8) {
+        return Color(int.parse(clean, radix: 16));
+      }
+    } catch (_) {}
+    return AxisColors.success;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isCustom = !colors.any(
+        (c) => (c['hex'] as String).toUpperCase() == selectedColor.toUpperCase());
+
     return Wrap(
       spacing: 12,
       runSpacing: 8,
-      children: colors.map((c) {
-        final isSel = selectedColor == c['hex'];
-        final col = c['color'] as Color;
-        return InkWell(
-          onTap: () => onSelectColor(c['hex'] as String),
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        ...colors.map((c) {
+          final isSel = selectedColor.toUpperCase() == (c['hex'] as String).toUpperCase();
+          final col = c['color'] as Color;
+          return InkWell(
+            onTap: () => onSelectColor(c['hex'] as String),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: col,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSel ? Colors.white : Colors.transparent,
+                  width: 2.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: col.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: isSel
+                  ? const Icon(Icons.check_rounded,
+                      size: 18, color: Colors.white)
+                  : null,
+            ),
+          );
+        }),
+        if (isCustom) ...[
+          Container(
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: col,
+              color: _parseHex(selectedColor),
               shape: BoxShape.circle,
               border: Border.all(
-                color: isSel ? Colors.white : Colors.transparent,
+                color: Colors.white,
                 width: 2.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: col.withValues(alpha: 0.4),
+                  color: _parseHex(selectedColor).withValues(alpha: 0.4),
                   blurRadius: 8,
                 ),
               ],
             ),
-            child: isSel
-                ? const Icon(Icons.check_rounded,
-                    size: 18, color: Colors.white)
-                : null,
+            child: const Icon(Icons.check_rounded,
+                size: 18, color: Colors.white),
           ),
-        );
-      }).toList(),
+        ],
+        RainbowColorPickerButton(
+          selectedColor: selectedColor,
+          size: 34,
+          borderWidth: 2.2,
+          onColorSelected: onSelectColor,
+        ),
+      ],
     );
   }
 }

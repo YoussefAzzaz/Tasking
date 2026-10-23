@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/task_card.dart';
@@ -45,7 +46,16 @@ class _InboxTabState extends State<InboxTab> {
             }
 
             final allTasks = snapshot.data ?? [];
-            final filteredTasks = allTasks.where(criteria.matches).toList()
+            final now = DateTime.now();
+            final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+            // Inbox tab displays only today's tasks (both completed and not completed)
+            final todayTasks = allTasks.where((t) {
+              if (t.dueDate == null || t.dueDate!.trim().isEmpty) return false;
+              return t.dueDate == todayStr || t.dueDate!.startsWith(todayStr);
+            }).toList();
+
+            final filteredTasks = todayTasks.where(criteria.matches).toList()
               ..sort(compareTasksByDueDate);
 
             if (filteredTasks.isEmpty) {
