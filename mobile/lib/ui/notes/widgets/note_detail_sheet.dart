@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/note_repository.dart';
+import 'package:axis/data/reading_preferences_service.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
+import 'package:axis/ui/common/reading_font_size_control.dart';
 
 /// Modal bottom sheet displaying detailed note view, markdown content, mood badge and edit/delete actions
 class NoteDetailSheet extends StatefulWidget {
@@ -163,14 +165,38 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
                 ),
               ),
             ],
-            const Divider(color: AxisColors.borderSubtle, height: 28),
-            AxisMarkdownViewer(
-              markdown: _note.bodyMd,
-              onMarkdownChanged: (updatedBody) async {
-                final updated = _note.copyWith(bodyMd: updatedBody);
-                setState(() => _note = updated);
-                await NoteRepository().updateNote(updated);
-                widget.onNoteUpdated?.call(updated);
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  isJournal ? 'JOURNAL ENTRY' : 'NOTE CONTENT',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AxisColors.textDim,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const ReadingFontSizeControl(),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Divider(color: AxisColors.borderSubtle, height: 1),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<double>(
+              valueListenable: ReadingPreferencesService().fontScaleNotifier,
+              builder: (context, fontScale, _) {
+                return AxisMarkdownViewer(
+                  markdown: _note.bodyMd,
+                  fontScale: fontScale,
+                  onMarkdownChanged: (updatedBody) async {
+                    final updated = _note.copyWith(bodyMd: updatedBody);
+                    setState(() => _note = updated);
+                    await NoteRepository().updateNote(updated);
+                    widget.onNoteUpdated?.call(updated);
+                  },
+                );
               },
             ),
             const SizedBox(height: 24),

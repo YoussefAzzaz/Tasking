@@ -12,12 +12,14 @@ class AxisMarkdownViewer extends StatefulWidget {
     this.baseStyle,
     this.selectable = true,
     this.onMarkdownChanged,
+    this.fontScale = 1.0,
   });
 
   final String markdown;
   final TextStyle? baseStyle;
   final bool selectable;
   final ValueChanged<String>? onMarkdownChanged;
+  final double fontScale;
 
   @override
   State<AxisMarkdownViewer> createState() => _AxisMarkdownViewerState();
@@ -66,9 +68,11 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
   @override
   Widget build(BuildContext context) {
     if (_currentMarkdown.trim().isEmpty) {
+      final base = widget.baseStyle ?? Theme.of(context).textTheme.bodyMedium;
       return Text(
         'No notes provided.',
-        style: (widget.baseStyle ?? Theme.of(context).textTheme.bodyMedium)?.copyWith(
+        style: (base ?? const TextStyle()).copyWith(
+          fontSize: (base?.fontSize ?? 13.5) * widget.fontScale,
           color: AxisColors.textDim,
           fontStyle: FontStyle.italic,
         ),
@@ -206,20 +210,20 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
 
     switch (level) {
       case 1:
-        fontSize = 19;
+        fontSize = 19 * widget.fontScale;
         color = AxisColors.textHigh;
         weight = FontWeight.bold;
         topPadding = 12;
         break;
       case 2:
-        fontSize = 16;
+        fontSize = 16 * widget.fontScale;
         color = AxisColors.secondary;
         weight = FontWeight.bold;
         topPadding = 10;
         break;
       case 3:
       default:
-        fontSize = 14;
+        fontSize = 14 * widget.fontScale;
         color = AxisColors.textHigh;
         weight = FontWeight.w600;
         topPadding = 8;
@@ -262,7 +266,7 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
           base: TextStyle(
             color: AxisColors.textHigh.withValues(alpha: 0.9),
             fontStyle: FontStyle.italic,
-            fontSize: 13,
+            fontSize: 13 * widget.fontScale,
             height: 1.4,
           ),
         ),
@@ -276,6 +280,8 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
     required bool isChecked,
     VoidCallback? onToggle,
   }) {
+    final boxSize = (18 * widget.fontScale).clamp(16.0, 26.0);
+    final iconSize = (13 * widget.fontScale).clamp(11.0, 19.0);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: InkWell(
@@ -288,8 +294,8 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
             children: [
               Container(
                 margin: const EdgeInsets.only(top: 2, right: 9),
-                width: 18,
-                height: 18,
+                width: boxSize,
+                height: boxSize,
                 decoration: BoxDecoration(
                   color: isChecked
                       ? AxisColors.success.withValues(alpha: 0.22)
@@ -301,7 +307,7 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
                   ),
                 ),
                 child: isChecked
-                    ? const Icon(Icons.check_rounded, size: 13, color: AxisColors.success)
+                    ? Icon(Icons.check_rounded, size: iconSize, color: AxisColors.success)
                     : null,
               ),
               Expanded(
@@ -310,7 +316,7 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
                     text,
                     base: TextStyle(
                       color: isChecked ? AxisColors.textDim : AxisColors.textHigh,
-                      fontSize: 13.5,
+                      fontSize: 13.5 * widget.fontScale,
                       height: 1.35,
                       decoration: isChecked ? TextDecoration.lineThrough : null,
                       decorationColor: AxisColors.textDim,
@@ -326,6 +332,7 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
   }
 
   Widget _buildOrderedListItem(BuildContext context, String number, String text) {
+    final badgeFontSize = (10 * widget.fontScale).clamp(9.0, 14.0);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -344,10 +351,10 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
             ),
             child: Text(
               number,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AxisColors.secondary,
                 fontWeight: FontWeight.bold,
-                fontSize: 10,
+                fontSize: badgeFontSize,
               ),
             ),
           ),
@@ -355,9 +362,9 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
             child: Text.rich(
               _parseInlineSpans(
                 text,
-                base: const TextStyle(
+                base: TextStyle(
                   color: AxisColors.textHigh,
-                  fontSize: 13.5,
+                  fontSize: 13.5 * widget.fontScale,
                   height: 1.35,
                 ),
               ),
@@ -369,15 +376,16 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
   }
 
   Widget _buildBulletListItem(BuildContext context, String text) {
+    final dotSize = (6 * widget.fontScale).clamp(5.0, 10.0);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            margin: const EdgeInsets.only(top: 6, right: 9),
-            width: 6,
-            height: 6,
+            margin: EdgeInsets.only(top: 6 * widget.fontScale, right: 9),
+            width: dotSize,
+            height: dotSize,
             decoration: BoxDecoration(
               color: AxisColors.secondary,
               shape: BoxShape.circle,
@@ -393,9 +401,9 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
             child: Text.rich(
               _parseInlineSpans(
                 text,
-                base: const TextStyle(
+                base: TextStyle(
                   color: AxisColors.textHigh,
-                  fontSize: 13.5,
+                  fontSize: 13.5 * widget.fontScale,
                   height: 1.35,
                 ),
               ),
@@ -412,9 +420,9 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
       child: Text.rich(
         _parseInlineSpans(
           text,
-          base: const TextStyle(
+          base: TextStyle(
             color: AxisColors.textHigh,
-            fontSize: 13.5,
+            fontSize: 13.5 * widget.fontScale,
             height: 1.45,
           ),
         ),
@@ -433,10 +441,10 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
       ),
       child: SelectableText(
         code,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'monospace',
-          fontSize: 12,
-          color: Color(0xFF7DD3FC), // Cyber cyan
+          fontSize: 12 * widget.fontScale,
+          color: const Color(0xFF7DD3FC), // Cyber cyan
           height: 1.35,
         ),
       ),

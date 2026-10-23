@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/prayer_time_service.dart';
-import 'package:axis/data/note_repository.dart';
 import 'package:axis/ui/today/widgets/today_prayer_times_card.dart';
 import 'package:axis/ui/notes/widgets/daily_journal_card.dart';
 

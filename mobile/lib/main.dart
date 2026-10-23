@@ -13,6 +13,7 @@ import 'package:axis/data/habit_notification_service.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:axis/data/network_service.dart';
+import 'package:axis/data/reading_preferences_service.dart';
 
 import 'dart:async';
 
@@ -81,6 +82,9 @@ Future<void> _initBackgroundServices() async {
       AppWidgetSyncService().syncAll();
       AppWidgetSyncService().startAutoSync();
     }),
+    Future(() => ReadingPreferencesService().init().catchError((e) {
+      debugPrint('[Background] ReadingPreferencesService init error: $e');
+    })),
   ], eagerError: false);
 }
 

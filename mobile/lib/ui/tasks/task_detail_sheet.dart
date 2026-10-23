@@ -6,6 +6,8 @@ import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/focus/focus_screen.dart';
 import 'package:axis/ui/tasks/create_task_sheet.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
+import 'package:axis/ui/common/reading_font_size_control.dart';
+import 'package:axis/data/reading_preferences_service.dart';
 
 /// Task detail bottom sheet — glass tier 2, full DESIGN.md spec
 class TaskDetailSheet extends StatefulWidget {
@@ -165,17 +167,28 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                 // Task Description Section
                 _MetaSection(
                   title: 'Description',
+                  trailing: _task.notes != null && _task.notes!.trim().isNotEmpty
+                      ? const ReadingFontSizeControl()
+                      : null,
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: _task.notes != null && _task.notes!.trim().isNotEmpty
-                          ? AxisMarkdownViewer(
-                              markdown: _task.notes!,
-                              onMarkdownChanged: (updatedNotes) async {
-                                final updated = _task.copyWith(notes: updatedNotes);
-                                setState(() => _task = updated);
-                                await _repo.updateTask(updated);
-                                widget.onTaskUpdated?.call(updated);
+                          ? ValueListenableBuilder<double>(
+                              valueListenable:
+                                  ReadingPreferencesService().fontScaleNotifier,
+                              builder: (context, fontScale, _) {
+                                return AxisMarkdownViewer(
+                                  markdown: _task.notes!,
+                                  fontScale: fontScale,
+                                  onMarkdownChanged: (updatedNotes) async {
+                                    final updated =
+                                        _task.copyWith(notes: updatedNotes);
+                                    setState(() => _task = updated);
+                                    await _repo.updateTask(updated);
+                                    widget.onTaskUpdated?.call(updated);
+                                  },
+                                );
                               },
                             )
                           : InkWell(
@@ -363,17 +376,28 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 }
 
 class _MetaSection extends StatelessWidget {
-  const _MetaSection({required this.title, required this.children});
+  const _MetaSection({
+    required this.title,
+    required this.children,
+    this.trailing,
+  });
   final String title;
   final List<Widget> children;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title.toUpperCase(),
-            style: Theme.of(context).textTheme.labelMedium),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title.toUpperCase(),
+                style: Theme.of(context).textTheme.labelMedium),
+            ?trailing,
+          ],
+        ),
         const SizedBox(height: 8),
         AxisCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),

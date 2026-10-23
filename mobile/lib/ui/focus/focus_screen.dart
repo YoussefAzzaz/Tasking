@@ -9,6 +9,8 @@ import 'package:axis/ui/focus/widgets/neon_timer_dial.dart';
 import 'package:axis/ui/focus/widgets/soundscape_selector_grid.dart';
 import 'package:axis/ui/focus/widgets/attach_task_sheet.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
+import 'package:axis/ui/common/reading_font_size_control.dart';
+import 'package:axis/data/reading_preferences_service.dart';
 
 export 'package:axis/ui/focus/widgets/neon_timer_dial.dart';
 export 'package:axis/ui/focus/widgets/soundscape_selector_grid.dart';
@@ -876,28 +878,45 @@ class _FocusScreenState extends State<FocusScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'DESCRIPTION / NOTES',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: AxisColors.secondary,
-                          letterSpacing: 1.1,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'DESCRIPTION / NOTES',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AxisColors.secondary,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                          if (currentTask.notes != null &&
+                              currentTask.notes!.trim().isNotEmpty)
+                            const ReadingFontSizeControl(),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      if (currentTask.notes != null && currentTask.notes!.trim().isNotEmpty)
-                        AxisMarkdownViewer(
-                          markdown: currentTask.notes!,
-                          selectable: true,
-                          onMarkdownChanged: (updatedNotes) async {
-                            final updatedTask = currentTask.copyWith(notes: updatedNotes);
-                            setSheetState(() => currentTask = updatedTask);
-                            if (_attachedTask?.id == task.id) {
-                              _sessionService.setAttachedTask(updatedTask);
-                              setState(() {});
-                            }
-                            await TaskRepository().updateTask(updatedTask);
+                      if (currentTask.notes != null &&
+                          currentTask.notes!.trim().isNotEmpty)
+                        ValueListenableBuilder<double>(
+                          valueListenable:
+                              ReadingPreferencesService().fontScaleNotifier,
+                          builder: (context, fontScale, _) {
+                            return AxisMarkdownViewer(
+                              markdown: currentTask.notes!,
+                              selectable: true,
+                              fontScale: fontScale,
+                              onMarkdownChanged: (updatedNotes) async {
+                                final updatedTask =
+                                    currentTask.copyWith(notes: updatedNotes);
+                                setSheetState(() => currentTask = updatedTask);
+                                if (_attachedTask?.id == task.id) {
+                                  _sessionService.setAttachedTask(updatedTask);
+                                  setState(() {});
+                                }
+                                await TaskRepository().updateTask(updatedTask);
+                              },
+                            );
                           },
                         )
                     else
