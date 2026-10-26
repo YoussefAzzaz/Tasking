@@ -10,6 +10,7 @@ class FocusRepository {
     required int durationMin,
     required int xpEarned,
   }) async {
+    if (!isDatabaseInitialized) return;
     final now = DateTime.now().toUtc().toIso8601String();
     final id = IdGenerator.generateDeterministicId(
         'focus_${DateTime.now().microsecondsSinceEpoch}');

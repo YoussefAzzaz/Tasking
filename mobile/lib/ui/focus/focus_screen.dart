@@ -51,6 +51,7 @@ class _FocusScreenState extends State<FocusScreen>
     }
     _sessionService.remainingSecondsNotifier.addListener(_onServiceUpdate);
     _sessionService.isRunningNotifier.addListener(_onServiceUpdate);
+    _sessionService.isBreakNotifier.addListener(_onServiceUpdate);
     _completionSubscription = _sessionService.onSessionCompleted.listen((xp) {
       if (mounted) {
         _showCompletionDialog(xp);
@@ -68,6 +69,7 @@ class _FocusScreenState extends State<FocusScreen>
   void dispose() {
     _sessionService.remainingSecondsNotifier.removeListener(_onServiceUpdate);
     _sessionService.isRunningNotifier.removeListener(_onServiceUpdate);
+    _sessionService.isBreakNotifier.removeListener(_onServiceUpdate);
     _completionSubscription?.cancel();
     super.dispose();
   }
@@ -114,29 +116,41 @@ class _FocusScreenState extends State<FocusScreen>
     setState(() {});
   }
 
-  void _resetTimer({int? minutes}) {
-    _sessionService.resetTimer(minutes: minutes);
+  void _resetTimer({int? minutes, bool autoStart = false}) {
+    _sessionService.startFocus(minutes: minutes, autoStart: autoStart);
+    if (autoStart) {
+      _zenModeOverride = null;
+    }
     setState(() {});
   }
 
-  void _setBreak() {
-    _sessionService.resetTimer(minutes: _config.shortBreakMinutes);
+  void _setBreak({int? minutes, bool autoStart = false}) {
+    _sessionService.startBreak(minutes: minutes, autoStart: autoStart);
+    if (autoStart) {
+      _zenModeOverride = null;
+    }
     setState(() {});
   }
 
   void _showCompletionDialog(int xp) {
+    final bool wasBreak = xp < 0;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AxisColors.surfaceHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.stars_rounded, color: AxisColors.tertiary, size: 28),
-            SizedBox(width: 8),
+            Icon(
+              wasBreak ? Icons.alarm_on_rounded : Icons.stars_rounded,
+              color: wasBreak ? AxisColors.secondary : AxisColors.tertiary,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
             Text(
-              'Deep Session Complete!',
-              style: TextStyle(color: AxisColors.textHigh, fontSize: 18),
+              wasBreak ? 'Reboot Break Complete!' : 'Deep Session Complete!',
+              style: const TextStyle(color: AxisColors.textHigh, fontSize: 18),
             ),
           ],
         ),
@@ -144,36 +158,40 @@ class _FocusScreenState extends State<FocusScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Quantum focus cycle finished with optimal continuity.',
-              style: TextStyle(color: AxisColors.textMuted),
+            Text(
+              wasBreak
+                  ? 'Energy restored and cognitive reserves replenished. Ready to initiate next focus sprint?'
+                  : 'Quantum focus cycle finished with optimal continuity.',
+              style: const TextStyle(color: AxisColors.textMuted),
             ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AxisColors.tertiary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AxisColors.tertiary.withValues(alpha: 0.4),
+            if (!wasBreak) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AxisColors.tertiary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AxisColors.tertiary.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bolt_rounded,
+                        color: AxisColors.tertiary, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      '+$xp XP Added to Cockpit',
+                      style: const TextStyle(
+                        color: AxisColors.tertiary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.bolt_rounded,
-                      color: AxisColors.tertiary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    '+$xp XP Added to Cockpit',
-                    style: const TextStyle(
-                      color: AxisColors.tertiary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ],
         ),
         actions: [
@@ -184,14 +202,20 @@ class _FocusScreenState extends State<FocusScreen>
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AxisColors.tertiary,
+              backgroundColor:
+                  wasBreak ? AxisColors.secondary : AxisColors.tertiary,
               foregroundColor: Colors.black,
             ),
             onPressed: () {
               Navigator.pop(ctx);
-              _setBreak();
+              if (wasBreak) {
+                _resetTimer(autoStart: true);
+              } else {
+                _setBreak(autoStart: true);
+              }
             },
-            child: const Text('Take Reboot Break'),
+            child:
+                Text(wasBreak ? 'Launch Focus Session' : 'Take Reboot Break'),
           ),
         ],
       ),
@@ -263,7 +287,7 @@ class _FocusScreenState extends State<FocusScreen>
     double progress,
     String timeDisplay,
   ) {
-    final isBreak = _totalSeconds <= 600;
+    final isBreak = _sessionService.isBreak;
 
     return SafeArea(
       key: const ValueKey('zen_fullscreen_view'),
@@ -679,7 +703,7 @@ class _FocusScreenState extends State<FocusScreen>
                 size: 250,
                 progress: progress,
                 timeDisplay: timeDisplay,
-                isBreak: _totalSeconds <= 600,
+                isBreak: _sessionService.isBreak,
                 isRunning: _isRunning,
               ),
             ),
@@ -1130,6 +1154,8 @@ class _FocusScreenState extends State<FocusScreen>
   }
 
   Widget _buildAuxiliaryButtons() {
+    final isBreak = _sessionService.isBreak;
+
     return Row(
       children: [
         Expanded(
@@ -1142,11 +1168,16 @@ class _FocusScreenState extends State<FocusScreen>
               ),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            onPressed: _setBreak,
-            icon: const Icon(Icons.coffee_rounded,
-                size: 16, color: AxisColors.warning),
+            onPressed: isBreak ? () => _resetTimer() : _setBreak,
+            icon: Icon(
+              isBreak ? Icons.play_arrow_rounded : Icons.coffee_rounded,
+              size: 16,
+              color: isBreak ? AxisColors.secondary : AxisColors.warning,
+            ),
             label: Text(
-              '${_config.shortBreakMinutes}m Reboot Break',
+              isBreak
+                  ? '${_config.focusMinutes}m Normal Focus'
+                  : '${_config.shortBreakMinutes}m Reboot Break',
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -1162,12 +1193,12 @@ class _FocusScreenState extends State<FocusScreen>
               ),
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            onPressed: () => _resetTimer(),
+            onPressed: () => isBreak ? _setBreak() : _resetTimer(),
             icon: const Icon(Icons.restart_alt_rounded,
                 size: 16, color: AxisColors.secondary),
-            label: const Text(
-              'Reset Quantum',
-              style: TextStyle(fontSize: 12),
+            label: Text(
+              isBreak ? 'Reset Break' : 'Reset Quantum',
+              style: const TextStyle(fontSize: 12),
             ),
           ),
         ),

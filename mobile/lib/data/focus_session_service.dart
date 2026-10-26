@@ -1,140 +1,28 @@
 import 'dart:async';
-import 'dart:isolate';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/data/focus_repository.dart';
 import 'package:axis/data/neural_sound_service.dart';
-import 'package:axis/data/adhan_alarm_service.dart';
-import 'package:axis/data/habit_repository.dart';
 import 'package:axis/ui/focus/focus_settings_sheet.dart';
-import 'package:axis/core/router.dart';
 import 'package:axis/data/habit_notification_service.dart';
 
-import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized;
+import 'package:axis/data/notification_controller.dart';
+export 'package:axis/data/notification_controller.dart';
 
-class NotificationController {
-  static ReceivePort? _receivePort;
-
-  static void initializeIsolateReceivePort() {
-    if (_receivePort != null) return;
-
-    _receivePort = ReceivePort('notification_action_port');
-    _receivePort!.listen((data) {
-      if (data is Map) {
-        final key = data['key'] as String? ?? '';
-        final payload = (data['payload'] as Map?)?.cast<String, String?>();
-        final channelKey = data['channelKey'] as String?;
-        _handleAction(key, payload: payload, channelKey: channelKey);
-      } else if (data is String) {
-        _handleAction(data);
-      }
-    });
-
-    IsolateNameServer.removePortNameMapping('notification_action_port');
-    IsolateNameServer.registerPortWithName(
-      _receivePort!.sendPort,
-      'notification_action_port',
-    );
-  }
-
-  static void _handleAction(String key, {Map<String, String?>? payload, String? channelKey}) {
-    if (key == 'ACTION_PAUSE') {
-      FocusSessionService().pauseTimer();
-    } else if (key == 'ACTION_RESUME') {
-      FocusSessionService().startTimer();
-    } else if (key == 'ACTION_STOP') {
-      FocusSessionService().resetTimer();
-    } else if (key == 'DISMISS_FAJR_ALARM' || channelKey == 'fajr_alarm_channel') {
-      AdhanAlarmService().handleFajrAlarmAction();
-    } else if (key == 'MARK_DONE') {
-      final prayerId = payload?['prayer_id'];
-      if (prayerId != null) {
-        HabitRepository().toggleHabit(prayerId, true);
-      }
-      final habitId = payload?['habit_id'];
-      if (habitId != null) {
-        HabitRepository().toggleHabit(habitId, true);
-        HabitNotificationService().onHabitCompletedToday(habitId);
-      }
-    } else if (key == 'OPEN_HABITS' || channelKey == 'habit_reminder_channel') {
-      try {
-        router.go('/habits');
-      } catch (_) {}
-    }
-  }
-
-  @pragma("vm:entry-point")
-  static Future<void> onActionReceivedMethod(
-      ReceivedAction receivedAction) async {
-    final key = receivedAction.buttonKeyPressed;
-    final channelKey = receivedAction.channelKey;
-    final payload = receivedAction.payload;
-
-    final actionData = {
-      'key': key,
-      'channelKey': channelKey,
-      'payload': payload,
-    };
-
-    final sendPort =
-        IsolateNameServer.lookupPortByName('notification_action_port');
-    if (sendPort != null) {
-      sendPort.send(actionData);
-    } else {
-      // Running in headless background isolate without main thread port
-      try {
-        if (key == 'DISMISS_FAJR_ALARM' || channelKey == 'fajr_alarm_channel') {
-          AdhanAlarmService().stopAlarmSound();
-        } else if (key == 'MARK_DONE' && payload != null) {
-          final targetId = payload['habit_id'] ?? payload['prayer_id'];
-          if (targetId != null) {
-            if (isDatabaseInitialized) {
-              await HabitRepository().toggleHabit(targetId, true);
-            } else {
-              debugPrint('[NotificationController] Background isolate skipped direct DB write: DB not initialized in isolate');
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('[NotificationController] Background isolate notification action error: $e');
-      }
-    }
-  }
-
-  @pragma("vm:entry-point")
-  static Future<void> onNotificationCreatedMethod(
-      ReceivedNotification receivedNotification) async {}
-
-  @pragma("vm:entry-point")
-  static Future<void> onNotificationDisplayedMethod(
-      ReceivedNotification receivedNotification) async {
-    if (receivedNotification.channelKey == 'habit_reminder_channel') {
-      final habitId = receivedNotification.payload?['habit_id'];
-      if (habitId != null) {
-        final isDone =
-            await HabitNotificationService().isHabitCompletedToday(habitId);
-        if (isDone && receivedNotification.id != null) {
-          await AwesomeNotifications().dismiss(receivedNotification.id!);
-        }
-      }
-    }
-  }
-
-  @pragma("vm:entry-point")
-  static Future<void> onDismissActionReceivedMethod(
-      ReceivedAction receivedAction) async {}
-}
 
 class FocusSessionService with WidgetsBindingObserver {
   static final FocusSessionService _instance = FocusSessionService._internal();
   factory FocusSessionService() => _instance;
 
   FocusSessionService._internal() {
-    NotificationController.initializeIsolateReceivePort();
-    _initNotifications();
-    WidgetsBinding.instance.addObserver(this);
+    try {
+      NotificationController.initializeIsolateReceivePort();
+      _initNotifications();
+    } catch (_) {}
+    try {
+      WidgetsBinding.instance.addObserver(this);
+    } catch (_) {}
   }
 
   final FocusRepository _focusRepo = FocusRepository();
@@ -155,6 +43,12 @@ class FocusSessionService with WidgetsBindingObserver {
   int _remainingSeconds = 25 * 60;
   int get remainingSeconds => _remainingSeconds;
 
+  bool _isBreak = false;
+  bool get isBreak => _isBreak;
+
+  int _completedCycles = 0;
+  int get completedCycles => _completedCycles;
+
   bool _isRunning = false;
   bool get isRunning => _isRunning;
 
@@ -167,6 +61,8 @@ class FocusSessionService with WidgetsBindingObserver {
   final ValueNotifier<int> remainingSecondsNotifier =
       ValueNotifier<int>(25 * 60);
   final ValueNotifier<bool> isRunningNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> isBreakNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<int> completedCyclesNotifier = ValueNotifier<int>(0);
   final ValueNotifier<Task?> attachedTaskNotifier = ValueNotifier<Task?>(null);
   final ValueNotifier<String> soundscapeNotifier =
       ValueNotifier<String>('Gentle Rain');
@@ -296,7 +192,8 @@ class FocusSessionService with WidgetsBindingObserver {
     _config = newConfig;
     configNotifier.value = newConfig;
     if (!_isRunning) {
-      _totalSeconds = _config.focusMinutes * 60;
+      _totalSeconds =
+          (_isBreak ? _config.shortBreakMinutes : _config.focusMinutes) * 60;
       _remainingSeconds = _totalSeconds;
       remainingSecondsNotifier.value = _remainingSeconds;
     }
@@ -329,7 +226,8 @@ class FocusSessionService with WidgetsBindingObserver {
 
   void startTimer() {
     if (_remainingSeconds <= 0) {
-      _totalSeconds = _config.focusMinutes * 60;
+      _totalSeconds =
+          (_isBreak ? _config.shortBreakMinutes : _config.focusMinutes) * 60;
       _remainingSeconds = _totalSeconds;
       remainingSecondsNotifier.value = _remainingSeconds;
     }
@@ -349,6 +247,9 @@ class FocusSessionService with WidgetsBindingObserver {
 
     // Update notification immediately on start
     _showPinnedNotification();
+    if (_targetEndTime != null) {
+      _scheduleCompletionNotification(_targetEndTime!);
+    }
   }
 
   void _tick() {
@@ -390,6 +291,7 @@ class FocusSessionService with WidgetsBindingObserver {
     _ticker?.cancel();
     _targetEndTime = null;
     _soundService.stop();
+    _cancelScheduledCompletion();
     _showPinnedNotification(isPaused: true);
   }
 
@@ -398,6 +300,7 @@ class FocusSessionService with WidgetsBindingObserver {
     _totalSeconds += seconds;
     if (_isRunning && _targetEndTime != null) {
       _targetEndTime = _targetEndTime!.add(Duration(seconds: seconds));
+      _scheduleCompletionNotification(_targetEndTime!);
     }
     remainingSecondsNotifier.value = _remainingSeconds;
     if (_isRunning) {
@@ -405,17 +308,46 @@ class FocusSessionService with WidgetsBindingObserver {
     }
   }
 
-  void resetTimer({int? minutes}) {
+  void resetTimer({int? minutes, bool isBreak = false}) {
     _isRunning = false;
     isRunningNotifier.value = false;
     _ticker?.cancel();
     _targetEndTime = null;
     _soundService.stop();
-    _totalSeconds = (minutes ?? _config.focusMinutes) * 60;
+    _isBreak = isBreak;
+    isBreakNotifier.value = isBreak;
+    _totalSeconds =
+        (minutes ?? (_isBreak ? _config.shortBreakMinutes : _config.focusMinutes)) *
+            60;
     _remainingSeconds = _totalSeconds;
     remainingSecondsNotifier.value = _remainingSeconds;
     _cancelNotification();
   }
+
+  /// Sets up and starts or prepares a reboot break cycle.
+  void startBreak({int? minutes, bool? isLong, bool autoStart = false}) {
+    final bool useLong = isLong ??
+        (_config.cyclesBeforeLongBreak > 0 &&
+            _completedCycles > 0 &&
+            (_completedCycles % _config.cyclesBeforeLongBreak == 0));
+    final breakMin = minutes ??
+        (useLong ? _config.longBreakMinutes : _config.shortBreakMinutes);
+    resetTimer(minutes: breakMin, isBreak: true);
+    if (autoStart) {
+      startTimer();
+    }
+  }
+
+  /// Sets up and starts or prepares a normal deep focus cycle.
+  void startFocus({int? minutes, bool autoStart = false}) {
+    resetTimer(minutes: minutes ?? _config.focusMinutes, isBreak: false);
+    if (autoStart) {
+      startTimer();
+    }
+  }
+
+  /// Explicitly completes the current session cycle (for testing or manual completion triggers).
+  Future<void> completeSession() => _onComplete();
 
   /// Immediately terminates any active focus session, audio, notifications, and timer.
   void terminateSession() {
@@ -426,6 +358,10 @@ class FocusSessionService with WidgetsBindingObserver {
     _soundService.stop();
     _attachedTask = null;
     attachedTaskNotifier.value = null;
+    _isBreak = false;
+    isBreakNotifier.value = false;
+    _completedCycles = 0;
+    completedCyclesNotifier.value = 0;
     _totalSeconds = _config.focusMinutes * 60;
     _remainingSeconds = _totalSeconds;
     remainingSecondsNotifier.value = _remainingSeconds;
@@ -438,15 +374,57 @@ class FocusSessionService with WidgetsBindingObserver {
     _targetEndTime = null;
     _soundService.stop();
 
-    const xp = 113;
-    await _focusRepo.logFocusSession(
-      taskId: _attachedTask?.id,
-      durationMin: _totalSeconds ~/ 60,
-      xpEarned: xp,
-    );
+    final bool wasBreak = _isBreak;
 
-    _completionStreamController.add(xp);
-    _showCompletedNotification(xp);
+    if (!wasBreak) {
+      _completedCycles++;
+      completedCyclesNotifier.value = _completedCycles;
+
+      const xp = 113;
+
+      // Determine next break duration
+      final bool nextIsLongBreak = _config.cyclesBeforeLongBreak > 0 &&
+          (_completedCycles % _config.cyclesBeforeLongBreak == 0);
+      final breakMin = nextIsLongBreak
+          ? _config.longBreakMinutes
+          : _config.shortBreakMinutes;
+
+      // Stage break session
+      _isBreak = true;
+      isBreakNotifier.value = true;
+      _totalSeconds = breakMin * 60;
+      _remainingSeconds = _totalSeconds;
+      remainingSecondsNotifier.value = _remainingSeconds;
+
+      // Broadcast XP earned to listeners (positive value indicates focus session completed)
+      _completionStreamController.add(xp);
+      _showCompletedNotification(xp: xp, isBreak: false);
+
+      try {
+        await _focusRepo.logFocusSession(
+          taskId: _attachedTask?.id,
+          durationMin: _totalSeconds ~/ 60,
+          xpEarned: xp,
+        );
+      } catch (e) {
+        debugPrint('[FocusSessionService] Error logging session: $e');
+      }
+
+      if (_config.autoStartBreaks) {
+        startTimer();
+      }
+    } else {
+      // Break cycle completed — stage next normal deep focus session
+      _isBreak = false;
+      isBreakNotifier.value = false;
+      _totalSeconds = _config.focusMinutes * 60;
+      _remainingSeconds = _totalSeconds;
+      remainingSecondsNotifier.value = _remainingSeconds;
+
+      // Broadcast -1 to indicate break completed (no XP)
+      _completionStreamController.add(-1);
+      _showCompletedNotification(xp: 0, isBreak: true);
+    }
   }
 
   Future<void> _showPinnedNotification({bool isPaused = false}) async {
@@ -457,27 +435,41 @@ class FocusSessionService with WidgetsBindingObserver {
     final secs = _remainingSeconds % 60;
     final timeStr =
         '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-    final taskTitle = _attachedTask?.title ?? 'Deep Focus Cycle';
+    final taskTitle = _isBreak
+        ? 'Reboot Break'
+        : (_attachedTask?.title ?? 'Deep Focus Cycle');
     final progress = _totalSeconds > 0
         ? ((_totalSeconds - _remainingSeconds) / _totalSeconds * 100)
             .clamp(0.0, 100.0)
         : 0.0;
+
+    final String title = _isBreak
+        ? (isPaused ? 'Break Paused • $timeStr' : 'Reboot Break • $timeStr')
+        : (isPaused ? 'Focus Paused • $timeStr' : 'Deep Focus • $timeStr');
+
+    final String body = _isBreak
+        ? (isPaused
+            ? 'Reboot break is paused'
+            : 'Rest and recharge your cognitive buffer')
+        : (isPaused
+            ? '$taskTitle is paused'
+            : '$taskTitle ($_selectedSoundscape)');
+
+    final Color color = isPaused
+        ? const Color(0xFFF59E0B)
+        : (_isBreak ? const Color(0xFF10B981) : const Color(0xFF00E5FF));
 
     try {
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
           id: 1001,
           channelKey: 'focus_session_channel',
-          title: isPaused
-              ? 'Focus Paused • $timeStr'
-              : 'Deep Focus • $timeStr',
-          body: isPaused
-              ? '$taskTitle is paused'
-              : '$taskTitle ($_selectedSoundscape)',
+          title: title,
+          body: body,
           notificationLayout: NotificationLayout.ProgressBar,
           progress: progress.toDouble(),
           category: NotificationCategory.Progress,
-          color: isPaused ? const Color(0xFFF59E0B) : const Color(0xFF00E5FF),
+          color: color,
           locked: true,
           autoDismissible: false,
         ),
@@ -509,7 +501,10 @@ class FocusSessionService with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _showCompletedNotification(int xp) async {
+  Future<void> _showCompletedNotification({
+    required int xp,
+    required bool isBreak,
+  }) async {
     if (!_notificationsInitialized) return;
 
     final taskTitle = _attachedTask?.title ?? 'Focus Session';
@@ -520,11 +515,12 @@ class FocusSessionService with WidgetsBindingObserver {
         content: NotificationContent(
           id: 1002,
           channelKey: 'focus_completed_channel',
-          title: 'Focus Session Complete',
-          body:
-              'Optimal continuity achieved. You earned +$xp XP for $taskTitle.',
+          title: isBreak ? 'Reboot Break Complete' : 'Focus Session Complete',
+          body: isBreak
+              ? 'Break cycle finished. Energy restored. Ready for the next sprint!'
+              : 'Optimal continuity achieved. You earned +$xp XP for $taskTitle.',
           category: NotificationCategory.Status,
-          color: const Color(0xFF10B981),
+          color: isBreak ? const Color(0xFF00E5FF) : const Color(0xFF10B981),
           autoDismissible: true,
           locked: false,
         ),
@@ -534,9 +530,58 @@ class FocusSessionService with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _scheduleCompletionNotification(DateTime endTime) async {
+    if (!_notificationsInitialized) return;
+    final taskTitle = _isBreak
+        ? 'Reboot Break'
+        : (_attachedTask?.title ?? 'Deep Focus Cycle');
+    final title =
+        _isBreak ? 'Reboot Break Complete' : 'Focus Session Complete';
+    final body = _isBreak
+        ? 'Break cycle finished. Energy restored. Return to launch focus!'
+        : 'Optimal continuity achieved for $taskTitle. Return to claim your XP.';
+    try {
+      await AwesomeNotifications().cancel(1002);
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: 1002,
+          channelKey: 'focus_completed_channel',
+          title: title,
+          body: body,
+          category: NotificationCategory.Alarm,
+          color: _isBreak ? const Color(0xFF00E5FF) : const Color(0xFF10B981),
+          wakeUpScreen: true,
+          autoDismissible: true,
+          locked: false,
+        ),
+        schedule: NotificationCalendar(
+          year: endTime.year,
+          month: endTime.month,
+          day: endTime.day,
+          hour: endTime.hour,
+          minute: endTime.minute,
+          second: endTime.second,
+          millisecond: 0,
+          repeats: false,
+          allowWhileIdle: true,
+          preciseAlarm: true,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[FocusSessionService] Error scheduling completion notification: $e');
+    }
+  }
+
+  Future<void> _cancelScheduledCompletion() async {
+    try {
+      await AwesomeNotifications().cancel(1002);
+    } catch (_) {}
+  }
+
   Future<void> _cancelNotification() async {
     try {
       await AwesomeNotifications().cancel(1001);
+      await AwesomeNotifications().cancel(1002);
     } catch (_) {}
   }
 }

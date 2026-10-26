@@ -6,6 +6,8 @@ import 'package:axis/ui/tasks/task_card.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
 import 'package:axis/ui/tasks/task_filter_sheet.dart';
 import 'package:axis/ui/tasks/tasks_empty_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:axis/core/bloc/blocs.dart';
 
 /// UPCOMING TAB (Chronologically grouped with cached stream & filter criteria)
 class UpcomingTab extends StatefulWidget {
@@ -261,21 +263,14 @@ class UpcomingSection extends StatelessWidget {
               child: TaskCard(
                 task: task,
                 onToggle: (checked) async {
-                  final updated = Task(
-                    id: task.id,
-                    title: task.title,
-                    notes: task.notes,
-                    status: checked ? 'done' : 'todo',
-                    priority: task.priority,
-                    projectId: task.projectId,
-                    tags: task.tags,
-                    dueDate: task.dueDate,
-                    dueTime: task.dueTime,
-                    estimateMin: task.estimateMin,
-                    recurrenceRule: task.recurrenceRule,
-                    recurrenceMode: task.recurrenceMode,
-                  );
-                  await repo.updateTask(updated);
+                  try {
+                    context.read<TasksBloc>().add(
+                      ToggleTaskStatusRequested(task: task, isDone: checked),
+                    );
+                  } catch (_) {
+                    final updated = task.copyWith(status: checked ? 'done' : 'todo');
+                    await repo.updateTask(updated);
+                  }
                 },
                 onTap: () => showModalBottomSheet(
                   context: context,

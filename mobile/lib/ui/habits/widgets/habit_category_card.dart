@@ -439,7 +439,7 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: Text(
+                                      child: AutoDirectionText(
                                         habit.name,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,

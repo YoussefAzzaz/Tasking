@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/domain/filter_engine.dart';
 
 // ---------------------------------------------------------------------------
 // TASK FILTER CRITERIA MODEL
@@ -34,8 +35,25 @@ class TaskFilterCriteria {
   }
 
   bool matches(Task t) {
-    // 1. Priority filter
-    if (priority != null && t.priority != priority) {
+    // 1. Domain FilterEngine evaluation
+    final filterTask = FilterTask(
+      t.id,
+      t.priority,
+      t.tags?.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+      t.dueDate,
+    );
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    final isOverdue = dueDateOption == 'overdue';
+
+    if (!FilterEngine.matches(
+      filterTask,
+      FilterQuery(
+        priority != null ? [priority!] : null,
+        null,
+        isOverdue ? todayStr : null,
+      ),
+    )) {
       return false;
     }
 

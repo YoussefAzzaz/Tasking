@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'package:axis/core/theme.dart';
+export 'package:axis/core/text_direction.dart';
 
 /// Glass-tier card per DESIGN.md
 class AxisCard extends StatelessWidget {
@@ -68,19 +69,21 @@ class AxisChip extends StatelessWidget {
     this.dotColor,
     this.backgroundColor,
     this.textColor,
+    this.onTap,
   });
 
   final String label;
   final Color? dotColor;
   final Color? backgroundColor;
   final Color? textColor;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? AxisColors.surfaceHigh.withValues(alpha: 0.5);
     final fg = textColor ?? AxisColors.textMuted;
 
-    return Container(
+    final chip = Container(
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
@@ -103,6 +106,21 @@ class AxisChip extends StatelessWidget {
             style: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg),
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return chip;
+
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9999),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+          child: Center(child: chip),
+        ),
       ),
     );
   }
@@ -257,41 +275,45 @@ class _AxisCheckboxState extends State<AxisCheckbox>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _toggle,
-      child: Container(
-        color: Colors.transparent,
-        padding: const EdgeInsets.all(6),
-        child: ScaleTransition(
-          scale: _scaleAnim,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: widget.checked ? AxisColors.success : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: widget.checked
-                    ? AxisColors.success
-                    : AxisColors.textMuted.withValues(alpha: 0.4),
-                width: 1.8,
+    return Semantics(
+      checked: widget.checked,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggle,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+          child: Center(
+            child: ScaleTransition(
+              scale: _scaleAnim,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: widget.checked ? AxisColors.success : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: widget.checked
+                        ? AxisColors.success
+                        : AxisColors.textMuted.withValues(alpha: 0.4),
+                    width: 1.8,
+                  ),
+                  boxShadow: widget.checked
+                      ? [
+                          BoxShadow(
+                            color: AxisColors.success.withValues(alpha: 0.4),
+                            blurRadius: 10,
+                            spreadRadius: -2,
+                          )
+                        ]
+                      : null,
+                ),
+                child: widget.checked
+                    ? const Icon(Icons.check_rounded,
+                        size: 14, color: AxisColors.canvasBase)
+                    : null,
               ),
-              boxShadow: widget.checked
-                  ? [
-                      BoxShadow(
-                        color: AxisColors.success.withValues(alpha: 0.4),
-                        blurRadius: 10,
-                        spreadRadius: -2,
-                      )
-                    ]
-                  : null,
             ),
-            child: widget.checked
-                ? const Icon(Icons.check_rounded,
-                    size: 14, color: AxisColors.canvasBase)
-                : null,
           ),
         ),
       ),
@@ -354,3 +376,64 @@ class AxisButton extends StatelessWidget {
 }
 
 enum ButtonVariant { primary, secondary }
+
+/// Modal bottom sheet scaffold that enables instant dismissal when clicking outside
+/// the sheet (on the backdrop/empty space above the sheet).
+class ModalSheetScaffold extends StatelessWidget {
+  const ModalSheetScaffold({
+    super.key,
+    required this.child,
+    this.onTapOutside,
+    this.alignment = Alignment.bottomCenter,
+  });
+
+  final Widget child;
+  final VoidCallback? onTapOutside;
+  final AlignmentGeometry? alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTapOutside ?? () => Navigator.of(context).pop(),
+          ),
+        ),
+        if (alignment != null)
+          Align(
+            alignment: alignment!,
+            child: child,
+          )
+        else
+          child,
+      ],
+    );
+  }
+}
+
+/// A wrapper for the top bar / drag handle of modal sheets that automatically
+/// closes the sheet when tapped.
+class ModalSheetTopBar extends StatelessWidget {
+  const ModalSheetTopBar({
+    super.key,
+    required this.child,
+    this.onTap,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap ?? () => Navigator.of(context).pop(),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: child,
+      ),
+    );
+  }
+}

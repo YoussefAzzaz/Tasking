@@ -10,6 +10,8 @@ import 'package:axis/ui/tasks/upcoming_tab.dart';
 import 'package:axis/ui/tasks/outdated_tab.dart';
 import 'package:axis/ui/tasks/projects_tab.dart';
 import 'package:axis/ui/tasks/task_filter_sheet.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:axis/core/bloc/blocs.dart';
 
 export 'package:axis/ui/tasks/task_filter_sheet.dart' show TaskFilterCriteria, TaskFilterSheet;
 export 'package:axis/ui/tasks/inbox_tab.dart' show InboxTab;
@@ -58,10 +60,20 @@ class _TasksScreenState extends State<TasksScreen> {
             _openCreateTask(initialProject: initialProject),
       ),
     ];
+    _filterCriteria.addListener(_syncFilterToBloc);
+  }
+
+  void _syncFilterToBloc() {
+    try {
+      context.read<TasksBloc>().add(
+        UpdateFilterCriteriaRequested(_filterCriteria.value),
+      );
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _filterCriteria.removeListener(_syncFilterToBloc);
     _filterCriteria.dispose();
     super.dispose();
   }
@@ -73,7 +85,12 @@ class _TasksScreenState extends State<TasksScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => CreateTaskSheet(
         initialProject: initialProject,
-        onTaskCreated: () => setState(() {}),
+        onTaskCreated: () {
+          try {
+            context.read<TasksBloc>().add(const LoadTasksRequested());
+          } catch (_) {}
+          setState(() {});
+        },
       ),
     );
   }

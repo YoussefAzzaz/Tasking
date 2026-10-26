@@ -63,14 +63,17 @@ class LiveHabitCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AxisColors.borderGlass2,
-                  borderRadius: BorderRadius.circular(9999),
+            ModalSheetTopBar(
+              onTap: () => Navigator.pop(ctx),
+              child: Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AxisColors.borderGlass2,
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
                 ),
               ),
             ),
@@ -176,7 +179,7 @@ class LiveHabitCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
+                        AutoDirectionText(
                           habit.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

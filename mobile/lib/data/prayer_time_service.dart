@@ -153,21 +153,6 @@ class PrayerTimeService with WidgetsBindingObserver {
   /// Initializes the local prayer settings table and synchronizes prayers
   Future<void> init() async {
     try {
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS prayer_settings (
-          id TEXT PRIMARY KEY,
-          city TEXT,
-          country TEXT,
-          latitude REAL,
-          longitude REAL,
-          timezone TEXT,
-          calculation_method TEXT,
-          last_sync_date TEXT,
-          adhan_notifications_enabled INTEGER DEFAULT 1,
-          fajr_alarm_enabled INTEGER DEFAULT 1
-        )
-      ''');
-
       await _loadSavedSettings();
       await syncPrayers();
 
@@ -525,13 +510,6 @@ class PrayerTimeService with WidgetsBindingObserver {
       if (forceLocation) {
         await resolveCoordinates(forceRefresh: true);
       }
-
-      // 1. Purge legacy prayers from habits table & prayer category from habit_categories
-      await db.execute("DELETE FROM habits WHERE kind = 'Prayers' OR id LIKE 'habit_prayer_%'");
-      await db.execute("DELETE FROM habit_categories WHERE id = 'cat_prayers' OR LOWER(name) = 'prayers'");
-
-      // Clean up any rogue / corrupted prayer records (such as non-canonical standalone UUID IDs)
-      await db.execute("DELETE FROM prayers WHERE id NOT LIKE 'prayer_%' OR prayer_code NOT IN ('fajr', 'dhuhr', 'asr', 'maghrib', 'isha')");
 
       final prayerItems = await calculatePrayersForDate(now);
       final uid = currentUserId;

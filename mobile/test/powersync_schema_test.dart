@@ -16,6 +16,7 @@ void main() {
       expect(tableMap.containsKey('notes'), isTrue);
       expect(tableMap.containsKey('focus_sessions'), isTrue);
       expect(tableMap.containsKey('habit_categories'), isTrue);
+      expect(tableMap.containsKey('note_categories'), isTrue);
       expect(tableMap.containsKey('prayers'), isTrue);
       expect(tableMap.containsKey('user_profiles'), isTrue);
 

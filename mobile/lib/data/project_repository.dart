@@ -46,6 +46,9 @@ class ProjectRepository {
   static const String _cacheKey = 'projects_list';
 
   Stream<List<Project>> watchProjects() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const <Project>[]);
+    }
     final uid = currentUserId;
     final query = uid.isNotEmpty
         ? 'SELECT * FROM projects WHERE user_id = ? ORDER BY created_at ASC'

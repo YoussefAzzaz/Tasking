@@ -43,7 +43,7 @@ class NoteCardWidget extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text(
+                      child: AutoDirectionText(
                         note.title,
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -61,7 +61,7 @@ class NoteCardWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 if (note.bodyMd.isNotEmpty)
-                  Text(
+                  AutoDirectionText(
                     note.bodyMd
                         .replaceAll(RegExp(r'#+\s*'), '')
                         .replaceAll('**', '')
@@ -85,23 +85,53 @@ class NoteCardWidget extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 11, color: AxisColors.textDim),
                     ),
-                    if (note.mood != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AxisColors.warning.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          note.mood!,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AxisColors.warning,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (note.category.isNotEmpty &&
+                            note.category != 'note' &&
+                            note.category != 'journal' &&
+                            note.category.toLowerCase() != 'general notes') ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: AxisColors.secondary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AxisColors.secondary.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Text(
+                              note.category,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AxisColors.secondary,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        ],
+                        if (note.mood != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AxisColors.warning.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              note.mood!,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AxisColors.warning,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ],

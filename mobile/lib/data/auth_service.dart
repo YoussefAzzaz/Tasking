@@ -195,7 +195,7 @@ class AuthService {
       // 1. If Supabase session is already alive, connect PowerSync if not connected
       if (client.auth.currentSession != null) {
         if (isDatabaseInitialized && !db.connected) {
-          db.connect(connector: SupabaseConnector());
+          db.connect(connector: createSupabaseConnector());
         }
         return;
       }
@@ -230,9 +230,9 @@ class AuthService {
         displayName: name,
       );
 
-      // Connect PowerSync with new user credentials
-      if (response.session != null && isDatabaseInitialized) {
-        db.connect(connector: SupabaseConnector());
+      // Connect PowerSync with new user credentials if not already connected
+      if (response.session != null && isDatabaseInitialized && !db.connected) {
+        db.connect(connector: createSupabaseConnector());
         unawaited(PrayerTimeService().syncPrayers());
       }
 
@@ -270,9 +270,9 @@ class AuthService {
         displayName: cleanName,
       );
 
-      // Auto-connect if session is immediately active
-      if (response.session != null && isDatabaseInitialized) {
-        db.connect(connector: SupabaseConnector());
+      // Auto-connect if session is immediately active and not already connected
+      if (response.session != null && isDatabaseInitialized && !db.connected) {
+        db.connect(connector: createSupabaseConnector());
         unawaited(PrayerTimeService().syncPrayers());
       }
 

@@ -10,7 +10,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:axis/core/router.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/prayer_time_service.dart';
-import 'package:axis/data/habit_repository.dart';
 import 'package:axis/ui/habits/widgets/fajr_alarm_dialog.dart';
 
 /// Centralized service managing prayer Adhan notifications,
@@ -23,7 +22,6 @@ class AdhanAlarmService {
   bool _adhanNotificationsEnabled = true;
   bool _fajrAlarmEnabled = true;
   AudioPlayer? _alarmPlayer;
-  Process? _alarmProcess;
   Timer? _vibrationTimer;
   bool _isAlarmRinging = false;
   bool _isModalShowing = false;
@@ -35,35 +33,6 @@ class AdhanAlarmService {
   /// Initializes alarm preferences from SQLite
   Future<void> init() async {
     try {
-      // Ensure prayer_settings table exists
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS prayer_settings (
-          id TEXT PRIMARY KEY,
-          city TEXT,
-          country TEXT,
-          latitude REAL,
-          longitude REAL,
-          timezone TEXT,
-          calculation_method TEXT,
-          last_sync_date TEXT,
-          adhan_notifications_enabled INTEGER DEFAULT 1,
-          fajr_alarm_enabled INTEGER DEFAULT 1
-        )
-      ''');
-
-      // Ensure preference columns exist for older existing tables
-      try {
-        await db.execute('''
-          ALTER TABLE prayer_settings ADD COLUMN adhan_notifications_enabled INTEGER DEFAULT 1
-        ''');
-      } catch (_) {}
-
-      try {
-        await db.execute('''
-          ALTER TABLE prayer_settings ADD COLUMN fajr_alarm_enabled INTEGER DEFAULT 1
-        ''');
-      } catch (_) {}
-
       final rows = await db.getAll('SELECT * FROM prayer_settings WHERE id = ?', ['current']);
       if (rows.isNotEmpty) {
         final row = rows.first;
@@ -311,24 +280,9 @@ class AdhanAlarmService {
 
     try {
       final wavFile = await _getOrGenerateAlarmWav();
-      if (Platform.isWindows) {
-        final path = wavFile.path.replaceAll('/', '\\');
-        _alarmProcess = await Process.start(
-          'powershell',
-          [
-            '-WindowStyle',
-            'Hidden',
-            '-NoProfile',
-            '-NonInteractive',
-            '-Command',
-            "\$sp = New-Object System.Media.SoundPlayer '$path'; \$sp.PlayLooping(); while(\$true){ Start-Sleep -Seconds 1 }",
-          ],
-        );
-      } else {
-        _alarmPlayer ??= AudioPlayer();
-        await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
-        await _alarmPlayer!.play(DeviceFileSource(wavFile.path));
-      }
+      _alarmPlayer ??= AudioPlayer();
+      await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
+      await _alarmPlayer!.play(DeviceFileSource(wavFile.path));
     } catch (e) {
       debugPrint('[AdhanAlarmService] startAlarmSound error: $e');
     }
@@ -345,14 +299,7 @@ class AdhanAlarmService {
     _vibrationTimer?.cancel();
     _vibrationTimer = null;
 
-    if (_alarmProcess != null) {
-      try {
-        _alarmProcess!.kill();
-      } catch (_) {}
-      _alarmProcess = null;
-    }
-
-    if (!Platform.isWindows && _alarmPlayer != null) {
+    if (_alarmPlayer != null) {
       try {
         await _alarmPlayer?.stop();
       } catch (e) {
@@ -381,8 +328,8 @@ class AdhanAlarmService {
             onAlarmDismissed: () async {
               await stopAlarmSound();
               _isModalShowing = false;
-              // Mark Fajr habit as done
-              await HabitRepository().toggleHabit('habit_prayer_fajr', true);
+              // Mark Fajr prayer as completed in the dedicated prayers table
+              await PrayerTimeService().togglePrayer('fajr', true);
             },
           ),
         ),

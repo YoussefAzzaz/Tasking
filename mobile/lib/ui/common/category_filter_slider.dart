@@ -51,6 +51,30 @@ class CategorySliderItem {
       case 'fitness':
       case 'workout':
         return Icons.fitness_center_rounded;
+      case 'note':
+      case 'article':
+        return Icons.article_rounded;
+      case 'work':
+      case 'job':
+        return Icons.work_rounded;
+      case 'idea':
+      case 'bulb':
+        return Icons.lightbulb_rounded;
+      case 'study':
+      case 'school':
+        return Icons.school_rounded;
+      case 'journal':
+      case 'diary':
+        return Icons.auto_stories_rounded;
+      case 'personal':
+      case 'user':
+        return Icons.person_rounded;
+      case 'star':
+        return Icons.star_rounded;
+      case 'bookmark':
+        return Icons.bookmark_rounded;
+      case 'checklist':
+        return Icons.checklist_rounded;
       default:
         return defaultIcon;
     }

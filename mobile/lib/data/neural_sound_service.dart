@@ -13,7 +13,6 @@ class NeuralSoundService {
   factory NeuralSoundService() => _instance;
   NeuralSoundService._();
 
-  Process? _activeProcess;
   AudioPlayer? _audioPlayer;
   String? _currentTrack;
   double _volume = 0.7;
@@ -46,7 +45,7 @@ class NeuralSoundService {
   Future<void> setVolume(double val) async {
     _volume = val.clamp(0.0, 1.0);
     volumeNotifier.value = _volume;
-    if (!Platform.isWindows && _audioPlayer != null) {
+    if (_audioPlayer != null) {
       try {
         await _audioPlayer!.setVolume(_volume);
       } catch (_) {}
@@ -61,26 +60,12 @@ class NeuralSoundService {
       final wavFile = await _getOrGenerateWav(trackName);
       if (!await wavFile.exists()) return;
 
-      if (Platform.isWindows) {
-        final path = wavFile.path.replaceAll('/', '\\');
-        _activeProcess = await Process.start(
-          'powershell',
-          [
-            '-WindowStyle',
-            'Hidden',
-            '-NoProfile',
-            '-NonInteractive',
-            '-Command',
-            "\$sp = New-Object System.Media.SoundPlayer '$path'; \$sp.PlayLooping(); while(\$true){ Start-Sleep -Seconds 1 }",
-          ],
-        );
-      } else {
-        _audioPlayer ??= AudioPlayer();
-        await _audioPlayer!.stop();
-        await _audioPlayer!.setReleaseMode(ReleaseMode.loop);
-        await _audioPlayer!.setVolume(_volume);
-        await _audioPlayer!.play(DeviceFileSource(wavFile.path));
-      }
+      _audioPlayer ??= AudioPlayer();
+      await _audioPlayer!.stop();
+      await _audioPlayer!.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer!.setVolume(_volume);
+      await _audioPlayer!.play(DeviceFileSource(wavFile.path));
+
       _currentTrack = trackName;
       currentTrackNotifier.value = trackName;
       isPlayingNotifier.value = true;
@@ -93,13 +78,7 @@ class NeuralSoundService {
     isPlayingNotifier.value = false;
     currentTrackNotifier.value = null;
     _currentTrack = null;
-    if (_activeProcess != null) {
-      try {
-        _activeProcess!.kill();
-      } catch (_) {}
-      _activeProcess = null;
-    }
-    if (!Platform.isWindows && _audioPlayer != null) {
+    if (_audioPlayer != null) {
       try {
         await _audioPlayer!.stop();
       } catch (_) {}

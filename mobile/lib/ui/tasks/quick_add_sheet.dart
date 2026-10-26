@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/text_direction.dart';
 import 'package:axis/domain/quick_add_parser.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/data/tag_repository.dart';
@@ -170,54 +171,57 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
               const SizedBox(height: 12),
 
               // Input field
-              TextField(
+              AutoDirectionScope(
                 controller: _controller,
-                focusNode: _focusNode,
-                autofocus: false,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AxisColors.textHigh,
-                    ),
-                cursorColor: AxisColors.primary,
-                decoration: InputDecoration(
-                  hintText: 'e.g. Finish report p1 @work #core today 30m',
-                  hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AxisColors.textDim,
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  autofocus: false,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AxisColors.textHigh,
                       ),
-                  filled: true,
-                  fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: AxisColors.primary, width: 1.5),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                  suffixIcon: _saving
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: AxisColors.primary),
-                          ),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.send_rounded,
-                              color: AxisColors.primary, size: 20),
-                          onPressed: _save,
+                  cursorColor: AxisColors.primary,
+                  decoration: InputDecoration(
+                    hintText: 'e.g. Finish report p1 @work #core today 30m',
+                    hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AxisColors.textDim,
                         ),
+                    filled: true,
+                    fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: AxisColors.primary, width: 1.5),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    suffixIcon: _saving
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AxisColors.primary),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.send_rounded,
+                                color: AxisColors.primary, size: 20),
+                            onPressed: _save,
+                          ),
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _save(),
                 ),
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _save(),
               ),
               const SizedBox(height: 14),
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/widgets.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/data/tag_repository.dart';
@@ -640,95 +641,98 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
 
     return FocusScope(
       autofocus: false,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          FocusScope.of(context).unfocus();
-          setState(() {
-            _showProjectDropdown = false;
-            _showTagDropdown = false;
-          });
-        },
-        child: Padding(
-          padding: EdgeInsets.only(bottom: insets.bottom),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.88,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xF50D1524),
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                blurRadius: 30,
-                spreadRadius: 5,
+      child: ModalSheetScaffold(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            FocusScope.of(context).unfocus();
+            setState(() {
+              _showProjectDropdown = false;
+              _showTagDropdown = false;
+            });
+          },
+          child: Padding(
+            padding: EdgeInsets.only(bottom: insets.bottom),
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.88,
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle and Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
-                child: Column(
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AxisColors.borderGlass2,
-                          borderRadius: BorderRadius.circular(9999),
-                        ),
+              decoration: BoxDecoration(
+                color: const Color(0xF50D1524),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    blurRadius: 30,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle and Header (tap to close automatically)
+                  ModalSheetTopBar(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
+                      child: Column(
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AxisColors.borderGlass2,
+                                borderRadius: BorderRadius.circular(9999),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          AxisColors.primary.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.add_task_rounded,
+                                        color: AxisColors.primary, size: 20),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    widget.taskToEdit != null
+                                        ? 'EDIT TASK'
+                                        : 'NEW TASK',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: AxisColors.textHigh,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded,
+                                    color: AxisColors.textMuted, size: 22),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color:
-                                    AxisColors.primary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.add_task_rounded,
-                                  color: AxisColors.primary, size: 20),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              widget.taskToEdit != null
-                                  ? 'EDIT TASK'
-                                  : 'NEW TASK',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    color: AxisColors.textHigh,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.5,
-                                  ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              color: AxisColors.textMuted, size: 22),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(color: AxisColors.borderSubtle, height: 1),
+                  ),
+                  const Divider(color: AxisColors.borderSubtle, height: 1),
 
               // Scrollable Form Body
               Expanded(
@@ -739,40 +743,43 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                     children: [
                       // Task Name
                       const FieldLabel(label: 'TASK NAME *'),
-                      TextField(
+                      AutoDirectionScope(
                         controller: _titleController,
-                        focusNode: _titleFocusNode,
-                        autofocus: false,
-                        style:
-                            Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: AxisColors.textHigh,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                        cursorColor: AxisColors.primary,
-                        decoration: InputDecoration(
-                          hintText: 'e.g., Design user onboarding flow',
-                          hintStyle: TextStyle(color: AxisColors.textDim),
-                          errorText: _errorText,
-                          filled: true,
-                          fillColor:
-                              AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AxisColors.borderSubtle),
+                        child: TextField(
+                          controller: _titleController,
+                          focusNode: _titleFocusNode,
+                          autofocus: false,
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: AxisColors.textHigh,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                          cursorColor: AxisColors.primary,
+                          decoration: InputDecoration(
+                            hintText: 'e.g., Design user onboarding flow',
+                            hintStyle: TextStyle(color: AxisColors.textDim),
+                            errorText: _errorText,
+                            filled: true,
+                            fillColor:
+                                AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  const BorderSide(color: AxisColors.borderSubtle),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  const BorderSide(color: AxisColors.borderSubtle),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AxisColors.primary, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AxisColors.borderSubtle),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                                color: AxisColors.primary, width: 1.5),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -898,51 +905,54 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                           focusNode: _descFocusNode,
                           onChanged: () => setState(() {}),
                         ),
-                        TextField(
+                        AutoDirectionScope(
                           controller: _descController,
-                          focusNode: _descFocusNode,
-                          autofocus: false,
-                          minLines: _isDescExpanded ? 8 : 3,
-                          maxLines: _isDescExpanded ? 24 : 5,
-                          scrollPadding: const EdgeInsets.only(bottom: 120),
-                          onTap: () {
-                            if (!_isDescExpanded) {
-                              setState(() => _isDescExpanded = true);
-                            }
-                          },
-                          inputFormatters: const [
-                            MarkdownListTextInputFormatter(),
-                          ],
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AxisColors.textHigh,
-                                  ),
-                          cursorColor: AxisColors.primary,
-                          decoration: InputDecoration(
-                            hintText:
-                                'Add markdown formatted notes, lists (- or 1.), checklists (- [ ]), links...',
-                            hintStyle:
-                                const TextStyle(color: AxisColors.textDim),
-                            filled: true,
-                            fillColor:
-                                AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AxisColors.borderSubtle),
+                          child: TextField(
+                            controller: _descController,
+                            focusNode: _descFocusNode,
+                            autofocus: false,
+                            minLines: _isDescExpanded ? 8 : 3,
+                            maxLines: _isDescExpanded ? 24 : 5,
+                            scrollPadding: const EdgeInsets.only(bottom: 120),
+                            onTap: () {
+                              if (!_isDescExpanded) {
+                                setState(() => _isDescExpanded = true);
+                              }
+                            },
+                            inputFormatters: const [
+                              MarkdownListTextInputFormatter(),
+                            ],
+                            style:
+                                Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: AxisColors.textHigh,
+                                    ),
+                            cursorColor: AxisColors.primary,
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Add markdown formatted notes, lists (- or 1.), checklists (- [ ]), links...',
+                              hintStyle:
+                                  const TextStyle(color: AxisColors.textDim),
+                              filled: true,
+                              fillColor:
+                                  AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AxisColors.borderSubtle),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AxisColors.borderSubtle),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AxisColors.primary, width: 1.5),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
                             ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AxisColors.borderSubtle),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AxisColors.primary, width: 1.5),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 12),
                           ),
                         ),
                       ] else ...[
@@ -1385,6 +1395,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 }

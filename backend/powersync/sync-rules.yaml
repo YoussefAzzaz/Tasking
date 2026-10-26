@@ -1,97 +1,107 @@
 # =============================================================================
-# AXIS: PowerSync Sync Rules (Multi-User Isolated)
-# Matches the Postgres schema and client PowerSync SQLite database.
+# AXIS: PowerSync Sync Streams (Multi-User Isolated)
+# Migrated from bucket_definitions to Sync Streams (edition: 3).
 #
 # Key rules:
-#   • Every table is filtered by: WHERE user_id = bucket.user_id
+#   • Every table is filtered by: WHERE user_id = auth.user_id()
 #   • Each authenticated user syncs only their own data
-#   • Matches exactly the 8 synced tables in public schema & powersync publication
+#   • auto_subscribe: true ensures clients always receive all their data on connect
+#   • Matches exactly the synced tables in public schema & powersync publication
 # =============================================================================
 
-bucket_definitions:
-  user_data:
-    parameters: SELECT request.user_id() AS user_id
+config:
+  edition: 3
 
-    data:
-      # ── Tasks ─────────────────────────────────────────────────────────────
+streams:
+  # ── All user-scoped data in one auto-subscribed stream ────────────────────
+  user_data:
+    auto_subscribe: true
+    queries:
+
+      # ── Tasks ───────────────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           title, notes, status, priority, project_id, tags,
           due_date, due_time, estimate_min,
           recurrence_rule, recurrence_mode, completed_at
         FROM tasks
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Projects ──────────────────────────────────────────────────────────
+      # ── Projects ────────────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           name, color
         FROM projects
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Tags ──────────────────────────────────────────────────────────────
+      # ── Tags ────────────────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           name, color
         FROM tags
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Habits ────────────────────────────────────────────────────────────
+      # ── Habits ──────────────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           name, icon, color, kind, target_value, unit,
           schedule_type, remind_time, sort_order
         FROM habits
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Habit Logs ────────────────────────────────────────────────────────
+      # ── Habit Logs ──────────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           habit_id, log_date, status, value, note
         FROM habit_logs
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Notes ─────────────────────────────────────────────────────────────
+      # ── Notes ───────────────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           title, body_md, pinned, category, mood, energy
         FROM notes
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Focus Sessions ────────────────────────────────────────────────────
+      # ── Focus Sessions ──────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           task_id, kind, planned_min, actual_min,
           started_at, ended_at, completed, xp_earned
         FROM focus_sessions
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Activity & XP Logs ────────────────────────────────────────────────
+      # ── Activity & XP Logs ──────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           task_id, event_type, xp_earned, timestamp
         FROM logs
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Habit Categories ──────────────────────────────────────────────────
+      # ── Habit Categories ────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at,
           name, icon, color, sort_order
         FROM habit_categories
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── Prayers ───────────────────────────────────────────────────────────
+      # ── Note Categories ─────────────────────────────────────────────────────
+      - SELECT
+          id, user_id, created_at, updated_at,
+          name, icon, color, sort_order
+        FROM note_categories
+        WHERE user_id = auth.user_id()
+
+      # ── Prayers ─────────────────────────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at,
           prayer_code, name, icon, time, sort_order, is_done
         FROM prayers
-        WHERE user_id = bucket.user_id
+        WHERE user_id = auth.user_id()
 
-      # ── User Profiles (Unique User XP & Level) ────────────────────────────
+      # ── User Profiles (XP & Level) ──────────────────────────────────────────
       - SELECT
           id, user_id, created_at, updated_at,
-          name, title, avatar_color, total_xp, level
+          name, title, avatar_color, avatar_url, total_xp, level
         FROM user_profiles
-        WHERE user_id = bucket.user_id
-
-
+        WHERE user_id = auth.user_id()

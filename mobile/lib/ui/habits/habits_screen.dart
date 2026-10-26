@@ -16,6 +16,22 @@ export 'package:axis/ui/habits/widgets/habit_continuity_card.dart';
 export 'package:axis/ui/habits/widgets/habit_category_card.dart';
 export 'package:axis/ui/habits/widgets/prayer_times_card.dart';
 
+class HabitContinuityMetrics {
+  final int currentStreak;
+  final int bestStreak;
+  final String multiplierStr;
+  final int monthlyRate;
+  final List<Widget> weekDayWidgets;
+
+  const HabitContinuityMetrics({
+    required this.currentStreak,
+    required this.bestStreak,
+    required this.multiplierStr,
+    required this.monthlyRate,
+    required this.weekDayWidgets,
+  });
+}
+
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
 
@@ -29,22 +45,11 @@ class _HabitsScreenState extends State<HabitsScreen> {
   late final Stream<List<HabitCategory>> _habitCategoriesStream;
   late final Stream<List<Habit>> _habitsStream;
   late final Stream<List<Prayer>> _prayersStream;
-  static final Set<String> _locallyDeletedCategories = {};
   List<HabitCategory> _latestCategories = [];
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedCategoryId = 'all';
-
-  void _onCategoryAdded() {
-    final added = HabitCategoryRepository.categoryAddedNotifier.value;
-    if (added != null && added.isNotEmpty) {
-      setState(() {
-        _locallyDeletedCategories.remove(added.toLowerCase().trim());
-        _locallyDeletedCategories.remove('discovered_${added.toLowerCase().trim()}');
-      });
-    }
-  }
 
   @override
   void initState() {
@@ -53,12 +58,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
     _habitCategoriesStream = HabitCategoryRepository().watchCategories();
     _habitsStream = _repo.watchHabits();
     _prayersStream = PrayerTimeService().watchPrayers();
-    HabitCategoryRepository.categoryAddedNotifier.addListener(_onCategoryAdded);
   }
 
   @override
   void dispose() {
-    HabitCategoryRepository.categoryAddedNotifier.removeListener(_onCategoryAdded);
     _searchController.dispose();
     super.dispose();
   }
@@ -205,6 +208,81 @@ class _HabitsScreenState extends State<HabitsScreen> {
     }
   }
 
+  HabitContinuityMetrics _calculateContinuityMetrics(List<StreakLog> streakLogs) {
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    final currentStreak =
+        StreakEngine.calculateStreak('daily', streakLogs, todayStr);
+
+    final doneDates = streakLogs
+        .where((r) => r.status == 'done')
+        .map((r) => r.date)
+        .toSet();
+
+    int bestStreak = currentStreak;
+    if (doneDates.isNotEmpty) {
+      final sortedDates = doneDates.toList()..sort();
+      int maxRun = 1;
+      int run = 1;
+      for (int i = 1; i < sortedDates.length; i++) {
+        final d1 = DateTime.tryParse(sortedDates[i - 1]);
+        final d2 = DateTime.tryParse(sortedDates[i]);
+        if (d1 != null &&
+            d2 != null &&
+            d2.difference(d1).inDays == 1) {
+          run++;
+          if (run > maxRun) maxRun = run;
+        } else if (d1 != null &&
+            d2 != null &&
+            d2.difference(d1).inDays > 1) {
+          run = 1;
+        }
+      }
+      if (maxRun > bestStreak) bestStreak = maxRun;
+    }
+
+    final multiplier = (1.0 + (currentStreak * 0.1)).clamp(1.0, 3.0);
+    final multiplierStr = '${multiplier.toStringAsFixed(1)}X';
+
+    int doneDaysIn30 = 0;
+    for (int i = 0; i < 30; i++) {
+      final d = now.subtract(Duration(days: i));
+      final dKey = DateFormat('yyyy-MM-dd').format(d);
+      if (doneDates.contains(dKey)) doneDaysIn30++;
+    }
+    final monthlyRate = (doneDaysIn30 / 30.0 * 100).round();
+
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final weekDayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final weekDayWidgets = <Widget>[];
+
+    for (int i = 0; i < 7; i++) {
+      final dayDate = monday.add(Duration(days: i));
+      final dayStr = DateFormat('yyyy-MM-dd').format(dayDate);
+      final label = weekDayLabels[i];
+
+      String state;
+      if (dayStr.compareTo(todayStr) > 0) {
+        state = 'upcoming';
+      } else if (dayStr == todayStr) {
+        state = doneDates.contains(todayStr) ? 'done' : 'today';
+      } else {
+        state = doneDates.contains(dayStr) ? 'done' : 'missed';
+      }
+
+      weekDayWidgets
+          .add(Expanded(child: DayPill(day: label, state: state)));
+    }
+
+    return HabitContinuityMetrics(
+      currentStreak: currentStreak,
+      bestStreak: bestStreak,
+      multiplierStr: multiplierStr,
+      monthlyRate: monthlyRate,
+      weekDayWidgets: weekDayWidgets,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -216,82 +294,14 @@ class _HabitsScreenState extends State<HabitsScreen> {
             stream: _habitLogsStream,
             builder: (context, snapshot) {
               final streakLogs = snapshot.data ?? [];
-
-              final now = DateTime.now();
-              final todayStr = DateFormat('yyyy-MM-dd').format(now);
-              final currentStreak =
-                  StreakEngine.calculateStreak('daily', streakLogs, todayStr);
-
-              // Calculate best streak historically
-              final doneDates = streakLogs
-                  .where((r) => r.status == 'done')
-                  .map((r) => r.date)
-                  .toSet();
-
-              int bestStreak = currentStreak;
-              if (doneDates.isNotEmpty) {
-                final sortedDates = doneDates.toList()..sort();
-                int maxRun = 1;
-                int run = 1;
-                for (int i = 1; i < sortedDates.length; i++) {
-                  final d1 = DateTime.tryParse(sortedDates[i - 1]);
-                  final d2 = DateTime.tryParse(sortedDates[i]);
-                  if (d1 != null &&
-                      d2 != null &&
-                      d2.difference(d1).inDays == 1) {
-                    run++;
-                    if (run > maxRun) maxRun = run;
-                  } else if (d1 != null &&
-                      d2 != null &&
-                      d2.difference(d1).inDays > 1) {
-                    run = 1;
-                  }
-                }
-                if (maxRun > bestStreak) bestStreak = maxRun;
-              }
-
-              // Multiplier dynamically based on streak
-              final multiplier = (1.0 + (currentStreak * 0.1)).clamp(1.0, 3.0);
-              final multiplierStr = '${multiplier.toStringAsFixed(1)}X';
-
-              // 30-day Completion Rate
-              int doneDaysIn30 = 0;
-              for (int i = 0; i < 30; i++) {
-                final d = now.subtract(Duration(days: i));
-                final dKey = DateFormat('yyyy-MM-dd').format(d);
-                if (doneDates.contains(dKey)) doneDaysIn30++;
-              }
-              final monthlyRate = (doneDaysIn30 / 30.0 * 100).round();
-
-              // Monday through Sunday of current week
-              final monday = now.subtract(Duration(days: now.weekday - 1));
-              final weekDayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-              final weekDayWidgets = <Widget>[];
-
-              for (int i = 0; i < 7; i++) {
-                final dayDate = monday.add(Duration(days: i));
-                final dayStr = DateFormat('yyyy-MM-dd').format(dayDate);
-                final label = weekDayLabels[i];
-
-                String state;
-                if (dayStr.compareTo(todayStr) > 0) {
-                  state = 'upcoming';
-                } else if (dayStr == todayStr) {
-                  state = doneDates.contains(todayStr) ? 'done' : 'today';
-                } else {
-                  state = doneDates.contains(dayStr) ? 'done' : 'missed';
-                }
-
-                weekDayWidgets
-                    .add(Expanded(child: DayPill(day: label, state: state)));
-              }
+              final metrics = _calculateContinuityMetrics(streakLogs);
 
               return HabitContinuityCard(
-                currentStreak: currentStreak,
-                bestStreak: bestStreak,
-                multiplierStr: multiplierStr,
-                monthlyRate: monthlyRate,
-                weekDayWidgets: weekDayWidgets,
+                currentStreak: metrics.currentStreak,
+                bestStreak: metrics.bestStreak,
+                multiplierStr: metrics.multiplierStr,
+                monthlyRate: metrics.monthlyRate,
+                weekDayWidgets: metrics.weekDayWidgets,
                 onResetStreak: _confirmResetStreak,
               );
             },
@@ -463,11 +473,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         idLower != 'cat_rest' &&
                         nameLower != 'rest' &&
                         idLower != 'general_routines' &&
-                        nameLower != 'general routines' &&
-                        !_locallyDeletedCategories.contains(idLower) &&
-                        !_locallyDeletedCategories.contains(nameLower) &&
-                        !_locallyDeletedCategories
-                            .contains(idLower.replaceFirst('discovered_', ''));
+                        nameLower != 'general routines';
                   }).toList();
 
                   // Sort categories alphabetically
@@ -714,14 +720,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                       _selectedCategoryId.toLowerCase() == category.name.toLowerCase()) {
                                     _selectedCategoryId = 'all';
                                   }
-                                  _locallyDeletedCategories
-                                      .add(category.id.toLowerCase());
-                                  _locallyDeletedCategories
-                                      .add(category.name.toLowerCase());
-                                  final raw = category.id
-                                      .toLowerCase()
-                                      .replaceFirst('discovered_', '');
-                                  _locallyDeletedCategories.add(raw);
                                 });
 
                                 await HabitCategoryRepository().deleteCategory(

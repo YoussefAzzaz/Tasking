@@ -7,6 +7,9 @@ import 'package:axis/ui/tasks/task_detail_sheet.dart';
 import 'package:axis/ui/tasks/task_filter_sheet.dart';
 import 'package:axis/ui/tasks/tasks_empty_state.dart';
 
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:axis/core/bloc/blocs.dart';
+
 /// INBOX TAB (With reactive filter criteria, due date sorting, and cached stream)
 class InboxTab extends StatefulWidget {
   const InboxTab({
@@ -75,21 +78,14 @@ class _InboxTabState extends State<InboxTab> {
                 return TaskCard(
                   task: task,
                   onToggle: (checked) async {
-                    final updated = Task(
-                      id: task.id,
-                      title: task.title,
-                      notes: task.notes,
-                      status: checked ? 'done' : 'todo',
-                      priority: task.priority,
-                      projectId: task.projectId,
-                      tags: task.tags,
-                      dueDate: task.dueDate,
-                      dueTime: task.dueTime,
-                      estimateMin: task.estimateMin,
-                      recurrenceRule: task.recurrenceRule,
-                      recurrenceMode: task.recurrenceMode,
-                    );
-                    await widget.repo.updateTask(updated);
+                    try {
+                      context.read<TasksBloc>().add(
+                        ToggleTaskStatusRequested(task: task, isDone: checked),
+                      );
+                    } catch (_) {
+                      final updated = task.copyWith(status: checked ? 'done' : 'todo');
+                      await widget.repo.updateTask(updated);
+                    }
                   },
                   onTap: () => showModalBottomSheet(
                     context: context,

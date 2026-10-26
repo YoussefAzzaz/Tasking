@@ -118,6 +118,7 @@ class NoteRepository {
       ]);
     } catch (e) {
       debugPrint('[NoteRepository] Error adding note: $e');
+      rethrow;
     }
   }
 
@@ -143,6 +144,7 @@ class NoteRepository {
       ]);
     } catch (e) {
       debugPrint('[NoteRepository] Error updating note: $e');
+      rethrow;
     }
   }
 
@@ -151,6 +153,7 @@ class NoteRepository {
       await db.execute('DELETE FROM notes WHERE id = ?', [id]);
     } catch (e) {
       debugPrint('[NoteRepository] Error deleting note: $e');
+      rethrow;
     }
   }
 }

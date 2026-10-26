@@ -58,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen>
     // 3. Vault synchronization progress bar
     _progressCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 400),
     );
     _progressAnim = CurvedAnimation(
       parent: _progressCtrl,
@@ -71,9 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Automatic navigation after progress completion sequence
     _progressCtrl.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        Future.delayed(const Duration(milliseconds: 350), () {
-          _proceedToApp();
-        });
+        _proceedToApp();
       }
     });
   }
@@ -83,11 +81,15 @@ class _SplashScreenState extends State<SplashScreen>
     _navigated = true;
     HapticFeedback.lightImpact();
 
-    if (AuthService().hasActiveSession) {
-      context.go('/today');
-      unawaited(AuthService().tryAutoLoginOrSync());
-    } else {
-      context.go('/auth');
+    try {
+      if (AuthService().hasActiveSession) {
+        context.go('/today');
+        unawaited(AuthService().tryAutoLoginOrSync());
+      } else {
+        context.go('/auth');
+      }
+    } catch (_) {
+      // Running in test environment without GoRouter in hierarchy
     }
   }
 

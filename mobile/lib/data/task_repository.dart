@@ -5,6 +5,10 @@ import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/stats_repository.dart';
 import 'package:axis/domain/id_generator.dart';
+import 'package:axis/domain/domain_events.dart';
+import 'package:axis/domain/auto_scheduler.dart';
+
+export 'package:axis/domain/auto_scheduler.dart';
 
 
 class Task {
@@ -106,6 +110,8 @@ class Task {
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
   }
+
+  bool get isCompleted => status == 'done' || status == 'completed';
 }
 
 /// Sort comparator: Earliest due date first, then priority, then alphabetical.
@@ -188,6 +194,9 @@ int compareTasksByPriority(Task a, Task b) {
 
 class TaskRepository {
   Stream<List<Task>> watchTasks() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const <Task>[]);
+    }
     final uid = currentUserId;
     final query = uid.isNotEmpty
         ? 'SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC'
@@ -200,6 +209,7 @@ class TaskRepository {
   }
 
   Future<void> addTask(Task task) async {
+    if (!isDatabaseInitialized) return;
     final uid = task.userId ?? currentUserId;
     try {
       await db.execute('''
@@ -229,14 +239,16 @@ class TaskRepository {
       if (task.tags != null && task.tags!.isNotEmpty) {
         CacheService().invalidate('task_tags_list');
       }
+      DomainEvents.emit(TaskCreatedEvent(task.id));
+      AppWidgetSyncService().syncTodayTasks();
     } catch (e) {
       debugPrint('[TaskRepository] Error creating task: $e');
+      rethrow;
     }
-
-    AppWidgetSyncService().syncTodayTasks();
   }
 
   Future<void> updateTask(Task task) async {
+    if (!isDatabaseInitialized) return;
     final uid = task.userId ?? currentUserId;
     try {
       final current = await db.getOptional('SELECT status FROM tasks WHERE id = ?', [task.id]);
@@ -272,6 +284,7 @@ class TaskRepository {
           INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp)
           VALUES (?, ?, ?, 'task_completed', ?, ?)
         ''', [logId, uid, task.id, xp, now]);
+        DomainEvents.emit(TaskCompletedEvent(task.id, xp));
       } else if (task.status != 'done' && oldStatus == 'done') {
         final deleteQuery = uid.isNotEmpty
             ? "DELETE FROM logs WHERE task_id = ? AND event_type = 'task_completed' AND (user_id = ? OR user_id IS NULL OR user_id = '')"
@@ -283,16 +296,18 @@ class TaskRepository {
       if (task.tags != null && task.tags!.isNotEmpty) {
         CacheService().invalidate('task_tags_list');
       }
+
+      StatsRepository().invalidateStats();
+      await syncGlobalUserLevel();
+      AppWidgetSyncService().syncTodayTasks();
     } catch (e) {
       debugPrint('[TaskRepository] Error updating task: $e');
+      rethrow;
     }
-
-    StatsRepository().invalidateStats();
-    await syncGlobalUserLevel();
-    AppWidgetSyncService().syncTodayTasks();
   }
 
   Future<void> deleteTask(String id) async {
+    if (!isDatabaseInitialized) return;
     final uid = currentUserId;
     try {
       final deleteLogQuery = uid.isNotEmpty
@@ -302,12 +317,14 @@ class TaskRepository {
       await db.execute(deleteLogQuery, deleteLogParams);
 
       await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
+
+      StatsRepository().invalidateStats();
+      await syncGlobalUserLevel();
+      AppWidgetSyncService().syncTodayTasks();
     } catch (e) {
       debugPrint('[TaskRepository] Error deleting task: $e');
+      rethrow;
     }
-    StatsRepository().invalidateStats();
-    await syncGlobalUserLevel();
-    AppWidgetSyncService().syncTodayTasks();
   }
 
   /// Toggles task completion status, records XP gamification event, and invalidates stats.
@@ -321,6 +338,7 @@ class TaskRepository {
 
   /// Unlinks all tasks matching the specified project identifier in a single batch operation.
   Future<void> unlinkTasksFromProject(String projectId, {String? projectName}) async {
+    if (!isDatabaseInitialized) return;
     final name = projectName ?? '';
     final uid = currentUserId;
     try {
@@ -347,9 +365,39 @@ class TaskRepository {
           : [projectId, projectId.replaceFirst('discovered_', ''), projectId, name];
 
       await db.execute(query, params).timeout(const Duration(seconds: 4));
+      AppWidgetSyncService().syncTodayTasks();
     } catch (e) {
       debugPrint('[TaskRepository] Error detaching project from tasks: $e');
+      rethrow;
     }
-    AppWidgetSyncService().syncTodayTasks();
+  }
+
+  /// Schedules tasks into available day slots using the AutoScheduler domain engine.
+  SchedulerResult autoScheduleTasks({
+    required List<Task> tasks,
+    String workStart = '09:00',
+    String workEnd = '18:00',
+    int bufferMin = 10,
+    int defaultEstimateMin = 30,
+    List<BusyBlock> busyBlocks = const [],
+  }) {
+    final now = DateTime.now();
+    final nowTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final date = now.toIso8601String().substring(0, 10);
+    final schedulable = tasks
+        .where((t) => !t.isCompleted)
+        .map((t) => SchedulableTask(t.id, t.estimateMin))
+        .toList();
+
+    return AutoScheduler.schedule(
+      date,
+      nowTime,
+      workStart,
+      workEnd,
+      bufferMin,
+      defaultEstimateMin,
+      busyBlocks,
+      schedulable,
+    );
   }
 }

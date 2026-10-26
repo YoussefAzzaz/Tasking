@@ -140,22 +140,23 @@ class LocationService {
     }
   }
 
-  /// Attempts IP-based geolocation fallback
+  /// Attempts secure HTTPS IP-based geolocation fallback
   Future<AppLocation?> _tryIpGeolocation() async {
+    HttpClient? client;
     try {
-      final client = HttpClient();
+      client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 4);
-      final request = await client.getUrl(Uri.parse('http://ip-api.com/json'));
+      final request = await client.getUrl(Uri.parse('https://ipwho.is/'));
       final response = await request.close().timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         final jsonStr = await response.transform(utf8.decoder).join();
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
 
-        if (data['status'] == 'success') {
+        if (data['success'] == true) {
           return AppLocation(
-            latitude: (data['lat'] as num).toDouble(),
-            longitude: (data['lon'] as num).toDouble(),
+            latitude: (data['latitude'] as num).toDouble(),
+            longitude: (data['longitude'] as num).toDouble(),
             city: (data['city'] as String?) ?? 'Local',
             country: (data['country'] as String?) ?? '',
             source: LocationSource.ipGeolocation,
@@ -164,6 +165,8 @@ class LocationService {
       }
     } catch (e) {
       debugPrint('[LocationService] IP Geolocation attempt failed (network offline/timeout): $e');
+    } finally {
+      client?.close(force: true);
     }
     return null;
   }

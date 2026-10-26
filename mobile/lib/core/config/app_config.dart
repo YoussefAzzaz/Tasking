@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Centralized application configuration.
 /// Values should be supplied at build/run time using:
 ///   flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=... --dart-define=POWERSYNC_URL=...
@@ -17,17 +15,11 @@ abstract final class AppConfig {
 
   static String get supabaseUrl {
     if (_envSupabaseUrl.isNotEmpty) return _envSupabaseUrl;
-    if (kReleaseMode) {
-      debugPrint('[Security Warning] SUPABASE_URL not supplied via --dart-define in release build.');
-    }
     return _devSupabaseUrl;
   }
 
   static String get supabaseAnonKey {
     if (_envSupabaseAnonKey.isNotEmpty) return _envSupabaseAnonKey;
-    if (kReleaseMode) {
-      debugPrint('[Security Warning] SUPABASE_ANON_KEY not supplied via --dart-define in release build.');
-    }
     return _devSupabaseAnonKey;
   }
 

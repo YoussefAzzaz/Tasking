@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/text_direction.dart';
 
 /// Cyber-minimalist search bar matching Axis Obsidian Kinetic design system.
 /// Features glassmorphism background, smooth focus borders, and an animated clear button.
@@ -72,49 +73,52 @@ class _CyberSearchBarState extends State<CyberSearchBar> {
               ]
             : null,
       ),
-      child: TextField(
+      child: AutoDirectionScope(
         controller: widget.controller,
-        focusNode: _focusNode,
-        style: const TextStyle(
-          color: AxisColors.textHigh,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-        cursorColor: widget.accentColor,
-        decoration: InputDecoration(
-          isDense: true,
-          hintText: widget.hintText,
-          hintStyle: const TextStyle(
-            color: AxisColors.textDim,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w400,
+        child: TextField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          style: const TextStyle(
+            color: AxisColors.textHigh,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
           ),
-          prefixIcon: Icon(
-            Icons.search_rounded,
-            size: 18,
-            color: _isFocused ? widget.accentColor : AxisColors.textDim,
+          cursorColor: widget.accentColor,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: widget.hintText,
+            hintStyle: const TextStyle(
+              color: AxisColors.textDim,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w400,
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: _isFocused ? widget.accentColor : AxisColors.textDim,
+            ),
+            suffixIcon: hasText
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    color: AxisColors.textDim,
+                    splashRadius: 16,
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      widget.controller.clear();
+                      widget.onChanged?.call('');
+                      widget.onClear?.call();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
           ),
-          suffixIcon: hasText
-              ? IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 16),
-                  color: AxisColors.textDim,
-                  splashRadius: 16,
-                  tooltip: 'Clear search',
-                  onPressed: () {
-                    widget.controller.clear();
-                    widget.onChanged?.call('');
-                    widget.onClear?.call();
-                    setState(() {});
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+          onChanged: (val) {
+            setState(() {});
+            widget.onChanged?.call(val);
+          },
         ),
-        onChanged: (val) {
-          setState(() {});
-          widget.onChanged?.call(val);
-        },
       ),
     );
   }

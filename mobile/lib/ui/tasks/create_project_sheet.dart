@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/widgets.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/common/cyber_color_picker.dart';
@@ -81,8 +82,9 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
 
     return FocusScope(
       autofocus: false,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: ModalSheetScaffold(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
         onTap: () => FocusScope.of(context).unfocus(),
         child: Padding(
           padding: EdgeInsets.only(bottom: insets.bottom),
@@ -105,61 +107,63 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Drag handle & Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
-                  child: Column(
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AxisColors.borderGlass2,
-                            borderRadius: BorderRadius.circular(9999),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: _parseHex(_selectedColor).withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(Icons.folder_special_rounded,
-                                      color: _parseHex(_selectedColor), size: 20),
-                                ),
-                                const SizedBox(width: 10),
-                                const Expanded(
-                                  child: Text(
-                                    'CREATE NEW PROJECT',
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: AxisColors.textHigh,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                // Drag handle & Header (tap to close automatically)
+                ModalSheetTopBar(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+                    child: Column(
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AxisColors.borderGlass2,
+                              borderRadius: BorderRadius.circular(9999),
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded,
-                                color: AxisColors.textMuted, size: 20),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: _parseHex(_selectedColor).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(Icons.folder_special_rounded,
+                                        color: _parseHex(_selectedColor), size: 20),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Expanded(
+                                    child: Text(
+                                      'CREATE NEW PROJECT',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: AxisColors.textHigh,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded,
+                                  color: AxisColors.textMuted, size: 20),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const Divider(color: AxisColors.borderSubtle, height: 1),
@@ -182,34 +186,37 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        TextField(
+                        AutoDirectionScope(
                           controller: _nameController,
-                          focusNode: _nameFocusNode,
-                          autofocus: false,
-                          style: const TextStyle(
-                            color: AxisColors.textHigh,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          cursorColor: _parseHex(_selectedColor),
-                          decoration: InputDecoration(
-                            hintText: 'e.g., Mobile App Redesign, Q4 Goals',
-                            hintStyle: const TextStyle(color: AxisColors.textDim),
-                            errorText: _errorText,
-                            filled: true,
-                            fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                          child: TextField(
+                            controller: _nameController,
+                            focusNode: _nameFocusNode,
+                            autofocus: false,
+                            style: const TextStyle(
+                              color: AxisColors.textHigh,
+                              fontWeight: FontWeight.w500,
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: _parseHex(_selectedColor),
-                                width: 1.5,
+                            cursorColor: _parseHex(_selectedColor),
+                            decoration: InputDecoration(
+                              hintText: 'e.g., Mobile App Redesign, Q4 Goals',
+                              hintStyle: const TextStyle(color: AxisColors.textDim),
+                              errorText: _errorText,
+                              filled: true,
+                              fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AxisColors.borderSubtle),
                               ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: _parseHex(_selectedColor),
+                                  width: 1.5,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 14),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 14),
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -373,6 +380,7 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

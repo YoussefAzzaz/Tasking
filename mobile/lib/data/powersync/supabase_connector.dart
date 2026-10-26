@@ -106,7 +106,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
           code == 'PGRST116' ||
           code == 'PGRST204';
       if (isFatal) {
-        debugPrint('[PowerSync SupabaseConnector] Discarding fatal transaction to unblock sync queue: ${e.message}');
+        debugPrint('[PowerSync SupabaseConnector] CRITICAL: Discarding fatal transaction to unblock sync queue [Code: $code]: ${e.message} (ops: ${transaction.crud.map((o) => "${o.table}:${o.id}").join(",")})');
         await transaction.complete();
       } else {
         rethrow;

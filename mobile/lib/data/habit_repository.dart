@@ -149,13 +149,11 @@ class HabitRepository {
     final uid = currentUserId;
 
     final query = uid.isNotEmpty
-        ? 'SELECT DISTINCT h.* FROM habits h '
-          'LEFT JOIN habit_logs hl ON hl.habit_id = h.id '
-          'WHERE (h.user_id = ? OR h.user_id IS NULL OR h.user_id = \'\') '
-          'ORDER BY COALESCE(h.sort_order, 999) ASC, h.created_at ASC'
-        : 'SELECT DISTINCT h.* FROM habits h '
-          'LEFT JOIN habit_logs hl ON hl.habit_id = h.id '
-          'ORDER BY COALESCE(h.sort_order, 999) ASC, h.created_at ASC';
+        ? 'SELECT * FROM habits '
+          'WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') '
+          'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC'
+        : 'SELECT * FROM habits '
+          'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC';
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
 
     return db
@@ -249,6 +247,12 @@ class HabitRepository {
           : 'DELETE FROM habit_logs';
       final params = uid.isNotEmpty ? [uid] : <dynamic>[];
       await db.execute(query, params).timeout(const Duration(seconds: 4));
+
+      final prayerQuery = uid.isNotEmpty
+          ? "UPDATE prayers SET is_done = 0 WHERE (user_id = ? OR user_id IS NULL OR user_id = '')"
+          : 'UPDATE prayers SET is_done = 0';
+      final prayerParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      await db.execute(prayerQuery, prayerParams).timeout(const Duration(seconds: 4));
     } catch (e) {
       debugPrint('[HabitRepository] Error resetting streak logs: $e');
     }
@@ -411,41 +415,96 @@ class HabitRepository {
     unawaited(HabitNotificationService().cancelHabitReminders(habitId));
   }
 
-  /// Computes the daily completion status for each date based on whether
-  /// ALL scheduled habits were completed on that date.
-  /// A date is 'done' if and only if all user habits scheduled on that date have status 'done'.
+  /// Checks whether an identifier represents an Islamic prayer.
+  static bool isPrayerIdentifier(String id) {
+    final lower = id.toLowerCase();
+    return lower.startsWith('prayer_') ||
+        lower.startsWith('habit_prayer_') ||
+        lower == 'fajr' ||
+        lower == 'dhuhr' ||
+        lower == 'asr' ||
+        lower == 'maghrib' ||
+        lower == 'isha';
+  }
+
+  /// Normalizes a prayer ID or code to its canonical name (fajr, dhuhr, asr, maghrib, isha).
+  static String canonicalPrayerCode(String id) {
+    final lower = id.toLowerCase();
+    for (final code in ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']) {
+      if (lower == code || lower.endsWith('_$code') || lower.contains(code)) {
+        return code;
+      }
+    }
+    return lower;
+  }
+
+  /// Computes the daily completion status for each date based on completed habits & prayers.
+  /// A date qualifies as 'done' towards the streak if:
+  /// - The user completed at least [minHabitsRequired] daily habits (prayers included), OR
+  /// - The user completed all scheduled habits (and prayers) when the total scheduled is fewer than [minHabitsRequired].
   static List<StreakLog> computeDailyStreakLogs({
     required List<Map<String, dynamic>> habits,
     required List<Map<String, dynamic>> habitLogs,
+    List<Map<String, dynamic>>? prayers,
+    int minHabitsRequired = 10,
   }) {
     // 1. Exclude legacy prayer records if any remain in habits
     final validHabits = habits.where((h) {
       final id = (h['id'] as String? ?? '').toLowerCase();
       final kind = (h['kind'] as String? ?? '').toLowerCase();
-      return !id.startsWith('prayer_') &&
-          !id.startsWith('habit_prayer_') &&
-          kind != 'prayers';
+      return !isPrayerIdentifier(id) && kind != 'prayers';
     }).toList();
-
-    if (validHabits.isEmpty) {
-      return const [];
-    }
 
     final validHabitIds = validHabits.map((h) => h['id'] as String).toSet();
 
-    // 2. Group done logs by habit_id -> Set of log_date strings
-    final doneDatesByHabit = <String, Set<String>>{};
+    // 2. Track distinct completed habits & prayers per date
+    final completedHabitsByDate = <String, Set<String>>{};
+    final completedPrayersByDate = <String, Set<String>>{};
     final allDatesWithActivity = <String>{};
 
     for (final row in habitLogs) {
       final status = (row['status'] as String? ?? '').toLowerCase();
+      if (status != 'done') continue;
+
       final habitId = row['habit_id'] as String? ?? '';
       final logDate = row['log_date'] as String? ?? '';
-      if (status == 'done' &&
-          validHabitIds.contains(habitId) &&
-          logDate.isNotEmpty) {
-        doneDatesByHabit.putIfAbsent(habitId, () => {}).add(logDate);
+      if (habitId.isEmpty || logDate.isEmpty) continue;
+
+      if (isPrayerIdentifier(habitId)) {
+        final code = canonicalPrayerCode(habitId);
+        completedPrayersByDate.putIfAbsent(logDate, () => {}).add(code);
         allDatesWithActivity.add(logDate);
+      } else if (validHabitIds.isEmpty || validHabitIds.contains(habitId)) {
+        completedHabitsByDate.putIfAbsent(logDate, () => {}).add(habitId);
+        allDatesWithActivity.add(logDate);
+      }
+    }
+
+    // 3. Incorporate completions from dedicated prayers table if provided
+    if (prayers != null && prayers.isNotEmpty) {
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      for (final p in prayers) {
+        final rawDone = p['is_done'];
+        final isDone = rawDone == 1 || rawDone == true || rawDone == 'true' || rawDone == '1';
+        if (!isDone) continue;
+
+        final updatedAt = (p['updated_at'] as String?) ?? '';
+        bool isToday = false;
+        try {
+          if (updatedAt.isNotEmpty) {
+            final dt = DateTime.parse(updatedAt).toLocal();
+            final now = DateTime.now();
+            isToday = dt.year == now.year && dt.month == now.month && dt.day == now.day;
+          }
+        } catch (_) {}
+
+        if (isToday || updatedAt.startsWith(todayStr)) {
+          final code = canonicalPrayerCode((p['prayer_code'] as String?) ?? (p['id'] as String? ?? ''));
+          if (code.isNotEmpty) {
+            completedPrayersByDate.putIfAbsent(todayStr, () => {}).add(code);
+            allDatesWithActivity.add(todayStr);
+          }
+        }
       }
     }
 
@@ -459,55 +518,40 @@ class HabitRepository {
       final date = DateTime.tryParse(dateStr);
       if (date == null) continue;
 
-      bool allHabitsDoneOnDate = true;
-      int scheduledCount = 0;
+      final doneHabitsCount = completedHabitsByDate[dateStr]?.length ?? 0;
+      final donePrayersCount = completedPrayersByDate[dateStr]?.length ?? 0;
+      final totalCompleted = doneHabitsCount + donePrayersCount;
 
+      int scheduledHabitsCount = 0;
       for (final h in validHabits) {
-        final id = h['id'] as String;
         final createdAtStr = h['created_at'] as String?;
-
-        // Check if habit existed on dateStr
         if (createdAtStr != null && createdAtStr.isNotEmpty) {
           final createdDateStr = createdAtStr.length >= 10
               ? createdAtStr.substring(0, 10)
               : '';
           if (createdDateStr.isNotEmpty && createdDateStr.compareTo(dateStr) > 0) {
-            // Habit created after this date, not required
             continue;
           }
         }
 
-        final sched =
-            (h['schedule_type'] as String?)?.toLowerCase().trim() ?? 'daily';
-
+        final sched = (h['schedule_type'] as String?)?.toLowerCase().trim() ?? 'daily';
         if (sched == 'weekdays') {
-          if (date.weekday == DateTime.saturday ||
-              date.weekday == DateTime.sunday) {
-            // Weekday habit not scheduled on weekend
+          if (date.weekday == DateTime.saturday || date.weekday == DateTime.sunday) {
             continue;
           }
         }
-
-        scheduledCount++;
-
-        final cycleStart = calculateCycleStartDate(
-          scheduleType: sched,
-          now: date,
-          createdAtStr: createdAtStr,
-        );
-
-        final doneDates = doneDatesByHabit[id] ?? const {};
-        // Habit is done if it has a completed log between cycleStart and dateStr
-        final isDone = doneDates.any(
-            (d) => d.compareTo(cycleStart) >= 0 && d.compareTo(dateStr) <= 0);
-
-        if (!isDone) {
-          allHabitsDoneOnDate = false;
-          break;
-        }
+        scheduledHabitsCount++;
       }
 
-      if (scheduledCount > 0 && allHabitsDoneOnDate) {
+      final hasPrayers = donePrayersCount > 0 || (prayers != null && prayers.isNotEmpty);
+      final totalScheduled = scheduledHabitsCount + (hasPrayers ? 5 : 0);
+
+      // Qualifies if user completed at least minHabitsRequired (e.g. 10) daily habits (prayers included),
+      // OR completed all scheduled habits/prayers if total scheduled is fewer than minHabitsRequired (with at least 1 completed).
+      final qualifies = totalCompleted >= minHabitsRequired ||
+          (totalScheduled > 0 && totalScheduled < minHabitsRequired && totalCompleted >= totalScheduled);
+
+      if (qualifies) {
         result.add(StreakLog(dateStr, 'done'));
       }
     }
@@ -516,8 +560,12 @@ class HabitRepository {
     return result;
   }
 
-  /// Fetches daily streak logs where each date is 'done' only if all scheduled habits are completed.
+  /// Fetches daily streak logs where each date is 'done' if the user completed
+  /// at least 10 daily habits (prayers included) or all scheduled habits.
   Future<List<StreakLog>> getDailyStreakLogs() async {
+    if (!isDatabaseInitialized) {
+      return const [];
+    }
     final uid = currentUserId;
     final habitsQuery = uid.isNotEmpty
         ? 'SELECT id, kind, schedule_type, created_at FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\')'
@@ -531,22 +579,38 @@ class HabitRepository {
     final logsParams = uid.isNotEmpty ? [uid, 'done'] : ['done'];
     final logRows = await db.getAll(logsQuery, logsParams);
 
+    List<Map<String, dynamic>> prayerRows = [];
+    try {
+      final prayersQuery = uid.isNotEmpty
+          ? 'SELECT id, prayer_code, is_done, updated_at FROM prayers WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\')'
+          : 'SELECT id, prayer_code, is_done, updated_at FROM prayers';
+      final prayersParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+      prayerRows = await db.getAll(prayersQuery, prayersParams);
+    } catch (_) {}
+
     return computeDailyStreakLogs(
       habits: habitRows,
       habitLogs: logRows,
+      prayers: prayerRows,
+      minHabitsRequired: 10,
     );
   }
 
-  /// Watches streak logs reactively, updating when habits or habit_logs change,
-  /// ensuring each date is only counted as 'done' when all scheduled habits are completed.
+  /// Watches streak logs reactively, updating when habits, habit_logs, or prayers change,
+  /// ensuring streak accurately increments when at least 10 daily habits (prayers included) are done.
   Stream<List<StreakLog>> watchStreakLogs() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const <StreakLog>[]);
+    }
     final uid = currentUserId;
     final watchQuery = uid.isNotEmpty
         ? 'SELECT id FROM habit_logs WHERE user_id = ? OR user_id IS NULL OR user_id = \'\' '
           'UNION ALL '
-          'SELECT id FROM habits WHERE user_id = ? OR user_id IS NULL OR user_id = \'\''
-        : 'SELECT id FROM habit_logs UNION ALL SELECT id FROM habits';
-    final watchParams = uid.isNotEmpty ? [uid, uid] : <dynamic>[];
+          'SELECT id FROM habits WHERE user_id = ? OR user_id IS NULL OR user_id = \'\' '
+          'UNION ALL '
+          'SELECT id FROM prayers WHERE user_id = ? OR user_id IS NULL OR user_id = \'\''
+        : 'SELECT id FROM habit_logs UNION ALL SELECT id FROM habits UNION ALL SELECT id FROM prayers';
+    final watchParams = uid.isNotEmpty ? [uid, uid, uid] : <dynamic>[];
 
     return db.watch(watchQuery, parameters: watchParams).asyncMap((_) async {
       return getDailyStreakLogs();

@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/widgets.dart';
 import 'package:axis/data/note_repository.dart';
+import 'package:axis/data/note_category_repository.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
+import 'package:axis/ui/common/cyber_color_picker.dart';
 import 'package:axis/ui/common/markdown_list_text_input_formatter.dart';
 import 'package:axis/ui/notes/widgets/note_format_toolbar.dart';
+import 'package:axis/ui/notes/widgets/note_category_selector_field.dart';
 
 class CreateNoteSheet extends StatefulWidget {
   const CreateNoteSheet({
     super.key,
     required this.onNoteCreated,
     this.initialCategory = 'note',
+    this.existingCategories,
     this.noteToEdit,
   });
 
   final VoidCallback onNoteCreated;
   final String initialCategory;
+  final List<NoteCategory>? existingCategories;
   final Note? noteToEdit;
 
   @override
@@ -26,9 +32,17 @@ class CreateNoteSheet extends StatefulWidget {
 class _CreateNoteSheetState extends State<CreateNoteSheet> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
+  final _categoryController = TextEditingController();
   final _titleFocusNode = FocusNode();
   final _bodyFocusNode = FocusNode();
-  late String _category;
+  final _categoryFocusNode = FocusNode();
+
+  late String _category; // 'note' or 'journal'
+  bool _showCategoryDropdown = false;
+  List<NoteCategory> _categories = [];
+  String _selectedCategoryColor = '#38BDF8';
+  String _selectedCategoryIcon = 'article';
+
   String _selectedMood = 'HIGH ENERGY';
   bool _pinned = false;
   bool _saving = false;
@@ -41,6 +55,17 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
     {'label': 'CALM FOCUS', 'icon': Icons.spa_rounded, 'color': AxisColors.secondary},
     {'label': 'DEEP FLOW', 'icon': Icons.psychology_rounded, 'color': AxisColors.primary},
     {'label': 'RECHARGE', 'icon': Icons.battery_charging_full_rounded, 'color': AxisColors.success},
+  ];
+
+  static const _categoryIconOptions = [
+    {'name': 'article', 'icon': Icons.article_rounded},
+    {'name': 'work', 'icon': Icons.work_rounded},
+    {'name': 'idea', 'icon': Icons.lightbulb_rounded},
+    {'name': 'study', 'icon': Icons.school_rounded},
+    {'name': 'star', 'icon': Icons.star_rounded},
+    {'name': 'bookmark', 'icon': Icons.bookmark_rounded},
+    {'name': 'code', 'icon': Icons.terminal_rounded},
+    {'name': 'checklist', 'icon': Icons.checklist_rounded},
   ];
 
   @override
@@ -56,15 +81,39 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
       if (n.bodyMd.trim().isNotEmpty) {
         _isBodyExpanded = true;
       }
-      _category = n.category;
+      final isJ = n.category.toLowerCase() == 'journal';
+      _category = isJ ? 'journal' : 'note';
+      if (!isJ &&
+          n.category.trim().isNotEmpty &&
+          n.category.toLowerCase() != 'note' &&
+          n.category.toLowerCase() != 'general notes') {
+        _categoryController.text = n.category.trim();
+      }
       if (n.mood != null) _selectedMood = n.mood!;
       _pinned = n.pinned;
     } else {
-      _category = widget.initialCategory;
+      final isJ = widget.initialCategory.toLowerCase() == 'journal';
+      _category = isJ ? 'journal' : 'note';
+      if (!isJ &&
+          widget.initialCategory.trim().isNotEmpty &&
+          widget.initialCategory.toLowerCase() != 'note' &&
+          widget.initialCategory.toLowerCase() != 'general notes' &&
+          widget.initialCategory.toLowerCase() != 'all') {
+        _categoryController.text = widget.initialCategory.trim();
+      }
       if (_category == 'journal') {
-        _titleController.text = 'Daily Journal • ${DateFormat('EEE, MMM d').format(DateTime.now())}';
+        _titleController.text =
+            'Daily Journal • ${DateFormat('EEE, MMM d').format(DateTime.now())}';
       }
     }
+
+    _loadCategories();
+
+    _categoryFocusNode.addListener(() {
+      if (_categoryFocusNode.hasFocus) {
+        setState(() => _showCategoryDropdown = true);
+      }
+    });
 
     _bodyFocusNode.addListener(() {
       if (_bodyFocusNode.hasFocus) {
@@ -77,13 +126,57 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
     });
   }
 
+  Future<void> _loadCategories() async {
+    try {
+      final list = await NoteCategoryRepository().getCategories(forceRefresh: true);
+      if (mounted) {
+        setState(() {
+          final merged = <NoteCategory>[...list];
+          final names = merged.map((c) => c.name.toLowerCase()).toSet();
+          if (widget.existingCategories != null) {
+            for (final ec in widget.existingCategories!) {
+              if (!names.contains(ec.name.toLowerCase())) {
+                names.add(ec.name.toLowerCase());
+                merged.add(ec);
+              }
+            }
+          }
+          _categories = merged;
+          if (_categoryController.text.trim().isNotEmpty) {
+            final cat = _categoryController.text.trim().toLowerCase();
+            final match = _categories.firstWhere(
+              (c) => c.name.toLowerCase() == cat,
+              orElse: () => const NoteCategory(id: '', name: ''),
+            );
+            if (match.name.isNotEmpty) {
+              _selectedCategoryIcon = match.icon;
+              _selectedCategoryColor = match.color;
+            }
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
+    _categoryController.dispose();
     _titleFocusNode.dispose();
     _bodyFocusNode.dispose();
+    _categoryFocusNode.dispose();
     super.dispose();
+  }
+
+  bool _isNewCategoryTyped() {
+    final text = _categoryController.text.trim();
+    if (text.isEmpty) return false;
+    final lower = text.toLowerCase();
+    if (lower == 'general notes' || lower == 'note' || lower == 'journal' || lower == 'all') {
+      return false;
+    }
+    return !_categories.any((c) => c.name.toLowerCase() == lower);
   }
 
   Future<void> _save() async {
@@ -100,12 +193,33 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
       _errorText = null;
     });
 
+    final categoryName = _categoryController.text.trim();
+    if (categoryName.isNotEmpty &&
+        categoryName.toLowerCase() != 'general notes' &&
+        categoryName.toLowerCase() != 'note' &&
+        categoryName.toLowerCase() != 'all') {
+      final exists = _categories.any(
+        (c) => c.name.toLowerCase() == categoryName.toLowerCase(),
+      );
+      if (!exists) {
+        await NoteCategoryRepository().addCategory(
+          name: categoryName,
+          icon: _selectedCategoryIcon,
+          color: _selectedCategoryColor,
+        );
+      }
+    }
+
+    final effectiveCategory = categoryName.isNotEmpty
+        ? categoryName
+        : (_category == 'journal' ? 'journal' : 'note');
+
     if (widget.noteToEdit != null) {
       final updatedNote = Note(
         id: widget.noteToEdit!.id,
         title: title.isEmpty ? 'Untitled ${DateTime.now().month}/${DateTime.now().day}' : title,
         bodyMd: body,
-        category: _category,
+        category: effectiveCategory,
         mood: _category == 'journal' ? _selectedMood : null,
         pinned: _pinned,
         createdAt: widget.noteToEdit!.createdAt,
@@ -125,7 +239,7 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
           'note_${DateTime.now().microsecondsSinceEpoch}_$title'),
       title: title.isEmpty ? 'Untitled ${DateTime.now().month}/${DateTime.now().day}' : title,
       bodyMd: body,
-      category: _category,
+      category: effectiveCategory,
       mood: _category == 'journal' ? _selectedMood : null,
       pinned: _pinned,
     );
@@ -144,87 +258,90 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
 
     return FocusScope(
       autofocus: false,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Padding(
-          padding: EdgeInsets.only(bottom: insets.bottom),
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.90,
-          ),
-        decoration: BoxDecoration(
-          color: const Color(0xF50C1626),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.6),
-              blurRadius: 30,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle and Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
-              child: Column(
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AxisColors.borderGlass2,
-                        borderRadius: BorderRadius.circular(9999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: AxisColors.secondary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.edit_note_rounded,
-                                color: AxisColors.secondary, size: 20),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            widget.noteToEdit != null
-                                ? (_category == 'journal' ? 'EDIT JOURNAL ENTRY' : 'EDIT NOTE')
-                                : (_category == 'journal' ? 'NEW JOURNAL ENTRY' : 'NEW NOTE'),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  color: AxisColors.textHigh,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded,
-                            color: AxisColors.textMuted, size: 22),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
+      child: ModalSheetScaffold(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: Padding(
+            padding: EdgeInsets.only(bottom: insets.bottom),
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.90,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xF50C1626),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    blurRadius: 30,
+                    spreadRadius: 5,
                   ),
                 ],
               ),
-            ),
-            const Divider(color: AxisColors.borderSubtle, height: 1),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle and Header (tap to close automatically)
+                  ModalSheetTopBar(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+                      child: Column(
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AxisColors.borderGlass2,
+                                borderRadius: BorderRadius.circular(9999),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AxisColors.secondary.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.edit_note_rounded,
+                                        color: AxisColors.secondary, size: 20),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    widget.noteToEdit != null
+                                        ? (_category == 'journal' ? 'EDIT JOURNAL ENTRY' : 'EDIT NOTE')
+                                        : (_category == 'journal' ? 'NEW JOURNAL ENTRY' : 'NEW NOTE'),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: AxisColors.textHigh,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded,
+                                    color: AxisColors.textMuted, size: 22),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(color: AxisColors.borderSubtle, height: 1),
 
             // Form
             Expanded(
@@ -265,38 +382,41 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
 
                     // Title
                     _SectionTitle(label: 'TITLE'),
-                    TextField(
+                    AutoDirectionScope(
                       controller: _titleController,
-                      focusNode: _titleFocusNode,
-                      autofocus: false,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AxisColors.textHigh,
-                            fontWeight: FontWeight.w600,
+                      child: TextField(
+                        controller: _titleController,
+                        focusNode: _titleFocusNode,
+                        autofocus: false,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: AxisColors.textHigh,
+                              fontWeight: FontWeight.w600,
+                            ),
+                        cursorColor: AxisColors.secondary,
+                        decoration: InputDecoration(
+                          hintText: _category == 'journal'
+                              ? 'e.g. Daily Review & Morning Insights'
+                              : 'e.g. System Architecture Draft',
+                          hintStyle: TextStyle(color: AxisColors.textDim),
+                          errorText: _errorText,
+                          filled: true,
+                          fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AxisColors.borderSubtle),
                           ),
-                      cursorColor: AxisColors.secondary,
-                      decoration: InputDecoration(
-                        hintText: _category == 'journal'
-                            ? 'e.g. Daily Review & Morning Insights'
-                            : 'e.g. System Architecture Draft',
-                        hintStyle: TextStyle(color: AxisColors.textDim),
-                        errorText: _errorText,
-                        filled: true,
-                        fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: AxisColors.secondary, width: 1.5),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 14),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: AxisColors.secondary, width: 1.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -520,50 +640,53 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
                         focusNode: _bodyFocusNode,
                         onChanged: () => setState(() {}),
                       ),
-                      TextField(
+                      AutoDirectionScope(
                         controller: _bodyController,
-                        focusNode: _bodyFocusNode,
-                        autofocus: false,
-                        minLines: _isBodyExpanded ? 10 : 4,
-                        maxLines: _isBodyExpanded ? 26 : 7,
-                        scrollPadding: const EdgeInsets.only(bottom: 120),
-                        onTap: () {
-                          if (!_isBodyExpanded) {
-                            setState(() => _isBodyExpanded = true);
-                          }
-                        },
-                        inputFormatters: const [
-                          MarkdownListTextInputFormatter(),
-                        ],
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AxisColors.textHigh,
-                              height: 1.4,
+                        child: TextField(
+                          controller: _bodyController,
+                          focusNode: _bodyFocusNode,
+                          autofocus: false,
+                          minLines: _isBodyExpanded ? 10 : 4,
+                          maxLines: _isBodyExpanded ? 26 : 7,
+                          scrollPadding: const EdgeInsets.only(bottom: 120),
+                          onTap: () {
+                            if (!_isBodyExpanded) {
+                              setState(() => _isBodyExpanded = true);
+                            }
+                          },
+                          inputFormatters: const [
+                            MarkdownListTextInputFormatter(),
+                          ],
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: AxisColors.textHigh,
+                                height: 1.4,
+                              ),
+                          cursorColor: AxisColors.secondary,
+                          decoration: InputDecoration(
+                            hintText: _category == 'journal'
+                                ? 'Log events (e.g. **14:00** - Event), what happened, accomplishments, blockers...'
+                                : 'Write notes, ordered lists (1. ), bullet points (- ), or checklists (- [ ] )...',
+                            hintStyle: TextStyle(color: AxisColors.textDim),
+                            filled: true,
+                            fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  const BorderSide(color: AxisColors.borderSubtle),
                             ),
-                        cursorColor: AxisColors.secondary,
-                        decoration: InputDecoration(
-                          hintText: _category == 'journal'
-                              ? 'Log events (e.g. **14:00** - Event), what happened, accomplishments, blockers...'
-                              : 'Write notes, ordered lists (1. ), bullet points (- ), or checklists (- [ ] )...',
-                          hintStyle: TextStyle(color: AxisColors.textDim),
-                          filled: true,
-                          fillColor: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AxisColors.borderSubtle),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  const BorderSide(color: AxisColors.borderSubtle),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: AxisColors.secondary, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AxisColors.borderSubtle),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                                color: AxisColors.secondary, width: 1.5),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
                         ),
                       ),
                     ] else ...[
@@ -588,7 +711,99 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
+
+                    // Note Category Selector
+                    _SectionTitle(label: 'CATEGORY'),
+                    NoteCategorySelectorField(
+                      controller: _categoryController,
+                      focusNode: _categoryFocusNode,
+                      categories: _categories,
+                      isOpen: _showCategoryDropdown,
+                      onOpenChanged: (open) => setState(() => _showCategoryDropdown = open),
+                      onSelectCategory: (name, icon, color) {
+                        setState(() {
+                          _categoryController.text = name;
+                          _selectedCategoryIcon = icon;
+                          _selectedCategoryColor = color;
+                          _showCategoryDropdown = false;
+                        });
+                      },
+                      onClear: () {
+                        setState(() {
+                          _categoryController.clear();
+                          _showCategoryDropdown = false;
+                        });
+                      },
+                    ),
+                    if (_isNewCategoryTyped()) ...[
+                      const SizedBox(height: 12),
+                      _SectionTitle(label: 'NEW CATEGORY COLOR & ICON'),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          ...['#38BDF8', '#10B981', '#6366F1', '#F59E0B', '#EC4899', '#A855F7'].map((hex) {
+                            final isSel = _selectedCategoryColor.toUpperCase() == hex.toUpperCase();
+                            final col = Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
+                            return InkWell(
+                              onTap: () => setState(() => _selectedCategoryColor = hex),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: col,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSel ? Colors.white : Colors.transparent,
+                                    width: 2.5,
+                                  ),
+                                ),
+                                child: isSel
+                                    ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                                    : null,
+                              ),
+                            );
+                          }),
+                          RainbowColorPickerButton(
+                            selectedColor: _selectedCategoryColor,
+                            size: 30,
+                            borderWidth: 2,
+                            onColorSelected: (col) => setState(() => _selectedCategoryColor = col),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _categoryIconOptions.map((item) {
+                          final name = item['name'] as String;
+                          final icon = item['icon'] as IconData;
+                          final isSel = _selectedCategoryIcon == name;
+                          return InkWell(
+                            onTap: () => setState(() => _selectedCategoryIcon = name),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: isSel
+                                    ? AxisColors.secondary.withValues(alpha: 0.25)
+                                    : AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isSel ? AxisColors.secondary : AxisColors.borderSubtle,
+                                ),
+                              ),
+                              child: Icon(icon, size: 16, color: isSel ? AxisColors.secondary : AxisColors.textDim),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
 
                     // Pin Option
                     Row(
@@ -670,6 +885,7 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
       ),
     ),
   ),
+),
 );
 }
 }

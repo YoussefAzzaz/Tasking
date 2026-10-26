@@ -4,7 +4,6 @@ import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 export 'package:axis/ui/habits/widgets/habit_form_widgets.dart' show HabitCategory;
 
@@ -166,24 +165,6 @@ class HabitCategoryRepository {
         );
       }
 
-      // 2. Direct upsert to Supabase if connected
-      if (Supabase.instance.client.auth.currentSession != null && uid.isNotEmpty) {
-        try {
-          await Supabase.instance.client.from('habit_categories').upsert({
-            'id': id,
-            'user_id': uid,
-            'name': cleanName,
-            'icon': icon,
-            'color': color,
-            'sort_order': 99,
-            'created_at': nowUtc,
-            'updated_at': nowUtc,
-          });
-        } catch (e) {
-          debugPrint('[HabitCategoryRepository] Direct Supabase upsert notice: $e');
-        }
-      }
-
       // Notify UI that a category was added
       categoryAddedNotifier.value = cleanName;
     } catch (e) {
@@ -202,7 +183,7 @@ class HabitCategoryRepository {
       final rawId = id.replaceFirst('discovered_', '');
       final catName = (name ?? '').trim();
 
-      // 1. Delete from PowerSync habit_categories
+      // 1. Delete from PowerSync habit_categories (automatically queued and synced)
       final deleteQuery = uid.isNotEmpty
           ? "DELETE FROM habit_categories WHERE (id = ? OR id = ? OR LOWER(name) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
           : 'DELETE FROM habit_categories WHERE id = ? OR id = ? OR LOWER(name) = LOWER(?)';
@@ -215,22 +196,6 @@ class HabitCategoryRepository {
           : "UPDATE habits SET kind = NULL WHERE LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)";
       final updateParams = uid.isNotEmpty ? [catName, id, rawId, uid] : [catName, id, rawId];
       await db.execute(updateQuery, updateParams);
-
-      // 3. Delete directly from Supabase if connected
-      if (Supabase.instance.client.auth.currentSession != null && uid.isNotEmpty) {
-        try {
-          await Supabase.instance.client
-              .from('habit_categories')
-              .delete()
-              .eq('user_id', uid)
-              .or('id.eq.$id,id.eq.$rawId,name.ilike.$catName');
-          await Supabase.instance.client
-              .from('habits')
-              .update({'kind': null})
-              .eq('user_id', uid)
-              .or('kind.ilike.$catName,kind.eq.$id,kind.eq.$rawId');
-        } catch (_) {}
-      }
     } catch (e) {
       debugPrint('[HabitCategoryRepository] Error deleting category: $e');
     }

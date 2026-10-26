@@ -8,9 +8,11 @@ import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/stats_repository.dart';
 import 'package:axis/data/user_profile_repository.dart';
 import 'package:axis/data/habit_category_repository.dart';
+import 'package:axis/data/note_category_repository.dart';
 import 'package:axis/data/tag_repository.dart';
 import 'package:axis/ui/me/widgets/user_profile_card.dart';
 import 'package:axis/ui/me/widgets/habit_categories_section.dart';
+import 'package:axis/ui/me/widgets/note_categories_section.dart';
 import 'package:axis/ui/me/widgets/task_tags_section.dart';
 import 'package:axis/ui/me/widgets/me_sections.dart';
 import 'package:axis/ui/me/widgets/profile_avatar_picker.dart';
@@ -18,6 +20,7 @@ import 'package:axis/ui/me/widgets/image_crop_dialog.dart';
 
 export 'package:axis/ui/me/widgets/user_profile_card.dart';
 export 'package:axis/ui/me/widgets/habit_categories_section.dart';
+export 'package:axis/ui/me/widgets/note_categories_section.dart';
 export 'package:axis/ui/me/widgets/task_tags_section.dart';
 export 'package:axis/ui/me/widgets/me_sections.dart';
 export 'package:axis/ui/me/mastery_badges_screen.dart';
@@ -42,8 +45,10 @@ class _MeScreenState extends State<MeScreen> {
   bool _isUploadingAvatar = false;
 
   List<Map<String, dynamic>> _habitCategories = [];
+  List<Map<String, dynamic>> _noteCategories = [];
   List<String> _taskTags = [];
   StreamSubscription<List<HabitCategory>>? _categoriesSub;
+  StreamSubscription<List<NoteCategory>>? _noteCategoriesSub;
   StreamSubscription<List<String>>? _tagsSub;
 
   @override
@@ -54,6 +59,20 @@ class _MeScreenState extends State<MeScreen> {
       if (mounted) {
         setState(() {
           _habitCategories = cats
+              .map((c) => {
+                    'id': c.id,
+                    'name': c.name,
+                    'icon': c.icon,
+                    'color': c.color,
+                  })
+              .toList();
+        });
+      }
+    });
+    _noteCategoriesSub = NoteCategoryRepository().watchCategories().listen((cats) {
+      if (mounted) {
+        setState(() {
+          _noteCategories = cats
               .map((c) => {
                     'id': c.id,
                     'name': c.name,
@@ -76,6 +95,7 @@ class _MeScreenState extends State<MeScreen> {
   @override
   void dispose() {
     _categoriesSub?.cancel();
+    _noteCategoriesSub?.cancel();
     _tagsSub?.cancel();
     super.dispose();
   }
@@ -277,6 +297,18 @@ class _MeScreenState extends State<MeScreen> {
     await _loadHabitCategories();
   }
 
+  Future<void> _addNoteCategory(String catName, String selectedColor, String selectedIcon) async {
+    await NoteCategoryRepository().addCategory(
+      name: catName,
+      color: selectedColor,
+      icon: selectedIcon,
+    );
+  }
+
+  Future<void> _deleteNoteCategory(String id, String name) async {
+    await NoteCategoryRepository().deleteCategory(id, name: name);
+  }
+
   Future<void> _addTag(String tagName) async {
     await TagRepository().addTag(tagName);
     await _loadTaskTags();
@@ -374,6 +406,18 @@ class _MeScreenState extends State<MeScreen> {
               categories: _habitCategories,
               onAddCategory: _addCategory,
               onDeleteCategory: _deleteCategory,
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Note Categories Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: NoteCategoriesSection(
+              categories: _noteCategories,
+              onAddCategory: _addNoteCategory,
+              onDeleteCategory: _deleteNoteCategory,
             ),
           ),
 

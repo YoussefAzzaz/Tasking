@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/widgets.dart';
 import 'package:axis/data/note_repository.dart';
 import 'package:axis/data/reading_preferences_service.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
@@ -46,82 +47,91 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
   Widget build(BuildContext context) {
     final isJournal = _note.category == 'journal';
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xF50C1626),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AxisColors.borderGlass2,
-                  borderRadius: BorderRadius.circular(9999),
-                ),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isJournal
-                          ? Icons.auto_stories_rounded
-                          : Icons.article_rounded,
-                      color: AxisColors.secondary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _note.category.toUpperCase(),
-                      style: const TextStyle(
-                        color: AxisColors.secondary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
+    return ModalSheetScaffold(
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xF50C1626),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top handle and category bar (tap to close automatically)
+              ModalSheetTopBar(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined,
-                          color: AxisColors.secondary, size: 20),
-                      tooltip: 'Edit Entry',
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onEdit();
-                      },
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: AxisColors.borderGlass2,
+                          borderRadius: BorderRadius.circular(9999),
+                        ),
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          color: AxisColors.error, size: 20),
-                      tooltip: 'Delete Entry',
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onDelete();
-                      },
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isJournal
+                                  ? Icons.auto_stories_rounded
+                                  : Icons.article_rounded,
+                              color: AxisColors.secondary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _note.category.toUpperCase(),
+                              style: const TextStyle(
+                                color: AxisColors.secondary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined,
+                                  color: AxisColors.secondary, size: 20),
+                              tooltip: 'Edit Entry',
+                              onPressed: () {
+                                Navigator.pop(context);
+                                widget.onEdit();
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded,
+                                  color: AxisColors.error, size: 20),
+                              tooltip: 'Delete Entry',
+                              onPressed: () {
+                                Navigator.pop(context);
+                                widget.onDelete();
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
+              ),
+              const SizedBox(height: 8),
+            AutoDirectionText(
               _note.title,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: AxisColors.textHigh,
@@ -222,6 +232,7 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

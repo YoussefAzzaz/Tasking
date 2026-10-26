@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:axis/core/bloc/blocs.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -52,18 +55,51 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       _errorMessage = null;
     });
 
+    AuthBloc? bloc;
     try {
-      if (_isSignUp) {
-        await AuthService().signUp(
-          email: _emailCtrl.text,
-          password: _passwordCtrl.text,
-          displayName: _nameCtrl.text,
-        );
+      bloc = context.read<AuthBloc>();
+    } catch (_) {}
+
+    try {
+      if (bloc != null) {
+        final completer = Completer<void>();
+        late final StreamSubscription<AuthState> sub;
+        sub = bloc.stream.listen((state) {
+          if (state is Authenticated) {
+            sub.cancel();
+            if (!completer.isCompleted) completer.complete();
+          } else if (state is AuthFailure) {
+            sub.cancel();
+            if (!completer.isCompleted) completer.completeError(state.message);
+          }
+        });
+
+        if (_isSignUp) {
+          bloc.add(AuthSignUpRequested(
+            email: _emailCtrl.text,
+            password: _passwordCtrl.text,
+            displayName: _nameCtrl.text,
+          ));
+        } else {
+          bloc.add(AuthSignInRequested(
+            email: _emailCtrl.text,
+            password: _passwordCtrl.text,
+          ));
+        }
+        await completer.future;
       } else {
-        await AuthService().signIn(
-          email: _emailCtrl.text,
-          password: _passwordCtrl.text,
-        );
+        if (_isSignUp) {
+          await AuthService().signUp(
+            email: _emailCtrl.text,
+            password: _passwordCtrl.text,
+            displayName: _nameCtrl.text,
+          );
+        } else {
+          await AuthService().signIn(
+            email: _emailCtrl.text,
+            password: _passwordCtrl.text,
+          );
+        }
       }
 
       if (!mounted) return;

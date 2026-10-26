@@ -49,7 +49,7 @@ class TaskCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Title
-                  Text(
+                  AutoDirectionText(
                     task.title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: isDone

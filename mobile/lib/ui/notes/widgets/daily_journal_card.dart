@@ -82,7 +82,7 @@ class DailyJournalCard extends StatelessWidget {
 
           if (hasEntry) ...[
             // Existing journal summary
-            Text(
+            AutoDirectionText(
               todayJournal!.title,
               style: const TextStyle(
                 color: AxisColors.textHigh,
@@ -93,7 +93,7 @@ class DailyJournalCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
-            Text(
+            AutoDirectionText(
               todayJournal!.bodyMd.isNotEmpty
                   ? todayJournal!.bodyMd.replaceAll(RegExp(r'#+\s*'), '').trim()
                   : 'Events recorded for today.',

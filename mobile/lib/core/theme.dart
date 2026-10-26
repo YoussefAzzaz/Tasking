@@ -41,8 +41,8 @@ class AxisColors {
   static const Color textDim           = Color(0xFF8292A6); // Disabled & subtle labels (WCAG AA 4.8:1)
 
   // Borders
-  static const Color borderSubtle      = Color(0x0FFFFFFF); // 6% white (glass tier 1 border)
-  static const Color borderGlass2      = Color(0x1EFFFFFF); // 12% white (glass tier 2)
+  static const Color borderSubtle      = Color(0x1FFFFFFF); // 12% white (improved contrast for sunlight/glare)
+  static const Color borderGlass2      = Color(0x28FFFFFF); // 16% white (glass tier 2)
   static const Color borderActive      = Color(0x40C0C1FF); // primary-tinted
   static const Color borderPrimary     = Color(0x406366F1); // 25% indigo (action sheets)
   static const Color borderEmerald     = Color(0x6610B981); // 40% emerald streak rim
@@ -51,6 +51,9 @@ class AxisColors {
 class AxisTheme {
   AxisTheme._();
 
+  static const List<String> _sansFallbacks = ['Roboto', 'Segoe UI', 'Arial', 'sans-serif'];
+  static const List<String> _monoFallbacks = ['Courier New', 'monospace'];
+
   static TextTheme _buildTextTheme() {
     return TextTheme(
       // headline-xl → displayLarge
@@ -58,67 +61,67 @@ class AxisTheme {
         fontSize: 40, fontWeight: FontWeight.w700,
         height: 48 / 40, letterSpacing: -1.2,
         color: AxisColors.textHigh,
-      ),
+      ).copyWith(fontFamilyFallback: _sansFallbacks),
       // headline-lg → displayMedium
       displayMedium: GoogleFonts.spaceGrotesk(
         fontSize: 28, fontWeight: FontWeight.w600,
         height: 36 / 28, letterSpacing: -0.56,
         color: AxisColors.textHigh,
-      ),
+      ).copyWith(fontFamilyFallback: _sansFallbacks),
       // headline-md → displaySmall
       displaySmall: GoogleFonts.spaceGrotesk(
         fontSize: 22, fontWeight: FontWeight.w600,
         height: 30 / 22, letterSpacing: -0.33,
         color: AxisColors.textHigh,
-      ),
+      ).copyWith(fontFamilyFallback: _sansFallbacks),
       // title-lg → titleLarge
       titleLarge: GoogleFonts.getFont('Geist',
         fontSize: 18, fontWeight: FontWeight.w600,
         height: 24 / 18, letterSpacing: -0.18,
         color: AxisColors.textHigh,
-      ),
+      ).copyWith(fontFamilyFallback: _sansFallbacks),
       // title-md → titleMedium
       titleMedium: GoogleFonts.getFont('Geist',
         fontSize: 16, fontWeight: FontWeight.w600,
         height: 22 / 16, letterSpacing: -0.16,
         color: AxisColors.textHigh,
-      ),
+      ).copyWith(fontFamilyFallback: _sansFallbacks),
       // body-lg → bodyLarge
       bodyLarge: GoogleFonts.getFont('Geist',
         fontSize: 16, fontWeight: FontWeight.w400,
         height: 24 / 16,
         color: AxisColors.textHigh,
-      ),
+      ).copyWith(fontFamilyFallback: _sansFallbacks),
       // body-md → bodyMedium
       bodyMedium: GoogleFonts.getFont('Geist',
         fontSize: 14, fontWeight: FontWeight.w400,
         height: 20 / 14,
         color: AxisColors.textMuted,
-      ),
+      ).copyWith(fontFamilyFallback: _sansFallbacks),
       // body-sm → bodySmall
       bodySmall: GoogleFonts.getFont('Geist',
         fontSize: 12, fontWeight: FontWeight.w400,
         height: 16 / 12,
         color: AxisColors.textDim,
-      ),
+      ).copyWith(fontFamilyFallback: _sansFallbacks),
       // label-lg → labelLarge
       labelLarge: GoogleFonts.spaceMono(
         fontSize: 13, fontWeight: FontWeight.w700,
         height: 16 / 13, letterSpacing: 0.52,
         color: AxisColors.textMuted,
-      ),
+      ).copyWith(fontFamilyFallback: _monoFallbacks),
       // label-md → labelMedium
       labelMedium: GoogleFonts.spaceMono(
         fontSize: 11, fontWeight: FontWeight.w600,
         height: 14 / 11, letterSpacing: 0.66,
         color: AxisColors.textMuted,
-      ),
+      ).copyWith(fontFamilyFallback: _monoFallbacks),
       // label-sm → labelSmall
       labelSmall: GoogleFonts.spaceMono(
         fontSize: 10, fontWeight: FontWeight.w500,
         height: 12 / 10, letterSpacing: 0.8,
         color: AxisColors.textDim,
-      ),
+      ).copyWith(fontFamilyFallback: _monoFallbacks),
     );
   }
 
@@ -170,6 +173,77 @@ class AxisTheme {
         ),
         hintStyle: GoogleFonts.getFont('Geist',
           fontSize: 16, color: AxisColors.textDim),
+      ),
+    );
+  }
+
+  /// High-contrast dark theme for optimal readability in outdoor and bright light conditions
+  static ThemeData get highContrastDark {
+    final base = dark;
+    return base.copyWith(
+      colorScheme: base.colorScheme.copyWith(
+        outline: const Color(0x4DFFFFFF), // 30% white
+      ),
+      cardTheme: base.cardTheme.copyWith(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0x4DFFFFFF), width: 1.5),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: Color(0x4DFFFFFF),
+        thickness: 1.2,
+      ),
+    );
+  }
+
+  /// Clean light theme alternative
+  static ThemeData get light {
+    final textTheme = _buildTextTheme();
+    return ThemeData(
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF1F5F9),
+      colorScheme: const ColorScheme.light(
+        surface: Color(0xFFFFFFFF),
+        primary: AxisColors.primary,
+        secondary: Color(0xFF0284C7),
+        tertiary: Color(0xFF059669),
+        error: Color(0xFFDC2626),
+        onSurface: Color(0xFF0F172A),
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onTertiary: Colors.white,
+        outline: Color(0xFFCBD5E1),
+      ),
+      textTheme: textTheme,
+      useMaterial3: true,
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: Color(0xFFE2E8F0),
+        thickness: 1,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AxisColors.primary, width: 1.5),
+        ),
       ),
     );
   }

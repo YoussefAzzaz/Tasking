@@ -1,0 +1,243 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:axis/core/theme.dart';
+import 'package:axis/data/powersync_db.dart' show globalUserLevel;
+import 'package:axis/data/network_service.dart';
+import 'package:axis/data/user_profile_repository.dart';
+import 'package:axis/ui/me/widgets/avatar_widget.dart';
+
+/// Top app header — Axis brand + sync status + LVL badge + avatar
+class AxisHeader extends StatefulWidget {
+  const AxisHeader({super.key, required this.onAvatarTap, this.isMeSelected = false});
+  final VoidCallback onAvatarTap;
+  final bool isMeSelected;
+
+  @override
+  State<AxisHeader> createState() => _AxisHeaderState();
+}
+
+class _AxisHeaderState extends State<AxisHeader> {
+  @override
+  void initState() {
+    super.initState();
+    UserProfileRepository().getProfile();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 8,
+        bottom: 10,
+        left: 16,
+        right: 16,
+      ),
+      decoration: BoxDecoration(
+        color: AxisColors.canvasBase.withValues(alpha: 0.85),
+        border: const Border(
+          bottom: BorderSide(color: AxisColors.borderSubtle, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Brand with App Logo
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AxisColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    fit: BoxFit.cover,
+                    cacheWidth: 64,
+                    cacheHeight: 64,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'AXIS',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          letterSpacing: 2.2,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: NetworkService().isOnlineNotifier,
+                    builder: (context, isOnline, _) {
+                      final dotColor = isOnline ? AxisColors.tertiary : AxisColors.warning;
+                      final label = isOnline ? 'SYNCED' : 'OFFLINE';
+
+                      return Tooltip(
+                        message: isOnline
+                            ? 'Online • PowerSync cloud sync is active'
+                            : 'Offline • Operating securely with local SQLite',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Sync dot (reactive to online / offline status)
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: dotColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: dotColor.withValues(alpha: 0.7),
+                                    blurRadius: 6,
+                                  )
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 300),
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                        color: isOnline ? AxisColors.textMuted : AxisColors.warning,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ) ??
+                                  const TextStyle(),
+                              child: Text(label),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const Spacer(),
+          const SizedBox(width: 6),
+          // FOCUS button pill with accessible 44px touch target
+          Semantics(
+            button: true,
+            label: 'Open Focus Mode',
+            child: InkWell(
+              onTap: () => context.push('/focus'),
+              borderRadius: BorderRadius.circular(9999),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AxisColors.primary.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(9999),
+                      border: Border.all(color: AxisColors.primary.withValues(alpha: 0.6)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AxisColors.primary.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.timer_outlined, color: AxisColors.primarySoft, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          'FOCUS',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: AxisColors.primarySoft,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // LVL badge (dynamically synced)
+          ValueListenableBuilder<int>(
+            valueListenable: globalUserLevel,
+            builder: (context, lvl, _) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AxisColors.surfaceHigh.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(9999),
+                  border: Border.all(color: AxisColors.borderSubtle),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.bolt_rounded,
+                        color: AxisColors.secondary, size: 13),
+                    const SizedBox(width: 3),
+                    Text(
+                      'LVL $lvl',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AxisColors.secondary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          // Avatar → opens Me (renders real user pfp if available with active border when selected)
+          ValueListenableBuilder<UserProfile>(
+            valueListenable: UserProfileRepository().profileNotifier,
+            builder: (context, profile, _) {
+              return Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: widget.isMeSelected ? AxisColors.primarySoft : Colors.transparent,
+                    width: 2,
+                  ),
+                  boxShadow: widget.isMeSelected
+                      ? [
+                          BoxShadow(
+                            color: AxisColors.primary.withValues(alpha: 0.5),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: AvatarWidget(
+                  avatarUrl: profile.avatarUrl,
+                  name: profile.name,
+                  avatarColor: profile.avatarColor,
+                  size: 34,
+                  onTap: widget.onAvatarTap,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -74,71 +74,81 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
         .where((t) => t.trim().isNotEmpty)
         .toList();
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      builder: (context, scrollCtrl) {
-        return AxisCard(
-          tier: GlassTier.two,
-          borderRadius: 20,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: SafeArea(
-            bottom: true,
-            child: SingleChildScrollView(
-              controller: scrollCtrl,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 36, height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: AxisColors.borderSubtle,
-                      borderRadius: BorderRadius.circular(9999),
-                    ),
-                  ),
-                ),
-
-                // Top actions row (Edit & Close)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return ModalSheetScaffold(
+      alignment: null,
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (context, scrollCtrl) {
+          return AxisCard(
+            tier: GlassTier.two,
+            borderRadius: 20,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: SafeArea(
+              bottom: true,
+              child: SingleChildScrollView(
+                controller: scrollCtrl,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AxisColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        _task.projectId != null ? '#${_task.projectId}' : 'TASK DETAILS',
-                        style: const TextStyle(
-                          color: AxisColors.primarySoft,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                          letterSpacing: 1.1,
-                        ),
+                    // Top handle and action bar (tap to close automatically)
+                    ModalSheetTopBar(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Drag handle
+                          Center(
+                            child: Container(
+                              width: 36, height: 4,
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: AxisColors.borderSubtle,
+                                borderRadius: BorderRadius.circular(9999),
+                              ),
+                            ),
+                          ),
+
+                          // Top actions row (Edit & Close)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AxisColors.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _task.projectId != null ? '#${_task.projectId}' : 'TASK DETAILS',
+                                  style: const TextStyle(
+                                    color: AxisColors.primarySoft,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 20, color: AxisColors.secondary),
+                                    tooltip: 'Edit Task',
+                                    onPressed: _openEditTask,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close_rounded, size: 22, color: AxisColors.textMuted),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 20, color: AxisColors.secondary),
-                          tooltip: 'Edit Task',
-                          onPressed: _openEditTask,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 22, color: AxisColors.textMuted),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
+                    const SizedBox(height: 8),
 
                 // Title row + checkbox
                 Row(
@@ -150,7 +160,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
+                      child: AutoDirectionText(
                         _task.title,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           decoration: isDone ? TextDecoration.lineThrough : null,
@@ -354,7 +364,8 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
         ),
       );
     },
-  );
+  ),
+);
 }
 
   Color _priorityColor(int p) {

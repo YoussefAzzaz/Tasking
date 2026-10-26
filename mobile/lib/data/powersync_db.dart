@@ -9,6 +9,7 @@ import 'package:axis/domain/gamification_engine.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/core/config/app_config.dart';
+import 'package:axis/domain/domain_events.dart';
 
 // Re-export modular components for clean architecture and 100% backwards compatibility
 import 'package:axis/data/powersync/app_schema.dart';
@@ -20,9 +21,26 @@ export 'package:axis/data/powersync/supabase_connector.dart';
 // Alias for existing callers
 final Schema schema = appSchema;
 
-late PowerSyncDatabase db;
+PowerSyncDatabase? _dbInstance;
+
+/// Safe accessor for the PowerSyncDatabase instance
+PowerSyncDatabase get db {
+  final instance = _dbInstance;
+  if (instance == null) {
+    throw StateError(
+      'PowerSyncDatabase is not initialized. Ensure openDatabase() has completed before accessing db.',
+    );
+  }
+  return instance;
+}
+
+set db(PowerSyncDatabase value) {
+  _dbInstance = value;
+  _dbInitialized = true;
+}
+
 bool _dbInitialized = false;
-bool get isDatabaseInitialized => _dbInitialized;
+bool get isDatabaseInitialized => _dbInitialized && _dbInstance != null;
 final ValueNotifier<int> globalUserLevel = ValueNotifier<int>(1);
 
 String _cachedUserId = '';
@@ -35,8 +53,8 @@ String get currentUserId {
       _cachedUserId = uid;
       return uid;
     }
-  } catch (e) {
-    debugPrint('[PowerSync] currentUserId check fallback: $e');
+  } catch (_) {
+    // Supabase not yet initialized or running in offline/test environment
   }
   return _cachedUserId;
 }
@@ -73,11 +91,14 @@ Future<void> purgeForeignUserData() async {
   if (uid.isEmpty) return;
 
   try {
-    // 0. Remove legacy prayers from generic habits table
-    await db.execute("DELETE FROM habits WHERE kind = 'Prayers' OR id LIKE 'habit_prayer_%'");
-
     // 1. Claim any local orphan records that were created without a user_id OR created in offline guest mode
     const orphanClause = "WHERE user_id IS NULL OR user_id = '' OR user_id = 'local_guest'";
+    final check = await db.getOptional(
+      "SELECT (SELECT count(*) FROM tasks $orphanClause) + (SELECT count(*) FROM habits $orphanClause) AS total",
+    );
+    final totalOrphans = (check?['total'] as num?)?.toInt() ?? 0;
+    if (totalOrphans == 0) return;
+
     await db.execute("UPDATE tasks SET user_id = ? $orphanClause", [uid]);
     await db.execute("UPDATE projects SET user_id = ? $orphanClause", [uid]);
     await db.execute("UPDATE tags SET user_id = ? $orphanClause", [uid]);
@@ -87,6 +108,9 @@ Future<void> purgeForeignUserData() async {
     await db.execute("UPDATE focus_sessions SET user_id = ? $orphanClause", [uid]);
     await db.execute("UPDATE logs SET user_id = ? $orphanClause", [uid]);
     await db.execute("UPDATE habit_categories SET user_id = ? $orphanClause", [uid]);
+    try {
+      await db.execute("UPDATE note_categories SET user_id = ? $orphanClause", [uid]);
+    } catch (_) {}
     await db.execute("UPDATE prayers SET user_id = ? $orphanClause", [uid]);
     await db.execute("UPDATE user_profiles SET user_id = ? $orphanClause", [uid]);
 
@@ -107,6 +131,7 @@ void _cleanupConflictingLegacyTables(String path) {
     try {
       final tablesToInspect = [
         'habit_categories',
+        'note_categories',
         'prayers',
         'user_profiles',
         'user_profile',
@@ -118,6 +143,12 @@ void _cleanupConflictingLegacyTables(String path) {
         );
         if (rows.isNotEmpty && rows.first['type'] == 'table') {
           debugPrint('[PowerSync] Migrating legacy physical table "$name" to PowerSync view');
+          if (name == 'note_categories') {
+            try {
+              rawDb.execute('CREATE TABLE IF NOT EXISTS local_note_categories (id TEXT PRIMARY KEY, user_id TEXT, name TEXT, icon TEXT, color TEXT, sort_order INTEGER, created_at TEXT, updated_at TEXT)');
+              rawDb.execute('INSERT OR IGNORE INTO local_note_categories SELECT id, user_id, name, icon, color, sort_order, created_at, updated_at FROM "$name"');
+            } catch (_) {}
+          }
           rawDb.execute('DROP TABLE IF EXISTS "$name"');
         }
       }
@@ -150,30 +181,29 @@ Future<void> openDatabase() async {
   // PowerSync runs 100% locally with SQLite for full offline-first functionality.
   // We only engage remote sync streaming when an active authenticated session exists.
   Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
-    if (data.session != null) {
-      setCachedUserId(data.session!.user.id);
-      db.connect(connector: connector);
+    final session = data.session;
+    if (session != null) {
+      setCachedUserId(session.user.id);
+      if (!db.connected) {
+        db.connect(connector: connector);
+      }
       await purgeForeignUserData();
       await syncGlobalUserLevel();
     } else {
-      try {
-        await db.disconnect();
-      } catch (e) {
-        debugPrint('[PowerSync] db.disconnect on auth change error: $e');
+      setCachedUserId('');
+      if (db.connected) {
+        try {
+          await db.disconnect();
+        } catch (e) {
+          debugPrint('[PowerSync] db.disconnect on auth change error: $e');
+        }
       }
     }
   });
 
-  if (Supabase.instance.client.auth.currentSession != null) {
+  if (Supabase.instance.client.auth.currentSession != null && !db.connected) {
     db.connect(connector: connector);
   }
-
-  // Automatically ensure foreign data is cleaned whenever sync connects or reconnects
-  db.statusStream.listen((status) async {
-    if (status.connected && currentUserId.isNotEmpty) {
-      await purgeForeignUserData();
-    }
-  });
 
   _dbInitialized = true;
 
@@ -199,9 +229,6 @@ Future<void> initCustomLocalTables() async {
       await db.execute('ALTER TABLE local_auth_session ADD COLUMN avatar_url TEXT');
     } catch (_) {}
     try {
-      await db.execute('ALTER TABLE user_profiles ADD COLUMN avatar_url TEXT');
-    } catch (_) {}
-    try {
       await db.execute('UPDATE local_auth_session SET cached_password = NULL');
     } catch (_) {}
 
@@ -214,15 +241,33 @@ Future<void> initCustomLocalTables() async {
       await db.execute('DROP TABLE IF EXISTS local_habit_categories');
     } catch (_) {}
 
-    // Purge legacy prayer habits from generic habits table
-    await db.execute("DELETE FROM habits WHERE kind = 'Prayers' OR id LIKE 'habit_prayer_%'");
-    await db.execute("DELETE FROM habit_categories WHERE id = 'cat_prayers' OR LOWER(name) = 'prayers'");
-
-    // Purge legacy predefined categories from habits table so default categories don't ghost-reappear
-    await db.execute("UPDATE habits SET kind = NULL WHERE LOWER(kind) IN ('workout', 'reading', 'mindful', 'hydrate', 'code', 'rest', 'cat_workout', 'cat_reading', 'cat_mindful', 'cat_hydrate', 'cat_code', 'cat_rest')");
+    // Drop legacy local duplicate table and migrate existing records to PowerSync note_categories
+    try {
+      await db.execute('''
+        INSERT OR IGNORE INTO note_categories (id, user_id, name, icon, color, sort_order, created_at, updated_at)
+        SELECT id, user_id, name, icon, color, sort_order, created_at, updated_at FROM local_note_categories
+      ''');
+      await db.execute('DROP TABLE IF EXISTS local_note_categories');
+    } catch (_) {}
 
     // Index local SQLite tables (PowerSync tables have their indexes managed natively in appSchema)
     await db.execute('CREATE INDEX IF NOT EXISTS idx_local_auth_session_user_id ON local_auth_session(user_id)');
+
+    // Centralized prayer_settings table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS prayer_settings (
+        id TEXT PRIMARY KEY,
+        city TEXT,
+        country TEXT,
+        latitude REAL,
+        longitude REAL,
+        timezone TEXT,
+        calculation_method TEXT,
+        last_sync_date TEXT,
+        adhan_notifications_enabled INTEGER DEFAULT 1,
+        fajr_alarm_enabled INTEGER DEFAULT 1
+      )
+    ''');
   } catch (e) {
     debugPrint('[PowerSync] Error in initCustomLocalTables: $e');
   }
@@ -261,7 +306,11 @@ Future<void> syncGlobalUserLevel() async {
     }
 
     final lvl = GamificationEngine.calculateLevel(effectiveXp);
+    final previousLevel = globalUserLevel.value;
     globalUserLevel.value = lvl;
+    if (lvl > previousLevel) {
+      DomainEvents.emit(LevelUpEvent(lvl));
+    }
 
     if (uid.isNotEmpty) {
       final nowUtc = DateTime.now().toUtc().toIso8601String();
@@ -290,21 +339,22 @@ Future<void> syncGlobalUserLevel() async {
 Future<void> resetAllData() async {
   if (!_dbInitialized) return;
   try {
-    await db.execute('DELETE FROM tasks');
-    await db.execute('DELETE FROM projects');
-    await db.execute('DELETE FROM tags');
-    await db.execute('DELETE FROM logs');
-    await db.execute('DELETE FROM habits');
-    await db.execute('DELETE FROM habit_logs');
-    await db.execute('DELETE FROM notes');
-    await db.execute('DELETE FROM focus_sessions');
-    await db.execute('DELETE FROM habit_categories');
-    await db.execute('DELETE FROM prayers');
-    await db.execute('DELETE FROM user_profiles');
-    await db.execute('DELETE FROM user_profile');
+    // disconnectAndClear safely purges all synced PowerSync tables locally
+    // without queuing destructive upload DELETE mutations to Supabase Postgres.
+    await db.disconnectAndClear();
+    try {
+      await db.execute('DELETE FROM local_auth_session');
+      await db.execute('DELETE FROM prayer_settings');
+    } catch (e) {
+      debugPrint('[PowerSync] Error clearing local tables in resetAllData: $e');
+    }
+    _cachedUserId = '';
     globalUserLevel.value = 1;
     CacheService().clear();
     await initCustomLocalTables();
+    if (Supabase.instance.client.auth.currentSession != null && !db.connected) {
+      db.connect(connector: createSupabaseConnector());
+    }
   } catch (e) {
     debugPrint('[PowerSync] Error in resetAllData: $e');
   }

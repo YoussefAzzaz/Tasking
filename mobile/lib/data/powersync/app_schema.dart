@@ -18,8 +18,10 @@ final appSchema = Schema([
       Column.integer('estimate_min'),
       Column.text('recurrence_rule'),
       Column.text('recurrence_mode'),
+      Column.text('completed_at'),
       Column.text('created_at'),
       Column.text('updated_at'),
+      Column.text('deleted_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
@@ -42,6 +44,8 @@ final appSchema = Schema([
       Column.text('name'),
       Column.text('color'),
       Column.text('created_at'),
+      Column.text('updated_at'),
+      Column.text('deleted_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
@@ -54,6 +58,8 @@ final appSchema = Schema([
       Column.text('name'),
       Column.text('color'),
       Column.text('created_at'),
+      Column.text('updated_at'),
+      Column.text('deleted_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
@@ -67,6 +73,9 @@ final appSchema = Schema([
       Column.text('event_type'),
       Column.integer('xp_earned'),
       Column.text('timestamp'),
+      Column.text('created_at'),
+      Column.text('updated_at'),
+      Column.text('deleted_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
@@ -89,6 +98,7 @@ final appSchema = Schema([
       Column.integer('sort_order'),
       Column.text('created_at'),
       Column.text('updated_at'),
+      Column.text('deleted_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
@@ -107,6 +117,7 @@ final appSchema = Schema([
       Column.text('note'),
       Column.text('created_at'),
       Column.text('updated_at'),
+      Column.text('deleted_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
@@ -127,6 +138,7 @@ final appSchema = Schema([
       Column.text('energy'),
       Column.text('created_at'),
       Column.text('updated_at'),
+      Column.text('deleted_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
@@ -149,6 +161,7 @@ final appSchema = Schema([
       Column.integer('xp_earned'),
       Column.text('created_at'),
       Column.text('updated_at'),
+      Column.text('deleted_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
@@ -162,6 +175,21 @@ final appSchema = Schema([
   ),
   const Table(
     'habit_categories',
+    [
+      Column.text('user_id'),
+      Column.text('name'),
+      Column.text('icon'),
+      Column.text('color'),
+      Column.integer('sort_order'),
+      Column.text('created_at'),
+      Column.text('updated_at'),
+    ],
+    indexes: [
+      Index('user_id', [IndexedColumn.ascending('user_id')]),
+    ],
+  ),
+  const Table(
+    'note_categories',
     [
       Column.text('user_id'),
       Column.text('name'),

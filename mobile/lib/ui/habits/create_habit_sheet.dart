@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/widgets.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/habit_category_repository.dart';
 import 'package:axis/domain/id_generator.dart';
@@ -279,8 +280,9 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
 
     return FocusScope(
       autofocus: false,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: ModalSheetScaffold(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
         onTap: () {
           FocusScope.of(context).unfocus();
           setState(() => _showCategoryDropdown = false);
@@ -307,72 +309,74 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Handle and Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
-                  child: Column(
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AxisColors.borderGlass2,
-                            borderRadius: BorderRadius.circular(9999),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: AxisColors.success
-                                        .withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.local_fire_department_rounded,
-                                    color: AxisColors.success,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      widget.habitToEdit != null
-                                          ? 'EDIT HABIT ROUTINE'
-                                          : 'NEW HABIT ROUTINE',
-                                      maxLines: 1,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            color: AxisColors.textHigh,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.2,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                // Handle and Header (tap to close automatically)
+                ModalSheetTopBar(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+                    child: Column(
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AxisColors.borderGlass2,
+                              borderRadius: BorderRadius.circular(9999),
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded,
-                                color: AxisColors.textMuted, size: 22),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AxisColors.success
+                                          .withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.local_fire_department_rounded,
+                                      color: AxisColors.success,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        widget.habitToEdit != null
+                                            ? 'EDIT HABIT ROUTINE'
+                                            : 'NEW HABIT ROUTINE',
+                                        maxLines: 1,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              color: AxisColors.textHigh,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1.2,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded,
+                                  color: AxisColors.textMuted, size: 22),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const Divider(color: AxisColors.borderSubtle, height: 1),
@@ -386,39 +390,42 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                       children: [
                         // Name
                         const FieldLabel(label: 'HABIT NAME *'),
-                        TextField(
+                        AutoDirectionScope(
                           controller: _nameController,
-                          focusNode: _nameFocusNode,
-                          autofocus: false,
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: AxisColors.textHigh,
-                                  ),
-                          cursorColor: AxisColors.success,
-                          decoration: InputDecoration(
-                            hintText: 'e.g. Read 20 Pages, Morning Run',
-                            hintStyle: TextStyle(color: AxisColors.textDim),
-                            errorText: _errorText,
-                            filled: true,
-                            fillColor:
-                                AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AxisColors.borderSubtle),
+                          child: TextField(
+                            controller: _nameController,
+                            focusNode: _nameFocusNode,
+                            autofocus: false,
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: AxisColors.textHigh,
+                                    ),
+                            cursorColor: AxisColors.success,
+                            decoration: InputDecoration(
+                              hintText: 'e.g. Read 20 Pages, Morning Run',
+                              hintStyle: TextStyle(color: AxisColors.textDim),
+                              errorText: _errorText,
+                              filled: true,
+                              fillColor:
+                                  AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AxisColors.borderSubtle),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AxisColors.borderSubtle),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: AxisColors.success, width: 1.5),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 14),
                             ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AxisColors.borderSubtle),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: AxisColors.success, width: 1.5),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 14),
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -771,6 +778,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 }

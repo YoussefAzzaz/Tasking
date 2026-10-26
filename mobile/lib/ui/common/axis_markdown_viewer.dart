@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/text_direction.dart';
 
 /// Cyber-minimalist markdown and markup renderer tailored for notes and journal logs.
 /// Supports headings (#, ##, ###), ordered lists (1., 2.), bullet points (-, *, •),
@@ -230,6 +231,7 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
         break;
     }
 
+    final isArabic = isArabicText(text);
     return Padding(
       padding: EdgeInsets.only(top: topPadding, bottom: 4),
       child: Text.rich(
@@ -242,22 +244,32 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
             letterSpacing: 0.2,
           ),
         ),
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        textAlign: isArabic ? TextAlign.right : TextAlign.left,
       ),
     );
   }
 
   Widget _buildBlockquote(BuildContext context, String text) {
+    final isArabic = isArabicText(text);
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       decoration: BoxDecoration(
         color: AxisColors.surfaceLow.withValues(alpha: 0.6),
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(8),
-          bottomRight: Radius.circular(8),
+        borderRadius: BorderRadius.only(
+          topLeft: isArabic ? const Radius.circular(8) : Radius.zero,
+          bottomLeft: isArabic ? const Radius.circular(8) : Radius.zero,
+          topRight: isArabic ? Radius.zero : const Radius.circular(8),
+          bottomRight: isArabic ? Radius.zero : const Radius.circular(8),
         ),
-        border: const Border(
-          left: BorderSide(color: AxisColors.secondary, width: 3),
+        border: Border(
+          left: isArabic
+              ? BorderSide.none
+              : const BorderSide(color: AxisColors.secondary, width: 3),
+          right: isArabic
+              ? const BorderSide(color: AxisColors.secondary, width: 3)
+              : BorderSide.none,
         ),
       ),
       child: Text.rich(
@@ -270,6 +282,8 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
             height: 1.4,
           ),
         ),
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        textAlign: isArabic ? TextAlign.right : TextAlign.left,
       ),
     );
   }
@@ -280,6 +294,7 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
     required bool isChecked,
     VoidCallback? onToggle,
   }) {
+    final isArabic = isArabicText(text);
     final boxSize = (18 * widget.fontScale).clamp(16.0, 26.0);
     final iconSize = (13 * widget.fontScale).clamp(11.0, 19.0);
     return Padding(
@@ -290,10 +305,15 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
           child: Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                margin: const EdgeInsets.only(top: 2, right: 9),
+                margin: EdgeInsets.only(
+                  top: 2,
+                  right: isArabic ? 0 : 9,
+                  left: isArabic ? 9 : 0,
+                ),
                 width: boxSize,
                 height: boxSize,
                 decoration: BoxDecoration(
@@ -322,6 +342,8 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
                       decorationColor: AxisColors.textDim,
                     ),
                   ),
+                  textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
                 ),
               ),
             ],
@@ -332,14 +354,20 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
   }
 
   Widget _buildOrderedListItem(BuildContext context, String number, String text) {
+    final isArabic = isArabicText(text);
     final badgeFontSize = (10 * widget.fontScale).clamp(9.0, 14.0);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            margin: const EdgeInsets.only(top: 2, right: 8),
+            margin: EdgeInsets.only(
+              top: 2,
+              right: isArabic ? 0 : 8,
+              left: isArabic ? 8 : 0,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
             decoration: BoxDecoration(
               color: AxisColors.secondary.withValues(alpha: 0.16),
@@ -368,6 +396,8 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
                   height: 1.35,
                 ),
               ),
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
             ),
           ),
         ],
@@ -376,14 +406,20 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
   }
 
   Widget _buildBulletListItem(BuildContext context, String text) {
+    final isArabic = isArabicText(text);
     final dotSize = (6 * widget.fontScale).clamp(5.0, 10.0);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            margin: EdgeInsets.only(top: 6 * widget.fontScale, right: 9),
+            margin: EdgeInsets.only(
+              top: 6 * widget.fontScale,
+              right: isArabic ? 0 : 9,
+              left: isArabic ? 9 : 0,
+            ),
             width: dotSize,
             height: dotSize,
             decoration: BoxDecoration(
@@ -407,6 +443,8 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
                   height: 1.35,
                 ),
               ),
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
             ),
           ),
         ],
@@ -415,6 +453,7 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
   }
 
   Widget _buildParagraph(BuildContext context, String text) {
+    final isArabic = isArabicText(text);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.5),
       child: Text.rich(
@@ -426,6 +465,8 @@ class _AxisMarkdownViewerState extends State<AxisMarkdownViewer> {
             height: 1.45,
           ),
         ),
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        textAlign: isArabic ? TextAlign.right : TextAlign.left,
       ),
     );
   }

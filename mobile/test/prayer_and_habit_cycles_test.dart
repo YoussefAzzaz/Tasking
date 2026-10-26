@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/domain/streak_engine.dart';
 
 void main() {
   group('Habit & Prayer Reset Cycles Tests', () {
@@ -245,6 +246,130 @@ void main() {
       );
       // Streak logs must remain empty because user habit h1 was not done!
       expect(result, isEmpty);
+    });
+
+    test('Completing at least 10 daily habits (prayers included) qualifies date as done and increments streak', () {
+      // User has 15 total habits scheduled
+      final habits = List.generate(
+        15,
+        (i) => {
+          'id': 'habit_$i',
+          'schedule_type': 'daily',
+          'created_at': '2026-10-01T00:00:00Z',
+        },
+      );
+
+      // Scenario A: 5 prayers + 5 habits done on 2026-10-22 (Total: 10 habits) -> QUALIFIED!
+      final logs10 = [
+        {'habit_id': 'prayer_user1_fajr', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'prayer_user1_dhuhr', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'prayer_user1_asr', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'prayer_user1_maghrib', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'prayer_user1_isha', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_0', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_1', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_2', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_3', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_4', 'log_date': '2026-10-22', 'status': 'done'},
+      ];
+
+      final result10 = HabitRepository.computeDailyStreakLogs(
+        habits: habits,
+        habitLogs: logs10,
+      );
+      expect(result10.length, 1);
+      expect(result10.first.date, '2026-10-22');
+      expect(result10.first.status, 'done');
+
+      // StreakEngine calculates streak = 1 on that day
+      final streakDay1 = StreakEngine.calculateStreak('daily', result10, '2026-10-22');
+      expect(streakDay1, 1);
+
+      // Scenario B: 5 prayers + 4 habits (Total: 9 habits < 10) -> NOT QUALIFIED
+      final logs9 = [
+        {'habit_id': 'prayer_user1_fajr', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'prayer_user1_dhuhr', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'prayer_user1_asr', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'prayer_user1_maghrib', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'prayer_user1_isha', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_0', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_1', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_2', 'log_date': '2026-10-22', 'status': 'done'},
+        {'habit_id': 'habit_3', 'log_date': '2026-10-22', 'status': 'done'},
+      ];
+
+      final result9 = HabitRepository.computeDailyStreakLogs(
+        habits: habits,
+        habitLogs: logs9,
+      );
+      expect(result9, isEmpty);
+
+      // Scenario C: Consecutive days with at least 10 habits each increments monthly streak by one per day
+      final logsTwoDays = [
+        ...logs10, // 10 on Oct 22
+        // 10 on Oct 23: 4 prayers + 6 regular habits
+        {'habit_id': 'prayer_user1_fajr', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'prayer_user1_dhuhr', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'prayer_user1_asr', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'prayer_user1_maghrib', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'habit_0', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'habit_1', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'habit_2', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'habit_3', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'habit_4', 'log_date': '2026-10-23', 'status': 'done'},
+        {'habit_id': 'habit_5', 'log_date': '2026-10-23', 'status': 'done'},
+      ];
+
+      final resultTwoDays = HabitRepository.computeDailyStreakLogs(
+        habits: habits,
+        habitLogs: logsTwoDays,
+      );
+      expect(resultTwoDays.length, 2);
+      expect(resultTwoDays.map((l) => l.date).toSet(), {'2026-10-22', '2026-10-23'});
+
+      final streakDay2 = StreakEngine.calculateStreak('daily', resultTwoDays, '2026-10-23');
+      expect(streakDay2, 2); // Incremented by one!
+    });
+
+    test('Incorporates today prayers from dedicated prayers table when computing streak', () {
+      final habits = List.generate(
+        15,
+        (i) => {'id': 'h_$i', 'schedule_type': 'daily', 'created_at': '2026-10-01T00:00:00Z'},
+      );
+
+      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+      final nowUtcIso = DateTime.now().toUtc().toIso8601String();
+
+      // 5 regular habits in habit_logs
+      final habitLogs = [
+        {'habit_id': 'h_0', 'log_date': todayStr, 'status': 'done'},
+        {'habit_id': 'h_1', 'log_date': todayStr, 'status': 'done'},
+        {'habit_id': 'h_2', 'log_date': todayStr, 'status': 'done'},
+        {'habit_id': 'h_3', 'log_date': todayStr, 'status': 'done'},
+        {'habit_id': 'h_4', 'log_date': todayStr, 'status': 'done'},
+      ];
+
+      // 5 prayers marked done in dedicated prayers table
+      final prayerRows = [
+        {'id': 'p1', 'prayer_code': 'fajr', 'is_done': 1, 'updated_at': nowUtcIso},
+        {'id': 'p2', 'prayer_code': 'dhuhr', 'is_done': 1, 'updated_at': nowUtcIso},
+        {'id': 'p3', 'prayer_code': 'asr', 'is_done': 1, 'updated_at': nowUtcIso},
+        {'id': 'p4', 'prayer_code': 'maghrib', 'is_done': 1, 'updated_at': nowUtcIso},
+        {'id': 'p5', 'prayer_code': 'isha', 'is_done': 1, 'updated_at': nowUtcIso},
+      ];
+
+      final logs = HabitRepository.computeDailyStreakLogs(
+        habits: habits,
+        habitLogs: habitLogs,
+        prayers: prayerRows,
+      );
+
+      expect(logs.length, 1);
+      expect(logs.first.date, todayStr);
+      expect(logs.first.status, 'done');
+
+      final streak = StreakEngine.calculateStreak('daily', logs, todayStr);
+      expect(streak, 1);
     });
   });
 }

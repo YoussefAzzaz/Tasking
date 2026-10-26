@@ -25,6 +25,7 @@ class AppWidgetSyncService {
   StreamSubscription? _tasksSub;
   StreamSubscription? _habitsSub;
   StreamSubscription? _habitLogsSub;
+  StreamSubscription? _prayersSub;
   Timer? _tasksDebounceTimer;
   Timer? _habitsDebounceTimer;
 
@@ -43,6 +44,9 @@ class AppWidgetSyncService {
       _habitLogsSub = db
           .watch('SELECT * FROM habit_logs')
           .listen((_) => _debouncedSyncHabits());
+      _prayersSub = db
+          .watch('SELECT * FROM prayers')
+          .listen((_) => _debouncedSyncHabits());
     } catch (e) {
       debugPrint('Error starting AppWidget auto-sync listeners: $e');
     }
@@ -52,6 +56,7 @@ class AppWidgetSyncService {
     _tasksSub?.cancel();
     _habitsSub?.cancel();
     _habitLogsSub?.cancel();
+    _prayersSub?.cancel();
     _tasksDebounceTimer?.cancel();
     _habitsDebounceTimer?.cancel();
   }
