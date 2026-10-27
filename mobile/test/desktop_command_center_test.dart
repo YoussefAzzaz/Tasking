@@ -12,6 +12,7 @@ import 'package:axis/ui/desktop/widgets/accent_button.dart';
 import 'package:axis/ui/desktop/widgets/ghost_button.dart';
 import 'package:axis/ui/desktop/dialogs/quick_task_dialog.dart';
 import 'package:axis/ui/notes/widgets/note_format_toolbar.dart';
+import 'package:axis/ui/desktop/widgets/desktop_card.dart';
 import 'package:axis/data/focus_session_service.dart';
 
 void main() {
@@ -434,6 +435,39 @@ void main() {
         ),
         findsOneWidget,
       ); // Timestamp log
+    });
+
+    testWidgets("Prayer & Habits top metric cards are all identically sized", (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Prayer & Habits'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PrayerHabitsScreen), findsOneWidget);
+      expect(find.text("TODAY'S PRAYERS"), findsOneWidget);
+      expect(find.text('HABIT STREAK'), findsOneWidget);
+      expect(find.text('DAILY XP'), findsOneWidget);
+      expect(find.text('NEXT PRAYER'), findsOneWidget);
+
+      final prayerCardFinder = find.ancestor(of: find.text("TODAY'S PRAYERS"), matching: find.byType(DesktopCard));
+      final habitCardFinder = find.ancestor(of: find.text('HABIT STREAK'), matching: find.byType(DesktopCard));
+      final xpCardFinder = find.ancestor(of: find.text('DAILY XP'), matching: find.byType(DesktopCard));
+      final nextPrayerCardFinder = find.ancestor(of: find.text('NEXT PRAYER'), matching: find.byType(DesktopCard));
+
+      final prayerSize = tester.getSize(prayerCardFinder);
+      final habitSize = tester.getSize(habitCardFinder);
+      final xpSize = tester.getSize(xpCardFinder);
+      final nextPrayerSize = tester.getSize(nextPrayerCardFinder);
+
+      expect(prayerSize.height, equals(habitSize.height));
+      expect(prayerSize.height, equals(xpSize.height));
+      expect(prayerSize.height, equals(nextPrayerSize.height));
+      expect(prayerSize.width, equals(habitSize.width));
     });
   });
 }

@@ -31,48 +31,34 @@ class ProgressGauge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final clampedValue = value.clamp(0.0, 1.0);
-    final fillBar = LayoutBuilder(
-      builder: (context, constraints) {
-        final totalWidth = constraints.maxWidth;
-        final targetWidth = totalWidth * clampedValue;
+    final barDecoration = BoxDecoration(
+      color: gradient == null ? (color ?? AxisColors.secondary) : null,
+      gradient: gradient,
+      borderRadius: borderRadius,
+    );
 
-        final barContent = Container(
-          width: targetWidth,
-          height: height,
-          decoration: BoxDecoration(
-            color: gradient == null ? (color ?? AxisColors.secondary) : null,
-            gradient: gradient,
-            borderRadius: borderRadius,
-          ),
-        );
-
-        return Stack(
-          children: [
-            Container(
-              width: totalWidth,
-              height: height,
-              decoration: BoxDecoration(
-                color: backgroundColor ?? AxisColors.surfaceHighest.withValues(alpha: 0.5),
-                borderRadius: borderRadius,
-              ),
+    final fillBar = SizedBox(
+      height: height,
+      child: Stack(
+        children: [
+          Container(
+            width: double.infinity,
+            height: height,
+            decoration: BoxDecoration(
+              color: backgroundColor ?? AxisColors.surfaceHighest.withValues(alpha: 0.5),
+              borderRadius: borderRadius,
             ),
-            if (animate)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                width: targetWidth,
-                height: height,
-                decoration: BoxDecoration(
-                  color: gradient == null ? (color ?? AxisColors.secondary) : null,
-                  gradient: gradient,
-                  borderRadius: borderRadius,
-                ),
-              )
-            else
-              barContent,
-          ],
-        );
-      },
+          ),
+          FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: clampedValue,
+            child: Container(
+              height: height,
+              decoration: barDecoration,
+            ),
+          ),
+        ],
+      ),
     );
 
     if (label == null && valueLabel == null) {

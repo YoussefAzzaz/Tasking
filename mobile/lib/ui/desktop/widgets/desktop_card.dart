@@ -14,6 +14,7 @@ class DesktopCard extends StatelessWidget {
     this.borderRadius,
     this.width,
     this.height,
+    this.minHeight,
     this.onTap,
   });
 
@@ -25,6 +26,7 @@ class DesktopCard extends StatelessWidget {
   final BorderRadius? borderRadius;
   final double? width;
   final double? height;
+  final double? minHeight;
   final VoidCallback? onTap;
 
   @override
@@ -33,6 +35,7 @@ class DesktopCard extends StatelessWidget {
     final cardContent = Container(
       width: width,
       height: height,
+      constraints: minHeight != null ? BoxConstraints(minHeight: minHeight!) : null,
       margin: margin,
       padding: padding ?? const EdgeInsets.all(DesktopLayout.cardPadding),
       decoration: BoxDecoration(

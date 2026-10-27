@@ -402,154 +402,166 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
           stream: HabitRepository().watchHabits(),
           builder: (context, habitSnap) {
             final habits = habitSnap.data ?? [];
+            final dailyHabits = habits.where((h) {
+              final schedule = h.scheduleType.toLowerCase().trim();
+              return schedule == 'daily' || schedule.isEmpty;
+            }).toList();
             final maxStreak = habits.fold<int>(0, (max, h) => h.streakDays > max ? h.streakDays : max);
-            final doneHabits = habits.where((h) => h.isDoneToday).length;
+            final doneDailyHabits = dailyHabits.where((h) => h.isDoneToday).length;
 
-            return Row(
-              children: [
-                Expanded(
-                  child: DesktopCard(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "TODAY'S PRAYERS",
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.6,
-                            color: AxisColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '$donePrayers / $totalPrayers Done',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AxisColors.textHigh,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        ProgressGauge(
-                          value: (donePrayers / totalPrayers).clamp(0.0, 1.0),
-                          height: 4.0,
-                          color: AxisColors.tertiary,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DesktopCard(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'HABIT STREAK',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.6,
-                            color: AxisColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(Icons.local_fire_department_rounded, size: 18, color: AxisColors.warning),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$maxStreak Days',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AxisColors.textHigh,
-                              ),
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: DesktopCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "TODAY'S PRAYERS",
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              color: AxisColors.textMuted,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$doneHabits of ${habits.length} habits completed today',
-                          style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DesktopCard(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'DAILY XP',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.6,
-                            color: AxisColors.textMuted,
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '+${doneHabits * 25 + donePrayers * 30} XP',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AxisColors.primarySoft,
+                          const SizedBox(height: 6),
+                          Text(
+                            '$donePrayers / $totalPrayers Done',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AxisColors.textHigh,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'From habits and prayer completion',
-                          style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DesktopCard(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'NEXT PRAYER',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.6,
-                            color: AxisColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          nextPrayer != null ? '${nextPrayer.name} ${nextPrayer.time}' : 'Completed',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                          const SizedBox(height: 6),
+                          ProgressGauge(
+                            value: (donePrayers / totalPrayers).clamp(0.0, 1.0),
+                            height: 4.0,
                             color: AxisColors.tertiary,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          nextPrayer != null ? 'Upcoming window' : 'All obligations fulfilled',
-                          style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            '${totalPrayers > 0 ? ((donePrayers / totalPrayers) * 100).toInt() : 0}% completed today',
+                            style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DesktopCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'HABIT STREAK',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              color: AxisColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.local_fire_department_rounded, size: 18, color: AxisColors.warning),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$maxStreak Days',
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AxisColors.textHigh,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$doneDailyHabits of ${dailyHabits.length} habits completed today',
+                            style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DesktopCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'DAILY XP',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              color: AxisColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '+${doneDailyHabits * 25 + donePrayers * 30} XP',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AxisColors.primarySoft,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'From habits and prayer completion',
+                            style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DesktopCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'NEXT PRAYER',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              color: AxisColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            nextPrayer != null ? '${nextPrayer.name} ${nextPrayer.time}' : 'Completed',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AxisColors.tertiary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            nextPrayer != null ? 'Upcoming window' : 'All obligations fulfilled',
+                            style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );

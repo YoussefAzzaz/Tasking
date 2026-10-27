@@ -38,6 +38,7 @@ class ProjectsTasksScreen extends StatefulWidget {
 
 class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChecklistMixin {
   Task? _selectedTask;
+  String? _selectedTaskId;
   int _taskFilterIndex = 0; // 0: All, 1: Today, 2: In Progress, 3: Completed
   String? _selectedProjectId;
   final ScrollController _tasksScrollController = ScrollController();
@@ -55,9 +56,22 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
       context,
       taskToEdit: task,
       onTaskUpdated: (updated) {
-        setState(() => _selectedTask = updated);
+        setState(() {
+          _selectedTask = updated;
+          _selectedTaskId = updated.id;
+        });
       },
     );
+  }
+
+  Future<void> _toggleChecklist(Task task, int lineIndex) async {
+    final updated = await toggleTaskChecklist(task, lineIndex);
+    if (mounted) {
+      setState(() {
+        _selectedTask = updated;
+        _selectedTaskId = updated.id;
+      });
+    }
   }
 
   // Checklist helpers provided by TaskChecklistMixin
@@ -89,7 +103,12 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
       final updatedNotes = current.isEmpty ? '- [ ] $subtask' : '$current\n- [ ] $subtask';
       final updated = task.copyWith(notes: updatedNotes);
       await TaskRepository().updateTask(updated);
-      setState(() => _selectedTask = updated);
+      if (mounted) {
+        setState(() {
+          _selectedTask = updated;
+          _selectedTaskId = updated.id;
+        });
+      }
     }
   }
 
@@ -266,6 +285,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
         setState(() {
           _selectedProjectId = null;
           _selectedTask = null;
+          _selectedTaskId = null;
         });
       }
     }
@@ -696,10 +716,15 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                   }
 
                   // Auto-select first task if none selected or no longer in filtered
-                  if ((_selectedTask == null || !filtered.any((t) => t.id == _selectedTask!.id)) && filtered.isNotEmpty) {
+                  final activeSelectedId = _selectedTaskId ?? _selectedTask?.id;
+                  if ((activeSelectedId == null || !filtered.any((t) => t.id == activeSelectedId)) && filtered.isNotEmpty) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted && (_selectedTask == null || !filtered.any((t) => t.id == _selectedTask!.id))) {
-                        setState(() => _selectedTask = filtered.first);
+                      final currentId = _selectedTaskId ?? _selectedTask?.id;
+                      if (mounted && (currentId == null || !filtered.any((t) => t.id == currentId))) {
+                        setState(() {
+                          _selectedTask = filtered.first;
+                          _selectedTaskId = filtered.first.id;
+                        });
                       }
                     });
                   }
@@ -713,7 +738,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                       itemCount: filtered.length,
                         itemBuilder: (context, index) {
                           final task = filtered[index];
-                          final isSelected = _selectedTask?.id == task.id;
+                          final isSelected = (_selectedTaskId ?? _selectedTask?.id) == task.id;
                           final isDone = task.isCompleted;
                           final railColor = isDone
                               ? AxisColors.tertiary
@@ -725,7 +750,10 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                                 };
 
                           return GestureDetector(
-                            onTap: () => setState(() => _selectedTask = task),
+                            onTap: () => setState(() {
+                              _selectedTask = task;
+                              _selectedTaskId = task.id;
+                            }),
                             child: Container(
                               margin: const EdgeInsets.symmetric(vertical: 3.0),
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -824,255 +852,282 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
   }
 
   Widget _buildTaskInspectorPane() {
-    final task = _selectedTask;
-    if (task == null) {
-      return DesktopCard(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.touch_app_outlined, size: 36, color: AxisColors.textDim),
-              const SizedBox(height: 10),
-              Text(
-                'Select a task to inspect details and checklist',
-                style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    return StreamBuilder<List<Task>>(
+      stream: TaskRepository().watchTasks(),
+      builder: (context, taskSnap) {
+        final tasks = taskSnap.data ?? [];
+        final currentId = _selectedTaskId ?? _selectedTask?.id;
+        final task = currentId != null
+            ? tasks.cast<Task?>().firstWhere((t) => t?.id == currentId, orElse: () => _selectedTask)
+            : _selectedTask;
 
-    final isDone = task.isCompleted;
-
-    return DesktopCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TASK INSPECTOR',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: AxisColors.secondary,
-                ),
-              ),
-              Row(
-                children: [
-                  if (task.priority != null) PriorityBadge(priority: task.priority),
-                  const SizedBox(width: 8),
-                  TelemetryChip(
-                    label: isDone ? 'COMPLETED' : 'IN PROGRESS',
-                    color: isDone ? AxisColors.tertiary : AxisColors.secondary,
-                  ),
-                  const SizedBox(width: 8),
-                  GhostButton(
-                    label: 'Edit',
-                    icon: Icons.edit_outlined,
-                    height: 26,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    onPressed: () => _editTask(task),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            task.title,
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AxisColors.textHigh,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Expanded(
-            child: SingleChildScrollView(
+        if (task == null) {
+          return DesktopCard(
+            child: Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Description / notes
-                  Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AxisColors.surfaceLowest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AxisColors.borderSubtle, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'NOTES & CONTEXT',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AxisColors.textMuted,
+                  const Icon(Icons.touch_app_outlined, size: 36, color: AxisColors.textDim),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Select a task to inspect details and checklist',
+                    style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Builder(
-                  builder: (context) {
-                    final displayNotes = stripChecklistFromNotes(task.notes);
-                    if (displayNotes.isNotEmpty) {
-                      return AxisMarkdownViewer(
-                        markdown: displayNotes,
-                        selectable: true,
-                        baseStyle: GoogleFonts.getFont('Geist', fontSize: 13, height: 1.4, color: AxisColors.textHigh),
-                      );
-                    }
-                    return Text(
-                      'No additional notes provided for this deliverable.',
-                      style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Checklist
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AxisColors.surfaceLowest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AxisColors.borderSubtle, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'DELIVERABLE CHECKLIST',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AxisColors.textMuted,
-                      ),
-                    ),
-                    MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () => _promptAddSubtask(task),
-                        child: Text(
-                          '+ Add Subtask',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AxisColors.secondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Builder(
-                  builder: (context) {
-                    final checklist = parseTaskChecklist(task.notes);
-                    if (checklist.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Text(
-                          'No checklist items yet. Click + Add Subtask to add checkpoints.',
-                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
-                        ),
-                      );
-                    }
-                    return Column(
-                      children: checklist.map((item) {
-                        return InkWell(
-                          onTap: () => toggleTaskChecklist(task, item.lineIndex),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  item.isDone ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                                  size: 16,
-                                  color: item.isDone ? AxisColors.tertiary : AxisColors.textDim,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    item.text,
-                                    style: GoogleFonts.getFont(
-                                      'Geist',
-                                      fontSize: 12,
-                                      decoration: item.isDone ? TextDecoration.lineThrough : null,
-                                      color: item.isDone ? AxisColors.textDim : AxisColors.textHigh,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          // Actions
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
+          );
+        }
+
+        final isDone = task.isCompleted;
+
+        return DesktopCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'TASK INSPECTOR',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: AxisColors.secondary,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      if (task.priority != null) PriorityBadge(priority: task.priority),
+                      const SizedBox(width: 8),
+                      TelemetryChip(
+                        label: isDone ? 'COMPLETED' : 'IN PROGRESS',
+                        color: isDone ? AxisColors.tertiary : AxisColors.secondary,
+                      ),
+                      const SizedBox(width: 8),
+                      GhostButton(
+                        label: 'Edit',
+                        icon: Icons.edit_outlined,
+                        height: 26,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        onPressed: () => _editTask(task),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                task.title,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AxisColors.textHigh,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Description / notes
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceLowest,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AxisColors.borderSubtle, width: 1),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'NOTES & CONTEXT',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AxisColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Builder(
+                              builder: (context) {
+                                final displayNotes = stripChecklistFromNotes(task.notes);
+                                if (displayNotes.isNotEmpty) {
+                                  return AxisMarkdownViewer(
+                                    markdown: displayNotes,
+                                    selectable: true,
+                                    baseStyle: GoogleFonts.getFont('Geist', fontSize: 13, height: 1.4, color: AxisColors.textHigh),
+                                  );
+                                }
+                                return Text(
+                                  'No additional notes provided for this deliverable.',
+                                  style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Checklist
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceLowest,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AxisColors.borderSubtle, width: 1),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Builder(
+                              builder: (context) {
+                                final checklist = parseTaskChecklist(task.notes);
+                                final doneCount = checklist.where((c) => c.isDone).length;
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          checklist.isNotEmpty
+                                              ? 'DELIVERABLE CHECKLIST ($doneCount/${checklist.length})'
+                                              : 'DELIVERABLE CHECKLIST',
+                                          style: GoogleFonts.spaceGrotesk(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: AxisColors.textMuted,
+                                          ),
+                                        ),
+                                        MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          child: GestureDetector(
+                                            onTap: () => _promptAddSubtask(task),
+                                            child: Text(
+                                              '+ Add Subtask',
+                                              style: GoogleFonts.spaceGrotesk(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: AxisColors.secondary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (checklist.isEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                        child: Text(
+                                          'No checklist items yet. Click + Add Subtask to add checkpoints.',
+                                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                                        ),
+                                      )
+                                    else
+                                      Column(
+                                        children: checklist.map((item) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 2.0),
+                                            child: InkWell(
+                                              onTap: () => _toggleChecklist(task, item.lineIndex),
+                                              borderRadius: BorderRadius.circular(6),
+                                              hoverColor: AxisColors.surfaceHigh.withValues(alpha: 0.3),
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                                                child: Row(
+                                                  children: [
+                                                    DesktopCheckbox(
+                                                      value: item.isDone,
+                                                      size: 18,
+                                                      color: AxisColors.secondary,
+                                                      onChanged: (_) => _toggleChecklist(task, item.lineIndex),
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    Expanded(
+                                                      child: Text(
+                                                        item.text,
+                                                        style: GoogleFonts.getFont(
+                                                          'Geist',
+                                                          fontSize: 12,
+                                                          decoration: item.isDone ? TextDecoration.lineThrough : null,
+                                                          color: item.isDone ? AxisColors.textDim : AxisColors.textHigh,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Actions
               Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  GhostButton(
-                    label: isDone ? 'Mark as Incomplete' : 'Mark Completed',
-                    icon: isDone ? Icons.undo_rounded : Icons.check_circle_outline_rounded,
-                    onPressed: () {
-                      TaskRepository().toggleTaskStatus(task, !isDone);
-                      setState(() {
-                        _selectedTask = task.copyWith(status: isDone ? 'todo' : 'done');
-                      });
-                    },
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      GhostButton(
+                        label: isDone ? 'Mark as Incomplete' : 'Mark Completed',
+                        icon: isDone ? Icons.undo_rounded : Icons.check_circle_outline_rounded,
+                        onPressed: () {
+                          TaskRepository().toggleTaskStatus(task, !isDone);
+                          setState(() {
+                            _selectedTask = task.copyWith(status: isDone ? 'todo' : 'done');
+                            _selectedTaskId = task.id;
+                          });
+                        },
+                      ),
+                      GhostButton(
+                        label: 'Delete',
+                        icon: Icons.delete_outline_rounded,
+                        onPressed: () async {
+                          await TaskRepository().deleteTask(task.id);
+                          setState(() {
+                            _selectedTask = null;
+                            _selectedTaskId = null;
+                          });
+                        },
+                      ),
+                    ],
                   ),
-                  GhostButton(
-                    label: 'Delete',
-                    icon: Icons.delete_outline_rounded,
-                    onPressed: () async {
-                      await TaskRepository().deleteTask(task.id);
-                      setState(() {
-                        _selectedTask = null;
-                      });
+                  AccentButton(
+                    label: '▶ Start Focus Session',
+                    onPressed: () {
+                      FocusSessionService().setAttachedTask(task);
+                      FocusSessionService().startTimer();
+                      widget.onNavigateToTab(4); // Navigate to Focus Timers
                     },
                   ),
                 ],
               ),
-              AccentButton(
-                label: '▶ Start Focus Session',
-                onPressed: () {
-                  FocusSessionService().setAttachedTask(task);
-                  FocusSessionService().startTimer();
-                  widget.onNavigateToTab(4); // Navigate to Focus Timers
-                },
-              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
