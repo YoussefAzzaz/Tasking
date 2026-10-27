@@ -87,57 +87,12 @@ This document outlines the step-by-step sprint plan for building the Axis applic
     *   Build the Me tab displaying the Level + XP bar, badges, rewards, and sync status indicator (`synced`/`syncing`/`offline`/`error`).
 *   **Done When:** Users can log a habit, save a markdown journal entry, view their XP level, and check sync status. (COMPLETED)
 
-## Phase 4: Desktop Client (WPF)
+## Phase 4: Cloud Functions & Integration
 
-### Sprint 11: Desktop Infrastructure & Data Layer
-*   **Tasks:**
-    *   Initialize a .NET 8 WPF project in `desktop/Axis.sln` using `CommunityToolkit.Mvvm`, `WPF-UI`, and `Microsoft.Extensions.DependencyInjection`.
-    *   Integrate the `PowerSync.Common` beta SDK and `supabase-csharp` for authentication.
-    *   Implement the base repositories mapping SQLite rows to C# models, ensuring dependency injection setup.
-    *   Implement the in-process `DomainEvents` bus in C#.
-*   **Done When:** The WPF app authenticates, writes to local SQLite, and syncs data to Supabase.
-
-### Sprint 12: Desktop UI - Shell & Task Management
-*   **Tasks:**
-    *   Build the primary window shell with a left sidebar for the 5 sections (Today, Tasks, Habits, Notes, Me).
-    *   Implement global hotkeys using `NHotkey.Wpf` (Ctrl+N in app, Ctrl+Alt+Space globally) to open the Quick-Add parser.
-    *   Build the Task management views and the right-panel Task Detail view.
-*   **Done When:** Users can invoke global quick-add, parse a task, and edit it in the right panel.
-
-### Sprint 13: Desktop UI - Planning, Habits & Focus
-*   **Tasks:**
-    *   Build the Today view with Top 3 selection, morning/evening review cards, and timeline.
-    *   Build the Habits view and Routine runner.
-    *   Build the Focus timer view.
-*   **Done When:** Desktop users can schedule their day, run a routine, and complete a focus session matching the mobile experience.
-
-### Sprint 14: Desktop UI - Notes, Gamification & Settings
-*   **Tasks:**
-    *   Implement the Markdown note editor using `Markdig`.
-    *   Build the Me tab (XP, levels, badges, rewards) and settings view (theme, timezone, work hours).
-    *   Configure the tray icon using `H.NotifyIcon.Wpf` to keep the app alive for background reminders.
-*   **Done When:** Users can write markdown notes, view gamification stats, and minimize the app to the system tray.
-
-## Phase 5: Cloud Functions & Integration
-
-### Sprint 15: Google Calendar Sync (Edge Functions)
+### Sprint 11: Google Calendar Sync (Edge Functions)
 *   **Tasks:**
     *   Create Supabase Edge Functions: `gcal-oauth-start` (returns consent URL) and `gcal-oauth-callback` (exchanges code, saves encrypted refresh token to Vault).
     *   Write `gcal-sync` triggered by `pg_cron` (every 5 min) to pull events from selected calendars and upsert into `calendar_events`.
     *   Write `gcal-push` as a DB webhook to push `time_blocks` to the dedicated "Axis" calendar.
     *   Write `gcal-disconnect` to revoke tokens and clean up `calendar_secrets`.
 *   **Done When:** Calendar events flow into the local database automatically, and time blocks push to Google Calendar.
-
-### Sprint 16: Voice Notes Transcription (Edge Functions)
-*   **Tasks:**
-    *   Create the `transcribe` Edge Function triggered by a DB webhook on `voice_notes` when `upload_status = 'uploaded'`.
-    *   Configure the function to download the audio from Supabase Storage and call a designated speech-to-text API.
-    *   Update the `voice_notes` table with the `transcript` and set `transcript_status` to `done`.
-*   **Done When:** Uploading an audio file to Supabase triggers the function and populates the text transcript in the database.
-
-### Sprint 17: Notifications & Final Polish
-*   **Tasks:**
-    *   Implement `ReminderScheduler` on mobile using `flutter_local_notifications` for exact alarms based on `remind_at` timestamps and routines.
-    *   Implement desktop toasts using `Microsoft.Toolkit.Uwp.Notifications` for active and missed reminders on startup.
-    *   Wire UI components to emit and react to `DomainEvents` (e.g., `TaskCompleted`, `HabitDone`) to trigger XP and badge unlocks.
-*   **Done When:** Scheduled tasks and habits trigger notifications reliably on both platforms, and completing tasks visibly updates user XP.

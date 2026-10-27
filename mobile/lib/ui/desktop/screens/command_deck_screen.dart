@@ -890,8 +890,7 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklis
                 initialCategory: 'journal',
                 noteToEdit: noteToEdit,
                 onNoteCreated: () {
-                  if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
-                  setState(() {});
+                  if (mounted) setState(() {});
                 },
               ),
             ),

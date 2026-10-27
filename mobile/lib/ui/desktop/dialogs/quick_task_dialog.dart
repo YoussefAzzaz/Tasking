@@ -10,6 +10,7 @@ abstract final class QuickTaskDialog {
     String? initialProject,
     Task? taskToEdit,
     ValueChanged<Task>? onTaskUpdated,
+    VoidCallback? onTaskCreated,
   }) {
     return showDialog<void>(
       context: context,
@@ -41,10 +42,11 @@ abstract final class QuickTaskDialog {
               child: CreateTaskSheet(
                 initialProject: initialProject,
                 taskToEdit: taskToEdit,
-                onTaskCreated: () => Navigator.of(dialogContext).pop(),
+                onTaskCreated: () {
+                  onTaskCreated?.call();
+                },
                 onTaskUpdated: (updated) {
                   onTaskUpdated?.call(updated);
-                  Navigator.of(dialogContext).pop();
                 },
               ),
             ),
