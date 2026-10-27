@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -79,17 +80,19 @@ class _SplashScreenState extends State<SplashScreen>
   void _proceedToApp() {
     if (!mounted || _navigated) return;
     _navigated = true;
-    HapticFeedback.lightImpact();
 
     try {
+      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+        HapticFeedback.lightImpact();
+      }
       if (AuthService().hasActiveSession) {
         context.go('/today');
         unawaited(AuthService().tryAutoLoginOrSync());
       } else {
         context.go('/auth');
       }
-    } catch (_) {
-      // Running in test environment without GoRouter in hierarchy
+    } catch (e) {
+      debugPrint('[SplashScreen] Navigation error: $e');
     }
   }
 

@@ -6,6 +6,7 @@ import 'package:axis/ui/notes/create_note_sheet.dart';
 import 'package:axis/ui/notes/widgets/note_detail_sheet.dart';
 import 'package:axis/ui/notes/widgets/note_category_card.dart';
 import 'package:axis/ui/notes/widgets/daily_journal_card.dart';
+import 'package:axis/ui/notes/widgets/daily_review_prompt_card.dart';
 import 'package:axis/ui/notes/widgets/note_date_filter_toolbar.dart';
 import 'package:axis/ui/common/category_filter_slider.dart';
 import 'package:axis/ui/common/cyber_search_bar.dart';
@@ -35,6 +36,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
   List<NoteCategory> _latestCategories = [];
 
+  String _activeTab = 'notes'; // 'notes' or 'journal'
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedCategoryId = 'all';
@@ -64,16 +66,18 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   void _openCreateNote({
-    String? category = 'note',
+    String? category,
     List<NoteCategory>? existingCategories,
     Note? noteToEdit,
   }) {
+    final effectiveCategory = category ??
+        (_activeTab == 'journal' ? 'journal' : 'General');
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => CreateNoteSheet(
-        initialCategory: category ?? 'note',
+        initialCategory: effectiveCategory,
         existingCategories: existingCategories ?? _latestCategories,
         noteToEdit: noteToEdit,
         onNoteCreated: () => setState(() {}),
@@ -417,14 +421,16 @@ class _NotesScreenState extends State<NotesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Notes & Journal',
+                        _activeTab == 'journal' ? 'Journals' : 'Notes & Journal',
                         style: Theme.of(context).textTheme.displaySmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Categorized notes & daily reflections',
+                        _activeTab == 'journal'
+                            ? 'Daily reflections, logs & prompts'
+                            : 'Categorized notes & knowledge base',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context)
@@ -438,37 +444,50 @@ class _NotesScreenState extends State<NotesScreen> {
                 const SizedBox(width: 8),
                 InkWell(
                   onTap: () => _openCreateNote(
-                    category: _selectedCategoryId != 'all' &&
-                            _selectedCategoryId != 'general_notes'
-                        ? _selectedCategoryId
-                        : 'note',
+                    category: _activeTab == 'journal'
+                        ? 'journal'
+                        : (_selectedCategoryId != 'all' &&
+                                _selectedCategoryId != 'general_notes'
+                            ? _selectedCategoryId
+                            : 'General'),
                   ),
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AxisColors.secondary, Color(0xFF0284C7)],
+                      gradient: LinearGradient(
+                        colors: _activeTab == 'journal'
+                            ? const [Color(0xFFF59E0B), Color(0xFFD97706)]
+                            : const [AxisColors.secondary, Color(0xFF0284C7)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: AxisColors.secondary.withValues(alpha: 0.35),
+                          color: (_activeTab == 'journal'
+                                  ? AxisColors.warning
+                                  : AxisColors.secondary)
+                              .withValues(alpha: 0.35),
                           blurRadius: 10,
                           spreadRadius: 0,
                         ),
                       ],
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.edit_rounded, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
+                        Icon(
+                          _activeTab == 'journal'
+                              ? Icons.auto_stories_rounded
+                              : Icons.edit_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
                         Text(
-                          'New Entry',
-                          style: TextStyle(
+                          _activeTab == 'journal' ? 'New Journal' : 'New Note',
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -481,6 +500,132 @@ class _NotesScreenState extends State<NotesScreen> {
               ],
             ),
           ),
+
+          // Segmented Tab Switcher: Notes vs Journals
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AxisColors.surfaceLow,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AxisColors.borderSubtle),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        if (_activeTab != 'notes') {
+                          setState(() {
+                            _activeTab = 'notes';
+                            _selectedCategoryId = 'all';
+                          });
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _activeTab == 'notes'
+                              ? AxisColors.secondary.withValues(alpha: 0.18)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _activeTab == 'notes'
+                                ? AxisColors.secondary.withValues(alpha: 0.8)
+                                : Colors.transparent,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.description_outlined,
+                              size: 15,
+                              color: _activeTab == 'notes'
+                                  ? AxisColors.secondary
+                                  : AxisColors.textDim,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Notes',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: _activeTab == 'notes'
+                                    ? FontWeight.bold
+                                    : FontWeight.w600,
+                                color: _activeTab == 'notes'
+                                    ? AxisColors.textHigh
+                                    : AxisColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        if (_activeTab != 'journal') {
+                          setState(() {
+                            _activeTab = 'journal';
+                          });
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _activeTab == 'journal'
+                              ? AxisColors.warning.withValues(alpha: 0.18)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _activeTab == 'journal'
+                                ? AxisColors.warning.withValues(alpha: 0.8)
+                                : Colors.transparent,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.auto_stories_rounded,
+                              size: 15,
+                              color: _activeTab == 'journal'
+                                  ? AxisColors.warning
+                                  : AxisColors.textDim,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Journals',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: _activeTab == 'journal'
+                                    ? FontWeight.bold
+                                    : FontWeight.w600,
+                                color: _activeTab == 'journal'
+                                    ? AxisColors.textHigh
+                                    : AxisColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
 
           // Date Filter Toolbar
           Padding(
@@ -541,6 +686,7 @@ class _NotesScreenState extends State<NotesScreen> {
                     if (catTrimmed.isNotEmpty &&
                         catLower != 'note' &&
                         catLower != 'journal' &&
+                        catLower != 'general' &&
                         catLower != 'general notes' &&
                         !categoryNames.contains(catLower)) {
                       categoryNames.add(catLower);
@@ -563,6 +709,10 @@ class _NotesScreenState extends State<NotesScreen> {
                     final nameLower = c.name.toLowerCase();
                     return idLower != 'general_notes' &&
                         nameLower != 'general notes' &&
+                        idLower != 'general' &&
+                        nameLower != 'general' &&
+                        idLower != 'journal' &&
+                        nameLower != 'journal' &&
                         idLower != 'all' &&
                         nameLower != 'note';
                   }).toList();
@@ -584,14 +734,22 @@ class _NotesScreenState extends State<NotesScreen> {
                       continue;
                     }
 
-                    final matchedCat = catTrimmed.isNotEmpty
-                        ? allCategories.firstWhere(
-                            (c) =>
-                                c.id == catTrimmed ||
-                                c.name.toLowerCase() == catTrimmed.toLowerCase(),
-                            orElse: () => const NoteCategory(id: '', name: ''),
-                          )
-                        : const NoteCategory(id: '', name: '');
+                    final isGeneral = catTrimmed.isEmpty ||
+                        catTrimmed.toLowerCase() == 'general' ||
+                        catTrimmed.toLowerCase() == 'note' ||
+                        catTrimmed.toLowerCase() == 'general notes';
+
+                    if (isGeneral) {
+                      unassignedNotes.add(n);
+                      continue;
+                    }
+
+                    final matchedCat = allCategories.firstWhere(
+                      (c) =>
+                          c.id == catTrimmed ||
+                          c.name.toLowerCase() == catTrimmed.toLowerCase(),
+                      orElse: () => const NoteCategory(id: '', name: ''),
+                    );
 
                     if (matchedCat.name.isNotEmpty) {
                       notesByCategory.putIfAbsent(matchedCat.name, () => []).add(n);
@@ -600,122 +758,381 @@ class _NotesScreenState extends State<NotesScreen> {
                     }
                   }
 
-                  // Build horizontal category filter slider items
-                  final sliderItems = <CategorySliderItem>[
-                    CategorySliderItem(
-                      id: 'all',
-                      label: 'All Notes',
-                      iconData: Icons.apps_rounded,
-                      color: AxisColors.secondary,
-                      count: allNotes.length,
-                    ),
-                    ...allCategories.map((category) {
-                      final notes = notesByCategory[category.name] ?? [];
-                      return CategorySliderItem(
-                        id: category.id,
-                        label: category.name,
-                        icon: category.icon,
-                        color: _parseHex(category.color),
-                        count: notes.length,
-                      );
-                    }),
-                    if (journalNotes.isNotEmpty)
-                      CategorySliderItem(
-                        id: 'journal',
-                        label: 'Journal',
-                        iconData: Icons.auto_stories_rounded,
-                        color: AxisColors.warning,
-                        count: journalNotes.length,
-                      ),
-                    if (unassignedNotes.isNotEmpty)
-                      CategorySliderItem(
-                        id: 'general_notes',
-                        label: 'General Notes',
-                        iconData: Icons.article_rounded,
-                        color: const Color(0xFF64748B),
-                        count: unassignedNotes.length,
-                      ),
-                  ];
-
-                  // Filter displayed categories based on selected category & search query
-                  final displayedCategories = allCategories.where((category) {
-                    if (_selectedCategoryId != 'all') {
-                      final matches = category.id.toLowerCase() ==
-                              _selectedCategoryId.toLowerCase() ||
-                          category.name.toLowerCase() ==
-                              _selectedCategoryId.toLowerCase();
-                      if (!matches) return false;
-                    }
-
-                    if (_searchQuery.isNotEmpty) {
-                      final notes = notesByCategory[category.name] ?? [];
-                      final hasMatchingNote = notes.any((n) =>
-                          n.title.toLowerCase().contains(_searchQuery) ||
-                          n.bodyMd.toLowerCase().contains(_searchQuery));
-                      final matchesCategory =
-                          category.name.toLowerCase().contains(_searchQuery);
-                      return hasMatchingNote || matchesCategory;
-                    }
-
-                    return true;
-                  }).toList();
-
-                  final showJournalCategory = (_selectedCategoryId == 'all' ||
-                          _selectedCategoryId.toLowerCase() == 'journal') &&
-                      journalNotes.isNotEmpty;
-
-                  final displayedJournalNotes = showJournalCategory
-                      ? (_searchQuery.isEmpty
-                          ? journalNotes
-                          : journalNotes
-                              .where((n) =>
-                                  n.title.toLowerCase().contains(_searchQuery) ||
-                                  n.bodyMd.toLowerCase().contains(_searchQuery))
-                              .toList())
-                      : <Note>[];
-
-                  final showUnassignedCategory = (_selectedCategoryId == 'all' ||
-                          _selectedCategoryId.toLowerCase() == 'general_notes') &&
-                      unassignedNotes.isNotEmpty;
-
-                  final displayedUnassignedNotes = showUnassignedCategory
-                      ? (_searchQuery.isEmpty
-                          ? unassignedNotes
-                          : unassignedNotes
-                              .where((n) =>
-                                  n.title.toLowerCase().contains(_searchQuery) ||
-                                  n.bodyMd.toLowerCase().contains(_searchQuery))
-                              .toList())
-                      : <Note>[];
-
-                  // Count total matching notes
-                  int totalMatchingNotes = displayedJournalNotes.length +
-                      displayedUnassignedNotes.length;
-                  for (final cat in displayedCategories) {
-                    final raw = notesByCategory[cat.name] ?? [];
-                    final filtered = _searchQuery.isEmpty
-                        ? raw
-                        : raw
-                            .where((n) =>
-                                n.title.toLowerCase().contains(_searchQuery) ||
-                                n.bodyMd.toLowerCase().contains(_searchQuery) ||
-                                cat.name.toLowerCase().contains(_searchQuery))
-                            .toList();
-                    totalMatchingNotes += filtered.length;
+                  int totalRegularNotes = unassignedNotes.length;
+                  for (final list in notesByCategory.values) {
+                    totalRegularNotes += list.length;
                   }
 
                   final isSearching = _searchQuery.isNotEmpty;
 
+                  // ==========================================
+                  // 1. NOTES TAB CONTENT
+                  // ==========================================
+                  if (_activeTab == 'notes') {
+                    // Build horizontal category filter slider items (notes only)
+                    final sliderItems = <CategorySliderItem>[
+                      CategorySliderItem(
+                        id: 'all',
+                        label: 'All Notes',
+                        iconData: Icons.apps_rounded,
+                        color: AxisColors.secondary,
+                        count: totalRegularNotes,
+                      ),
+                      ...allCategories.map((category) {
+                        final notes = notesByCategory[category.name] ?? [];
+                        return CategorySliderItem(
+                          id: category.id,
+                          label: category.name,
+                          icon: category.icon,
+                          color: _parseHex(category.color),
+                          count: notes.length,
+                        );
+                      }),
+                      if (unassignedNotes.isNotEmpty)
+                        CategorySliderItem(
+                          id: 'general_notes',
+                          label: 'General Notes',
+                          iconData: Icons.article_rounded,
+                          color: const Color(0xFF64748B),
+                          count: unassignedNotes.length,
+                        ),
+                    ];
+
+                    final displayedCategories = allCategories.where((category) {
+                      if (_selectedCategoryId != 'all') {
+                        final matches = category.id.toLowerCase() ==
+                                _selectedCategoryId.toLowerCase() ||
+                            category.name.toLowerCase() ==
+                                _selectedCategoryId.toLowerCase();
+                        if (!matches) return false;
+                      }
+
+                      if (_searchQuery.isNotEmpty) {
+                        final notes = notesByCategory[category.name] ?? [];
+                        final hasMatchingNote = notes.any((n) =>
+                            n.title.toLowerCase().contains(_searchQuery) ||
+                            n.bodyMd.toLowerCase().contains(_searchQuery));
+                        final matchesCategory =
+                            category.name.toLowerCase().contains(_searchQuery);
+                        return hasMatchingNote || matchesCategory;
+                      }
+
+                      return true;
+                    }).toList();
+
+                    final showUnassignedCategory = (_selectedCategoryId == 'all' ||
+                            _selectedCategoryId.toLowerCase() == 'general_notes') &&
+                        unassignedNotes.isNotEmpty;
+
+                    final displayedUnassignedNotes = showUnassignedCategory
+                        ? (_searchQuery.isEmpty
+                            ? unassignedNotes
+                            : unassignedNotes
+                                .where((n) =>
+                                    n.title.toLowerCase().contains(_searchQuery) ||
+                                    n.bodyMd.toLowerCase().contains(_searchQuery))
+                                .toList())
+                        : <Note>[];
+
+                    int totalMatchingNotes = displayedUnassignedNotes.length;
+                    for (final cat in displayedCategories) {
+                      final raw = notesByCategory[cat.name] ?? [];
+                      final filtered = _searchQuery.isEmpty
+                          ? raw
+                          : raw
+                              .where((n) =>
+                                  n.title.toLowerCase().contains(_searchQuery) ||
+                                  n.bodyMd.toLowerCase().contains(_searchQuery) ||
+                                  cat.name.toLowerCase().contains(_searchQuery))
+                              .toList();
+                      totalMatchingNotes += filtered.length;
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Search bar
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: CyberSearchBar(
+                            controller: _searchController,
+                            hintText: 'Search notes or categories...',
+                            accentColor: AxisColors.secondary,
+                            onChanged: (val) {
+                              setState(() {
+                                _searchQuery = val.trim().toLowerCase();
+                              });
+                            },
+                            onClear: () {
+                              setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Horizontal category filter slider
+                        if (sliderItems.length > 1) ...[
+                          CategoryFilterSlider(
+                            items: sliderItems,
+                            selectedId: _selectedCategoryId,
+                            onSelected: (id) {
+                              setState(() {
+                                if (_selectedCategoryId == id && id != 'all') {
+                                  _selectedCategoryId = 'all';
+                                } else {
+                                  _selectedCategoryId = id;
+                                }
+                              });
+                            },
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+
+                        // Header Banner with "+ Category" and "+ Add Note"
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Container(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AxisColors.surfaceLow.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AxisColors.borderSubtle),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.folder_special_rounded,
+                                    color: AxisColors.secondary, size: 18),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'NOTES BY CATEGORY',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AxisColors.secondary,
+                                      letterSpacing: 1.1,
+                                    ),
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _showAddCategoryDialog,
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    backgroundColor: AxisColors.surfaceHigh,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8)),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.add,
+                                      size: 13, color: AxisColors.secondary),
+                                  label: const Text(
+                                    'Category',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AxisColors.secondary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                TextButton.icon(
+                                  onPressed: () => _openCreateNote(
+                                    category: _selectedCategoryId != 'all' &&
+                                            _selectedCategoryId != 'general_notes'
+                                        ? _selectedCategoryId
+                                        : 'General',
+                                    existingCategories: allCategories,
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    backgroundColor: AxisColors.secondary
+                                        .withValues(alpha: 0.15),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8)),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(Icons.add_rounded,
+                                      size: 13, color: AxisColors.secondary),
+                                  label: const Text(
+                                    'Add Note',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AxisColors.secondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Empty search results state
+                        if (isSearching && totalMatchingNotes == 0)
+                          _buildEmptySearchState(
+                            query: _searchController.text.trim(),
+                            onClear: () {
+                              setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        // No note categories created state
+                        else if (!isSearching &&
+                            allCategories.isEmpty &&
+                            unassignedNotes.isEmpty)
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: AxisColors.surfaceLow,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AxisColors.borderSubtle),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.folder_open_rounded,
+                                      size: 38, color: AxisColors.textDim),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'No Notes or Categories Yet',
+                                    style: TextStyle(
+                                      color: AxisColors.textHigh,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Tap "+ Category" or "+ Add Note" above to organize your thoughts and knowledge.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: AxisColors.textDim,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    onPressed: () => _openCreateNote(category: 'General'),
+                                    icon: const Icon(Icons.add, size: 16),
+                                    label: const Text('Create First Note'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AxisColors.secondary,
+                                      foregroundColor: Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        // Render separated categories
+                        else ...[
+                          // Custom categories
+                          ...displayedCategories.map((category) {
+                            final rawNotes = notesByCategory[category.name] ?? [];
+                            final notes = (!isSearching ||
+                                    category.name.toLowerCase().contains(_searchQuery))
+                                ? rawNotes
+                                : rawNotes
+                                    .where((n) =>
+                                        n.title.toLowerCase().contains(_searchQuery) ||
+                                        n.bodyMd.toLowerCase().contains(_searchQuery))
+                                    .toList();
+                            final color = _parseHex(category.color);
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: NoteCategoryCard(
+                                category: category,
+                                color: color,
+                                notes: notes,
+                                forceExpand: isSearching,
+                                onTapNote: _showNoteDetail,
+                                onAddNote: () => _openCreateNote(
+                                  category: category.name,
+                                  existingCategories: allCategories,
+                                ),
+                                onDeleteCategory: () async {
+                                  setState(() {
+                                    if (_selectedCategoryId == category.id ||
+                                        _selectedCategoryId.toLowerCase() ==
+                                            category.name.toLowerCase()) {
+                                      _selectedCategoryId = 'all';
+                                    }
+                                  });
+
+                                  await _categoryRepo.deleteCategory(
+                                    category.id,
+                                    name: category.name,
+                                  );
+                                },
+                              ),
+                            );
+                          }),
+
+                          // General Notes Category Card
+                          if (displayedUnassignedNotes.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: NoteCategoryCard(
+                                category: const NoteCategory(
+                                  id: 'general_notes',
+                                  name: 'General Notes',
+                                  icon: 'article',
+                                  color: '#64748B',
+                                ),
+                                color: const Color(0xFF64748B),
+                                notes: displayedUnassignedNotes,
+                                forceExpand: isSearching,
+                                onTapNote: _showNoteDetail,
+                                onAddNote: () => _openCreateNote(
+                                  category: 'General',
+                                  existingCategories: allCategories,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
+                    );
+                  }
+
+                  // ==========================================
+                  // 2. JOURNALS TAB CONTENT
+                  // ==========================================
+                  final displayedJournalNotes = _searchQuery.isEmpty
+                      ? journalNotes
+                      : journalNotes
+                          .where((n) =>
+                              n.title.toLowerCase().contains(_searchQuery) ||
+                              n.bodyMd.toLowerCase().contains(_searchQuery))
+                          .toList();
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Search bar
+                      // Search bar for journals
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: CyberSearchBar(
                           controller: _searchController,
-                          hintText: 'Search notes or categories...',
-                          accentColor: AxisColors.secondary,
+                          hintText: 'Search journals & reflections...',
+                          accentColor: AxisColors.warning,
                           onChanged: (val) {
                             setState(() {
                               _searchQuery = val.trim().toLowerCase();
@@ -731,115 +1148,8 @@ class _NotesScreenState extends State<NotesScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Horizontal category filter slider
-                      if (sliderItems.length > 1) ...[
-                        CategoryFilterSlider(
-                          items: sliderItems,
-                          selectedId: _selectedCategoryId,
-                          onSelected: (id) {
-                            setState(() {
-                              if (_selectedCategoryId == id && id != 'all') {
-                                _selectedCategoryId = 'all';
-                              } else {
-                                _selectedCategoryId = id;
-                              }
-                            });
-                          },
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-
-                      // Header Banner with "+ Category" and "+ Add Note"
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Container(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AxisColors.surfaceLow.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AxisColors.borderSubtle),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.folder_special_rounded,
-                                  color: AxisColors.secondary, size: 18),
-                              const SizedBox(width: 8),
-                              const Expanded(
-                                child: Text(
-                                  'NOTES BY CATEGORY',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AxisColors.secondary,
-                                    letterSpacing: 1.1,
-                                  ),
-                                ),
-                              ),
-                              TextButton.icon(
-                                onPressed: _showAddCategoryDialog,
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  backgroundColor: AxisColors.surfaceHigh,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8)),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                                icon: const Icon(Icons.add,
-                                    size: 13, color: AxisColors.secondary),
-                                label: const Text(
-                                  'Category',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AxisColors.secondary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              TextButton.icon(
-                                onPressed: () => _openCreateNote(
-                                  category: _selectedCategoryId != 'all' &&
-                                          _selectedCategoryId != 'general_notes'
-                                      ? _selectedCategoryId
-                                      : 'note',
-                                  existingCategories: allCategories,
-                                ),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  backgroundColor: AxisColors.secondary
-                                      .withValues(alpha: 0.15),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8)),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                                icon: const Icon(Icons.add_rounded,
-                                    size: 13, color: AxisColors.secondary),
-                                label: const Text(
-                                  'Add Note',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AxisColors.secondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Daily Journal Card (prominent when in all or journal view, and no search query)
-                      if ((_selectedCategoryId == 'all' ||
-                              _selectedCategoryId == 'journal') &&
-                          !isSearching &&
-                          _filterDate == null) ...[
+                      // Daily Journal Card (prominent when no search query and no custom date filter)
+                      if (!isSearching && _filterDate == null) ...[
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: DailyJournalCard(
@@ -853,10 +1163,75 @@ class _NotesScreenState extends State<NotesScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: DailyReviewPromptCard(
+                            onTapRecord: () => _openCreateNote(category: 'journal'),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
                       ],
 
+                      // Header Banner: JOURNAL ENTRIES with "+ New Journal"
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AxisColors.surfaceLow.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AxisColors.borderSubtle),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.auto_stories_rounded,
+                                  color: AxisColors.warning, size: 18),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'JOURNAL ENTRIES',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AxisColors.warning,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () =>
+                                    _openCreateNote(category: 'journal'),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  backgroundColor: AxisColors.warning
+                                      .withValues(alpha: 0.15),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.add_rounded,
+                                    size: 13, color: AxisColors.warning),
+                                label: const Text(
+                                  'New Journal',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AxisColors.warning,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
                       // Empty search results state
-                      if (isSearching && totalMatchingNotes == 0)
+                      if (isSearching && displayedJournalNotes.isEmpty)
                         _buildEmptySearchState(
                           query: _searchController.text.trim(),
                           onClear: () {
@@ -866,30 +1241,28 @@ class _NotesScreenState extends State<NotesScreen> {
                             });
                           },
                         )
-                      // No note categories created state
-                      else if (!isSearching &&
-                          allCategories.isEmpty &&
-                          unassignedNotes.isEmpty &&
-                          journalNotes.isEmpty)
+                      // No journal entries yet state
+                      else if (!isSearching && journalNotes.isEmpty)
                         Padding(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 20, horizontal: 16),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
                               color: AxisColors.surfaceLow,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AxisColors.borderSubtle),
+                              border:
+                                  Border.all(color: AxisColors.borderSubtle),
                             ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.folder_open_rounded,
+                                const Icon(Icons.menu_book_rounded,
                                     size: 38, color: AxisColors.textDim),
                                 const SizedBox(height: 12),
                                 const Text(
-                                  'No Notes or Categories Yet',
+                                  'No Journal Entries Recorded Yet',
                                   style: TextStyle(
                                     color: AxisColors.textHigh,
                                     fontWeight: FontWeight.bold,
@@ -898,7 +1271,7 @@ class _NotesScreenState extends State<NotesScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Tap "+ Category" or "+ Add Note" above to organize your thoughts and knowledge.',
+                                  'Log your daily thoughts, reflections, and insights.',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: AxisColors.textDim,
@@ -907,11 +1280,12 @@ class _NotesScreenState extends State<NotesScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
-                                  onPressed: () => _openCreateNote(),
+                                  onPressed: () =>
+                                      _openCreateNote(category: 'journal'),
                                   icon: const Icon(Icons.add, size: 16),
-                                  label: const Text('Create First Note'),
+                                  label: const Text('Start First Journal'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AxisColors.secondary,
+                                    backgroundColor: AxisColors.warning,
                                     foregroundColor: Colors.black,
                                   ),
                                 ),
@@ -919,93 +1293,25 @@ class _NotesScreenState extends State<NotesScreen> {
                             ),
                           ),
                         )
-                      // Render separated categories
-                      else ...[
-                        // Custom categories
-                        ...displayedCategories.map((category) {
-                          final rawNotes = notesByCategory[category.name] ?? [];
-                          final notes = (!isSearching ||
-                                  category.name.toLowerCase().contains(_searchQuery))
-                              ? rawNotes
-                              : rawNotes
-                                  .where((n) =>
-                                      n.title.toLowerCase().contains(_searchQuery) ||
-                                      n.bodyMd.toLowerCase().contains(_searchQuery))
-                                  .toList();
-                          final color = _parseHex(category.color);
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: NoteCategoryCard(
-                              category: category,
-                              color: color,
-                              notes: notes,
-                              forceExpand: isSearching,
-                              onTapNote: _showNoteDetail,
-                              onAddNote: () => _openCreateNote(
-                                category: category.name,
-                                existingCategories: allCategories,
-                              ),
-                              onDeleteCategory: () async {
-                                setState(() {
-                                  if (_selectedCategoryId == category.id ||
-                                      _selectedCategoryId.toLowerCase() ==
-                                          category.name.toLowerCase()) {
-                                    _selectedCategoryId = 'all';
-                                  }
-                                });
-
-                                await _categoryRepo.deleteCategory(
-                                  category.id,
-                                  name: category.name,
-                                );
-                              },
+                      // Render Journal Entries Card
+                      else if (displayedJournalNotes.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: NoteCategoryCard(
+                            category: const NoteCategory(
+                              id: 'journal',
+                              name: 'Daily Logs & Reflections',
+                              icon: 'journal',
+                              color: '#F59E0B',
                             ),
-                          );
-                        }),
-
-                        // Dedicated Journal Category Card
-                        if (displayedJournalNotes.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: NoteCategoryCard(
-                              category: const NoteCategory(
-                                id: 'journal',
-                                name: 'Journal',
-                                icon: 'journal',
-                                color: '#F59E0B',
-                              ),
-                              color: AxisColors.warning,
-                              notes: displayedJournalNotes,
-                              forceExpand: isSearching,
-                              onTapNote: _showNoteDetail,
-                              onAddNote: () => _openCreateNote(category: 'journal'),
-                            ),
+                            color: AxisColors.warning,
+                            notes: displayedJournalNotes,
+                            forceExpand: true,
+                            onTapNote: _showNoteDetail,
+                            onAddNote: () =>
+                                _openCreateNote(category: 'journal'),
                           ),
-                        ],
-
-                        // General Notes Category Card
-                        if (displayedUnassignedNotes.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: NoteCategoryCard(
-                              category: const NoteCategory(
-                                id: 'general_notes',
-                                name: 'General Notes',
-                                icon: 'article',
-                                color: '#64748B',
-                              ),
-                              color: const Color(0xFF64748B),
-                              notes: displayedUnassignedNotes,
-                              forceExpand: isSearching,
-                              onTapNote: _showNoteDetail,
-                              onAddNote: () => _openCreateNote(
-                                category: 'note',
-                                existingCategories: allCategories,
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ],
                     ],
                   );

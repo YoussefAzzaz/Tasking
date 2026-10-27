@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/data/task_repository.dart';
@@ -15,10 +16,17 @@ class FocusSessionService with WidgetsBindingObserver {
   static final FocusSessionService _instance = FocusSessionService._internal();
   factory FocusSessionService() => _instance;
 
+  static bool get isSupportedPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+       defaultTargetPlatform == TargetPlatform.iOS);
+
   FocusSessionService._internal() {
     try {
-      NotificationController.initializeIsolateReceivePort();
-      _initNotifications();
+      if (isSupportedPlatform) {
+        NotificationController.initializeIsolateReceivePort();
+        _initNotifications();
+      }
     } catch (_) {}
     try {
       WidgetsBinding.instance.addObserver(this);
@@ -52,6 +60,9 @@ class FocusSessionService with WidgetsBindingObserver {
   bool _isRunning = false;
   bool get isRunning => _isRunning;
 
+  bool _isSessionActive = false;
+  bool get isSessionActive => _isSessionActive;
+
   DateTime? _targetEndTime;
   DateTime? get targetEndTime => _targetEndTime;
 
@@ -61,6 +72,7 @@ class FocusSessionService with WidgetsBindingObserver {
   final ValueNotifier<int> remainingSecondsNotifier =
       ValueNotifier<int>(25 * 60);
   final ValueNotifier<bool> isRunningNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> isSessionActiveNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isBreakNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<int> completedCyclesNotifier = ValueNotifier<int>(0);
   final ValueNotifier<Task?> attachedTaskNotifier = ValueNotifier<Task?>(null);
@@ -74,12 +86,13 @@ class FocusSessionService with WidgetsBindingObserver {
   Stream<int> get onSessionCompleted => _completionStreamController.stream;
 
   Future<void> init() async {
+    if (!isSupportedPlatform) return;
     NotificationController.initializeIsolateReceivePort();
     await _initNotifications();
   }
 
   Future<void> _initNotifications() async {
-    if (_notificationsInitialized) return;
+    if (!isSupportedPlatform || _notificationsInitialized) return;
     try {
       await AwesomeNotifications().initialize(
         null,
@@ -234,6 +247,8 @@ class FocusSessionService with WidgetsBindingObserver {
 
     _isRunning = true;
     isRunningNotifier.value = true;
+    _isSessionActive = true;
+    isSessionActiveNotifier.value = true;
     _targetEndTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
 
     if (_config.soundscapeAutoPlay) {
@@ -311,6 +326,8 @@ class FocusSessionService with WidgetsBindingObserver {
   void resetTimer({int? minutes, bool isBreak = false}) {
     _isRunning = false;
     isRunningNotifier.value = false;
+    _isSessionActive = false;
+    isSessionActiveNotifier.value = false;
     _ticker?.cancel();
     _targetEndTime = null;
     _soundService.stop();
@@ -353,6 +370,8 @@ class FocusSessionService with WidgetsBindingObserver {
   void terminateSession() {
     _isRunning = false;
     isRunningNotifier.value = false;
+    _isSessionActive = false;
+    isSessionActiveNotifier.value = false;
     _ticker?.cancel();
     _targetEndTime = null;
     _soundService.stop();

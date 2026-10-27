@@ -16,8 +16,12 @@ class DesktopFileService {
   /// Gets the formatted size of the local SQLite database file.
   Future<String> getLocalDatabaseSize() async {
     try {
-      final appSupport = await getApplicationSupportDirectory();
-      final dbFile = File(p.join(appSupport.path, 'axis_local.db'));
+      final docDir = await getApplicationDocumentsDirectory();
+      var dbFile = File(p.join(docDir.path, 'axis_powersync.db'));
+      if (!await dbFile.exists()) {
+        final appSupport = await getApplicationSupportDirectory();
+        dbFile = File(p.join(appSupport.path, 'axis_local.db'));
+      }
       if (await dbFile.exists()) {
         final bytes = await dbFile.length();
         if (bytes < 1024) return '$bytes B';
@@ -27,7 +31,25 @@ class DesktopFileService {
     } catch (e) {
       debugPrint('[DesktopFileService] getLocalDatabaseSize error: $e');
     }
-    return '18.4 MB';
+    return '0 KB';
+  }
+
+  /// Gets the total number of synced & local records stored in SQLite.
+  Future<int> getLocalDatabaseRowCount() async {
+    if (!isDatabaseInitialized) return 0;
+    try {
+      final res = await db.getOptional('''
+        SELECT (SELECT count(*) FROM tasks) +
+               (SELECT count(*) FROM habits) +
+               (SELECT count(*) FROM notes) +
+               (SELECT count(*) FROM projects) +
+               (SELECT count(*) FROM prayers) AS total
+      ''');
+      return (res?['total'] as num?)?.toInt() ?? 0;
+    } catch (e) {
+      debugPrint('[DesktopFileService] getLocalDatabaseRowCount error: $e');
+      return 0;
+    }
   }
 
   /// Exports a markdown note or journal entry directly to the user's local disk.

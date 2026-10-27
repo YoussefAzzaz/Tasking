@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
+import '../desktop/widgets/desktop_horizontal_scroll.dart';
 
 /// Representation of an individual item in the horizontal category filter slider
 class CategorySliderItem {
@@ -101,8 +102,7 @@ class CategoryFilterSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return DesktopHorizontalScrollView(
       physics: const BouncingScrollPhysics(),
       padding: padding,
       child: Row(

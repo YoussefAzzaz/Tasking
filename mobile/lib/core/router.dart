@@ -23,14 +23,20 @@ final router = GoRouter(
   initialLocation: '/splash',
   refreshListenable: AuthService().authStateNotifier,
   redirect: (context, state) {
-    final hasSession = AuthService().hasActiveSession;
+    final auth = AuthService();
+    final isAuthenticated = auth.isAuthenticated;
+    final hasSession = auth.hasActiveSession;
     final isAuthRoute = state.matchedLocation == '/auth';
     final isSplashRoute = state.matchedLocation == '/splash';
 
-    if (!hasSession && !isAuthRoute && !isSplashRoute) {
+    if (isSplashRoute) return null;
+
+    if (!hasSession && !isAuthRoute) {
       return '/auth';
     }
-    if (hasSession && isAuthRoute) {
+    // Only redirect away from /auth if the user has an actual authenticated cloud account.
+    // Local guests MUST be allowed to open /auth to sign in or register!
+    if (isAuthenticated && isAuthRoute) {
       return '/today';
     }
     return null;

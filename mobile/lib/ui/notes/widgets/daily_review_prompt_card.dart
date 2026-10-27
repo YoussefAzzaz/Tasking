@@ -19,21 +19,28 @@ class DailyReviewPromptCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.wb_sunny_rounded,
-                      color: AxisColors.warning, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    'DAILY REVIEW PROMPT',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AxisColors.warning,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.wb_sunny_rounded,
+                        color: AxisColors.warning, size: 16),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'DAILY REVIEW PROMPT',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AxisColors.warning,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 6),
               Text(
                 DateFormat('d MMM').format(DateTime.now()),
                 style: const TextStyle(
@@ -64,12 +71,16 @@ class DailyReviewPromptCard extends StatelessWidget {
                 border: Border.all(color: AxisColors.borderSubtle),
               ),
               child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Tap to record your energy & thoughts...',
-                    style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+                  Expanded(
+                    child: Text(
+                      'Tap to record your energy & thoughts...',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+                    ),
                   ),
+                  SizedBox(width: 8),
                   Icon(Icons.arrow_forward_rounded,
                       size: 14, color: AxisColors.secondary),
                 ],

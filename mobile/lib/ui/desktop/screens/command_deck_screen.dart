@@ -4,13 +4,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme.dart';
+import '../../../data/focus_repository.dart';
+import '../../../data/habit_category_repository.dart';
 import '../../../data/habit_repository.dart';
+import '../../../data/note_repository.dart';
 import '../../../data/prayer_time_service.dart';
-import '../../../data/project_repository.dart';
 import '../../../data/task_repository.dart';
 import '../../../data/user_profile_repository.dart';
-import '../../../domain/id_generator.dart';
+import '../../../domain/gamification_engine.dart';
+import '../../common/axis_markdown_viewer.dart';
+import '../../notes/create_note_sheet.dart';
+import '../../notes/widgets/daily_journal_card.dart';
+import '../../today/widgets/time_slot_card.dart';
 import '../core/desktop_layout.dart';
+import '../dialogs/quick_habit_dialog.dart';
+import '../dialogs/quick_task_dialog.dart';
 import '../widgets/accent_button.dart';
 import '../widgets/desktop_card.dart';
 import '../widgets/desktop_checkbox.dart';
@@ -39,8 +47,6 @@ class CommandDeckScreen extends StatefulWidget {
 class _CommandDeckScreenState extends State<CommandDeckScreen> {
   late Timer _clockTimer;
   DateTime _currentTime = DateTime.now();
-  int _taskFilterIndex = 0; // 0: All, 1: Overdue, 2: High Priority, 3: Upcoming
-  final _quickTaskInputController = TextEditingController();
 
   @override
   void initState() {
@@ -53,31 +59,348 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
   @override
   void dispose() {
     _clockTimer.cancel();
-    _quickTaskInputController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleQuickAddTask() async {
-    final title = _quickTaskInputController.text.trim();
-    if (title.isEmpty) return;
+  List<({String text, bool isDone, int lineIndex})> _parseTaskChecklist(String? notes) {
+    if (notes == null || notes.isEmpty) return [];
+    final lines = notes.split('\n');
+    final list = <({String text, bool isDone, int lineIndex})>[];
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- [X]')) {
+        final isDone = line.startsWith('- [x]') || line.startsWith('- [X]');
+        final text = line.substring(5).trim();
+        list.add((text: text, isDone: isDone, lineIndex: i));
+      }
+    }
+    return list;
+  }
 
-    final now = DateTime.now();
-    final todayStr = DateFormat('yyyy-MM-dd').format(now);
-    final task = Task(
-      id: IdGenerator.generateDeterministicId('task_${now.microsecondsSinceEpoch}'),
-      title: title,
-      status: 'pending',
-      priority: 2,
-      dueDate: todayStr,
+  String _stripChecklistFromNotes(String? notes) {
+    if (notes == null || notes.trim().isEmpty) return '';
+    final lines = notes.split('\n');
+    final nonChecklistLines = lines.where((line) {
+      final trimmed = line.trim();
+      return !trimmed.startsWith('- [ ]') &&
+             !trimmed.startsWith('- [x]') &&
+             !trimmed.startsWith('- [X]');
+    }).toList();
+    return nonChecklistLines.join('\n').trim();
+  }
+
+  Future<Task> _toggleTaskChecklist(Task task, int lineIndex) async {
+    final lines = (task.notes ?? '').split('\n');
+    if (lineIndex < 0 || lineIndex >= lines.length) return task;
+    final line = lines[lineIndex];
+    if (line.contains('- [ ]')) {
+      lines[lineIndex] = line.replaceFirst('- [ ]', '- [x]');
+    } else if (line.contains('- [x]') || line.contains('- [X]')) {
+      lines[lineIndex] = line.replaceFirst(RegExp(r'- \[[xX]\]'), '- [ ]');
+    }
+    final updated = task.copyWith(notes: lines.join('\n'));
+    await TaskRepository().updateTask(updated);
+    return updated;
+  }
+
+  void _showTaskPreviewDialog(Task initialTask) {
+    Task currentTask = initialTask;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setPreviewState) {
+            final isDone = currentTask.isCompleted;
+            final checklist = _parseTaskChecklist(currentTask.notes);
+            final displayNotes = _stripChecklistFromNotes(currentTask.notes);
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+              child: Container(
+                width: 580,
+                constraints: const BoxConstraints(maxHeight: 740),
+                decoration: BoxDecoration(
+                  color: AxisColors.canvasBase,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AxisColors.borderGlass2, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 24,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header Bar
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AxisColors.secondary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.preview_rounded,
+                                  color: AxisColors.secondary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                "TASK PREVIEW // TODAY'S STREAM",
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.0,
+                                  color: AxisColors.secondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GhostButton(
+                                label: 'Edit',
+                                icon: Icons.edit_outlined,
+                                height: 28,
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                onPressed: () {
+                                  Navigator.of(dialogCtx).pop();
+                                  QuickTaskDialog.show(
+                                    context,
+                                    taskToEdit: currentTask,
+                                    onTaskUpdated: (_) {
+                                      if (mounted) setState(() {});
+                                    },
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 20, color: AxisColors.textDim),
+                                onPressed: () => Navigator.of(dialogCtx).pop(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(color: AxisColors.borderSubtle, height: 1),
+
+                    // Scrollable content
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Title & Completion
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                DesktopCheckbox(
+                                  value: isDone,
+                                  onChanged: (val) async {
+                                    await TaskRepository().toggleTaskStatus(currentTask, val);
+                                    if (dialogCtx.mounted) {
+                                      Navigator.of(dialogCtx).pop();
+                                    }
+                                  },
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        currentTask.title,
+                                        style: GoogleFonts.spaceGrotesk(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: isDone ? TextDecoration.lineThrough : null,
+                                          color: isDone ? AxisColors.textDim : AxisColors.textHigh,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 6,
+                                        children: [
+                                          if (currentTask.priority != null)
+                                            PriorityBadge(priority: currentTask.priority),
+                                          if (currentTask.dueDate != null)
+                                            TelemetryChip(
+                                              label: 'Due ${currentTask.dueDate}${currentTask.dueTime != null ? " ${currentTask.dueTime}" : ""}',
+                                              color: AxisColors.secondary,
+                                              icon: Icons.calendar_today_rounded,
+                                            ),
+                                          if (currentTask.estimateMin != null)
+                                            TelemetryChip(
+                                              label: '${currentTask.estimateMin}m Estimate',
+                                              color: AxisColors.primary,
+                                              icon: Icons.timer_outlined,
+                                            ),
+                                          TelemetryChip(
+                                            label: isDone ? 'COMPLETED' : 'IN PROGRESS',
+                                            color: isDone ? AxisColors.tertiary : AxisColors.warning,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+
+                            // Notes section (strip checkboxes so not duplicated!)
+                            if (displayNotes.isNotEmpty) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: AxisColors.surfaceLowest,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AxisColors.borderSubtle),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'NOTES & CONTEXT',
+                                      style: GoogleFonts.spaceGrotesk(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.8,
+                                        color: AxisColors.textMuted,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    AxisMarkdownViewer(
+                                      markdown: displayNotes,
+                                      selectable: true,
+                                      baseStyle: GoogleFonts.getFont('Geist', fontSize: 13, height: 1.4, color: AxisColors.textHigh),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+
+                            // Interactive Checklist Subtasks
+                            if (checklist.isNotEmpty) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: AxisColors.surfaceLowest,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AxisColors.borderSubtle),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'CHECKLIST SUBTASKS (${checklist.where((c) => c.isDone).length}/${checklist.length})',
+                                      style: GoogleFonts.spaceGrotesk(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.8,
+                                        color: AxisColors.textMuted,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ...checklist.map((item) {
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                        child: Row(
+                                          children: [
+                                            DesktopCheckbox(
+                                              value: item.isDone,
+                                              size: 18,
+                                              color: AxisColors.secondary,
+                                              onChanged: (val) async {
+                                                final updated = await _toggleTaskChecklist(currentTask, item.lineIndex);
+                                                if (dialogCtx.mounted) {
+                                                  setPreviewState(() {
+                                                    currentTask = updated;
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                item.text,
+                                                style: GoogleFonts.getFont(
+                                                  'Geist',
+                                                  fontSize: 13,
+                                                  decoration: item.isDone ? TextDecoration.lineThrough : null,
+                                                  color: item.isDone ? AxisColors.textDim : AxisColors.textHigh,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Divider(color: AxisColors.borderSubtle, height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          GhostButton(
+                            label: 'Close',
+                            onPressed: () => Navigator.of(dialogCtx).pop(),
+                          ),
+                          const SizedBox(width: 10),
+                          AccentButton(
+                            label: isDone ? 'Mark Incomplete' : 'Complete Task',
+                            icon: isDone ? Icons.undo_rounded : Icons.check_circle_outline_rounded,
+                            onPressed: () async {
+                              await TaskRepository().toggleTaskStatus(currentTask, !isDone);
+                              if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
-
-    await TaskRepository().addTask(task);
-    _quickTaskInputController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(DesktopLayout.panelPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -90,34 +413,51 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
           _buildStatsRow(),
           const SizedBox(height: DesktopLayout.sectionSpacing),
 
-          // 2-Column Main Deck Split (Left flex 6, Right flex 4)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 6,
-                child: Column(
-                  children: [
-                    _buildExecutionStreamCard(),
-                    const SizedBox(height: DesktopLayout.sectionSpacing),
-                    _buildActiveProjectsMatrixCard(),
-                  ],
+          // 2-Column Main Deck Split (Left flex 6, Right flex 4) - constrained to page height without outer scroller
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 6,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _buildExecutionStreamCard(),
+                      ),
+                      const SizedBox(height: DesktopLayout.sectionSpacing),
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: _buildMacroSlotsCard()),
+                            const SizedBox(width: DesktopLayout.sectionSpacing),
+                            Expanded(child: SingleChildScrollView(child: _buildDailyJournalCard())),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: DesktopLayout.sectionSpacing),
-              Expanded(
-                flex: 4,
-                child: Column(
-                  children: [
-                    _buildPrayerTelemetryCard(),
-                    const SizedBox(height: DesktopLayout.sectionSpacing),
-                    _buildHabitLoopsCard(),
-                    const SizedBox(height: DesktopLayout.sectionSpacing),
-                    _buildLevelXpCard(),
-                  ],
+                const SizedBox(width: DesktopLayout.sectionSpacing),
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _buildPrayerTelemetryCard(),
+                      ),
+                      const SizedBox(height: DesktopLayout.sectionSpacing),
+                      Expanded(
+                        child: _buildHabitLoopsCard(),
+                      ),
+                      const SizedBox(height: DesktopLayout.sectionSpacing),
+                      _buildLevelXpCard(),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -253,12 +593,24 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildMetricCard(
-                        title: 'FOCUS TODAY',
-                        value: '2h 45m',
-                        caption: 'Deep work sprint',
-                        icon: Icons.bolt_rounded,
-                        accentColor: AxisColors.primary,
+                      child: StreamBuilder<int>(
+                        stream: FocusRepository().watchTodayFocusMinutes(),
+                        builder: (context, focusSnap) {
+                          final totalMin = focusSnap.data ?? 0;
+                          final hours = totalMin ~/ 60;
+                          final mins = totalMin % 60;
+                          final formatted = hours > 0 && mins > 0
+                              ? '${hours}h ${mins}m'
+                              : (hours > 0 ? '${hours}h' : '${mins}m');
+
+                          return _buildMetricCard(
+                            title: 'FOCUS TODAY',
+                            value: formatted,
+                            caption: totalMin > 0 ? 'Deep work sprints' : 'No focus sprints yet',
+                            icon: Icons.bolt_rounded,
+                            accentColor: AxisColors.primary,
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -334,128 +686,280 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
   }
 
   Widget _buildExecutionStreamCard() {
-    return DesktopCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionHeader(
-            title: "TODAY'S EXECUTION STREAM",
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip('All', 0),
-                const SizedBox(width: 4),
-                _buildFilterChip('Overdue', 1),
-                const SizedBox(width: 4),
-                _buildFilterChip('High Priority', 2),
-                const SizedBox(width: 4),
-                _buildFilterChip('Upcoming', 3),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          StreamBuilder<List<Task>>(
-            stream: TaskRepository().watchTasks(),
-            builder: (context, snapshot) {
-              final tasks = snapshot.data ?? [];
-              final now = DateTime.now();
-              final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    return StreamBuilder<List<Task>>(
+      stream: TaskRepository().watchTasks(),
+      builder: (context, snapshot) {
+        final tasks = snapshot.data ?? [];
+        final now = DateTime.now();
+        final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
-              var filtered = tasks.where((t) {
-                if (_taskFilterIndex == 1) {
-                  return !t.isCompleted && t.dueDate != null && t.dueDate!.compareTo(todayStr) < 0;
-                } else if (_taskFilterIndex == 2) {
-                  return t.priority == 1 && !t.isCompleted;
-                } else if (_taskFilterIndex == 3) {
-                  return !t.isCompleted && (t.dueDate == null || t.dueDate!.compareTo(todayStr) >= 0);
-                }
-                return true;
-              }).take(6).toList();
+        final todayTasks = tasks.where((t) {
+          if (t.dueDate == null || t.dueDate!.trim().isEmpty) return false;
+          return t.dueDate == todayStr || t.dueDate!.startsWith(todayStr);
+        }).toList()
+          ..sort((a, b) {
+            if (a.isCompleted != b.isCompleted) return a.isCompleted ? 1 : -1;
+            final pA = a.priority ?? 3;
+            final pB = b.priority ?? 3;
+            if (pA != pB) return pA.compareTo(pB);
+            return (a.dueTime ?? '').compareTo(b.dueTime ?? '');
+          });
 
-              if (filtered.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24.0),
+        final pendingCount = todayTasks.where((t) => !t.isCompleted).length;
+
+        return DesktopCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SectionHeader(
+                title: "TODAY'S EXECUTION STREAM",
+                trailing: TelemetryChip(
+                  label: '$pendingCount REMAINING',
+                  color: AxisColors.secondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (todayTasks.isEmpty)
+                Expanded(
                   child: Center(
                     child: Text(
-                      'No tasks in this execution queue',
+                      'No tasks scheduled for today',
                       style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                     ),
                   ),
-                );
-              }
-
-              return Column(
-                children: filtered.map((task) => _buildTaskRow(task)).toList(),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          // Inline quick add input
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: AxisColors.surfaceLowest,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AxisColors.borderSubtle, width: 1),
-                  ),
-                  child: TextField(
-                    controller: _quickTaskInputController,
-                    onSubmitted: (_) => _handleQuickAddTask(),
-                    style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
-                    decoration: InputDecoration(
-                      hintText: '+ Add a new task for today...',
-                      hintStyle: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 9),
-                    ),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: todayTasks.length,
+                    itemBuilder: (context, index) => _buildTaskRow(todayTasks[index]),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              AccentButton(
-                label: 'Add',
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                onPressed: _handleQuickAddTask,
-              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildFilterChip(String label, int index) {
-    final isSelected = _taskFilterIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _taskFilterIndex = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: isSelected ? AxisColors.primary.withValues(alpha: 0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: isSelected ? AxisColors.primary : AxisColors.borderSubtle,
-            width: 1,
+  Widget _buildMacroSlotsCard() {
+    return StreamBuilder<List<Task>>(
+      stream: TaskRepository().watchTasks(),
+      builder: (context, snapshot) {
+        final tasks = snapshot.data ?? [];
+        final now = DateTime.now();
+        final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+        final slottedTasks = tasks.where((t) {
+          final isToday = t.dueDate != null &&
+              (t.dueDate == todayStr || t.dueDate!.startsWith(todayStr));
+          if (!isToday) return false;
+          final estimate = t.estimateMin;
+          return estimate != null && estimate <= 15;
+        }).toList();
+
+        return DesktopCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SectionHeader(
+                title: '15 MIN MACRO SLOTS',
+                trailing: TelemetryChip(
+                  label: '${slottedTasks.length} SLOTS',
+                  color: AxisColors.secondary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              // AI insight banner
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AxisColors.surfaceLowest,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AxisColors.borderSubtle, width: 1),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.psychology_rounded,
+                      color: AxisColors.secondary,
+                      size: 13,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        slottedTasks.isNotEmpty
+                            ? '${slottedTasks.length} macro-task${slottedTasks.length > 1 ? 's' : ''} (≤15m) slotted.'
+                            : 'Auto-scheduler active (≤15m).',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textHigh),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(4),
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Auto-Scheduler recalculated idle gaps!'),
+                            backgroundColor: AxisColors.secondary,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'RESCHEDULE',
+                        style: GoogleFonts.getFont(
+                          'Geist',
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: AxisColors.secondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: slottedTasks.isEmpty
+                    ? SingleChildScrollView(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: AxisColors.surfaceLowest,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AxisColors.borderSubtle),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.hourglass_empty_rounded, color: AxisColors.secondary, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'No 15-Minute Slots Scheduled',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.spaceGrotesk(
+                                        color: AxisColors.textHigh,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Today\'s tasks with estimates of 15 minutes or less appear here.',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.getFont('Geist', color: AxisColors.textDim, fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: slottedTasks.length,
+                        itemBuilder: (context, i) {
+                          final t = slottedTasks[i];
+                          final isDone = t.isCompleted;
+                          final timeStr = t.dueTime != null && t.dueTime!.isNotEmpty
+                              ? t.dueTime!
+                              : '${t.estimateMin ?? 15}M Macro';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: TimeSlotCard(
+                              time: timeStr,
+                              title: t.title,
+                              xp: t.priority == 1 ? 30 : 20,
+                              isDone: isDone,
+                              onToggle: (v) {
+                                TaskRepository().toggleTaskStatus(t, v);
+                              },
+                              onTap: () => _showTaskPreviewDialog(t),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.getFont(
-            'Geist',
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected ? AxisColors.textHigh : AxisColors.textMuted,
+        );
+      },
+    );
+  }
+
+  void _openJournalDialog({Note? noteToEdit}) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (dialogCtx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+          child: Container(
+            width: 640,
+            constraints: const BoxConstraints(maxHeight: 740),
+            decoration: BoxDecoration(
+              color: AxisColors.canvasBase,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AxisColors.borderGlass2, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 24,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CreateNoteSheet(
+                initialCategory: 'journal',
+                noteToEdit: noteToEdit,
+                onNoteCreated: () {
+                  if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                  setState(() {});
+                },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDailyJournalCard() {
+    final now = DateTime.now();
+    return StreamBuilder<List<Note>>(
+      stream: NoteRepository().watchNotes(),
+      builder: (context, noteSnapshot) {
+        final notes = noteSnapshot.data ?? [];
+        final todayJournal = notes.cast<Note?>().firstWhere(
+          (n) =>
+              n != null &&
+              n.category == 'journal' &&
+              n.createdAt.year == now.year &&
+              n.createdAt.month == now.month &&
+              n.createdAt.day == now.day,
+          orElse: () => null,
+        );
+
+        return DailyJournalCard(
+          todayJournal: todayJournal,
+          onOpenTodayJournal: (note) => _openJournalDialog(noteToEdit: note),
+          onStartNewJournal: () => _openJournalDialog(),
+        );
+      },
     );
   }
 
@@ -463,159 +967,71 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
     final isDone = task.isCompleted;
     final railColor = isDone
         ? AxisColors.tertiary
-        : (task.priority == 1 ? AxisColors.priorityHigh : AxisColors.secondary);
+        : switch (task.priority) {
+            1 => AxisColors.priorityHigh,
+            2 => AxisColors.priorityMed,
+            3 => AxisColors.priorityLow,
+            _ => AxisColors.secondary,
+          };
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 3.0),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AxisColors.surfaceLowest,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AxisColors.borderSubtle, width: 1),
-      ),
-      child: Row(
-        children: [
-          TaskStatusRail(color: railColor, height: 20),
-          const SizedBox(width: 10),
-          DesktopCheckbox(
-            value: isDone,
-            onChanged: (val) {
-              TaskRepository().toggleTaskStatus(task, val);
-            },
+        hoverColor: AxisColors.surfaceHigh.withValues(alpha: 0.35),
+        onTap: () => _showTaskPreviewDialog(task),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 3.0),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: AxisColors.surfaceLowest,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: AxisColors.borderSubtle, width: 1),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              task.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.getFont(
-                'Geist',
-                fontSize: 13,
-                decoration: isDone ? TextDecoration.lineThrough : null,
-                color: isDone ? AxisColors.textDim : AxisColors.textHigh,
-              ),
-            ),
-          ),
-          if (task.priority != null && !isDone) ...[
-            const SizedBox(width: 8),
-            PriorityBadge(priority: task.priority, compact: true),
-          ],
-          if (task.dueTime != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              task.dueTime!,
-              style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveProjectsMatrixCard() {
-    return DesktopCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader(
-            title: 'ACTIVE PROJECTS MATRIX',
-            trailing: GhostButton(
-              label: 'EXPAND ↗',
-              height: 28,
-              onPressed: () => widget.onNavigateToTab(2), // Projects & Tasks
-            ),
-          ),
-          const SizedBox(height: 8),
-          StreamBuilder<List<Project>>(
-            stream: ProjectRepository().watchProjects(),
-            builder: (context, projSnap) {
-              final projects = projSnap.data ?? [];
-              if (projects.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: Center(
-                    child: Text(
-                      'No active projects. Create one in Projects & Tasks.',
-                      style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
-                    ),
-                  ),
-                );
-              }
-
-              return StreamBuilder<List<Task>>(
-                stream: TaskRepository().watchTasks(),
-                builder: (context, taskSnap) {
-                  final allTasks = taskSnap.data ?? [];
-                  final displayProjects = projects.take(3).toList();
-
-                  return Row(
-                    children: displayProjects.map((p) {
-                      final projectTasks = allTasks
-                          .where((t) => t.projectId == p.id || t.projectId == p.name)
-                          .toList();
-                      final total = projectTasks.length;
-                      final completed = projectTasks.where((t) => t.isCompleted).length;
-                      final progress = total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
-                      final pct = (progress * 100).toInt();
-
-                      return Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 8.0),
-                          padding: const EdgeInsets.all(10.0),
-                          decoration: BoxDecoration(
-                            color: AxisColors.surfaceLowest,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: AxisColors.borderSubtle, width: 1),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                p.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.spaceGrotesk(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AxisColors.textHigh,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '$completed/$total tasks',
-                                    style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
-                                  ),
-                                  Text(
-                                    '$pct%',
-                                    style: GoogleFonts.spaceGrotesk(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: AxisColors.secondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              ProgressGauge(
-                                value: progress,
-                                height: 3.5,
-                                color: AxisColors.secondary,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  );
+          child: Row(
+            children: [
+              TaskStatusRail(color: railColor, height: 20),
+              const SizedBox(width: 10),
+              DesktopCheckbox(
+                value: isDone,
+                onChanged: (val) {
+                  TaskRepository().toggleTaskStatus(task, val);
                 },
-              );
-            },
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.getFont(
+                    'Geist',
+                    fontSize: 13,
+                    decoration: isDone ? TextDecoration.lineThrough : null,
+                    color: isDone ? AxisColors.textDim : AxisColors.textHigh,
+                  ),
+                ),
+              ),
+              if (task.priority != null && !isDone) ...[
+                const SizedBox(width: 8),
+                PriorityBadge(priority: task.priority, compact: true),
+              ],
+              if (task.dueTime != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  task.dueTime!,
+                  style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
+                ),
+              ],
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: AxisColors.textDim,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -629,67 +1045,76 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
             title: 'PRAYER TELEMETRY',
           ),
           const SizedBox(height: 6),
-          StreamBuilder<List<Prayer>>(
-            stream: PrayerTimeService().watchPrayers(),
-            builder: (context, snapshot) {
-              final prayers = snapshot.data ?? [];
-              final doneCount = prayers.where((p) => p.isDone).length;
-              final totalCount = prayers.isNotEmpty ? prayers.length : 5;
-              final progress = (doneCount / totalCount).clamp(0.0, 1.0);
+          Expanded(
+            child: StreamBuilder<List<Prayer>>(
+              stream: PrayerTimeService().watchPrayers(),
+              builder: (context, snapshot) {
+                final prayers = snapshot.data ?? [];
+                final doneCount = prayers.where((p) => p.isDone).length;
+                final totalCount = prayers.isNotEmpty ? prayers.length : 5;
+                final progress = (doneCount / totalCount).clamp(0.0, 1.0);
 
-              return Column(
-                children: [
-                  ...prayers.map((prayer) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Row(
-                        children: [
-                          DesktopCheckbox(
-                            value: prayer.isDone,
-                            color: AxisColors.tertiary,
-                            onChanged: (val) {
-                              PrayerTimeService().togglePrayer(prayer.id, val);
-                            },
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              prayer.name,
-                              style: GoogleFonts.getFont(
-                                'Geist',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: prayer.isDone ? AxisColors.textDim : AxisColors.textHigh,
-                              ),
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: prayers.length,
+                        itemBuilder: (context, index) {
+                          final prayer = prayers[index];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3.0),
+                            child: Row(
+                              children: [
+                                DesktopCheckbox(
+                                  value: prayer.isDone,
+                                  color: AxisColors.tertiary,
+                                  onChanged: (val) {
+                                    PrayerTimeService().togglePrayer(prayer.id, val);
+                                  },
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    prayer.name,
+                                    style: GoogleFonts.getFont(
+                                      'Geist',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: prayer.isDone ? AxisColors.textDim : AxisColors.textHigh,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  prayer.time,
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontSize: 11,
+                                    color: AxisColors.textMuted,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                TelemetryChip(
+                                  label: prayer.isDone ? 'Done' : 'Upcoming',
+                                  color: prayer.isDone ? AxisColors.tertiary : AxisColors.textDim,
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            prayer.time,
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 11,
-                              color: AxisColors.textMuted,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          TelemetryChip(
-                            label: prayer.isDone ? 'Done' : 'Upcoming',
-                            color: prayer.isDone ? AxisColors.tertiary : AxisColors.textDim,
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    );
-                  }),
-                  const SizedBox(height: 12),
-                  ProgressGauge(
-                    value: progress,
-                    label: 'OBLIGATIONS: $doneCount/$totalCount (${(progress * 100).toInt()}%)',
-                    color: AxisColors.tertiary,
-                    height: 5.0,
-                  ),
-                ],
-              );
-            },
+                    ),
+                    const SizedBox(height: 8),
+                    ProgressGauge(
+                      value: progress,
+                      label: 'OBLIGATIONS: $doneCount/$totalCount (${(progress * 100).toInt()}%)',
+                      color: AxisColors.tertiary,
+                      height: 5.0,
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -703,94 +1128,152 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
         children: [
           SectionHeader(
             title: 'STREAKS & HABIT LOOPS',
-            trailing: GhostButton(
-              label: '+ View',
-              height: 26,
-              onPressed: () => widget.onNavigateToTab(1), // Prayer & Habits
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GhostButton(
+                  label: 'New',
+                  icon: Icons.add_rounded,
+                  height: 26,
+                  onPressed: () => QuickHabitDialog.show(
+                    context,
+                    onHabitCreated: () {
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ),
+                const SizedBox(width: 6),
+                GhostButton(
+                  label: 'View ↗',
+                  height: 26,
+                  onPressed: () => widget.onNavigateToTab(1), // Prayer & Habits
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 6),
-          StreamBuilder<List<Habit>>(
-            stream: HabitRepository().watchHabits(),
-            builder: (context, snapshot) {
-              final habits = (snapshot.data ?? []).take(4).toList();
-              if (habits.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12.0),
-                  child: Center(
-                    child: Text(
-                      'No active habits enrolled',
-                      style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
-                    ),
-                  ),
-                );
-              }
+          Expanded(
+            child: StreamBuilder<List<HabitCategory>>(
+              stream: HabitCategoryRepository().watchCategories(),
+              builder: (context, catSnap) {
+                final categories = catSnap.data ?? [];
 
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisExtent: 58,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: habits.length,
-                itemBuilder: (context, i) {
-                  final h = habits[i];
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AxisColors.surfaceLowest,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AxisColors.borderSubtle, width: 1),
-                    ),
-                    child: Row(
-                      children: [
-                        DesktopCheckbox(
-                          value: h.isDoneToday,
-                          color: AxisColors.warning,
-                          onChanged: (val) {
-                            HabitRepository().toggleHabit(h.id, val);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                h.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.getFont(
-                                  'Geist',
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: h.isDoneToday ? AxisColors.textDim : AxisColors.textHigh,
-                                ),
-                              ),
-                              Text(
-                                '${h.streakDays}d streak',
-                                style: GoogleFonts.spaceGrotesk(
-                                  fontSize: 10,
-                                  color: AxisColors.warning,
-                                ),
-                              ),
-                            ],
+                return StreamBuilder<List<Habit>>(
+                  stream: HabitRepository().watchHabits(),
+                  builder: (context, snapshot) {
+                    final habits = (snapshot.data ?? []).take(4).toList();
+                    if (habits.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: Center(
+                          child: Text(
+                            'No active habits enrolled. Click + New to add one.',
+                            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                           ),
                         ),
-                      ],
-                    ),
+                      );
+                    }
+
+                    return GridView.builder(
+                      padding: EdgeInsets.zero,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisExtent: 64,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                      itemCount: habits.length,
+                    itemBuilder: (context, i) {
+                      final h = habits[i];
+                      final catColor = HabitCategoryRepository().resolveHabitCategoryColor(h, categories);
+
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => QuickHabitDialog.show(
+                            context,
+                            habitToEdit: h,
+                            onHabitCreated: () {
+                              if (mounted) setState(() {});
+                            },
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AxisColors.surfaceLowest,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AxisColors.borderSubtle, width: 1),
+                            ),
+                            child: Row(
+                              children: [
+                                DesktopCheckbox(
+                                  value: h.isDoneToday,
+                                  color: catColor,
+                                  onChanged: (val) {
+                                    HabitRepository().toggleHabit(h.id, val);
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        h.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.getFont(
+                                          'Geist',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: h.isDoneToday ? AxisColors.textDim : AxisColors.textHigh,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: BoxDecoration(
+                                              color: catColor,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              '${h.streakDays}d streak · ${h.category.isNotEmpty ? h.category : "General"}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.spaceGrotesk(
+                                                fontSize: 10,
+                                                color: AxisColors.textDim,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               );
             },
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
   }
 
   Widget _buildLevelXpCard() {
@@ -799,11 +1282,11 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
       builder: (context, profile, _) {
         final level = profile.level > 0 ? profile.level : 1;
         final xp = profile.totalXp;
-        final nextLevelTarget = level * 1000;
-        final currentLevelBase = (level - 1) * 1000;
+        final currentLevelBase = GamificationEngine.xpToReachLevel(level);
+        final nextLevelTarget = GamificationEngine.xpToReachLevel(level + 1);
         final progress = nextLevelTarget > currentLevelBase
             ? ((xp - currentLevelBase) / (nextLevelTarget - currentLevelBase)).clamp(0.0, 1.0)
-            : 0.5;
+            : 0.0;
 
         return DesktopCard(
           child: Column(

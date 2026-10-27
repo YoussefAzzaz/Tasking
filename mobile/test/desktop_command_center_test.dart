@@ -8,6 +8,9 @@ import 'package:axis/ui/desktop/screens/projects_tasks_screen.dart';
 import 'package:axis/ui/desktop/screens/focus_timers_screen.dart';
 import 'package:axis/ui/desktop/screens/journal_vault_screen.dart';
 import 'package:axis/ui/desktop/screens/profile_settings_screen.dart';
+import 'package:axis/ui/desktop/widgets/accent_button.dart';
+import 'package:axis/ui/desktop/widgets/ghost_button.dart';
+import 'package:axis/ui/desktop/dialogs/quick_task_dialog.dart';
 import 'package:axis/data/focus_session_service.dart';
 
 void main() {
@@ -38,24 +41,48 @@ void main() {
       await tester.pumpWidget(buildDesktopApp());
       await tester.pumpAndSettle();
 
-      // Titlebar elements
+      // Titlebar elements: logo.png asset, AXIS, no version, clock & date present
       expect(find.text('AXIS'), findsOneWidget);
-      expect(find.text('v2.4.0'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName == 'assets/logo.png'),
+        findsOneWidget,
+      );
+      expect(find.text('v2.4.0'), findsNothing);
+      expect(find.byIcon(Icons.calendar_today_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.schedule_rounded), findsWidgets);
       expect(find.text('Search tasks, projects, habits, telemetry, or enter command...'), findsOneWidget);
 
-      // Sidebar navigation items
+      // Top Titlebar window control buttons pinned to max right
+      expect(find.byTooltip('Minimize'), findsOneWidget);
+      expect(find.byTooltip('Maximize / Fullscreen'), findsOneWidget);
+      expect(find.byTooltip('Exit'), findsOneWidget);
+      // Exit button is pinned flush to the far right corner (1440.0)
+      expect(tester.getTopRight(find.byTooltip('Exit')).dx, 1440.0);
+
+      // Settings button next to operator profile
+      expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+
+      // Sidebar navigation items (reordered without New Task or Profile & Settings)
+      expect(find.text('New Task'), findsNothing);
       expect(find.text('Command Deck'), findsOneWidget);
-      expect(find.text('Prayer & Habits'), findsOneWidget);
       expect(find.text('Projects & Tasks'), findsOneWidget);
-      expect(find.text('Focus Timers'), findsOneWidget);
+      expect(find.text('Prayer & Habits'), findsOneWidget);
       expect(find.text('Journal & Vault'), findsOneWidget);
-      expect(find.text('Profile & Settings'), findsOneWidget);
+      expect(find.text('Focus Timers'), findsOneWidget);
+      expect(find.text('Profile & Settings'), findsNothing);
+
+      // Log Out button replaces vault integrity footer
+      expect(find.text('INTEGRITY OK'), findsNothing);
+      expect(find.text('Log Out'), findsOneWidget);
 
       // Command Deck active initially
       expect(find.text('Welcome Back, Commander'), findsOneWidget);
     });
 
-    testWidgets('navigates across all 6 tabs without error or overflow', (tester) async {
+    testWidgets('navigates across all tabs without error or overflow', (tester) async {
       tester.view.physicalSize = const Size(1440, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -63,28 +90,28 @@ void main() {
       await tester.pumpWidget(buildDesktopApp());
       await tester.pumpAndSettle();
 
-      // Tab 1: Prayer & Habits
-      await tester.tap(find.text('Prayer & Habits'));
-      await tester.pumpAndSettle();
-      expect(find.byType(PrayerHabitsScreen), findsOneWidget);
-
-      // Tab 2: Projects & Tasks
+      // Tab 1: Projects & Tasks
       await tester.tap(find.text('Projects & Tasks'));
       await tester.pumpAndSettle();
       expect(find.byType(ProjectsTasksScreen), findsOneWidget);
 
-      // Tab 3: Focus Timers
-      await tester.tap(find.text('Focus Timers'));
+      // Tab 2: Prayer & Habits
+      await tester.tap(find.text('Prayer & Habits'));
       await tester.pumpAndSettle();
-      expect(find.byType(FocusTimersScreen), findsOneWidget);
+      expect(find.byType(PrayerHabitsScreen), findsOneWidget);
 
-      // Tab 4: Journal & Vault
+      // Tab 3: Journal & Vault
       await tester.tap(find.text('Journal & Vault'));
       await tester.pumpAndSettle();
       expect(find.byType(JournalVaultScreen), findsOneWidget);
 
-      // Tab 5: Profile & Settings
-      await tester.tap(find.text('Profile & Settings'));
+      // Tab 4: Focus Timers
+      await tester.tap(find.text('Focus Timers'));
+      await tester.pumpAndSettle();
+      expect(find.byType(FocusTimersScreen), findsOneWidget);
+
+      // Settings button next to profile: Profile & Settings Screen
+      await tester.tap(find.byIcon(Icons.settings_outlined));
       await tester.pumpAndSettle();
       expect(find.byType(ProfileSettingsScreen), findsOneWidget);
 
@@ -114,6 +141,7 @@ void main() {
         print('EXCEPTION DETAILS:\n${err is FlutterError ? (err.diagnostics.map((d) => d.toStringDeep()).join("\n")) : err}');
       }
       expect(err, isNull);
+      expect(tester.getTopRight(find.byTooltip('Exit')).dx, 1024.0);
     });
 
     testWidgets('opens and closes Omnibar dialog', (tester) async {
@@ -132,7 +160,7 @@ void main() {
       expect(find.text('Search tasks, projects, habits, notes or jump to...'), findsOneWidget);
     });
 
-    testWidgets('opens QuickTaskDialog via + New Task button', (tester) async {
+    testWidgets('opens QuickTaskDialog via QuickTaskDialog.show', (tester) async {
       tester.view.physicalSize = const Size(1440, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -140,12 +168,233 @@ void main() {
       await tester.pumpWidget(buildDesktopApp());
       await tester.pumpAndSettle();
 
-      // Tap New Task button in sidebar
-      await tester.tap(find.text('New Task'));
+      QuickTaskDialog.show(tester.element(find.byType(DesktopCommandCenter)));
       await tester.pumpAndSettle();
 
       // CreateTaskSheet rendered inside dialog
       expect(find.byType(Dialog), findsOneWidget);
+    });
+
+    testWidgets('eliminates mocks: displays dynamic focus, database telemetry, and real week calendar', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      // Command Deck: dynamic focus metric card exists and mock '1,280 rows' is gone
+      expect(find.text('FOCUS TODAY'), findsOneWidget);
+      expect(find.text('1,280 rows'), findsNothing);
+
+      // Focus Timers: mock '3 of 4 planned' is gone and dynamic "TODAY'S SCHEDULE & SPRINTS" is present
+      await tester.tap(find.text('Focus Timers'));
+      await tester.pumpAndSettle();
+      expect(find.text("TODAY'S SCHEDULE & SPRINTS"), findsOneWidget);
+      expect(find.text('3 of 4 planned'), findsNothing);
+
+      // Prayer & Habits: mock '95% Adherence' is gone, live adherence chip is present
+      await tester.tap(find.text('Prayer & Habits'));
+      await tester.pumpAndSettle();
+      expect(find.text('THIS WEEK CONSISTENCY'), findsOneWidget);
+      expect(find.text('95% Adherence'), findsNothing);
+
+      // Journal & Vault: mock '42d Streak' is gone, live journal deck is present
+      await tester.tap(find.text('Journal & Vault'));
+      await tester.pumpAndSettle();
+      expect(find.text('JOURNAL DECK'), findsOneWidget);
+      expect(find.text('42d Streak'), findsNothing);
+
+      // Projects & Tasks: open New Project dialog and check color picker
+      await tester.tap(find.text('Projects & Tasks'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('+ New Project'));
+      await tester.pumpAndSettle();
+      expect(find.text('PROJECT COLOR'), findsOneWidget);
+    });
+
+    testWidgets('Command Deck displays 15m macro slots and daily journal, removes task quick add & filters', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      // Today's Execution Stream header exists
+      expect(find.text("TODAY'S EXECUTION STREAM"), findsOneWidget);
+
+      // Filters ('All', 'Overdue', 'High Priority') from execution stream are removed
+      expect(find.text('Overdue'), findsNothing);
+      expect(find.text('High Priority'), findsNothing);
+
+      // Add a new task for today field and button are removed
+      expect(find.text('+ Add a new task for today...'), findsNothing);
+
+      // 15M Macro slots section is present
+      expect(find.text('15 MIN MACRO SLOTS'), findsOneWidget);
+      expect(find.text('RESCHEDULE'), findsOneWidget);
+
+      // Daily Journal Card is present directly on Command Deck
+      expect(find.text('DAILY JOURNAL'), findsOneWidget);
+    });
+
+    testWidgets('Prayer & Habits screen has New Habit button without extra text plus and scrollable habits', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Prayer & Habits'));
+      await tester.pumpAndSettle();
+
+      // New Habit button label has no '+' prefix
+      expect(find.text('New Habit'), findsOneWidget);
+      expect(find.text('+ New Habit'), findsNothing);
+
+      // Daily Habits header is present (uppercase by SectionHeader)
+      expect(find.text('DAILY HABITS'), findsOneWidget);
+    });
+
+    testWidgets('Projects & Tasks screen has single-plus New Task, color picker, scrollable queue, and delete project', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Projects & Tasks'));
+      await tester.pumpAndSettle();
+
+      // New Task button has no text plus (+ New Task is gone, New Task appears in header)
+      expect(find.text('+ New Task'), findsNothing);
+      expect(find.widgetWithText(AccentButton, 'New Task'), findsOneWidget);
+
+      // Add task to this queue textfield is removed
+      expect(find.text('+ Add task to this queue...'), findsNothing);
+
+      // Open + New Project dialog and verify rainbow color picker exists
+      await tester.tap(find.text('+ New Project'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.text('PROJECT COLOR'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('Journal & Vault screen has clean text fields, no emoji in editor, and top-aligned placeholder', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Journal & Vault'));
+      await tester.pumpAndSettle();
+
+      // Markdown Editor title has no thunder emoji
+      expect(find.text('MARKDOWN EDITOR'), findsOneWidget);
+      expect(find.text('⚡ MARKDOWN EDITOR'), findsNothing);
+
+      // Verify editor text field has top vertical alignment
+      final editorFieldFinder = find.byWidgetPredicate((w) => w is TextField && w.expands == true);
+      expect(editorFieldFinder, findsOneWidget);
+      final editorField = tester.widget<TextField>(editorFieldFinder);
+      expect(editorField.textAlignVertical, equals(TextAlignVertical.top));
+
+      // Verify no double text field styling (border is InputBorder.none, filled is false)
+      expect(editorField.decoration?.border, equals(InputBorder.none));
+      expect(editorField.decoration?.filled, isFalse);
+
+      // Verify search text field has clean border
+      final searchFieldFinder = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Search notes & tags...');
+      expect(searchFieldFinder, findsOneWidget);
+      final searchField = tester.widget<TextField>(searchFieldFinder);
+      expect(searchField.decoration?.border, equals(InputBorder.none));
+      expect(searchField.decoration?.filled, isFalse);
+
+      // Check Vault hierarchy title exists and is followed by scrollable hierarchy
+      expect(find.text('VAULT HIERARCHY'), findsOneWidget);
+    });
+
+    testWidgets('Journal & Vault has Save button on create, AUTO-SAVED on edit, and empties form on delete or tab switch', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Journal & Vault'));
+      await tester.pumpAndSettle();
+
+      // Initially in creation mode (no note selected yet)
+      expect(find.widgetWithText(AccentButton, 'Save Note'), findsOneWidget);
+      expect(find.widgetWithText(AccentButton, 'New Note'), findsOneWidget);
+      expect(find.text('AUTO-SAVED'), findsNothing);
+
+      // Type title and body
+      final titleFieldFinder = find.byWidgetPredicate((w) =>
+          w is TextField &&
+          (w.decoration?.hintText == 'Note Title...' ||
+              w.decoration?.hintText == 'Daily Reflection Title...'));
+      await tester.enterText(titleFieldFinder, 'Architecture Guidelines');
+      final bodyFieldFinder = find.byWidgetPredicate((w) => w is TextField && w.expands == true);
+      await tester.enterText(bodyFieldFinder, '# Architecture\n\nClean boundaries.');
+      await tester.pumpAndSettle();
+
+      // Click Save Note
+      await tester.tap(find.widgetWithText(AccentButton, 'Save Note').first);
+      await tester.pumpAndSettle();
+
+      // Now in editing mode: AUTO-SAVED appears, Save Note is in editor, New Note and Delete appear in header
+      expect(find.text('AUTO-SAVED'), findsOneWidget);
+      expect(find.widgetWithText(AccentButton, 'Save Note'), findsOneWidget);
+      expect(find.widgetWithText(AccentButton, 'New Note'), findsOneWidget);
+      expect(find.widgetWithText(GhostButton, 'Delete'), findsOneWidget);
+
+      // Delete the note: form must be emptied!
+      await tester.tap(find.widgetWithText(GhostButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      final deletedTitleField = tester.widget<TextField>(titleFieldFinder);
+      final deletedBodyField = tester.widget<TextField>(bodyFieldFinder);
+      expect(deletedTitleField.controller?.text, isEmpty);
+      expect(deletedBodyField.controller?.text, isEmpty);
+      expect(find.widgetWithText(AccentButton, 'Save Note'), findsOneWidget);
+
+      // Type some draft content in creation mode
+      await tester.enterText(titleFieldFinder, 'Draft Note');
+      await tester.enterText(bodyFieldFinder, 'Some draft content');
+      await tester.pumpAndSettle();
+
+      // Switch tab to Journals: form must be emptied!
+      await tester.tap(find.text('Journals'));
+      await tester.pumpAndSettle();
+
+      final journalTitleField = tester.widget<TextField>(titleFieldFinder);
+      final journalBodyField = tester.widget<TextField>(bodyFieldFinder);
+      expect(journalTitleField.controller?.text, isEmpty);
+      expect(journalBodyField.controller?.text, isEmpty);
+      expect(find.widgetWithText(AccentButton, 'Save Journal'), findsOneWidget);
+
+      // Type in Journals draft
+      await tester.enterText(titleFieldFinder, 'Draft Journal');
+      await tester.pumpAndSettle();
+
+      // Switch back to Notes: form must be emptied!
+      await tester.tap(find.text('≡ Notes'));
+      await tester.pumpAndSettle();
+
+      final notesTitleField = tester.widget<TextField>(titleFieldFinder);
+      final notesBodyField = tester.widget<TextField>(bodyFieldFinder);
+      expect(notesTitleField.controller?.text, isEmpty);
+      expect(notesBodyField.controller?.text, isEmpty);
+      expect(find.widgetWithText(AccentButton, 'Save Note'), findsOneWidget);
     });
   });
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
@@ -18,6 +19,11 @@ class AdhanAlarmService {
   static final AdhanAlarmService _instance = AdhanAlarmService._();
   factory AdhanAlarmService() => _instance;
   AdhanAlarmService._();
+
+  static bool get isSupportedPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+       defaultTargetPlatform == TargetPlatform.iOS);
 
   bool _adhanNotificationsEnabled = true;
   bool _fajrAlarmEnabled = true;
@@ -54,6 +60,8 @@ class AdhanAlarmService {
         UPDATE prayer_settings SET adhan_notifications_enabled = ? WHERE id = 'current'
       ''', [enabled ? 1 : 0]);
 
+      if (!isSupportedPlatform) return;
+
       if (!enabled) {
         // Cancel all scheduled adhan notifications
         for (int i = 1; i <= 5; i++) {
@@ -77,6 +85,8 @@ class AdhanAlarmService {
         UPDATE prayer_settings SET fajr_alarm_enabled = ? WHERE id = 'current'
       ''', [enabled ? 1 : 0]);
 
+      if (!isSupportedPlatform) return;
+
       if (!enabled) {
         await AwesomeNotifications().cancel(9991);
       } else {
@@ -90,6 +100,7 @@ class AdhanAlarmService {
 
   /// Schedules daily Adhan notifications and the +1 min Fajr Wake-Up Alarm
   Future<void> scheduleAllPrayers(List<PrayerItem> prayers) async {
+    if (!isSupportedPlatform) return;
     final now = DateTime.now();
 
     // 1. Schedule Adhan notifications for today's prayers

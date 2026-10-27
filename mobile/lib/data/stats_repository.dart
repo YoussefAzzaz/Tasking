@@ -50,6 +50,10 @@ class StatsRepository {
   /// Watches user statistics in real time, recalculating fresh UserStats
   /// whenever logs change in SQLite (task done/undone, habit completed, focus session).
   Stream<UserStats> watchStats() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const UserStats());
+    }
+
     final uid = currentUserId;
     final query = uid.isNotEmpty
         ? "SELECT id, xp_earned, timestamp FROM logs WHERE user_id = ? OR user_id IS NULL OR user_id = ''"

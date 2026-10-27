@@ -54,6 +54,7 @@ class _MeScreenState extends State<MeScreen> {
   @override
   void initState() {
     super.initState();
+    UserProfileRepository().profileNotifier.addListener(_loadProfile);
     _loadAllUserData();
     _categoriesSub = HabitCategoryRepository().watchCategories().listen((cats) {
       if (mounted) {
@@ -94,6 +95,7 @@ class _MeScreenState extends State<MeScreen> {
 
   @override
   void dispose() {
+    UserProfileRepository().profileNotifier.removeListener(_loadProfile);
     _categoriesSub?.cancel();
     _noteCategoriesSub?.cancel();
     _tagsSub?.cancel();
@@ -127,13 +129,12 @@ class _MeScreenState extends State<MeScreen> {
       final auth = AuthService();
       if (mounted) {
         setState(() {
-          if (auth.hasActiveSession && auth.displayName.isNotEmpty) {
-            _userName = auth.displayName;
-            _userTitle = auth.userEmail ?? profile.title;
-          } else {
-            _userName = profile.name;
-            _userTitle = profile.title;
-          }
+          _userName = profile.name.isNotEmpty && profile.name != 'Commander'
+              ? profile.name
+              : (auth.displayName.isNotEmpty && auth.displayName != 'Operative'
+                  ? auth.displayName
+                  : profile.name);
+          _userTitle = profile.title.isNotEmpty ? profile.title : 'Specialist';
           _avatarUrl = profile.avatarUrl;
           _avatarColor = profile.avatarColor;
         });
@@ -373,13 +374,191 @@ class _MeScreenState extends State<MeScreen> {
     );
   }
 
+  void _confirmExitGuestMode() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AxisColors.surfaceLowest,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AxisColors.borderPrimary),
+        ),
+        title: const Text(
+          'Exit Guest Mode?',
+          style: TextStyle(color: AxisColors.textHigh),
+        ),
+        content: const Text(
+          'This will clear your local guest session and return you to the sign-in screen where you can log into your Supabase account.',
+          style: TextStyle(color: AxisColors.textMuted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AxisColors.textDim),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AxisColors.primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await AuthService().signOut();
+              } catch (_) {}
+              if (!mounted) return;
+              context.go('/auth');
+            },
+            child: const Text(
+              'Exit to Login',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuestModeBanner() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+              blurRadius: 16,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.20),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.cloud_off_rounded,
+                    color: Color(0xFFF59E0B),
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'LOCAL GUEST MODE ACTIVE',
+                    style: TextStyle(
+                      color: Color(0xFFF59E0B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Your tasks, habits, and notes are currently stored only on this device. Sign in with your Supabase account to instantly synchronize with Desktop and cloud storage.',
+              style: TextStyle(
+                color: AxisColors.textHigh,
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 40,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF59E0B),
+                        foregroundColor: Colors.black,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(Icons.cloud_upload_rounded, size: 16),
+                      label: const Text(
+                        'SIGN IN TO SYNC',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      onPressed: () => context.go('/auth'),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 40,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFF59E0B),
+                      side: const BorderSide(color: Color(0xFFF59E0B)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: _confirmExitGuestMode,
+                    child: const Text(
+                      'EXIT GUEST',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isGuest = AuthService().isGuest;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 16),
+
+          if (isGuest) ...[
+            _buildGuestModeBanner(),
+            const SizedBox(height: 16),
+          ],
 
           // User Profile Card with Edit Action & Avatar Picker
           Padding(
@@ -443,46 +622,46 @@ class _MeScreenState extends State<MeScreen> {
 
           const SizedBox(height: 32),
 
-          // Streamlined, Premium Cyber-Crimson Sign Out Button at Bottom
+          // Streamlined, Premium Cyber Sign Out or Sign In Button at Bottom
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-                onTap: _confirmSignOut,
-                splashColor: AxisColors.error.withValues(alpha: 0.2),
-                highlightColor: AxisColors.error.withValues(alpha: 0.1),
+                onTap: isGuest ? () => context.go('/auth') : _confirmSignOut,
+                splashColor: (isGuest ? AxisColors.primary : AxisColors.error).withValues(alpha: 0.2),
+                highlightColor: (isGuest ? AxisColors.primary : AxisColors.error).withValues(alpha: 0.1),
                 child: Container(
                   height: 52,
                   decoration: BoxDecoration(
-                    color: AxisColors.error.withValues(alpha: 0.08),
+                    color: (isGuest ? AxisColors.primary : AxisColors.error).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: AxisColors.error.withValues(alpha: 0.28),
+                      color: (isGuest ? AxisColors.primary : AxisColors.error).withValues(alpha: 0.28),
                       width: 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AxisColors.error.withValues(alpha: 0.06),
+                        color: (isGuest ? AxisColors.primary : AxisColors.error).withValues(alpha: 0.06),
                         blurRadius: 16,
                         spreadRadius: -2,
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.logout_rounded,
-                        color: AxisColors.error,
+                        isGuest ? Icons.login_rounded : Icons.logout_rounded,
+                        color: isGuest ? AxisColors.primary : AxisColors.error,
                         size: 18,
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
-                        'Sign Out',
+                        isGuest ? 'Sign In / Connect Cloud Account' : 'Sign Out',
                         style: TextStyle(
-                          color: AxisColors.error,
+                          color: isGuest ? AxisColors.primary : AxisColors.error,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                           letterSpacing: 0.6,

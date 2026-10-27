@@ -237,6 +237,27 @@ class HabitRepository {
     });
   }
 
+  /// Watches distinct dates where at least one habit was completed during the current week (from Monday).
+  Stream<Set<String>> watchWeekDoneDates() {
+    if (!isDatabaseInitialized) return Stream.value(const <String>{});
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final mondayStr = DateFormat('yyyy-MM-dd').format(monday);
+    final uid = currentUserId;
+
+    final query = uid.isNotEmpty
+        ? 'SELECT DISTINCT log_date FROM habit_logs WHERE status = ? AND log_date >= ? AND (user_id = ? OR user_id IS NULL OR user_id = \'\')'
+        : 'SELECT DISTINCT log_date FROM habit_logs WHERE status = ? AND log_date >= ?';
+    final params = uid.isNotEmpty ? ['done', mondayStr, uid] : ['done', mondayStr];
+
+    return db.watch(query, parameters: params).map((rows) {
+      return rows.map((r) => r['log_date'] as String? ?? '').where((s) => s.isNotEmpty).toSet();
+    }).handleError((e) {
+      debugPrint('[HabitRepository] watchWeekDoneDates error: $e');
+      return <String>{};
+    });
+  }
+
   Future<void> resetAllStreaks() async {
     final uid = currentUserId;
     CacheService().invalidate('habit_streaks_map_${uid.isNotEmpty ? uid : 'global'}');

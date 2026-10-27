@@ -1,6 +1,8 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:axis/core/cache/cache_service.dart';
+import 'package:axis/core/theme.dart';
+import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
@@ -17,6 +19,28 @@ class HabitCategoryRepository {
 
   /// Broadcasts newly added category names so UI components can clear any local deletion exclusions.
   static final ValueNotifier<String?> categoryAddedNotifier = ValueNotifier<String?>(null);
+
+  /// Resolves the display color for a habit based on its category or color attribute.
+  Color resolveHabitCategoryColor(Habit habit, [List<HabitCategory>? categories]) {
+    if (categories != null && habit.category.trim().isNotEmpty) {
+      final catName = habit.category.trim().toLowerCase();
+      for (final c in categories) {
+        if (c.name.trim().toLowerCase() == catName || c.id.trim().toLowerCase() == catName) {
+          if (c.color.isNotEmpty) {
+            try {
+              return Color(int.parse(c.color.replaceFirst('#', '0xFF')));
+            } catch (_) {}
+          }
+        }
+      }
+    }
+    if (habit.color.isNotEmpty) {
+      try {
+        return Color(int.parse(habit.color.replaceFirst('#', '0xFF')));
+      } catch (_) {}
+    }
+    return AxisColors.tertiary;
+  }
 
   /// Watches habit categories stream for real-time reactive UI.
   Stream<List<HabitCategory>> watchCategories() {

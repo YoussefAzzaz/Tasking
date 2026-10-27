@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
+import '../../data/stats_repository.dart';
+import '../../data/user_profile_repository.dart';
 import 'core/desktop_shortcuts.dart';
 import 'dialogs/omnibar_dialog.dart';
 import 'dialogs/quick_task_dialog.dart';
@@ -23,6 +26,13 @@ class DesktopCommandCenter extends StatefulWidget {
 
 class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
   int _selectedTab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(UserProfileRepository().getProfile());
+    unawaited(StatsRepository().getUserStats());
+  }
 
   void _navigateToTab(int tabIndex) {
     if (tabIndex >= 0 && tabIndex <= 5) {
@@ -59,6 +69,7 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
         child: Scaffold(
           backgroundColor: AxisColors.canvasBase,
           body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. Top Titlebar
               DesktopTitlebar(
@@ -87,12 +98,12 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
                               onNavigateToTab: _navigateToTab,
                               onOpenNewTaskDialog: _openQuickTask,
                             ),
-                            const PrayerHabitsScreen(),
                             ProjectsTasksScreen(
                               onNavigateToTab: _navigateToTab,
                             ),
-                            const FocusTimersScreen(),
+                            const PrayerHabitsScreen(),
                             const JournalVaultScreen(),
+                            const FocusTimersScreen(),
                             const ProfileSettingsScreen(),
                           ],
                         ),

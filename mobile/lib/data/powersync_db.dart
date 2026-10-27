@@ -88,16 +88,11 @@ Future<void> clearUserDataOnSignOut() async {
 Future<void> purgeForeignUserData() async {
   if (!_dbInitialized) return;
   final uid = currentUserId;
-  if (uid.isEmpty) return;
+  if (uid.isEmpty || uid == 'local_guest') return;
 
   try {
-    // 1. Claim any local orphan records that were created without a user_id OR created in offline guest mode
+    // Claim all local orphan records that were created without a user_id OR created in offline guest mode
     const orphanClause = "WHERE user_id IS NULL OR user_id = '' OR user_id = 'local_guest'";
-    final check = await db.getOptional(
-      "SELECT (SELECT count(*) FROM tasks $orphanClause) + (SELECT count(*) FROM habits $orphanClause) AS total",
-    );
-    final totalOrphans = (check?['total'] as num?)?.toInt() ?? 0;
-    if (totalOrphans == 0) return;
 
     await db.execute("UPDATE tasks SET user_id = ? $orphanClause", [uid]);
     await db.execute("UPDATE projects SET user_id = ? $orphanClause", [uid]);
@@ -113,10 +108,6 @@ Future<void> purgeForeignUserData() async {
     } catch (_) {}
     await db.execute("UPDATE prayers SET user_id = ? $orphanClause", [uid]);
     await db.execute("UPDATE user_profiles SET user_id = ? $orphanClause", [uid]);
-
-    // Note: In PowerSync, multi-user isolation is enforced through server-side Sync Rules
-    // and client query filters (WHERE user_id = ?). We deliberately avoid physical "DELETE FROM ... WHERE user_id != ?"
-    // because PowerSync treats local DELETEs as upload transactions, which would pollute the CRUD queue.
   } catch (e) {
     debugPrint('[PowerSync] Error in purgeForeignUserData: $e');
   }
@@ -312,23 +303,47 @@ Future<void> syncGlobalUserLevel() async {
       DomainEvents.emit(LevelUpEvent(lvl));
     }
 
-    if (uid.isNotEmpty) {
+    if (uid.isNotEmpty && uid != 'local_guest') {
       final nowUtc = DateTime.now().toUtc().toIso8601String();
-      final profileId = IdGenerator.generateDeterministicId('profile_$uid');
-      final existing = await db.getOptional('SELECT id FROM user_profiles WHERE id = ?', [profileId]);
+      final existing = await db.getOptional('SELECT id FROM user_profiles WHERE user_id = ? LIMIT 1', [uid]);
       if (existing != null) {
+        final existingId = existing['id'] as String;
         await db.execute('''
           UPDATE user_profiles SET
             total_xp = ?,
             level = ?,
             updated_at = ?
           WHERE id = ?
-        ''', [effectiveXp, lvl, nowUtc, profileId]);
+        ''', [effectiveXp, lvl, nowUtc, existingId]);
       } else {
+        final profileId = IdGenerator.generateDeterministicId('profile_$uid');
+        Map<String, dynamic>? authMeta;
+        try {
+          authMeta = Supabase.instance.client.auth.currentUser?.userMetadata;
+        } catch (_) {}
+        final metaName = authMeta?['display_name'] as String?;
+        final metaTitle = (authMeta?['title'] as String?) ?? (authMeta?['callsign'] as String?);
+        final metaAvatar = authMeta?['avatar_url'] as String?;
+
+        String nameToUse = (metaName != null && metaName.trim().isNotEmpty) ? metaName.trim() : '';
+        if (nameToUse.isEmpty) {
+          try {
+            final sessionRow = await db.getOptional('SELECT display_name FROM local_auth_session WHERE id = ?', ['active_session']);
+            final savedName = sessionRow?['display_name'] as String?;
+            if (savedName != null && savedName.trim().isNotEmpty && savedName != 'Operative') {
+              nameToUse = savedName.trim();
+            }
+          } catch (_) {}
+        }
+        if (nameToUse.isEmpty || nameToUse == 'Operative') {
+          nameToUse = 'Commander';
+        }
+        final titleToUse = (metaTitle != null && metaTitle.trim().isNotEmpty) ? metaTitle.trim() : 'Specialist';
+
         await db.execute('''
-          INSERT INTO user_profiles (id, user_id, name, title, avatar_color, total_xp, level, created_at, updated_at)
-          VALUES (?, ?, 'Commander', 'Specialist', '#6366F1', ?, ?, ?, ?)
-        ''', [profileId, uid, effectiveXp, lvl, nowUtc, nowUtc]);
+          INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, created_at, updated_at)
+          VALUES (?, ?, ?, ?, '#6366F1', ?, ?, ?, ?, ?)
+        ''', [profileId, uid, nameToUse, titleToUse, metaAvatar, effectiveXp, lvl, nowUtc, nowUtc]);
       }
     }
   } catch (e) {

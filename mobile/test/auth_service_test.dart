@@ -82,12 +82,35 @@ void main() {
       );
 
       expect(auth.hasActiveSession, isTrue);
+      expect(auth.isAuthenticated, isTrue);
+      expect(auth.isGuest, isFalse);
       expect(auth.currentUserId, equals('test_user_offline_uuid'));
       expect(auth.userEmail, equals('operative@tasking.local'));
       expect(auth.displayName, equals('Offline Operative'));
 
       await auth.clearLocalSession();
       expect(auth.hasActiveSession, isFalse);
+      expect(auth.isAuthenticated, isFalse);
+      expect(auth.isGuest, isFalse);
+    });
+
+    test('Guest session properly isolates isGuest and isAuthenticated', () async {
+      final auth = AuthService();
+      await auth.saveLocalSession(
+        userId: 'local_guest',
+        email: 'guest@tasking.local',
+        displayName: 'Guest Operative',
+      );
+
+      expect(auth.hasActiveSession, isTrue);
+      expect(auth.isGuest, isTrue);
+      expect(auth.isAuthenticated, isFalse);
+      expect(auth.currentUserId, equals('local_guest'));
+
+      await auth.clearLocalSession();
+      expect(auth.hasActiveSession, isFalse);
+      expect(auth.isGuest, isFalse);
+      expect(auth.isAuthenticated, isFalse);
     });
   });
 }

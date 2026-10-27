@@ -15,7 +15,7 @@ class CreateNoteSheet extends StatefulWidget {
   const CreateNoteSheet({
     super.key,
     required this.onNoteCreated,
-    this.initialCategory = 'note',
+    this.initialCategory = 'General',
     this.existingCategories,
     this.noteToEdit,
   });
@@ -88,18 +88,23 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
           n.category.toLowerCase() != 'note' &&
           n.category.toLowerCase() != 'general notes') {
         _categoryController.text = n.category.trim();
+      } else if (!isJ) {
+        _categoryController.text = 'General';
       }
       if (n.mood != null) _selectedMood = n.mood!;
       _pinned = n.pinned;
     } else {
       final isJ = widget.initialCategory.toLowerCase() == 'journal';
       _category = isJ ? 'journal' : 'note';
-      if (!isJ &&
-          widget.initialCategory.trim().isNotEmpty &&
-          widget.initialCategory.toLowerCase() != 'note' &&
-          widget.initialCategory.toLowerCase() != 'general notes' &&
-          widget.initialCategory.toLowerCase() != 'all') {
-        _categoryController.text = widget.initialCategory.trim();
+      if (!isJ) {
+        if (widget.initialCategory.trim().isNotEmpty &&
+            widget.initialCategory.toLowerCase() != 'note' &&
+            widget.initialCategory.toLowerCase() != 'general notes' &&
+            widget.initialCategory.toLowerCase() != 'all') {
+          _categoryController.text = widget.initialCategory.trim();
+        } else {
+          _categoryController.text = 'General';
+        }
       }
       if (_category == 'journal') {
         _titleController.text =
@@ -212,7 +217,7 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
 
     final effectiveCategory = categoryName.isNotEmpty
         ? categoryName
-        : (_category == 'journal' ? 'journal' : 'note');
+        : (_category == 'journal' ? 'journal' : 'General');
 
     if (widget.noteToEdit != null) {
       final updatedNote = Note(
@@ -358,7 +363,15 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
                           label: 'Note',
                           icon: Icons.article_rounded,
                           isSelected: _category == 'note',
-                          onTap: () => setState(() => _category = 'note'),
+                          onTap: () {
+                            setState(() {
+                              _category = 'note';
+                              if (_categoryController.text.trim().isEmpty ||
+                                  _categoryController.text.toLowerCase() == 'note') {
+                                _categoryController.text = 'General';
+                              }
+                            });
+                          },
                         ),
                         const SizedBox(width: 8),
                         _CategoryOption(

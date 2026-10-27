@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
+import 'dart:ui';
 import 'package:window_manager/window_manager.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
 import 'package:axis/core/config/app_config.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/data/user_profile_repository.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
@@ -61,6 +63,7 @@ Future<void> main() async {
   try {
     await openDatabase();
     await AuthService().init();
+    unawaited(UserProfileRepository().getProfile());
   } catch (e, stack) {
     debugPrint('[Startup] Error initializing database or auth: $e\n$stack');
   }
@@ -149,6 +152,14 @@ class AxisApp extends StatelessWidget {
         darkTheme: AxisTheme.dark,
         themeMode: ThemeMode.dark,
         routerConfig: router,
+        scrollBehavior: const MaterialScrollBehavior().copyWith(
+          dragDevices: {
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.touch,
+            PointerDeviceKind.stylus,
+            PointerDeviceKind.trackpad,
+          },
+        ),
       ),
     );
   }

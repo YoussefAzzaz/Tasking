@@ -77,14 +77,14 @@ class UserProfileRepository {
 
     try {
       final uid = currentUserId;
-      final query = uid.isNotEmpty
-          ? 'SELECT name, title, avatar_color, avatar_url, total_xp, level FROM user_profiles WHERE user_id = ? LIMIT 1'
-          : 'SELECT name, title, avatar_color, avatar_url, total_xp, level FROM user_profiles LIMIT 1';
-      final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final query = (uid.isNotEmpty && uid != 'local_guest')
+          ? 'SELECT id, name, title, avatar_color, avatar_url, total_xp, level FROM user_profiles WHERE user_id = ? LIMIT 1'
+          : 'SELECT id, name, title, avatar_color, avatar_url, total_xp, level FROM user_profiles LIMIT 1';
+      final params = (uid.isNotEmpty && uid != 'local_guest') ? [uid] : <dynamic>[];
       final rows = await db.getAll(query, params);
 
-      String name = 'Commander';
-      String title = 'Specialist';
+      String name = '';
+      String title = '';
       String avatarColor = '#6366F1';
       String? avatarUrl;
       int totalXp = 0;
@@ -92,40 +92,66 @@ class UserProfileRepository {
 
       if (rows.isNotEmpty) {
         final r = rows.first;
-        name = (r['name'] as String?) ?? 'Commander';
-        title = (r['title'] as String?) ?? 'Specialist';
+        name = (r['name'] as String?) ?? '';
+        title = (r['title'] as String?) ?? '';
         avatarColor = (r['avatar_color'] as String?) ?? '#6366F1';
         avatarUrl = r['avatar_url'] as String?;
         totalXp = (r['total_xp'] as num?)?.toInt() ?? 0;
         level = (r['level'] as num?)?.toInt() ?? 1;
       }
 
-      // Multi-layer fallback to prevent avatar from ever disappearing on restart:
-      // 1. Check Supabase Auth user_metadata (cached locally by Supabase Auth SDK)
-      if (avatarUrl == null || avatarUrl.isEmpty) {
-        try {
-          final authMeta = Supabase.instance.client.auth.currentUser?.userMetadata;
-          if (authMeta != null && authMeta['avatar_url'] is String && (authMeta['avatar_url'] as String).isNotEmpty) {
-            avatarUrl = authMeta['avatar_url'] as String;
-          }
-        } catch (_) {}
+      // Check Supabase Auth user_metadata (cloud ground truth)
+      Map<String, dynamic>? authMeta;
+      try {
+        authMeta = Supabase.instance.client.auth.currentUser?.userMetadata;
+      } catch (_) {}
+
+      // 1. Resolve Display Name
+      if (name.isEmpty || name == 'Commander' || name == 'Player One' || name == 'Operative') {
+        final metaName = authMeta?['display_name'] as String?;
+        if (metaName != null && metaName.trim().isNotEmpty) {
+          name = metaName.trim();
+        } else {
+          try {
+            final sessionRow = await db.getOptional('SELECT display_name FROM local_auth_session WHERE id = ?', ['active_session']);
+            final savedName = sessionRow?['display_name'] as String?;
+            if (savedName != null && savedName.trim().isNotEmpty && savedName != 'Operative') {
+              name = savedName.trim();
+            }
+          } catch (_) {}
+        }
+        if (name.isEmpty) {
+          name = 'Commander';
+        }
       }
 
-      // 2. Check local_auth_session table
+      // 2. Resolve Title / Call-sign Identifier
+      if (title.isEmpty || title == 'Disciplined Novice' || title == 'Specialist') {
+        final metaTitle = (authMeta?['title'] as String?) ?? (authMeta?['callsign'] as String?);
+        if (metaTitle != null && metaTitle.trim().isNotEmpty) {
+          title = metaTitle.trim();
+        } else if (title.isEmpty) {
+          title = 'Specialist';
+        }
+      }
+
+      // 3. Resolve Avatar URL
+      if (avatarUrl == null || avatarUrl.isEmpty) {
+        final metaAvatar = authMeta?['avatar_url'] as String?;
+        if (metaAvatar != null && metaAvatar.trim().isNotEmpty) {
+          avatarUrl = metaAvatar.trim();
+        }
+      }
       if (avatarUrl == null || avatarUrl.isEmpty) {
         try {
           final sessionRow = await db.getOptional('SELECT avatar_url FROM local_auth_session WHERE id = ?', ['active_session']);
-          if (sessionRow != null && sessionRow['avatar_url'] != null) {
-            final saved = sessionRow['avatar_url'] as String?;
-            if (saved != null && saved.isNotEmpty) {
-              avatarUrl = saved;
-            }
+          final saved = sessionRow?['avatar_url'] as String?;
+          if (saved != null && saved.trim().isNotEmpty) {
+            avatarUrl = saved.trim();
           }
         } catch (_) {}
       }
-
-      // 3. Fallback: if user is signed in, check Supabase Storage directly
-      if ((avatarUrl == null || avatarUrl.isEmpty) && uid.isNotEmpty) {
+      if ((avatarUrl == null || avatarUrl.isEmpty) && uid.isNotEmpty && uid != 'local_guest') {
         try {
           final files = await Supabase.instance.client.storage
               .from('avatars')
@@ -136,28 +162,22 @@ class UserProfileRepository {
             final raw = Supabase.instance.client.storage.from('avatars').getPublicUrl('$uid/${match.name}');
             avatarUrl = '$raw?t=${DateTime.now().millisecondsSinceEpoch}';
           }
-        } catch (_) {
-          try {
-            avatarUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl('$uid/avatar.png');
-          } catch (_) {}
-        }
-      }
-
-      // 4. Self-heal: persist recovered avatarUrl locally so subsequent reads are immediate
-      if (avatarUrl != null && avatarUrl.isNotEmpty) {
-        try {
-          await db.execute(
-            'UPDATE local_auth_session SET avatar_url = ? WHERE id = ?',
-            [avatarUrl, 'active_session'],
-          );
-          if (uid.isNotEmpty) {
-            await db.execute(
-              'UPDATE user_profiles SET avatar_url = ? WHERE user_id = ?',
-              [avatarUrl, uid],
-            );
-          }
         } catch (_) {}
       }
+
+      // 4. Self-heal: persist recovered fields locally in local_auth_session and user_profiles
+      try {
+        await db.execute(
+          'UPDATE local_auth_session SET avatar_url = COALESCE(?, avatar_url), display_name = ? WHERE id = ?',
+          [avatarUrl, name, 'active_session'],
+        );
+        if (uid.isNotEmpty && uid != 'local_guest') {
+          await db.execute(
+            'UPDATE user_profiles SET avatar_url = COALESCE(?, avatar_url), name = ?, title = ? WHERE user_id = ?',
+            [avatarUrl, name, title, uid],
+          );
+        }
+      } catch (_) {}
 
       return UserProfile(
         name: name,
@@ -195,11 +215,11 @@ class UserProfileRepository {
       level: globalUserLevel.value,
     );
 
-    // Optimistic write-through to cache & reactive notifier
+    // 1. Optimistic write-through to cache & reactive notifier
     profileNotifier.value = updated;
     CacheService().set<UserProfile>(_cacheKey, updated, ttl: const Duration(minutes: 15));
 
-    // Save avatar_url into local_auth_session table so it survives any PowerSync remote table resets
+    // 2. Persist in local_auth_session table
     try {
       await db.execute('''
         UPDATE local_auth_session SET
@@ -211,13 +231,33 @@ class UserProfileRepository {
       debugPrint('[UserProfileRepository] local_auth_session sync error: $e');
     }
 
+    // 3. Persist in Supabase Auth user_metadata (cross-device cloud persistence)
+    if (Supabase.instance.client.auth.currentUser != null) {
+      try {
+        await Supabase.instance.client.auth.updateUser(
+          UserAttributes(data: {
+            'display_name': newName,
+            'title': newTitle,
+            'callsign': newTitle,
+            'avatar_url': ?targetAvatarUrl,
+          }),
+        );
+      } catch (e) {
+        debugPrint('[UserProfileRepository] Supabase auth updateUser metadata notice: $e');
+      }
+    }
+
     if (!isDatabaseInitialized) return;
 
+    // 4. Persist in SQLite user_profiles table (synced by PowerSync)
     try {
       final nowUtc = DateTime.now().toUtc().toIso8601String();
-      final profileId = IdGenerator.generateDeterministicId('profile_${uid.isNotEmpty ? uid : "default"}');
-      final existing = await db.getOptional('SELECT id FROM user_profiles WHERE id = ?', [profileId]);
+      final existing = (uid.isNotEmpty && uid != 'local_guest')
+          ? await db.getOptional('SELECT id FROM user_profiles WHERE user_id = ? LIMIT 1', [uid])
+          : null;
+
       if (existing != null) {
+        final existingId = existing['id'] as String;
         await db.execute('''
           UPDATE user_profiles SET
             name = ?,
@@ -226,8 +266,9 @@ class UserProfileRepository {
             avatar_url = ?,
             updated_at = ?
           WHERE id = ?
-        ''', [newName, newTitle, updated.avatarColor, targetAvatarUrl, nowUtc, profileId]).timeout(const Duration(seconds: 4));
+        ''', [newName, newTitle, updated.avatarColor, targetAvatarUrl, nowUtc, existingId]).timeout(const Duration(seconds: 4));
       } else {
+        final profileId = IdGenerator.generateDeterministicId('profile_${uid.isNotEmpty ? uid : "default"}');
         await db.execute('''
           INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)

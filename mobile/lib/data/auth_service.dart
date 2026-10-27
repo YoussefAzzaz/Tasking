@@ -34,10 +34,21 @@ class AuthService {
   /// Current session with access token
   Session? get currentSession => _client?.auth.currentSession;
 
-  /// Whether a user is actively authenticated or has a valid offline session saved locally
-  bool get isAuthenticated => hasActiveSession;
+  /// Whether the user is operating in unauthenticated local guest mode
+  bool get isGuest {
+    if (currentSession != null) return false;
+    final uid = currentUserId;
+    return uid == 'local_guest';
+  }
 
-  /// True if there is an active Supabase session OR an existing saved local offline session
+  /// Whether a user has an authenticated Supabase cloud session (live or persisted offline)
+  bool get isAuthenticated {
+    if (currentSession != null) return true;
+    final savedUid = _lastSavedSession?['user_id'] as String?;
+    return savedUid != null && savedUid.isNotEmpty && savedUid != 'local_guest';
+  }
+
+  /// True if there is an active Supabase session OR an existing saved local offline session (including guest)
   bool get hasActiveSession {
     if (currentSession != null) return true;
     final savedUid = _lastSavedSession?['user_id'] as String?;
@@ -186,14 +197,24 @@ class AuthService {
 
   /// Silently restores Supabase session in the background and connects PowerSync if online
   Future<void> tryAutoLoginOrSync() async {
-    if (_isAutoLoggingIn) return;
+    if (_isAutoLoggingIn || isGuest) return;
     _isAutoLoggingIn = true;
     try {
       final client = _client;
       if (client == null) return;
 
-      // 1. If Supabase session is already alive, connect PowerSync if not connected
-      if (client.auth.currentSession != null) {
+      var session = client.auth.currentSession;
+      if (session == null || session.isExpired) {
+        try {
+          final res = await client.auth.refreshSession();
+          session = res.session;
+        } catch (e) {
+          debugPrint('[AuthService] Auto-refresh session error: $e');
+        }
+      }
+
+      if (session != null) {
+        setCachedUserId(session.user.id);
         if (isDatabaseInitialized && !db.connected) {
           db.connect(connector: createSupabaseConnector());
         }

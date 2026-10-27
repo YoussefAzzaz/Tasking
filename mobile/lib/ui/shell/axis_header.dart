@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/network_service.dart';
 import 'package:axis/data/user_profile_repository.dart';
@@ -83,46 +84,80 @@ class _AxisHeaderState extends State<AxisHeader> {
                   ValueListenableBuilder<bool>(
                     valueListenable: NetworkService().isOnlineNotifier,
                     builder: (context, isOnline, _) {
-                      final dotColor = isOnline ? AxisColors.tertiary : AxisColors.warning;
-                      final label = isOnline ? 'SYNCED' : 'OFFLINE';
+                      return ValueListenableBuilder<bool>(
+                        valueListenable: AuthService().authStateNotifier,
+                        builder: (context, _, _) {
+                          final auth = AuthService();
+                          final isGuest = auth.isGuest;
 
-                      return Tooltip(
-                        message: isOnline
-                            ? 'Online • PowerSync cloud sync is active'
-                            : 'Offline • Operating securely with local SQLite',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Sync dot (reactive to online / offline status)
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: dotColor,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: dotColor.withValues(alpha: 0.7),
-                                    blurRadius: 6,
-                                  )
+                          final Color dotColor;
+                          final String label;
+                          final String tooltipMsg;
+
+                          if (!isOnline) {
+                            dotColor = AxisColors.warning;
+                            label = 'OFFLINE';
+                            tooltipMsg = 'Offline • Operating securely with local SQLite';
+                          } else if (isGuest) {
+                            dotColor = const Color(0xFFF59E0B);
+                            label = 'GUEST (LOCAL)';
+                            tooltipMsg = 'Operating as local guest. Tap to sign in and sync with Desktop & Supabase.';
+                          } else {
+                            dotColor = AxisColors.tertiary;
+                            label = 'SYNCED';
+                            tooltipMsg = 'Cloud Synced • PowerSync active (${auth.currentUser?.email ?? "Connected"})';
+                          }
+
+                          return GestureDetector(
+                            onTap: isGuest ? () => context.go('/auth') : null,
+                            child: Tooltip(
+                              message: tooltipMsg,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Sync dot (reactive to online / offline / guest status)
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: dotColor,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: dotColor.withValues(alpha: 0.7),
+                                          blurRadius: 6,
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  AnimatedDefaultTextStyle(
+                                    duration: const Duration(milliseconds: 300),
+                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                              color: isGuest
+                                                  ? const Color(0xFFF59E0B)
+                                                  : (isOnline ? AxisColors.textMuted : AxisColors.warning),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                            ) ??
+                                        const TextStyle(),
+                                    child: Text(label),
+                                  ),
+                                  if (isGuest) ...[
+                                    const SizedBox(width: 2),
+                                    const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 8,
+                                      color: Color(0xFFF59E0B),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 300),
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                        color: isOnline ? AxisColors.textMuted : AxisColors.warning,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.5,
-                                      ) ??
-                                  const TextStyle(),
-                              child: Text(label),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       );
                     },
                   ),

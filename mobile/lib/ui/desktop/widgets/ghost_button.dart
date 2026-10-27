@@ -74,13 +74,17 @@ class _GhostButtonState extends State<GhostButton> {
                 ),
                 const SizedBox(width: 6),
               ],
-              Text(
-                widget.label,
-                style: GoogleFonts.getFont(
-                  'Geist',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: textColor,
+              Flexible(
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.getFont(
+                    'Geist',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: textColor,
+                  ),
                 ),
               ),
               if (widget.shortcutLabel != null) ...[

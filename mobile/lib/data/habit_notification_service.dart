@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/data/powersync_db.dart';
@@ -85,8 +86,14 @@ class HabitNotificationService {
     return fallback;
   }
 
+  static bool get isSupportedPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+       defaultTargetPlatform == TargetPlatform.iOS);
+
   /// Initializes the service and schedules reminders for all existing habits.
   Future<void> init() async {
+    if (!isSupportedPlatform) return;
     if (_initialized) return;
     _initialized = true;
 
@@ -100,9 +107,14 @@ class HabitNotificationService {
 
       // Listen to habit changes from PowerSync or local DB
       _habitsSub?.cancel();
-      _habitsSub = HabitRepository().watchHabits().listen((habits) async {
-        await syncHabitReminders(habits);
-      });
+      _habitsSub = HabitRepository().watchHabits().listen(
+        (habits) async {
+          await syncHabitReminders(habits);
+        },
+        onError: (e) {
+          debugPrint('[HabitNotificationService] Stream error: $e');
+        },
+      );
     } catch (e) {
       debugPrint('[HabitNotificationService] Error initializing: $e');
     }

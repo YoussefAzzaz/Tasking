@@ -16,12 +16,14 @@ class CreateHabitSheet extends StatefulWidget {
     this.habitToEdit,
     this.initialCategory,
     this.existingCategories,
+    this.isDialog = false,
   });
 
   final VoidCallback onHabitCreated;
   final Habit? habitToEdit;
   final String? initialCategory;
   final List<HabitCategory>? existingCategories;
+  final bool isDialog;
 
   @override
   State<CreateHabitSheet> createState() => _CreateHabitSheetState();
@@ -271,6 +273,54 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
     );
   }
 
+  Widget _buildHeaderRow(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AxisColors.success.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.local_fire_department_rounded,
+                  color: AxisColors.success,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    widget.habitToEdit != null
+                        ? 'EDIT HABIT ROUTINE'
+                        : 'NEW HABIT ROUTINE',
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AxisColors.textHigh,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close_rounded,
+              color: AxisColors.textMuted, size: 22),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets;
@@ -278,111 +328,58 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
     final availableHeight =
         (screenHeight - insets.bottom).clamp(260.0, screenHeight);
 
-    return FocusScope(
-      autofocus: false,
-      child: ModalSheetScaffold(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-        onTap: () {
-          FocusScope.of(context).unfocus();
-          setState(() => _showCategoryDropdown = false);
-        },
-        child: Padding(
-          padding: EdgeInsets.only(bottom: insets.bottom),
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: availableHeight * 0.90,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xF50A1422),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  blurRadius: 30,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle and Header (tap to close automatically)
-                ModalSheetTopBar(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
-                    child: Column(
-                      children: [
-                        Center(
-                          child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: AxisColors.borderGlass2,
-                              borderRadius: BorderRadius.circular(9999),
-                            ),
-                          ),
+    final sheetContent = Container(
+      constraints: BoxConstraints(
+        maxHeight: widget.isDialog ? 720 : availableHeight * 0.90,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xF50A1422),
+        borderRadius: widget.isDialog
+            ? BorderRadius.circular(12)
+            : const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.6),
+            blurRadius: 30,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: widget.isDialog ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          if (!widget.isDialog)
+            ModalSheetTopBar(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+                child: Column(
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AxisColors.borderGlass2,
+                          borderRadius: BorderRadius.circular(9999),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: AxisColors.success
-                                          .withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(
-                                      Icons.local_fire_department_rounded,
-                                      color: AxisColors.success,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        widget.habitToEdit != null
-                                            ? 'EDIT HABIT ROUTINE'
-                                            : 'NEW HABIT ROUTINE',
-                                        maxLines: 1,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              color: AxisColors.textHigh,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1.2,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close_rounded,
-                                  color: AxisColors.textMuted, size: 22),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    _buildHeaderRow(context),
+                  ],
                 ),
-                const Divider(color: AxisColors.borderSubtle, height: 1),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 16, 12),
+              child: _buildHeaderRow(context),
+            ),
+          const Divider(color: AxisColors.borderSubtle, height: 1),
 
-                // Form Body
-                Expanded(
+          // Form Body
+          Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                     child: Column(
@@ -775,10 +772,37 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
               ),
             ],
           ),
+        );
+
+    if (widget.isDialog) {
+      return FocusScope(
+        autofocus: false,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            FocusScope.of(context).unfocus();
+            setState(() => _showCategoryDropdown = false);
+          },
+          child: sheetContent,
+        ),
+      );
+    }
+
+    return FocusScope(
+      autofocus: false,
+      child: ModalSheetScaffold(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            FocusScope.of(context).unfocus();
+            setState(() => _showCategoryDropdown = false);
+          },
+          child: Padding(
+            padding: EdgeInsets.only(bottom: insets.bottom),
+            child: sheetContent,
+          ),
         ),
       ),
-    ),
-  ),
-);
-}
+    );
+  }
 }

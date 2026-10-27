@@ -68,12 +68,16 @@ class DailyJournalCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                dateStr,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AxisColors.textMuted,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  dateStr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AxisColors.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],

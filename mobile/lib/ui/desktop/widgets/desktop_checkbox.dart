@@ -38,7 +38,9 @@ class DesktopCheckbox extends StatelessWidget {
             shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
             borderRadius: isCircle ? null : borderRadius,
             border: Border.all(
-              color: value ? activeColor : AxisColors.borderGlass2,
+              color: value
+                  ? activeColor
+                  : (color != null ? color!.withValues(alpha: 0.6) : AxisColors.borderGlass2),
               width: 1.5,
             ),
             boxShadow: value

@@ -218,7 +218,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                                       badgeColor: AxisColors.priorityHigh,
                                       onTap: () {
                                         Navigator.of(context).pop();
-                                        widget.onNavigateToTab(2); // Projects & Tasks
+                                        widget.onNavigateToTab(1); // Projects & Tasks
                                       },
                                     )),
                               ],
@@ -233,7 +233,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                                       subtitle: 'Project Workspace',
                                       onTap: () {
                                         Navigator.of(context).pop();
-                                        widget.onNavigateToTab(2); // Projects & Tasks
+                                        widget.onNavigateToTab(1); // Projects & Tasks
                                       },
                                     )),
                               ],
@@ -248,7 +248,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                                       subtitle: '${h.streakDays}d streak',
                                       onTap: () {
                                         Navigator.of(context).pop();
-                                        widget.onNavigateToTab(1); // Prayer & Habits
+                                        widget.onNavigateToTab(2); // Prayer & Habits
                                       },
                                     )),
                               ],
@@ -263,7 +263,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                                       subtitle: n.category,
                                       onTap: () {
                                         Navigator.of(context).pop();
-                                        widget.onNavigateToTab(4); // Journal & Vault
+                                        widget.onNavigateToTab(3); // Journal & Vault
                                       },
                                     )),
                               ],

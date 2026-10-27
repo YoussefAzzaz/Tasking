@@ -11,6 +11,7 @@ class TimeSlotCard extends StatelessWidget {
     required this.xp,
     required this.isDone,
     required this.onToggle,
+    this.onTap,
   });
 
   final String time;
@@ -18,6 +19,7 @@ class TimeSlotCard extends StatelessWidget {
   final int xp;
   final bool isDone;
   final ValueChanged<bool> onToggle;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -56,63 +58,67 @@ class TimeSlotCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                time,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                      color: AxisColors.secondary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: AxisColors.secondary
-                                      .withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'FITTED 15M',
+                      child: InkWell(
+                        onTap: onTap,
+                        borderRadius: BorderRadius.circular(4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  time,
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelSmall
                                       ?.copyWith(
                                         color: AxisColors.secondary,
-                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            title,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: isDone
-                                      ? AxisColors.textDim
-                                      : AxisColors.textHigh,
-                                  decoration: isDone
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  decorationColor: AxisColors.textDim,
-                                  fontWeight: FontWeight.w500,
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AxisColors.secondary
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'FITTED 15M',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: AxisColors.secondary,
+                                          fontSize: 9,
+                                        ),
+                                  ),
                                 ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: isDone
+                                        ? AxisColors.textDim
+                                        : AxisColors.textHigh,
+                                    decoration: isDone
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    decorationColor: AxisColors.textDim,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),

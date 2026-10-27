@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme.dart';
+import '../../../data/task_repository.dart';
 import '../../tasks/create_task_sheet.dart';
 
 /// Modal dialog providing rapid task creation on the desktop workspace.
 abstract final class QuickTaskDialog {
-  static Future<void> show(BuildContext context, {String? initialProject}) {
+  static Future<void> show(
+    BuildContext context, {
+    String? initialProject,
+    Task? taskToEdit,
+    ValueChanged<Task>? onTaskUpdated,
+  }) {
     return showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.65),
@@ -34,7 +40,12 @@ abstract final class QuickTaskDialog {
               borderRadius: BorderRadius.circular(12),
               child: CreateTaskSheet(
                 initialProject: initialProject,
+                taskToEdit: taskToEdit,
                 onTaskCreated: () => Navigator.of(dialogContext).pop(),
+                onTaskUpdated: (updated) {
+                  onTaskUpdated?.call(updated);
+                  Navigator.of(dialogContext).pop();
+                },
               ),
             ),
           ),

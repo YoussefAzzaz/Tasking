@@ -256,5 +256,62 @@ void main() {
 
       expect(find.text('New Note Category'), findsNothing);
     });
+
+    testWidgets('NotesScreen separates notes from journals and toggles between tabs',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AxisTheme.dark,
+          home: const Scaffold(
+            body: NotesScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Initially in Notes tab
+      expect(find.text('Notes'), findsOneWidget);
+      expect(find.text('Journals'), findsOneWidget);
+      expect(find.text('New Note'), findsOneWidget);
+      expect(find.text('NOTES BY CATEGORY'), findsOneWidget);
+
+      // Tap on Journals tab
+      await tester.tap(find.text('Journals'));
+      await tester.pumpAndSettle();
+
+      // Now in Journals tab
+      expect(find.text('New Journal'), findsWidgets);
+      expect(find.text('JOURNAL ENTRIES'), findsOneWidget);
+      expect(find.text('NOTES BY CATEGORY'), findsNothing);
+
+      // Switch back to Notes tab
+      await tester.tap(find.text('Notes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Note'), findsOneWidget);
+      expect(find.text('NOTES BY CATEGORY'), findsOneWidget);
+      expect(find.text('JOURNAL ENTRIES'), findsNothing);
+    });
+
+    testWidgets('CreateNoteSheet defaults category to General when creating note',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AxisTheme.dark,
+          home: Scaffold(
+            body: CreateNoteSheet(
+              onNoteCreated: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify category defaults to General
+      expect(find.text('General'), findsOneWidget);
+      expect(find.text('NEW NOTE'), findsOneWidget);
+    });
   });
 }

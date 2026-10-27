@@ -1,45 +1,52 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/theme.dart';
+import '../../../data/auth_service.dart';
+import '../../../data/powersync_db.dart' show globalUserLevel;
+import '../../../data/stats_repository.dart';
 import '../../../data/user_profile_repository.dart';
 import '../core/desktop_layout.dart';
-import '../services/desktop_file_service.dart';
 import '../widgets/accent_button.dart';
-import '../widgets/progress_gauge.dart';
-import '../widgets/telemetry_chip.dart';
+import '../widgets/ghost_button.dart';
 
-/// Desktop left sidebar (270px) with Operator profile, CTA, Navigation, and Local Vault telemetry.
+/// Desktop left sidebar (270px) with Operator profile, Navigation, and Log Out action.
 class DesktopSidebar extends StatefulWidget {
   const DesktopSidebar({
     super.key,
     required this.selectedTab,
     required this.onSelectTab,
-    required this.onNewTask,
+    this.onNewTask,
   });
 
   final int selectedTab;
   final ValueChanged<int> onSelectTab;
-  final VoidCallback onNewTask;
+  final VoidCallback? onNewTask;
 
   @override
   State<DesktopSidebar> createState() => _DesktopSidebarState();
 }
 
 class _DesktopSidebarState extends State<DesktopSidebar> {
-  String _dbSize = '18.4 MB';
+  StreamSubscription<UserStats>? _statsSub;
 
   @override
   void initState() {
     super.initState();
     UserProfileRepository().getProfile();
-    _loadStorageTelemetry();
+    StatsRepository().getUserStats();
+    _statsSub = StatsRepository().watchStats().listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
-  Future<void> _loadStorageTelemetry() async {
-    final size = await DesktopFileService().getLocalDatabaseSize();
-    if (mounted) setState(() => _dbSize = size);
+  @override
+  void dispose() {
+    _statsSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -58,24 +65,12 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Block A — Operator Profile (top)
+          // Block A — Operator Profile (top reorganized title)
           _buildOperatorProfile(),
 
-          // Block B — New Task CTA
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: AccentButton(
-              label: 'New Task',
-              shortcutLabel: 'Ctrl + N',
-              isFullWidth: true,
-              icon: Icons.add_rounded,
-              onPressed: widget.onNewTask,
-            ),
-          ),
+          const SizedBox(height: 12),
 
-          const SizedBox(height: 8),
-
-          // Block C — Navigation Items
+          // Block B — Navigation Items
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 10.0),
@@ -90,50 +85,42 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 ),
                 _NavItem(
                   index: 1,
-                  label: 'Prayer & Habits',
+                  label: 'Projects & Tasks',
                   shortcut: 'Ctrl + 2',
-                  icon: Icons.track_changes_rounded,
+                  icon: Icons.assignment_rounded,
                   isSelected: widget.selectedTab == 1,
                   onTap: () => widget.onSelectTab(1),
                 ),
                 _NavItem(
                   index: 2,
-                  label: 'Projects & Tasks',
+                  label: 'Prayer & Habits',
                   shortcut: 'Ctrl + 3',
-                  icon: Icons.assignment_rounded,
+                  icon: Icons.track_changes_rounded,
                   isSelected: widget.selectedTab == 2,
                   onTap: () => widget.onSelectTab(2),
                 ),
                 _NavItem(
                   index: 3,
-                  label: 'Focus Timers',
+                  label: 'Journal & Vault',
                   shortcut: 'Ctrl + 4',
-                  icon: Icons.timer_rounded,
+                  icon: Icons.menu_book_rounded,
                   isSelected: widget.selectedTab == 3,
                   onTap: () => widget.onSelectTab(3),
                 ),
                 _NavItem(
                   index: 4,
-                  label: 'Journal & Vault',
+                  label: 'Focus Timers',
                   shortcut: 'Ctrl + 5',
-                  icon: Icons.menu_book_rounded,
+                  icon: Icons.timer_rounded,
                   isSelected: widget.selectedTab == 4,
                   onTap: () => widget.onSelectTab(4),
-                ),
-                _NavItem(
-                  index: 5,
-                  label: 'Profile & Settings',
-                  shortcut: 'Ctrl + 6',
-                  icon: Icons.tune_rounded,
-                  isSelected: widget.selectedTab == 5,
-                  onTap: () => widget.onSelectTab(5),
                 ),
               ],
             ),
           ),
 
-          // Block D — Local Vault (pinned to bottom)
-          _buildLocalVaultFooter(),
+          // Block C — Log Out Button Footer
+          _buildLogoutFooter(),
         ],
       ),
     );
@@ -144,96 +131,121 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
       valueListenable: UserProfileRepository().profileNotifier,
       builder: (context, profile, _) {
         final name = profile.name.trim().isEmpty ? 'OPERATOR' : profile.name.toUpperCase();
-        final level = profile.level > 0 ? profile.level : 1;
         final avatarUrl = profile.avatarUrl;
 
-        return Container(
-          padding: const EdgeInsets.all(16.0),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: AxisColors.borderSubtle,
-                width: 1.0,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Avatar with XP halo
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AxisColors.primarySoft,
-                    width: 2.0,
+        return ValueListenableBuilder<int>(
+          valueListenable: globalUserLevel,
+          builder: (context, dynamicLevel, _) {
+            final effectiveLevel = dynamicLevel > 0
+                ? dynamicLevel
+                : (profile.level > 0 ? profile.level : 1);
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: AxisColors.borderSubtle,
+                    width: 1.0,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AxisColors.primary.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: avatarUrl != null && avatarUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: avatarUrl,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, _, _) => _avatarFallback(),
-                        )
-                      : _avatarFallback(),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Name + Level
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '$name // OPERATOR',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: AxisColors.textHigh,
+              child: Row(
+                children: [
+                  // Avatar with XP halo
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AxisColors.primarySoft,
+                        width: 1.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AxisColors.primary.withValues(alpha: 0.25),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'LEVEL $level • CORE PRO',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AxisColors.secondary,
-                        letterSpacing: 0.4,
-                      ),
+                    child: ClipOval(
+                      child: avatarUrl != null && avatarUrl.isNotEmpty
+                          ? _buildAvatarImage(avatarUrl)
+                          : _avatarFallback(),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Name + Title
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                            color: AxisColors.textHigh,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'OPERATOR • LVL $effectiveLevel',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AxisColors.secondary,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Settings button
+                  IconButton(
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      size: 18,
+                      color: AxisColors.textMuted,
+                    ),
+                    splashRadius: 18,
+                    tooltip: 'Profile & Settings',
+                    onPressed: () => widget.onSelectTab(5),
+                  ),
+                ],
               ),
-              // Settings gear icon
-              IconButton(
-                icon: const Icon(
-                  Icons.settings_outlined,
-                  size: 18,
-                  color: AxisColors.textMuted,
-                ),
-                splashRadius: 18,
-                tooltip: 'Profile & Settings (Ctrl + 6)',
-                onPressed: () => widget.onSelectTab(5),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
+  }
+
+  Widget _buildAvatarImage(String url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _avatarFallback(),
+      );
+    }
+    try {
+      final file = File(url);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _avatarFallback(),
+        );
+      }
+    } catch (_) {}
+    return _avatarFallback();
   }
 
   Widget _avatarFallback() {
@@ -249,76 +261,96 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
     );
   }
 
-  Widget _buildLocalVaultFooter() {
+  Widget _buildLogoutFooter() {
+    final isGuest = AuthService().isGuest;
+
     return Container(
-      margin: const EdgeInsets.all(12.0),
       padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: AxisColors.surfaceLow,
-        borderRadius: DesktopLayout.borderRadiusBadge,
-        border: Border.all(
-          color: AxisColors.borderSubtle,
-          width: 1,
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: AxisColors.borderSubtle,
+            width: 1.0,
+          ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.storage_rounded,
-                      size: 13,
-                      color: AxisColors.secondary,
+      child: isGuest
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AccentButton(
+                  label: 'Sign In to Sync',
+                  icon: Icons.cloud_upload_rounded,
+                  color: const Color(0xFFF59E0B),
+                  isFullWidth: true,
+                  onPressed: () => context.go('/auth'),
+                ),
+                const SizedBox(height: 8),
+                GhostButton(
+                  label: 'Exit Guest',
+                  icon: Icons.logout_rounded,
+                  color: AxisColors.textMuted,
+                  borderColor: AxisColors.borderSubtle,
+                  hoverBackgroundColor: AxisColors.surfaceHigh,
+                  isFullWidth: true,
+                  onPressed: () async {
+                    await AuthService().signOut();
+                    if (mounted) {
+                      context.go('/auth');
+                    }
+                  },
+                ),
+              ],
+            )
+          : GhostButton(
+              label: 'Log Out',
+              icon: Icons.logout_rounded,
+              color: AxisColors.priorityHigh,
+              borderColor: AxisColors.priorityHigh.withValues(alpha: 0.3),
+              hoverBackgroundColor: AxisColors.priorityHigh.withValues(alpha: 0.12),
+              isFullWidth: true,
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: AxisColors.surfaceLowest,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: AxisColors.borderSubtle),
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'LOCAL-FIRST SQLITE',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                          color: AxisColors.textHigh,
-                        ),
+                    title: Text(
+                      'Log Out',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AxisColors.textHigh,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              const TelemetryChip(
-                label: 'INTEGRITY OK',
-                color: AxisColors.tertiary,
-                dotColor: AxisColors.tertiary,
-                padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$_dbSize / 1,280 rows',
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AxisColors.textMuted,
+                    content: Text(
+                      'Are you sure you want to end your current session?',
+                      style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('Cancel', style: TextStyle(color: AxisColors.textMuted)),
+                      ),
+                      AccentButton(
+                        label: 'Log Out',
+                        color: AxisColors.priorityHigh,
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await AuthService().signOut();
+                  if (mounted) {
+                    context.go('/auth');
+                  }
+                }
+              },
             ),
-          ),
-          const SizedBox(height: 6),
-          const ProgressGauge(
-            value: 0.28,
-            color: AxisColors.secondary,
-            height: 4.0,
-          ),
-        ],
-      ),
     );
   }
 }

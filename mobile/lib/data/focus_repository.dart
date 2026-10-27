@@ -57,4 +57,49 @@ class FocusRepository {
       debugPrint('[FocusRepository] Error logging focus session: $e');
     }
   }
+
+  /// Watches the total completed focus minutes logged for today.
+  Stream<int> watchTodayFocusMinutes() {
+    if (!isDatabaseInitialized) return Stream.value(0);
+    final today = DateTime.now().toUtc();
+    final startOfDay = DateTime.utc(today.year, today.month, today.day).toIso8601String();
+
+    return db.watch(
+      '''
+      SELECT COALESCE(SUM(actual_min), 0) AS total_min
+      FROM focus_sessions
+      WHERE started_at >= ?
+      ''',
+      parameters: [startOfDay],
+    ).map((rows) {
+      if (rows.isEmpty) return 0;
+      return (rows.first['total_min'] as num?)?.toInt() ?? 0;
+    }).handleError((e) {
+      debugPrint('[FocusRepository] watchTodayFocusMinutes error: $e');
+      return 0;
+    });
+  }
+
+  /// Watches the focus sessions recorded today, joining task title if available.
+  Stream<List<Map<String, dynamic>>> watchTodayFocusSessions() {
+    if (!isDatabaseInitialized) return Stream.value([]);
+    final today = DateTime.now().toUtc();
+    final startOfDay = DateTime.utc(today.year, today.month, today.day).toIso8601String();
+
+    return db.watch(
+      '''
+      SELECT fs.id, fs.task_id, fs.actual_min, fs.started_at, fs.ended_at, fs.completed, t.title AS task_title
+      FROM focus_sessions fs
+      LEFT JOIN tasks t ON fs.task_id = t.id
+      WHERE fs.started_at >= ?
+      ORDER BY fs.started_at DESC
+      ''',
+      parameters: [startOfDay],
+    ).map((rows) {
+      return rows.map((r) => Map<String, dynamic>.from(r)).toList();
+    }).handleError((e) {
+      debugPrint('[FocusRepository] watchTodayFocusSessions error: $e');
+      return <Map<String, dynamic>>[];
+    });
+  }
 }
