@@ -5,10 +5,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme.dart';
 import '../../../data/user_profile_repository.dart';
 import '../core/desktop_layout.dart';
+import '../core/desktop_shortcuts.dart';
 import '../services/desktop_file_service.dart';
 import '../widgets/accent_button.dart';
-import '../widgets/progress_gauge.dart';
-import '../widgets/telemetry_chip.dart';
+import '../widgets/desktop_pressable.dart';
 
 /// Desktop left sidebar (270px) with Operator profile, CTA, Navigation, and Local Vault telemetry.
 class DesktopSidebar extends StatefulWidget {
@@ -28,7 +28,8 @@ class DesktopSidebar extends StatefulWidget {
 }
 
 class _DesktopSidebarState extends State<DesktopSidebar> {
-  String _dbSize = '18.4 MB';
+  String _dbSize = '…';
+  int? _rowCount;
 
   @override
   void initState() {
@@ -38,8 +39,15 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
   }
 
   Future<void> _loadStorageTelemetry() async {
-    final size = await DesktopFileService().getLocalDatabaseSize();
-    if (mounted) setState(() => _dbSize = size);
+    final service = DesktopFileService();
+    final size = await service.getLocalDatabaseSize();
+    final rows = await service.getLocalRowCount();
+    if (mounted) {
+      setState(() {
+        _dbSize = size ?? '—';
+        _rowCount = rows;
+      });
+    }
   }
 
   @override
@@ -66,9 +74,10 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: AccentButton(
               label: 'New Task',
-              shortcutLabel: 'Ctrl + N',
+              shortcutLabel: DesktopShortcuts.newTaskLabel,
               isFullWidth: true,
               icon: Icons.add_rounded,
+              tooltip: 'Create a new task (${DesktopShortcuts.newTaskLabel})',
               onPressed: widget.onNewTask,
             ),
           ),
@@ -83,7 +92,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 _NavItem(
                   index: 0,
                   label: 'Command Deck',
-                  shortcut: 'Ctrl + 1',
+                  shortcut: DesktopShortcuts.tabLabel(0),
                   icon: Icons.space_dashboard_rounded,
                   isSelected: widget.selectedTab == 0,
                   onTap: () => widget.onSelectTab(0),
@@ -91,7 +100,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 _NavItem(
                   index: 1,
                   label: 'Prayer & Habits',
-                  shortcut: 'Ctrl + 2',
+                  shortcut: DesktopShortcuts.tabLabel(1),
                   icon: Icons.track_changes_rounded,
                   isSelected: widget.selectedTab == 1,
                   onTap: () => widget.onSelectTab(1),
@@ -99,7 +108,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 _NavItem(
                   index: 2,
                   label: 'Projects & Tasks',
-                  shortcut: 'Ctrl + 3',
+                  shortcut: DesktopShortcuts.tabLabel(2),
                   icon: Icons.assignment_rounded,
                   isSelected: widget.selectedTab == 2,
                   onTap: () => widget.onSelectTab(2),
@@ -107,7 +116,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 _NavItem(
                   index: 3,
                   label: 'Focus Timers',
-                  shortcut: 'Ctrl + 4',
+                  shortcut: DesktopShortcuts.tabLabel(3),
                   icon: Icons.timer_rounded,
                   isSelected: widget.selectedTab == 3,
                   onTap: () => widget.onSelectTab(3),
@@ -115,7 +124,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 _NavItem(
                   index: 4,
                   label: 'Journal & Vault',
-                  shortcut: 'Ctrl + 5',
+                  shortcut: DesktopShortcuts.tabLabel(4),
                   icon: Icons.menu_book_rounded,
                   isSelected: widget.selectedTab == 4,
                   onTap: () => widget.onSelectTab(4),
@@ -123,7 +132,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 _NavItem(
                   index: 5,
                   label: 'Profile & Settings',
-                  shortcut: 'Ctrl + 6',
+                  shortcut: DesktopShortcuts.tabLabel(5),
                   icon: Icons.tune_rounded,
                   isSelected: widget.selectedTab == 5,
                   onTap: () => widget.onSelectTab(5),
@@ -207,7 +216,9 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'LEVEL $level • CORE PRO',
+                      profile.title.trim().isEmpty
+                          ? 'LEVEL $level'
+                          : 'LEVEL $level • ${profile.title.trim().toUpperCase()}',
                       style: GoogleFonts.spaceGrotesk(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -225,8 +236,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                   size: 18,
                   color: AxisColors.textMuted,
                 ),
-                splashRadius: 18,
-                tooltip: 'Profile & Settings (Ctrl + 6)',
+                tooltip: 'Profile & Settings (${DesktopShortcuts.tabLabel(5)})',
                 onPressed: () => widget.onSelectTab(5),
               ),
             ],
@@ -266,56 +276,36 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.storage_rounded,
-                      size: 13,
-                      color: AxisColors.secondary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'LOCAL-FIRST SQLITE',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                          color: AxisColors.textHigh,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              const Icon(
+                Icons.storage_rounded,
+                size: 13,
+                color: AxisColors.secondary,
               ),
               const SizedBox(width: 6),
-              const TelemetryChip(
-                label: 'INTEGRITY OK',
-                color: AxisColors.tertiary,
-                dotColor: AxisColors.tertiary,
-                padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              Expanded(
+                child: Text(
+                  'LOCAL-FIRST SQLITE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                    color: AxisColors.textHigh,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            '$_dbSize / 1,280 rows',
+            '$_dbSize • ${_rowCount != null ? '$_rowCount rows' : '—'}',
             style: GoogleFonts.spaceGrotesk(
               fontSize: 11,
               fontWeight: FontWeight.w500,
               color: AxisColors.textMuted,
             ),
-          ),
-          const SizedBox(height: 6),
-          const ProgressGauge(
-            value: 0.28,
-            color: AxisColors.secondary,
-            height: 4.0,
           ),
         ],
       ),
@@ -345,38 +335,38 @@ class _NavItem extends StatefulWidget {
 }
 
 class _NavItemState extends State<_NavItem> {
-  bool _isHovered = false;
-
   @override
   Widget build(BuildContext context) {
-    Color bg = Colors.transparent;
-    Color textColor = AxisColors.textMuted;
-    Color iconColor = AxisColors.textDim;
-
-    if (widget.isSelected) {
-      bg = AxisColors.primary.withValues(alpha: 0.16);
-      textColor = AxisColors.textHigh;
-      iconColor = AxisColors.primarySoft;
-    } else if (_isHovered) {
-      bg = AxisColors.surfaceHigh.withValues(alpha: 0.4);
-      textColor = AxisColors.textHigh;
-      iconColor = AxisColors.textMuted;
-    }
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: AnimatedContainer(
+      child: DesktopPressable(
+        role: DesktopPressableRole.tab,
+        selected: widget.isSelected,
+        label: '${widget.label} (${widget.shortcut})',
+        onActivate: widget.onTap,
+        builder: (context, visuals) {
+          final hovered = visuals.hovered || visuals.pressed;
+          Color bg = Colors.transparent;
+          Color textColor = AxisColors.textMuted;
+          Color iconColor = AxisColors.textDim;
+
+          if (widget.isSelected) {
+            bg = AxisColors.primary.withValues(alpha: 0.16);
+            textColor = AxisColors.textHigh;
+            iconColor = AxisColors.primarySoft;
+          } else if (hovered) {
+            bg = AxisColors.surfaceHigh.withValues(alpha: visuals.pressed ? 0.6 : 0.4);
+            textColor = AxisColors.textHigh;
+            iconColor = AxisColors.textMuted;
+          }
+
+          return AnimatedContainer(
             duration: const Duration(milliseconds: 140),
             height: 38,
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(6),
+              boxShadow: desktopFocusRing(visuals.focused),
             ),
             child: Row(
               children: [
@@ -418,8 +408,8 @@ class _NavItemState extends State<_NavItem> {
                 const SizedBox(width: 10),
               ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

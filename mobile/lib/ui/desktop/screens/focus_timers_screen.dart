@@ -11,6 +11,7 @@ import '../../../domain/id_generator.dart';
 import '../core/desktop_layout.dart';
 import '../widgets/accent_button.dart';
 import '../widgets/desktop_card.dart';
+import '../widgets/desktop_pressable.dart';
 import '../widgets/ghost_button.dart';
 import '../widgets/section_header.dart';
 import '../widgets/telemetry_chip.dart';
@@ -687,40 +688,51 @@ class _FocusTimersScreenState extends State<FocusTimersScreen> {
 
   Widget _buildSoundChip(String name, IconData icon, String? currentTrack, bool isPlaying) {
     final isSelected = currentTrack == name && isPlaying;
-    return InkWell(
-      onTap: () => NeuralSoundService().toggle(name),
-      borderRadius: BorderRadius.circular(6),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AxisColors.secondary.withValues(alpha: 0.15) : AxisColors.surfaceLowest,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isSelected ? AxisColors.secondary : AxisColors.borderSubtle,
-            width: 1,
+    return DesktopPressable(
+      role: DesktopPressableRole.button,
+      selected: isSelected,
+      label: 'Soundscape $name',
+      tooltip: 'Toggle $name',
+      onActivate: () => NeuralSoundService().toggle(name),
+      builder: (context, visuals) {
+        final active = visuals.hovered || visuals.pressed;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AxisColors.secondary.withValues(alpha: 0.15)
+                : active
+                    ? AxisColors.surfaceLow
+                    : AxisColors.surfaceLowest,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isSelected ? AxisColors.secondary : AxisColors.borderSubtle,
+              width: 1,
+            ),
+            boxShadow: desktopFocusRing(visuals.focused),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? Icons.pause_circle_rounded : icon,
-              size: 14,
-              color: isSelected ? AxisColors.secondary : AxisColors.textDim,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              name,
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? AxisColors.secondary : AxisColors.textHigh,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected ? Icons.pause_circle_rounded : icon,
+                size: 14,
+                color: isSelected ? AxisColors.secondary : AxisColors.textDim,
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(width: 6),
+              Text(
+                name,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AxisColors.secondary : AxisColors.textHigh,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

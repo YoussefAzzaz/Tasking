@@ -7,6 +7,8 @@ import 'package:window_manager/window_manager.dart';
 import '../../../core/theme.dart';
 import '../../../data/network_service.dart';
 import '../core/desktop_layout.dart';
+import '../core/desktop_shortcuts.dart';
+import '../widgets/desktop_pressable.dart';
 import '../widgets/telemetry_chip.dart';
 
 /// Top desktop titlebar (44px) with window drag, omnibar trigger, sync status, and window controls.
@@ -136,11 +138,15 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
               child: SizedBox.expand(),
             ),
           ),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: widget.onOpenOmnibar,
-              child: Container(
+          DesktopPressable(
+            role: DesktopPressableRole.button,
+            label: 'Open omnibar (${DesktopShortcuts.omnibarLabel})',
+            tooltip: 'Search & commands (${DesktopShortcuts.omnibarLabel})',
+            onActivate: widget.onOpenOmnibar,
+            builder: (context, visuals) {
+              final hovered = visuals.hovered || visuals.pressed;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
                 width: 440,
                 height: 30,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -148,9 +154,12 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
                   color: AxisColors.surfaceLowest,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: AxisColors.borderSubtle,
+                    color: hovered || visuals.focused
+                        ? AxisColors.borderGlass2
+                        : AxisColors.borderSubtle,
                     width: 1,
                   ),
+                  boxShadow: desktopFocusRing(visuals.focused),
                 ),
                 child: Row(
                   children: [
@@ -179,7 +188,7 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
                         border: Border.all(color: AxisColors.borderSubtle, width: 1),
                       ),
                       child: Text(
-                        'Ctrl + K',
+                        DesktopShortcuts.omnibarLabel,
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 9,
                           fontWeight: FontWeight.w600,
@@ -189,8 +198,8 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
                     ),
                   ],
                 ),
-              ),
-            ),
+              );
+            },
           ),
           const Expanded(
             child: DragToMoveArea(
@@ -261,25 +270,25 @@ class _WindowButton extends StatefulWidget {
 }
 
 class _WindowButtonState extends State<_WindowButton> {
-  bool _isHovered = false;
-
   @override
   Widget build(BuildContext context) {
-    Color bg = Colors.transparent;
-    Color iconColor = AxisColors.textMuted;
+    return DesktopPressable(
+      // Window chrome is mouse-driven in native titlebars — skip keyboard
+      // traversal so Tab flow stays within app content.
+      focusable: false,
+      label: widget.tooltip,
+      tooltip: widget.tooltip,
+      onActivate: widget.onPressed,
+      builder: (context, visuals) {
+        Color bg = Colors.transparent;
+        Color iconColor = AxisColors.textMuted;
 
-    if (_isHovered) {
-      bg = widget.isClose ? const Color(0xFFE81123) : AxisColors.surfaceHighest;
-      iconColor = widget.isClose ? Colors.white : AxisColors.textHigh;
-    }
+        if (visuals.hovered || visuals.pressed) {
+          bg = widget.isClose ? const Color(0xFFE81123) : AxisColors.surfaceHighest;
+          iconColor = widget.isClose ? Colors.white : AxisColors.textHigh;
+        }
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: Container(
+        return Container(
           width: 44,
           height: DesktopLayout.titlebarHeight,
           color: bg,
@@ -290,8 +299,8 @@ class _WindowButtonState extends State<_WindowButton> {
               color: iconColor,
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

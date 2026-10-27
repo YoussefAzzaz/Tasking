@@ -58,50 +58,58 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
         autofocus: true,
         child: Scaffold(
           backgroundColor: AxisColors.canvasBase,
-          body: Column(
-            children: [
-              // 1. Top Titlebar
-              DesktopTitlebar(
-                onOpenOmnibar: _openOmnibar,
-              ),
+          body: FocusTraversalGroup(
+            child: Column(
+              children: [
+                // 1. Top Titlebar (own traversal group)
+                FocusTraversalGroup(
+                  child: DesktopTitlebar(
+                    onOpenOmnibar: _openOmnibar,
+                  ),
+                ),
 
-              // 2. Main Body: Sidebar (270px) + Active Screen Area
-              Expanded(
-                child: Row(
-                  children: [
-                    // Sidebar
-                    DesktopSidebar(
-                      selectedTab: _selectedTab,
-                      onSelectTab: _navigateToTab,
-                      onNewTask: _openQuickTask,
-                    ),
-
-                    // Main Content Area
-                    Expanded(
-                      child: Container(
-                        color: AxisColors.canvasBase,
-                        child: IndexedStack(
-                          index: _selectedTab,
-                          children: [
-                            CommandDeckScreen(
-                              onNavigateToTab: _navigateToTab,
-                              onOpenNewTaskDialog: _openQuickTask,
-                            ),
-                            const PrayerHabitsScreen(),
-                            ProjectsTasksScreen(
-                              onNavigateToTab: _navigateToTab,
-                            ),
-                            const FocusTimersScreen(),
-                            const JournalVaultScreen(),
-                            const ProfileSettingsScreen(),
-                          ],
+                // 2. Main Body: Sidebar (270px) + Active Screen Area
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Sidebar (own traversal group)
+                      FocusTraversalGroup(
+                        child: DesktopSidebar(
+                          selectedTab: _selectedTab,
+                          onSelectTab: _navigateToTab,
+                          onNewTask: _openQuickTask,
                         ),
                       ),
-                    ),
-                  ],
+
+                      // Main Content Area (own traversal group)
+                      Expanded(
+                        child: FocusTraversalGroup(
+                          child: Container(
+                            color: AxisColors.canvasBase,
+                            child: IndexedStack(
+                              index: _selectedTab,
+                              children: [
+                                CommandDeckScreen(
+                                  onNavigateToTab: _navigateToTab,
+                                  onOpenNewTaskDialog: _openQuickTask,
+                                ),
+                                const PrayerHabitsScreen(),
+                                ProjectsTasksScreen(
+                                  onNavigateToTab: _navigateToTab,
+                                ),
+                                const FocusTimersScreen(),
+                                const JournalVaultScreen(),
+                                const ProfileSettingsScreen(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

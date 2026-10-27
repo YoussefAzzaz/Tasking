@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme.dart';
 import '../core/desktop_layout.dart';
+import 'desktop_pressable.dart';
 
 /// Primary gradient CTA button with optional icon and keyboard shortcut pill.
-class AccentButton extends StatefulWidget {
+/// Keyboard-operable (Enter/Space), focus-ringed, and screen-reader labelled.
+class AccentButton extends StatelessWidget {
   const AccentButton({
     super.key,
     required this.label,
@@ -17,6 +19,9 @@ class AccentButton extends StatefulWidget {
     this.isLoading = false,
     this.isFullWidth = false,
     this.padding = const EdgeInsets.symmetric(horizontal: 14.0),
+    this.tooltip,
+    this.autofocus = false,
+    this.focusNode,
   });
 
   final String label;
@@ -29,115 +34,139 @@ class AccentButton extends StatefulWidget {
   final bool isLoading;
   final bool isFullWidth;
   final EdgeInsetsGeometry padding;
-
-  @override
-  State<AccentButton> createState() => _AccentButtonState();
-}
-
-class _AccentButtonState extends State<AccentButton> {
-  bool _isHovered = false;
+  final String? tooltip;
+  final bool autofocus;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = widget.onPressed != null && !widget.isLoading;
+    final enabled = onPressed != null && !isLoading;
 
-    final defaultGradient = LinearGradient(
-      colors: _isHovered
-          ? [const Color(0xFF7478FF), const Color(0xFF6366F1)]
-          : [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
+    const idleGradient = LinearGradient(
+      colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    const hoverGradient = LinearGradient(
+      colors: [Color(0xFF7478FF), Color(0xFF6366F1)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    const pressedGradient = LinearGradient(
+      colors: [Color(0xFF4F46E5), Color(0xFF4338CA)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
 
-    final content = AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      height: widget.height,
-      padding: widget.padding,
-      decoration: BoxDecoration(
-        color: widget.color,
-        gradient: widget.color == null ? (widget.gradient ?? defaultGradient) : null,
-        borderRadius: DesktopLayout.borderRadiusBadge,
-        boxShadow: enabled && _isHovered
-            ? [
+    return DesktopPressable(
+      enabled: enabled,
+      autofocus: autofocus,
+      focusNode: focusNode,
+      tooltip: tooltip,
+      label: label,
+      onActivate: onPressed,
+      builder: (context, visuals) {
+        final Gradient? effectiveGradient = color != null
+            ? null
+            : (gradient ??
+                  (visuals.pressed
+                      ? pressedGradient
+                      : visuals.hovered
+                      ? hoverGradient
+                      : idleGradient));
+
+        final content = AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: height,
+          padding: padding,
+          decoration: BoxDecoration(
+            color: color,
+            gradient: effectiveGradient,
+            borderRadius: DesktopLayout.borderRadiusBadge,
+            boxShadow: [
+              ...desktopFocusRing(visuals.focused),
+              if (enabled && visuals.hovered && !visuals.pressed)
                 BoxShadow(
-                  color: (widget.color ?? AxisColors.primary).withValues(alpha: 0.4),
+                  color: (color ?? AxisColors.primary).withValues(alpha: 0.4),
                   blurRadius: 10,
                   spreadRadius: 1,
                   offset: const Offset(0, 2),
                 ),
-              ]
-            : null,
-      ),
-      child: widget.isLoading
-          ? const Center(
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-            )
-          : Row(
-              mainAxisSize: widget.isFullWidth ? MainAxisSize.max : MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (widget.icon != null) ...[
-                  Icon(
-                    widget.icon,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Flexible(
-                  child: Text(
-                    widget.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.getFont(
-                      'Geist',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+            ],
+          ),
+          child: isLoading
+              ? const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
                       color: Colors.white,
                     ),
                   ),
-                ),
-                if (widget.shortcutLabel != null) ...[
-                  if (widget.isFullWidth) const Spacer() else const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
-                    ),
-                    child: Text(
-                      widget.shortcutLabel!,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white.withValues(alpha: 0.85),
+                )
+              : Row(
+                  mainAxisSize: isFullWidth
+                      ? MainAxisSize.max
+                      : MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 16, color: Colors.white),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.getFont(
+                          'Geist',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ],
-            ),
-    );
+                    if (shortcutLabel != null) ...[
+                      if (isFullWidth)
+                        const Spacer()
+                      else
+                        const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          shortcutLabel!,
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+        );
 
-    return MouseRegion(
-      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: enabled ? widget.onPressed : null,
-        child: Opacity(
+        return Opacity(
           opacity: enabled ? 1.0 : 0.5,
-          child: widget.isFullWidth ? SizedBox(width: double.infinity, child: content) : content,
-        ),
-      ),
+          child: isFullWidth
+              ? SizedBox(width: double.infinity, child: content)
+              : content,
+        );
+      },
     );
   }
 }

@@ -8,7 +8,9 @@ import '../../../data/tag_repository.dart';
 import '../../../data/user_profile_repository.dart';
 import '../core/desktop_layout.dart';
 import '../widgets/accent_button.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/desktop_card.dart';
+import '../widgets/desktop_pressable.dart';
 import '../widgets/ghost_button.dart';
 import '../widgets/section_header.dart';
 import '../widgets/telemetry_chip.dart';
@@ -324,21 +326,26 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               ..._palette.map((hex) {
                 final isSelected = _selectedCatColor == hex;
                 final c = Color(int.parse(hex.replaceFirst('#', '0xFF')));
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCatColor = hex),
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected ? Colors.white : Colors.transparent,
-                        width: 2,
+                return DesktopPressable(
+                  selected: isSelected,
+                  label: 'Color $hex',
+                  onActivate: () => setState(() => _selectedCatColor = hex),
+                  builder: (context, visuals) {
+                    return Container(
+                      width: 20,
+                      height: 20,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          width: 2,
+                        ),
+                        boxShadow: desktopFocusRing(visuals.focused),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               }),
               const SizedBox(width: 8),
@@ -407,8 +414,17 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         IconButton(
                           icon: const Icon(Icons.delete_outline_rounded, size: 16),
                           color: AxisColors.textDim,
-                          splashRadius: 16,
-                          onPressed: () => HabitCategoryRepository().deleteCategory(cat.id, name: cat.name),
+                          tooltip: 'Delete category',
+                          onPressed: () async {
+                            final confirmed = await ConfirmDialog.show(
+                              context,
+                              title: 'Delete category?',
+                              message:
+                                  '"${cat.name}" will be removed. Habits in this category will be unlinked, but the habits themselves are not deleted.',
+                            );
+                            if (!confirmed) return;
+                            await HabitCategoryRepository().deleteCategory(cat.id, name: cat.name);
+                          },
                         ),
                       ],
                     ),
@@ -509,9 +525,30 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => TagRepository().deleteTag(t),
-                          child: const Icon(Icons.close_rounded, size: 13, color: AxisColors.textDim),
+                        DesktopPressable(
+                          label: 'Remove tag #$t',
+                          tooltip: 'Remove tag #$t',
+                          onActivate: () async {
+                            final confirmed = await ConfirmDialog.show(
+                              context,
+                              title: 'Remove tag?',
+                              message:
+                                  '#$t will be removed from every task that uses it. This cannot be undone.',
+                            );
+                            if (!confirmed) return;
+                            await TagRepository().deleteTag(t);
+                          },
+                          builder: (context, visuals) {
+                            final active = visuals.hovered || visuals.pressed;
+                            return Padding(
+                              padding: const EdgeInsets.all(3),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 13,
+                                color: active ? AxisColors.textHigh : AxisColors.textDim,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

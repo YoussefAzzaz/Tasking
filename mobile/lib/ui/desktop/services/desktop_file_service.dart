@@ -14,7 +14,9 @@ class DesktopFileService {
   DesktopFileService._internal();
 
   /// Gets the formatted size of the local SQLite database file.
-  Future<String> getLocalDatabaseSize() async {
+  /// Returns null when the database cannot be located or read — callers must
+  /// render an em dash instead of inventing a value.
+  Future<String?> getLocalDatabaseSize() async {
     try {
       final appSupport = await getApplicationSupportDirectory();
       final dbFile = File(p.join(appSupport.path, 'axis_local.db'));
@@ -27,7 +29,29 @@ class DesktopFileService {
     } catch (e) {
       debugPrint('[DesktopFileService] getLocalDatabaseSize error: $e');
     }
-    return '18.4 MB';
+    return null;
+  }
+
+  /// Counts local content rows (tasks, habits, notes, projects, focus
+  /// sessions, tags) for honest storage telemetry. Returns null when the
+  /// database is unavailable.
+  Future<int?> getLocalRowCount() async {
+    if (!isDatabaseInitialized) return null;
+    try {
+      final row = await db.getOptional('''
+        SELECT
+          (SELECT COUNT(*) FROM tasks) +
+          (SELECT COUNT(*) FROM habits) +
+          (SELECT COUNT(*) FROM notes) +
+          (SELECT COUNT(*) FROM projects) +
+          (SELECT COUNT(*) FROM focus_sessions) +
+          (SELECT COUNT(*) FROM tags) AS total
+      ''');
+      return (row?['total'] as num?)?.toInt();
+    } catch (e) {
+      debugPrint('[DesktopFileService] getLocalRowCount error: $e');
+      return null;
+    }
   }
 
   /// Exports a markdown note or journal entry directly to the user's local disk.

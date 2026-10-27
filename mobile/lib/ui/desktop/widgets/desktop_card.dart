@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme.dart';
 import '../core/desktop_layout.dart';
+import 'desktop_pressable.dart';
 
 /// Reusable obsidian glass card used across all desktop dashboard panels.
 class DesktopCard extends StatelessWidget {
@@ -15,6 +16,7 @@ class DesktopCard extends StatelessWidget {
     this.width,
     this.height,
     this.onTap,
+    this.semanticLabel,
   });
 
   final Widget child;
@@ -26,6 +28,7 @@ class DesktopCard extends StatelessWidget {
   final double? width;
   final double? height;
   final VoidCallback? onTap;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -49,13 +52,33 @@ class DesktopCard extends StatelessWidget {
     if (onTap == null) {
       return cardContent;
     }
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        child: cardContent,
-      ),
+    return DesktopPressable(
+      onActivate: onTap,
+      label: semanticLabel,
+      builder: (context, visuals) {
+        final hovered = visuals.hovered || visuals.pressed;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: width,
+          height: height,
+          margin: margin,
+          padding: padding ?? const EdgeInsets.all(DesktopLayout.cardPadding),
+          decoration: BoxDecoration(
+            color: hovered
+                ? (backgroundColor ?? AxisColors.surfaceLow).withValues(
+                    alpha: 0.82,
+                  )
+                : backgroundColor ?? AxisColors.surfaceLow,
+            borderRadius: radius,
+            border: Border.all(
+              color: hovered ? AxisColors.borderGlass2 : AxisColors.borderSubtle,
+              width: 1,
+            ),
+            boxShadow: desktopFocusRing(visuals.focused),
+          ),
+          child: child,
+        );
+      },
     );
   }
 }

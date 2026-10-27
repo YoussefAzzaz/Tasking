@@ -9,9 +9,12 @@ import '../../common/axis_markdown_viewer.dart';
 import '../core/desktop_layout.dart';
 import '../services/desktop_file_service.dart';
 import '../widgets/accent_button.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/desktop_card.dart';
+import '../widgets/desktop_pressable.dart';
 import '../widgets/ghost_button.dart';
 import '../widgets/telemetry_chip.dart';
+import '../widgets/undo_snackbar.dart';
 
 /// Journal & Vault Screen (Tab 4) — 3-column Markdown knowledge base and personal vault.
 class JournalVaultScreen extends StatefulWidget {
@@ -208,11 +211,27 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
                 color: AxisColors.priorityHigh,
                 borderColor: AxisColors.priorityHigh.withValues(alpha: 0.3),
                 onPressed: () async {
-                  await NoteRepository().deleteNote(note.id);
+                  final title = note.title.trim().isEmpty ? 'Untitled note' : note.title.trim();
+                  final confirmed = await ConfirmDialog.show(
+                    context,
+                    title: 'Delete note?',
+                    message:
+                        '"$title" will be permanently removed from your vault. You can undo for a few seconds after deleting.',
+                  );
+                  if (!confirmed) return;
+
+                  final snapshot = note; // captured for undo
+                  await NoteRepository().deleteNote(snapshot.id);
                   setState(() {
                     _selectedNote = null;
                     _editorController.clear();
                   });
+                  if (!mounted) return;
+                  showUndoSnackBar(
+                    context,
+                    message: 'Note deleted',
+                    onUndo: () => NoteRepository().addNote(snapshot),
+                  );
                 },
               ),
               const SizedBox(width: 8),
@@ -243,56 +262,82 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _activeTab = 'notes'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _activeTab == 'notes' ? AxisColors.primary.withValues(alpha: 0.2) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: _activeTab == 'notes' ? AxisColors.primary : AxisColors.borderSubtle,
-                        width: 1,
+                child: DesktopPressable(
+                  role: DesktopPressableRole.tab,
+                  selected: _activeTab == 'notes',
+                  label: 'Notes',
+                  onActivate: () => setState(() => _activeTab = 'notes'),
+                  builder: (context, visuals) {
+                    final active = _activeTab == 'notes';
+                    final hovered = visuals.hovered || visuals.pressed;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? AxisColors.primary.withValues(alpha: 0.2)
+                            : hovered
+                                ? AxisColors.surfaceHigh.withValues(alpha: 0.35)
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: active ? AxisColors.primary : AxisColors.borderSubtle,
+                          width: 1,
+                        ),
+                        boxShadow: desktopFocusRing(visuals.focused),
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '≡ Notes',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _activeTab == 'notes' ? AxisColors.textHigh : AxisColors.textMuted,
+                      child: Center(
+                        child: Text(
+                          '≡ Notes',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: active ? AxisColors.textHigh : AxisColors.textMuted,
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _activeTab = 'journal'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _activeTab == 'journal' ? AxisColors.primary.withValues(alpha: 0.2) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: _activeTab == 'journal' ? AxisColors.primary : AxisColors.borderSubtle,
-                        width: 1,
+                child: DesktopPressable(
+                  role: DesktopPressableRole.tab,
+                  selected: _activeTab == 'journal',
+                  label: 'Journals',
+                  onActivate: () => setState(() => _activeTab = 'journal'),
+                  builder: (context, visuals) {
+                    final active = _activeTab == 'journal';
+                    final hovered = visuals.hovered || visuals.pressed;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? AxisColors.primary.withValues(alpha: 0.2)
+                            : hovered
+                                ? AxisColors.surfaceHigh.withValues(alpha: 0.35)
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: active ? AxisColors.primary : AxisColors.borderSubtle,
+                          width: 1,
+                        ),
+                        boxShadow: desktopFocusRing(visuals.focused),
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Journals',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _activeTab == 'journal' ? AxisColors.textHigh : AxisColors.textMuted,
+                      child: Center(
+                        child: Text(
+                          'Journals',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: active ? AxisColors.textHigh : AxisColors.textMuted,
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -369,43 +414,56 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
               return Column(
                 children: filtered.map((n) {
                   final isSelected = _selectedNote?.id == n.id;
-                  return GestureDetector(
-                    onTap: () => _selectNote(n),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 2),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AxisColors.primary.withValues(alpha: 0.16) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelected ? AxisColors.primary : Colors.transparent,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            n.category == 'journal' ? Icons.book_outlined : Icons.description_outlined,
-                            size: 15,
-                            color: isSelected ? AxisColors.secondary : AxisColors.textDim,
+                  return DesktopPressable(
+                    role: DesktopPressableRole.listItem,
+                    selected: isSelected,
+                    label: n.title.isEmpty ? 'Untitled note' : n.title,
+                    onActivate: () => _selectNote(n),
+                    builder: (context, visuals) {
+                      final hovered = visuals.hovered || visuals.pressed;
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AxisColors.primary.withValues(alpha: 0.16)
+                              : hovered
+                                  ? AxisColors.surfaceLowest
+                                  : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSelected
+                                ? AxisColors.primary
+                                : (hovered ? AxisColors.borderGlass2 : Colors.transparent),
+                            width: 1,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              n.title.isEmpty ? 'Untitled' : n.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.getFont(
-                                'Geist',
-                                fontSize: 12,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                                color: isSelected ? AxisColors.textHigh : AxisColors.textMuted,
+                          boxShadow: desktopFocusRing(visuals.focused),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              n.category == 'journal' ? Icons.book_outlined : Icons.description_outlined,
+                              size: 15,
+                              color: isSelected ? AxisColors.secondary : AxisColors.textDim,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                n.title.isEmpty ? 'Untitled' : n.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.getFont(
+                                  'Geist',
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                  color: isSelected ? AxisColors.textHigh : AxisColors.textMuted,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    },
                   );
                 }).toList(),
               );
@@ -557,23 +615,28 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
   }
 
   Widget _buildToolbarBtn(String label, VoidCallback onTap) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
+    return DesktopPressable(
+      label: 'Format $label',
+      tooltip: 'Insert $label',
+      onActivate: onTap,
+      builder: (context, visuals) {
+        final active = visuals.hovered || visuals.pressed;
+        return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color: AxisColors.surfaceHigh.withValues(alpha: 0.3),
+            color: active
+                ? AxisColors.surfaceHigh.withValues(alpha: 0.5)
+                : AxisColors.surfaceHigh.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(4),
+            boxShadow: desktopFocusRing(visuals.focused),
           ),
           child: Text(
             label,
             style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

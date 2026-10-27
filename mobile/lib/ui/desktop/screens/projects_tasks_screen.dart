@@ -10,14 +10,18 @@ import '../../../domain/id_generator.dart';
 import '../core/desktop_layout.dart';
 import '../dialogs/quick_task_dialog.dart';
 import '../widgets/accent_button.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/desktop_card.dart';
 import '../widgets/desktop_checkbox.dart';
+import '../widgets/desktop_pressable.dart';
+import '../widgets/desktop_selection_chip.dart';
 import '../widgets/ghost_button.dart';
 import '../widgets/priority_badge.dart';
 import '../widgets/progress_gauge.dart';
 import '../widgets/section_header.dart';
 import '../widgets/task_status_rail.dart';
 import '../widgets/telemetry_chip.dart';
+import '../widgets/undo_snackbar.dart';
 
 /// Projects & Tasks Matrix Screen (Tab 2).
 class ProjectsTasksScreen extends StatefulWidget {
@@ -281,40 +285,30 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
                   if (index == 0) {
                     // "All Projects" chip
                     final isSelected = _selectedProjectId == null;
-                    return GestureDetector(
+                    return _ProjectCard(
+                      width: 160,
+                      isSelected: isSelected,
+                      semanticLabel: 'All Projects, ${projects.length} workspaces',
                       onTap: () => setState(() => _selectedProjectId = null),
-                      child: Container(
-                        width: 160,
-                        margin: const EdgeInsets.only(right: 12),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AxisColors.primary.withValues(alpha: 0.15) : AxisColors.surfaceLow,
-                          borderRadius: DesktopLayout.borderRadiusCard,
-                          border: Border.all(
-                            color: isSelected ? AxisColors.primary : AxisColors.borderSubtle,
-                            width: 1,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.apps_rounded, size: 20, color: AxisColors.secondary),
+                          const SizedBox(height: 8),
+                          Text(
+                            'All Projects',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AxisColors.textHigh,
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.apps_rounded, size: 20, color: AxisColors.secondary),
-                            const SizedBox(height: 8),
-                            Text(
-                              'All Projects',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AxisColors.textHigh,
-                              ),
-                            ),
-                            Text(
-                              '${projects.length} workspaces',
-                              style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
-                            ),
-                          ],
-                        ),
+                          Text(
+                            '${projects.length} workspaces',
+                            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                          ),
+                        ],
                       ),
                     );
                   }
@@ -328,68 +322,58 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
                   final completed = projectTasks.where((t) => t.isCompleted).length;
                   final progress = total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
 
-                  return GestureDetector(
+                  return _ProjectCard(
+                    width: 220,
+                    isSelected: isSelected,
+                    semanticLabel: '${p.name}, $completed of $total tasks, ${(progress * 100).toInt()}% complete',
                     onTap: () => setState(() => _selectedProjectId = isSelected ? null : p.id),
-                    child: Container(
-                      width: 220,
-                      margin: const EdgeInsets.only(right: 12),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AxisColors.primary.withValues(alpha: 0.15) : AxisColors.surfaceLow,
-                        borderRadius: DesktopLayout.borderRadiusCard,
-                        border: Border.all(
-                          color: isSelected ? AxisColors.primary : AxisColors.borderSubtle,
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  p.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.spaceGrotesk(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AxisColors.textHigh,
-                                  ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                p.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AxisColors.textHigh,
                                 ),
                               ),
-                              TelemetryChip(
-                                label: '${(progress * 100).toInt()}%',
-                                color: AxisColors.secondary,
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '$completed/$total tasks',
-                                    style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              ProgressGauge(
-                                value: progress,
-                                height: 3.5,
-                                color: AxisColors.secondary,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                            TelemetryChip(
+                              label: '${(progress * 100).toInt()}%',
+                              color: AxisColors.secondary,
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '$completed/$total tasks',
+                                  style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            ProgressGauge(
+                              value: progress,
+                              height: 3.5,
+                              color: AxisColors.secondary,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -511,64 +495,75 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
                       ? AxisColors.tertiary
                       : (task.priority == 1 ? AxisColors.priorityHigh : AxisColors.secondary);
 
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedTask = task),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 3.0),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AxisColors.primary.withValues(alpha: 0.16)
-                            : AxisColors.surfaceLowest,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelected ? AxisColors.primary : AxisColors.borderSubtle,
-                          width: 1,
+                  return DesktopPressable(
+                    role: DesktopPressableRole.listItem,
+                    selected: isSelected,
+                    label: task.title,
+                    onActivate: () => setState(() => _selectedTask = task),
+                    builder: (context, visuals) {
+                      final hovered = visuals.hovered || visuals.pressed;
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 3.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AxisColors.primary.withValues(alpha: 0.16)
+                              : hovered
+                                  ? AxisColors.surfaceLow
+                                  : AxisColors.surfaceLowest,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSelected
+                                ? AxisColors.primary
+                                : (hovered ? AxisColors.borderGlass2 : AxisColors.borderSubtle),
+                            width: 1,
+                          ),
+                          boxShadow: desktopFocusRing(visuals.focused),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          TaskStatusRail(color: railColor, height: 20),
-                          const SizedBox(width: 10),
-                          DesktopCheckbox(
-                            value: isDone,
-                            onChanged: (val) {
-                              TaskRepository().toggleTaskStatus(task, val);
-                            },
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  task.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.getFont(
-                                    'Geist',
-                                    fontSize: 13,
-                                    decoration: isDone ? TextDecoration.lineThrough : null,
-                                    color: isDone ? AxisColors.textDim : AxisColors.textHigh,
-                                  ),
-                                ),
-                                if (task.dueDate != null) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Due ${task.dueDate} ${task.dueTime ?? ""}',
-                                    style: GoogleFonts.spaceGrotesk(fontSize: 10, color: AxisColors.textDim),
-                                  ),
-                                ],
-                              ],
+                        child: Row(
+                          children: [
+                            TaskStatusRail(color: railColor, height: 20),
+                            const SizedBox(width: 10),
+                            DesktopCheckbox(
+                              value: isDone,
+                              onChanged: (val) {
+                                TaskRepository().toggleTaskStatus(task, val);
+                              },
                             ),
-                          ),
-                          if (task.priority != null && !isDone) ...[
-                            const SizedBox(width: 8),
-                            PriorityBadge(priority: task.priority, compact: true),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    task.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.getFont(
+                                      'Geist',
+                                      fontSize: 13,
+                                      decoration: isDone ? TextDecoration.lineThrough : null,
+                                      color: isDone ? AxisColors.textDim : AxisColors.textHigh,
+                                    ),
+                                  ),
+                                  if (task.dueDate != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Due ${task.dueDate} ${task.dueTime ?? ""}',
+                                      style: GoogleFonts.spaceGrotesk(fontSize: 10, color: AxisColors.textDim),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (task.priority != null && !isDone) ...[
+                              const SizedBox(width: 8),
+                              PriorityBadge(priority: task.priority, compact: true),
+                            ],
                           ],
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   );
                 }).toList(),
               );
@@ -580,29 +575,10 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
   }
 
   Widget _buildFilterButton(String label, int index) {
-    final isSelected = _taskFilterIndex == index;
-    return GestureDetector(
+    return DesktopSelectionChip(
+      label: label,
+      selected: _taskFilterIndex == index,
       onTap: () => setState(() => _taskFilterIndex = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: isSelected ? AxisColors.primary.withValues(alpha: 0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: isSelected ? AxisColors.primary : AxisColors.borderSubtle,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.getFont(
-            'Geist',
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected ? AxisColors.textHigh : AxisColors.textMuted,
-          ),
-        ),
-      ),
     );
   }
 
@@ -749,10 +725,25 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
                     label: 'Delete',
                     icon: Icons.delete_outline_rounded,
                     onPressed: () async {
-                      await TaskRepository().deleteTask(task.id);
+                      final confirmed = await ConfirmDialog.show(
+                        context,
+                        title: 'Delete task?',
+                        message:
+                            '"${task.title}" will be permanently removed. You can undo for a few seconds after deleting.',
+                      );
+                      if (!confirmed) return;
+
+                      final snapshot = task; // captured for undo
+                      await TaskRepository().deleteTask(snapshot.id);
                       setState(() {
                         _selectedTask = null;
                       });
+                      if (!mounted) return;
+                      showUndoSnackBar(
+                        context,
+                        message: 'Task deleted',
+                        onUndo: () => TaskRepository().addTask(snapshot),
+                      );
                     },
                   ),
                 ],
@@ -796,6 +787,59 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Selectable workspace card in the projects rail — keyboard-operable and
+/// screen-reader announced.
+class _ProjectCard extends StatelessWidget {
+  const _ProjectCard({
+    required this.width,
+    required this.isSelected,
+    required this.onTap,
+    required this.child,
+    this.semanticLabel,
+  });
+
+  final double width;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Widget child;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return DesktopPressable(
+      role: DesktopPressableRole.listItem,
+      selected: isSelected,
+      label: semanticLabel,
+      onActivate: onTap,
+      builder: (context, visuals) {
+        final hovered = visuals.hovered || visuals.pressed;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: width,
+          margin: const EdgeInsets.only(right: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AxisColors.primary.withValues(alpha: 0.15)
+                : hovered
+                    ? AxisColors.surfaceLow.withValues(alpha: 0.75)
+                    : AxisColors.surfaceLow,
+            borderRadius: DesktopLayout.borderRadiusCard,
+            border: Border.all(
+              color: isSelected
+                  ? AxisColors.primary
+                  : (hovered ? AxisColors.borderGlass2 : AxisColors.borderSubtle),
+              width: 1,
+            ),
+            boxShadow: desktopFocusRing(visuals.focused),
+          ),
+          child: child,
+        );
+      },
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/stats_repository.dart';
 import 'package:axis/domain/id_generator.dart';
@@ -56,5 +57,26 @@ class FocusRepository {
     } catch (e) {
       debugPrint('[FocusRepository] Error logging focus session: $e');
     }
+  }
+
+  /// Live sum of completed focus minutes logged today, keyed on the same
+  /// UTC-date prefix convention used by [StatsRepository].
+  Stream<int> watchFocusedMinutesToday() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(0);
+    }
+    final uid = currentUserId;
+    final todayPattern = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final query = uid.isNotEmpty
+        ? 'SELECT COALESCE(SUM(actual_min), 0) AS minutes FROM focus_sessions '
+            'WHERE completed = 1 AND started_at LIKE ? AND user_id = ?'
+        : 'SELECT COALESCE(SUM(actual_min), 0) AS minutes FROM focus_sessions '
+            'WHERE completed = 1 AND started_at LIKE ?';
+    final params = uid.isNotEmpty ? [todayPattern, uid] : [todayPattern];
+
+    return db.watch(query, parameters: params).map((rows) {
+      if (rows.isEmpty) return 0;
+      return (rows.first['minutes'] as num?)?.toInt() ?? 0;
+    });
   }
 }

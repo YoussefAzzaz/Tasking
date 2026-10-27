@@ -35,6 +35,10 @@ class AxisColors {
   static const Color priorityMed       = Color(0xFFF59E0B); // P2 Amber
   static const Color priorityLow       = Color(0xFF38BDF8); // P3 Atmospheric Cyan
 
+  // Destructive actions — deep enough for AA 4.5:1 white labels
+  static const Color danger            = Color(0xFFDC2626);
+  static const Color dangerDeep        = Color(0xFFB91C1C);
+
   // Text
   static const Color textHigh          = Color(0xFFF8FAFC); // Primary headings, active
   static const Color textMuted         = Color(0xFF94A3B8); // Secondary metrics, timestamps

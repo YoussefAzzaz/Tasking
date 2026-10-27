@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme.dart';
+import 'desktop_pressable.dart';
 
 /// 20x20 rounded desktop checkbox with emissive glow on completion.
+/// Keyboard-operable (Space), screen-reader announced via checked state.
 class DesktopCheckbox extends StatelessWidget {
   const DesktopCheckbox({
     super.key,
@@ -11,6 +13,9 @@ class DesktopCheckbox extends StatelessWidget {
     this.size = 20.0,
     this.borderRadius = const BorderRadius.all(Radius.circular(6.0)),
     this.isCircle = false,
+    this.semanticLabel,
+    this.autofocus = false,
+    this.focusNode,
   });
 
   final bool value;
@@ -20,15 +25,29 @@ class DesktopCheckbox extends StatelessWidget {
   final BorderRadius borderRadius;
   final bool isCircle;
 
+  /// Screen-reader label describing what the checkbox controls.
+  final String? semanticLabel;
+  final bool autofocus;
+  final FocusNode? focusNode;
+
   @override
   Widget build(BuildContext context) {
     final activeColor = color ?? AxisColors.tertiary;
 
-    return MouseRegion(
-      cursor: onChanged != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: onChanged != null ? () => onChanged!(!value) : null,
-        child: AnimatedContainer(
+    return DesktopPressable(
+      enabled: onChanged != null,
+      role: DesktopPressableRole.checkbox,
+      checked: value,
+      label: semanticLabel,
+      autofocus: autofocus,
+      focusNode: focusNode,
+      onActivate: onChanged != null ? () => onChanged!(!value) : null,
+      builder: (context, visuals) {
+        final borderColor = value
+            ? activeColor
+            : (visuals.hovered ? const Color(0x59FFFFFF) : AxisColors.borderGlass2);
+
+        return AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeInOut,
           width: size,
@@ -37,19 +56,16 @@ class DesktopCheckbox extends StatelessWidget {
             color: value ? activeColor : Colors.transparent,
             shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
             borderRadius: isCircle ? null : borderRadius,
-            border: Border.all(
-              color: value ? activeColor : AxisColors.borderGlass2,
-              width: 1.5,
-            ),
-            boxShadow: value
-                ? [
-                    BoxShadow(
-                      color: activeColor.withValues(alpha: 0.45),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : null,
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              ...desktopFocusRing(visuals.focused),
+              if (value)
+                BoxShadow(
+                  color: activeColor.withValues(alpha: 0.45),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+            ],
           ),
           child: value
               ? Center(
@@ -60,8 +76,8 @@ class DesktopCheckbox extends StatelessWidget {
                   ),
                 )
               : null,
-        ),
-      ),
+        );
+      },
     );
   }
 }

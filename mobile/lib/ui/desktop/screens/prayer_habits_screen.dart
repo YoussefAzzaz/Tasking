@@ -13,6 +13,7 @@ import '../core/desktop_layout.dart';
 import '../widgets/accent_button.dart';
 import '../widgets/desktop_card.dart';
 import '../widgets/desktop_checkbox.dart';
+import '../widgets/desktop_selection_chip.dart';
 import '../widgets/progress_gauge.dart';
 import '../widgets/section_header.dart';
 import '../widgets/telemetry_chip.dart';
@@ -597,28 +598,10 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
                     final isSel = _selectedCategory == cat;
                     return Padding(
                       padding: const EdgeInsets.only(right: 6.0),
-                      child: GestureDetector(
+                      child: DesktopSelectionChip(
+                        label: cat,
+                        selected: isSel,
                         onTap: () => setState(() => _selectedCategory = cat),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isSel ? AxisColors.primary.withValues(alpha: 0.25) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isSel ? AxisColors.primary : AxisColors.borderSubtle,
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            cat,
-                            style: GoogleFonts.getFont(
-                              'Geist',
-                              fontSize: 12,
-                              fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
-                              color: isSel ? AxisColors.textHigh : AxisColors.textMuted,
-                            ),
-                          ),
-                        ),
                       ),
                     );
                   }).toList(),

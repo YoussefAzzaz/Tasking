@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme.dart';
 import '../core/desktop_layout.dart';
+import 'desktop_pressable.dart';
 
 /// Clean hairline bordered button for secondary actions.
-class GhostButton extends StatefulWidget {
+/// Keyboard-operable (Enter/Space), focus-ringed, and screen-reader labelled.
+class GhostButton extends StatelessWidget {
   const GhostButton({
     super.key,
     required this.label,
@@ -17,6 +19,9 @@ class GhostButton extends StatefulWidget {
     this.height = 34.0,
     this.isFullWidth = false,
     this.padding = const EdgeInsets.symmetric(horizontal: 12.0),
+    this.tooltip,
+    this.autofocus = false,
+    this.focusNode,
   });
 
   final String label;
@@ -29,53 +34,56 @@ class GhostButton extends StatefulWidget {
   final double height;
   final bool isFullWidth;
   final EdgeInsetsGeometry padding;
-
-  @override
-  State<GhostButton> createState() => _GhostButtonState();
-}
-
-class _GhostButtonState extends State<GhostButton> {
-  bool _isHovered = false;
+  final String? tooltip;
+  final bool autofocus;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = widget.onPressed != null;
-    final textColor = widget.color ?? (_isHovered ? AxisColors.textHigh : AxisColors.textMuted);
-    final border = widget.borderColor ?? (_isHovered ? AxisColors.borderGlass2 : AxisColors.borderSubtle);
-    final bg = _isHovered
-        ? (widget.hoverBackgroundColor ?? AxisColors.surfaceHigh.withValues(alpha: 0.6))
-        : Colors.transparent;
+    final enabled = onPressed != null;
 
-    return MouseRegion(
-      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: enabled ? widget.onPressed : null,
-        child: AnimatedContainer(
+    return DesktopPressable(
+      enabled: enabled,
+      autofocus: autofocus,
+      focusNode: focusNode,
+      tooltip: tooltip,
+      label: label,
+      onActivate: onPressed,
+      builder: (context, visuals) {
+        final active = visuals.hovered || visuals.pressed;
+        final textColor = color ?? (active ? AxisColors.textHigh : AxisColors.textMuted);
+        final border = borderColor ?? (active ? AxisColors.borderGlass2 : AxisColors.borderSubtle);
+        final bg = visuals.pressed
+            ? (hoverBackgroundColor ?? AxisColors.surfaceHigh.withValues(alpha: 0.9))
+            : visuals.hovered
+                ? (hoverBackgroundColor ?? AxisColors.surfaceHigh.withValues(alpha: 0.6))
+                : Colors.transparent;
+
+        return AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          width: widget.isFullWidth ? double.infinity : null,
-          height: widget.height,
-          padding: widget.padding,
+          width: isFullWidth ? double.infinity : null,
+          height: height,
+          padding: padding,
           decoration: BoxDecoration(
             color: bg,
             borderRadius: DesktopLayout.borderRadiusBadge,
             border: Border.all(color: border, width: 1),
+            boxShadow: desktopFocusRing(visuals.focused),
           ),
           child: Row(
-            mainAxisSize: widget.isFullWidth ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (widget.icon != null) ...[
+              if (icon != null) ...[
                 Icon(
-                  widget.icon,
+                  icon,
                   size: 15,
                   color: textColor,
                 ),
                 const SizedBox(width: 6),
               ],
               Text(
-                widget.label,
+                label,
                 style: GoogleFonts.getFont(
                   'Geist',
                   fontSize: 12,
@@ -83,10 +91,10 @@ class _GhostButtonState extends State<GhostButton> {
                   color: textColor,
                 ),
               ),
-              if (widget.shortcutLabel != null) ...[
+              if (shortcutLabel != null) ...[
                 const SizedBox(width: 8),
                 Text(
-                  widget.shortcutLabel!,
+                  shortcutLabel!,
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -96,8 +104,8 @@ class _GhostButtonState extends State<GhostButton> {
               ],
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

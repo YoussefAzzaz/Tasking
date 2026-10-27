@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme.dart';
+import '../../../data/focus_repository.dart';
 import '../../../data/habit_repository.dart';
 import '../../../data/prayer_time_service.dart';
 import '../../../data/project_repository.dart';
@@ -14,6 +15,7 @@ import '../core/desktop_layout.dart';
 import '../widgets/accent_button.dart';
 import '../widgets/desktop_card.dart';
 import '../widgets/desktop_checkbox.dart';
+import '../widgets/desktop_selection_chip.dart';
 import '../widgets/ghost_button.dart';
 import '../widgets/priority_badge.dart';
 import '../widgets/progress_gauge.dart';
@@ -182,24 +184,13 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
               ),
             ),
             const SizedBox(width: 16),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$timeStr  ·  $dateStr',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AxisColors.textMuted,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const TelemetryChip(
-                  label: 'All Systems Online',
-                  dotColor: AxisColors.tertiary,
-                  color: AxisColors.tertiary,
-                ),
-              ],
+            Text(
+              '$timeStr  ·  $dateStr',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AxisColors.textMuted,
+              ),
             ),
           ],
         );
@@ -252,15 +243,7 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildMetricCard(
-                        title: 'FOCUS TODAY',
-                        value: '2h 45m',
-                        caption: 'Deep work sprint',
-                        icon: Icons.bolt_rounded,
-                        accentColor: AxisColors.primary,
-                      ),
-                    ),
+                    const Expanded(child: _FocusTodayMetric()),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildMetricCard(
@@ -278,58 +261,6 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildMetricCard({
-    required String title,
-    required String value,
-    required String caption,
-    required IconData icon,
-    required Color accentColor,
-  }) {
-    return DesktopCard(
-      padding: const EdgeInsets.all(14.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6,
-                    color: AxisColors.textMuted,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(icon, size: 16, color: accentColor),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AxisColors.textHigh,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            caption,
-            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
-          ),
-        ],
-      ),
     );
   }
 
@@ -433,29 +364,10 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
   }
 
   Widget _buildFilterChip(String label, int index) {
-    final isSelected = _taskFilterIndex == index;
-    return GestureDetector(
+    return DesktopSelectionChip(
+      label: label,
+      selected: _taskFilterIndex == index,
       onTap: () => setState(() => _taskFilterIndex = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: isSelected ? AxisColors.primary.withValues(alpha: 0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: isSelected ? AxisColors.primary : AxisColors.borderSubtle,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.getFont(
-            'Geist',
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected ? AxisColors.textHigh : AxisColors.textMuted,
-          ),
-        ),
-      ),
     );
   }
 
@@ -846,6 +758,89 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+/// Shared metric-card layout for the Command Deck stats row.
+Widget _buildMetricCard({
+  required String title,
+  required String value,
+  required String caption,
+  required IconData icon,
+  required Color accentColor,
+}) {
+  return DesktopCard(
+    padding: const EdgeInsets.all(14.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: AxisColors.textMuted,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(icon, size: 16, color: accentColor),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.spaceGrotesk(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AxisColors.textHigh,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          caption,
+          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Live "Focus Today" metric card backed by real focus_sessions data — no
+/// hardcoded values. Shows 0m until a completed session exists for today.
+class _FocusTodayMetric extends StatelessWidget {
+  const _FocusTodayMetric();
+
+  static String formatMinutes(int total) {
+    final h = total ~/ 60;
+    final m = total % 60;
+    if (h <= 0) return '${m}m';
+    return m > 0 ? '${h}h ${m}m' : '${h}h';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: FocusRepository().watchFocusedMinutesToday(),
+      builder: (context, snapshot) {
+        final minutes = snapshot.data ?? 0;
+        return _buildMetricCard(
+          title: 'FOCUS TODAY',
+          value: formatMinutes(minutes),
+          caption: 'Deep work sprint',
+          icon: Icons.bolt_rounded,
+          accentColor: AxisColors.primary,
         );
       },
     );

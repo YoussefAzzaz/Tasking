@@ -7,6 +7,7 @@ import '../../../data/habit_repository.dart';
 import '../../../data/note_repository.dart';
 import '../../../data/project_repository.dart';
 import '../../../data/task_repository.dart';
+import '../widgets/desktop_pressable.dart';
 import '../widgets/section_header.dart';
 import '../widgets/telemetry_chip.dart';
 
@@ -184,7 +185,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                           IconButton(
                             icon: const Icon(Icons.clear_rounded, size: 16),
                             color: AxisColors.textDim,
-                            splashRadius: 16,
+                            tooltip: 'Clear search',
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _query = '');
@@ -333,30 +334,29 @@ class _SearchItemRow extends StatefulWidget {
 }
 
 class _SearchItemRowState extends State<_SearchItemRow> {
-  bool _isHovered = false;
-
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: Container(
+      child: DesktopPressable(
+        role: DesktopPressableRole.listItem,
+        label: widget.title,
+        onActivate: widget.onTap,
+        builder: (context, visuals) {
+          final active = visuals.hovered || visuals.pressed;
+          return Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: _isHovered ? AxisColors.surfaceHigh.withValues(alpha: 0.6) : Colors.transparent,
+              color: active ? AxisColors.surfaceHigh.withValues(alpha: 0.6) : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
+              boxShadow: desktopFocusRing(visuals.focused),
             ),
             child: Row(
               children: [
                 Icon(
                   widget.icon,
                   size: 16,
-                  color: _isHovered ? AxisColors.secondary : AxisColors.textMuted,
+                  color: active ? AxisColors.secondary : AxisColors.textMuted,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -368,7 +368,7 @@ class _SearchItemRowState extends State<_SearchItemRow> {
                       'Geist',
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: _isHovered ? AxisColors.textHigh : AxisColors.textMuted,
+                      color: active ? AxisColors.textHigh : AxisColors.textMuted,
                     ),
                   ),
                 ),
@@ -392,8 +392,8 @@ class _SearchItemRowState extends State<_SearchItemRow> {
                 ],
               ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
