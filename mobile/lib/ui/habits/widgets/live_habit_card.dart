@@ -287,7 +287,6 @@ class LiveHabitCard extends StatelessWidget {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             visualDensity: VisualDensity.compact,
-            splashRadius: 18,
             onPressed: () => _showOptions(context),
           ),
         ],

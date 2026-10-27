@@ -10,6 +10,7 @@ import '../../../data/reading_preferences_service.dart';
 import '../../../domain/id_generator.dart';
 import '../../common/axis_markdown_viewer.dart';
 import '../../notes/widgets/daily_review_prompt_card.dart';
+import '../../notes/widgets/note_format_toolbar.dart';
 import '../core/desktop_layout.dart';
 import '../services/desktop_file_service.dart';
 import '../widgets/accent_button.dart';
@@ -32,6 +33,7 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
   String _creatingCategory = 'General';
   final _searchController = TextEditingController();
   final _editorController = TextEditingController();
+  final _editorFocusNode = FocusNode();
   final _titleController = TextEditingController();
   final _vaultScrollController = ScrollController();
   String _activeTab = 'notes'; // 'notes' or 'journal'
@@ -44,6 +46,7 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
   void dispose() {
     _searchController.dispose();
     _editorController.dispose();
+    _editorFocusNode.dispose();
     _titleController.dispose();
     _vaultScrollController.dispose();
     _debounceTimer?.cancel();
@@ -271,21 +274,6 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
     }
   }
 
-  void _insertFormatting(String prefix, String suffix) {
-    final selection = _editorController.selection;
-    final text = _editorController.text;
-    final selectedText = selection.textInside(text);
-    final replacement = '$prefix$selectedText$suffix';
-
-    final newText = text.replaceRange(selection.start, selection.end, replacement);
-    _editorController.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(
-        offset: selection.start + prefix.length + selectedText.length,
-      ),
-    );
-    _onEditorChanged(newText);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -973,24 +961,11 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
             const SizedBox(height: 8),
           ],
 
-          // Format Toolbar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            decoration: BoxDecoration(
-              color: AxisColors.surfaceLowest,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AxisColors.borderSubtle, width: 1),
-            ),
-            child: Row(
-              children: [
-                _buildToolbarBtn('B', () => _insertFormatting('**', '**')),
-                _buildToolbarBtn('/', () => _insertFormatting('*', '*')),
-                _buildToolbarBtn('H1', () => _insertFormatting('# ', '')),
-                _buildToolbarBtn('H2', () => _insertFormatting('## ', '')),
-                _buildToolbarBtn('`', () => _insertFormatting('`', '`')),
-                _buildToolbarBtn('[]', () => _insertFormatting('- [ ] ', '')),
-              ],
-            ),
+          // Format Toolbar with full Markdown suite
+          NoteFormatToolbar(
+            controller: _editorController,
+            focusNode: _editorFocusNode,
+            onChanged: () => _onEditorChanged(_editorController.text),
           ),
           const SizedBox(height: 10),
 
@@ -1005,6 +980,7 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
               ),
               child: TextField(
                 controller: _editorController,
+                focusNode: _editorFocusNode,
                 onChanged: _onEditorChanged,
                 maxLines: null,
                 expands: true,
@@ -1034,26 +1010,6 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
     );
   }
 
-  Widget _buildToolbarBtn(String label, VoidCallback onTap) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: AxisColors.surfaceHigh.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            label,
-            style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildLivePreviewPane() {
     final markdown = _editorController.text.isNotEmpty

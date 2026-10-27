@@ -224,7 +224,7 @@ void main() {
       expect(find.text('CATEGORY'), findsOneWidget);
     });
 
-    testWidgets('NotesScreen renders NOTES BY CATEGORY header banner and Category button',
+    testWidgets('NotesScreen does not render removed banners or date filter toolbar',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -238,23 +238,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Notes & Journal'), findsOneWidget);
-      expect(find.text('NOTES BY CATEGORY'), findsOneWidget);
-      expect(find.text('Category'), findsOneWidget);
-      expect(find.text('Add Note'), findsOneWidget);
-
-      // Tap Category button to open New Note Category dialog
-      await tester.tap(find.text('Category'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('New Note Category'), findsOneWidget);
-      expect(find.text('CATEGORY NAME'), findsOneWidget);
-      expect(find.text('COLOR ACCENT'), findsOneWidget);
-
-      // Cancel dialog
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('New Note Category'), findsNothing);
+      expect(find.text('NOTES BY CATEGORY'), findsNothing);
+      expect(find.text('Category'), findsNothing);
+      expect(find.text('JOURNAL ENTRIES'), findsNothing);
+      expect(find.text('Filter by Date'), findsNothing);
+      expect(find.text('Today'), findsNothing);
+      expect(find.text('Yesterday'), findsNothing);
+      expect(find.text('DAILY REVIEW PROMPT'), findsNothing);
     });
 
     testWidgets('NotesScreen separates notes from journals and toggles between tabs',
@@ -274,7 +264,7 @@ void main() {
       expect(find.text('Notes'), findsOneWidget);
       expect(find.text('Journals'), findsOneWidget);
       expect(find.text('New Note'), findsOneWidget);
-      expect(find.text('NOTES BY CATEGORY'), findsOneWidget);
+      expect(find.text('NOTES BY CATEGORY'), findsNothing);
 
       // Tap on Journals tab
       await tester.tap(find.text('Journals'));
@@ -282,16 +272,15 @@ void main() {
 
       // Now in Journals tab
       expect(find.text('New Journal'), findsWidgets);
-      expect(find.text('JOURNAL ENTRIES'), findsOneWidget);
-      expect(find.text('NOTES BY CATEGORY'), findsNothing);
+      expect(find.text('JOURNAL ENTRIES'), findsNothing);
+      expect(find.text('DAILY REVIEW PROMPT'), findsNothing);
 
       // Switch back to Notes tab
       await tester.tap(find.text('Notes'));
       await tester.pumpAndSettle();
 
       expect(find.text('New Note'), findsOneWidget);
-      expect(find.text('NOTES BY CATEGORY'), findsOneWidget);
-      expect(find.text('JOURNAL ENTRIES'), findsNothing);
+      expect(find.text('NOTES BY CATEGORY'), findsNothing);
     });
 
     testWidgets('CreateNoteSheet defaults category to General when creating note',

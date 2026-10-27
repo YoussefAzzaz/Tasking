@@ -52,6 +52,14 @@ class UserProfileRepository {
   final ValueNotifier<UserProfile> profileNotifier =
       ValueNotifier<UserProfile>(const UserProfile());
 
+  SupabaseClient? get _supabaseClient {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
   String get _cacheKey => 'user_profile_data_${currentUserId.isNotEmpty ? currentUserId : "global"}';
 
   /// Retrieves user profile instantly from cache, or fetches from SQLite.
@@ -103,7 +111,7 @@ class UserProfileRepository {
       // Check Supabase Auth user_metadata (cloud ground truth)
       Map<String, dynamic>? authMeta;
       try {
-        authMeta = Supabase.instance.client.auth.currentUser?.userMetadata;
+        authMeta = _supabaseClient?.auth.currentUser?.userMetadata;
       } catch (_) {}
 
       // 1. Resolve Display Name
@@ -153,14 +161,17 @@ class UserProfileRepository {
       }
       if ((avatarUrl == null || avatarUrl.isEmpty) && uid.isNotEmpty && uid != 'local_guest') {
         try {
-          final files = await Supabase.instance.client.storage
-              .from('avatars')
-              .list(path: uid)
-              .timeout(const Duration(milliseconds: 1500));
-          final match = files.where((f) => f.name.startsWith('avatar.')).firstOrNull;
-          if (match != null) {
-            final raw = Supabase.instance.client.storage.from('avatars').getPublicUrl('$uid/${match.name}');
-            avatarUrl = '$raw?t=${DateTime.now().millisecondsSinceEpoch}';
+          final client = _supabaseClient;
+          if (client != null) {
+            final files = await client.storage
+                .from('avatars')
+                .list(path: uid)
+                .timeout(const Duration(milliseconds: 1500));
+            final match = files.where((f) => f.name.startsWith('avatar.')).firstOrNull;
+            if (match != null) {
+              final raw = client.storage.from('avatars').getPublicUrl('$uid/${match.name}');
+              avatarUrl = '$raw?t=${DateTime.now().millisecondsSinceEpoch}';
+            }
           }
         } catch (_) {}
       }
@@ -232,9 +243,10 @@ class UserProfileRepository {
     }
 
     // 3. Persist in Supabase Auth user_metadata (cross-device cloud persistence)
-    if (Supabase.instance.client.auth.currentUser != null) {
+    final client = _supabaseClient;
+    if (client?.auth.currentUser != null) {
       try {
-        await Supabase.instance.client.auth.updateUser(
+        await client!.auth.updateUser(
           UserAttributes(data: {
             'display_name': newName,
             'title': newTitle,
@@ -293,8 +305,13 @@ class UserProfileRepository {
         : (contentType.contains('webp') ? 'webp' : 'jpg');
     final storagePath = '$uid/avatar.$ext';
 
+    final client = _supabaseClient;
+    if (client == null) {
+      throw StateError('Supabase client is not initialized.');
+    }
+
     // 1. Upload to Supabase Storage
-    await Supabase.instance.client.storage
+    await client.storage
         .from('avatars')
         .uploadBinary(
           storagePath,
@@ -306,14 +323,14 @@ class UserProfileRepository {
         );
 
     // 2. Get Public CDN URL with cache-busting timestamp
-    final rawUrl = Supabase.instance.client.storage
+    final rawUrl = client.storage
         .from('avatars')
         .getPublicUrl(storagePath);
     final cacheBusterUrl = '$rawUrl?t=${DateTime.now().millisecondsSinceEpoch}';
 
     // 3. Persist in Supabase Auth user_metadata so it is permanently tied to the auth session
     try {
-      await Supabase.instance.client.auth.updateUser(
+      await client.auth.updateUser(
         UserAttributes(data: {'avatar_url': cacheBusterUrl}),
       );
     } catch (e) {
@@ -335,9 +352,10 @@ class UserProfileRepository {
   /// Removes avatar from Supabase Storage and clears avatar_url from profile.
   Future<void> removeAvatar() async {
     final uid = currentUserId;
-    if (uid.isNotEmpty) {
+    final client = _supabaseClient;
+    if (client != null && uid.isNotEmpty) {
       try {
-        await Supabase.instance.client.storage.from('avatars').remove([
+        await client.storage.from('avatars').remove([
           '$uid/avatar.jpg',
           '$uid/avatar.png',
           '$uid/avatar.webp',
@@ -347,12 +365,14 @@ class UserProfileRepository {
       }
     }
 
-    try {
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(data: {'avatar_url': null}),
-      );
-    } catch (e) {
-      debugPrint('[UserProfileRepository] auth.updateUser avatar error: $e');
+    if (client != null) {
+      try {
+        await client.auth.updateUser(
+          UserAttributes(data: {'avatar_url': null}),
+        );
+      } catch (e) {
+        debugPrint('[UserProfileRepository] auth.updateUser avatar error: $e');
+      }
     }
 
     final current = await getProfile();

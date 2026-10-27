@@ -42,6 +42,9 @@ class Habit {
 
   factory Habit.fromRow(Map<String, dynamic> row, {bool isDone = false, int streak = 0}) {
     String cat = (row['kind'] as String?)?.trim() ?? '';
+    if (cat.toLowerCase() == 'boolean' || cat.toLowerCase() == 'numeric') {
+      cat = '';
+    }
     if (cat.isEmpty) {
       final icon = (row['icon'] as String?) ?? '';
       if (icon == 'mosque' ||

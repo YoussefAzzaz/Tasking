@@ -839,7 +839,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           IconButton(
                             icon: const Icon(Icons.delete_outline_rounded, size: 16),
                             color: AxisColors.textDim,
-                            splashRadius: 16,
                             onPressed: () => NoteCategoryRepository().deleteCategory(cat.id, name: cat.name),
                           ),
                         ],
@@ -1000,7 +999,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           IconButton(
                             icon: const Icon(Icons.delete_outline_rounded, size: 16),
                             color: AxisColors.textDim,
-                            splashRadius: 16,
                             onPressed: () => HabitCategoryRepository().deleteCategory(cat.id, name: cat.name),
                           ),
                         ],

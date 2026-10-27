@@ -101,7 +101,6 @@ class _CyberSearchBarState extends State<CyberSearchBar> {
                 ? IconButton(
                     icon: const Icon(Icons.close_rounded, size: 16),
                     color: AxisColors.textDim,
-                    splashRadius: 16,
                     tooltip: 'Clear search',
                     onPressed: () {
                       widget.controller.clear();

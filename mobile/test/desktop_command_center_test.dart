@@ -11,6 +11,7 @@ import 'package:axis/ui/desktop/screens/profile_settings_screen.dart';
 import 'package:axis/ui/desktop/widgets/accent_button.dart';
 import 'package:axis/ui/desktop/widgets/ghost_button.dart';
 import 'package:axis/ui/desktop/dialogs/quick_task_dialog.dart';
+import 'package:axis/ui/notes/widgets/note_format_toolbar.dart';
 import 'package:axis/data/focus_session_service.dart';
 
 void main() {
@@ -65,14 +66,14 @@ void main() {
       // Settings button next to operator profile
       expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
 
-      // Sidebar navigation items (reordered without New Task or Profile & Settings)
+      // Sidebar navigation items
       expect(find.text('New Task'), findsNothing);
       expect(find.text('Command Deck'), findsOneWidget);
       expect(find.text('Projects & Tasks'), findsOneWidget);
       expect(find.text('Prayer & Habits'), findsOneWidget);
       expect(find.text('Journal & Vault'), findsOneWidget);
       expect(find.text('Focus Timers'), findsOneWidget);
-      expect(find.text('Profile & Settings'), findsNothing);
+      expect(find.text('Profile & Settings'), findsOneWidget);
 
       // Log Out button replaces vault integrity footer
       expect(find.text('INTEGRITY OK'), findsNothing);
@@ -395,6 +396,44 @@ void main() {
       expect(notesTitleField.controller?.text, isEmpty);
       expect(notesBodyField.controller?.text, isEmpty);
       expect(find.widgetWithText(AccentButton, 'Save Note'), findsOneWidget);
+    });
+
+    testWidgets('Journal & Vault markdown editor includes complete formatting tools toolbar', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Journal & Vault'));
+      await tester.pumpAndSettle();
+
+      // Check presence of NoteFormatToolbar
+      expect(find.byType(NoteFormatToolbar), findsOneWidget);
+
+      // Verify Markdown tools are present
+      expect(find.text('B'), findsOneWidget); // Bold
+      expect(find.text('I'), findsOneWidget); // Italic
+      expect(find.text('H1'), findsOneWidget); // H1
+      expect(find.text('H2'), findsOneWidget); // H2
+      expect(find.text('H3'), findsOneWidget); // H3
+      expect(find.byIcon(Icons.format_list_numbered_rounded), findsOneWidget); // Numbered
+      expect(find.byIcon(Icons.format_list_bulleted_rounded), findsOneWidget); // Bullets
+      expect(find.byIcon(Icons.check_box_outlined), findsOneWidget); // Checklist
+      expect(find.byIcon(Icons.format_quote_rounded), findsOneWidget); // Quote
+      expect(find.byIcon(Icons.code_rounded), findsOneWidget); // Inline code
+      expect(find.byIcon(Icons.data_object_rounded), findsOneWidget); // Code block
+      expect(find.byIcon(Icons.link_rounded), findsOneWidget); // Link
+      expect(find.byIcon(Icons.horizontal_rule_rounded), findsOneWidget); // Horizontal rule
+      expect(find.byIcon(Icons.table_chart_outlined), findsOneWidget); // Table
+      expect(
+        find.descendant(
+          of: find.byType(NoteFormatToolbar),
+          matching: find.byIcon(Icons.schedule_rounded),
+        ),
+        findsOneWidget,
+      ); // Timestamp log
     });
   });
 }

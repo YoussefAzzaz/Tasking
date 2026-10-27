@@ -132,17 +132,6 @@ class SupabaseConnector extends PowerSyncBackendConnector {
             ? created.substring(0, 10)
             : DateTime.now().toUtc().toIso8601String().substring(0, 10);
       }
-      // Supabase habits table: CHECK (kind IN ('boolean','numeric'))
-      final kind = data['kind'];
-      if (kind != 'boolean' && kind != 'numeric') {
-        final target = data['target_value'];
-        data['kind'] = (target != null && target is num && target > 1) ? 'numeric' : 'boolean';
-      }
-      // Supabase habits table: CHECK (schedule_type IN ('daily','weekdays','times_per_week','every_n_days'))
-      const validSchedules = {'daily', 'weekdays', 'times_per_week', 'every_n_days'};
-      if (!validSchedules.contains(data['schedule_type'])) {
-        data['schedule_type'] = 'daily';
-      }
     } else if (table == 'tasks') {
       // Supabase tasks table: CHECK (status IN ('todo','done','cancelled'))
       if (data['status'] == 'skipped') {

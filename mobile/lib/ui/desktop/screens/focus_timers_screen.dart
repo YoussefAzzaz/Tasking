@@ -12,6 +12,7 @@ import '../../../data/task_repository.dart';
 import '../../../domain/id_generator.dart';
 import '../../common/axis_markdown_viewer.dart';
 import '../core/desktop_layout.dart';
+import '../core/task_checklist_mixin.dart';
 import '../widgets/accent_button.dart';
 import '../widgets/desktop_card.dart';
 import '../widgets/desktop_checkbox.dart';
@@ -29,54 +30,16 @@ class FocusTimersScreen extends StatefulWidget {
   State<FocusTimersScreen> createState() => _FocusTimersScreenState();
 }
 
-class _FocusTimersScreenState extends State<FocusTimersScreen> {
+class _FocusTimersScreenState extends State<FocusTimersScreen> with TaskChecklistMixin {
   final _distractionNoteController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    _distractionNoteController.dispose();
+    super.dispose();
   }
 
-  List<({String text, bool isDone, int lineIndex})> _parseTaskChecklist(String? notes) {
-    if (notes == null || notes.isEmpty) return [];
-    final lines = notes.split('\n');
-    final list = <({String text, bool isDone, int lineIndex})>[];
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
-      if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- [X]')) {
-        final isDone = line.startsWith('- [x]') || line.startsWith('- [X]');
-        final text = line.substring(5).trim();
-        list.add((text: text, isDone: isDone, lineIndex: i));
-      }
-    }
-    return list;
-  }
-
-  String _stripChecklistFromNotes(String? notes) {
-    if (notes == null || notes.trim().isEmpty) return '';
-    final lines = notes.split('\n');
-    final nonChecklistLines = lines.where((line) {
-      final trimmed = line.trim();
-      return !trimmed.startsWith('- [ ]') &&
-             !trimmed.startsWith('- [x]') &&
-             !trimmed.startsWith('- [X]');
-    }).toList();
-    return nonChecklistLines.join('\n').trim();
-  }
-
-  Future<void> _toggleTaskChecklist(Task task, int lineIndex) async {
-    final lines = (task.notes ?? '').split('\n');
-    if (lineIndex < 0 || lineIndex >= lines.length) return;
-    final line = lines[lineIndex];
-    if (line.contains('- [ ]')) {
-      lines[lineIndex] = line.replaceFirst('- [ ]', '- [x]');
-    } else if (line.contains('- [x]') || line.contains('- [X]')) {
-      lines[lineIndex] = line.replaceFirst(RegExp(r'- \[[xX]\]'), '- [ ]');
-    }
-    final updated = task.copyWith(notes: lines.join('\n'));
-    await TaskRepository().updateTask(updated);
-    FocusSessionService().setAttachedTask(updated);
-  }
+  // Checklist helpers provided by TaskChecklistMixin
 
   void _showTaskSelectionDialog() {
     showDialog<void>(
@@ -392,11 +355,6 @@ class _FocusTimersScreenState extends State<FocusTimersScreen> {
 
 
 
-  @override
-  void dispose() {
-    _distractionNoteController.dispose();
-    super.dispose();
-  }
 
   Future<void> _handleSaveDistractionNote() async {
     final text = _distractionNoteController.text.trim();
@@ -824,8 +782,8 @@ class _FocusTimersScreenState extends State<FocusTimersScreen> {
     return ValueListenableBuilder<Task?>(
       valueListenable: FocusSessionService().attachedTaskNotifier,
       builder: (context, task, _) {
-        final checklist = _parseTaskChecklist(task?.notes);
-        final cleanNotes = _stripChecklistFromNotes(task?.notes);
+        final checklist = parseTaskChecklist(task?.notes);
+        final cleanNotes = stripChecklistFromNotes(task?.notes);
 
         return DesktopCard(
           child: Column(
@@ -944,7 +902,7 @@ class _FocusTimersScreenState extends State<FocusTimersScreen> {
                                   value: item.isDone,
                                   size: 18,
                                   color: AxisColors.secondary,
-                                  onChanged: (_) => _toggleTaskChecklist(task, item.lineIndex),
+                                  onChanged: (_) => toggleTaskChecklist(task, item.lineIndex),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(

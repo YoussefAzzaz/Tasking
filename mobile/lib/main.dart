@@ -68,13 +68,22 @@ Future<void> main() async {
     debugPrint('[Startup] Error initializing database or auth: $e\n$stack');
   }
 
+  // Global error boundary for rendering exceptions
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return GlobalErrorWidget(details: details);
+  };
+
   // Instant UI startup — mount widget tree immediately without network blocking
-  runApp(
-    DevicePreview(
-      enabled: AppConfig.useDevicePreview,
+  // Only wrap with DevicePreview in debug/dev builds — do NOT include it in
+  // the widget tree at all when disabled (even `enabled: false` adds overhead).
+  if (AppConfig.useDevicePreview) {
+    runApp(DevicePreview(
+      enabled: true,
       builder: (context) => const AxisApp(),
-    ),
-  );
+    ));
+  } else {
+    runApp(const AxisApp());
+  }
 
   // Launch non-critical background services asynchronously without blocking UI startup
   unawaited(_initBackgroundServices());
@@ -159,6 +168,89 @@ class AxisApp extends StatelessWidget {
             PointerDeviceKind.stylus,
             PointerDeviceKind.trackpad,
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// Global cyberpunk-themed error boundary widget that safely displays exceptions
+/// without crashing the application shell or showing an unstyled red screen.
+class GlobalErrorWidget extends StatelessWidget {
+  const GlobalErrorWidget({super.key, required this.details});
+  final FlutterErrorDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AxisColors.canvasBase,
+      child: Center(
+        child: Container(
+          width: 480,
+          padding: const EdgeInsets.all(24),
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AxisColors.surfaceLow,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AxisColors.borderGlass2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 20,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AxisColors.warning.withValues(alpha: 0.15),
+                  border: Border.all(color: AxisColors.warning.withValues(alpha: 0.3)),
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: AxisColors.warning, size: 24),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'WORKSPACE ANOMALY DETECTED',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  color: AxisColors.textHigh,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                kDebugMode
+                    ? details.exceptionAsString()
+                    : 'A transient rendering issue occurred. Your data is safely stored in local SQLite.',
+                textAlign: TextAlign.center,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: AxisColors.textMuted),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  try {
+                    router.go('/today');
+                  } catch (_) {}
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Reload Workspace'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AxisColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

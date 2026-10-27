@@ -161,6 +161,20 @@ Future<void> openDatabase() async {
   db = PowerSyncDatabase(schema: appSchema, path: path);
   await db.initialize();
 
+  // Self-heal: automatically repair any habit whose category was corrupted to 'boolean' or 'numeric'
+  try {
+    await db.execute('''
+      UPDATE habits 
+      SET kind = COALESCE(
+        (SELECT name FROM habit_categories ORDER BY sort_order ASC, name ASC LIMIT 1),
+        'Daily plan'
+      )
+      WHERE kind IN ('boolean', 'numeric')
+    ''');
+  } catch (e) {
+    debugPrint('[PowerSync] Self-healing habit category notice: $e');
+  }
+
   // Connect to Supabase
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,

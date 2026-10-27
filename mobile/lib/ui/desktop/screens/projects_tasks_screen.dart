@@ -10,6 +10,7 @@ import '../../../domain/id_generator.dart';
 import '../../common/axis_markdown_viewer.dart';
 import '../../common/cyber_color_picker.dart';
 import '../core/desktop_layout.dart';
+import '../core/task_checklist_mixin.dart';
 import '../dialogs/quick_task_dialog.dart';
 import '../widgets/accent_button.dart';
 import '../widgets/desktop_card.dart';
@@ -35,7 +36,7 @@ class ProjectsTasksScreen extends StatefulWidget {
   State<ProjectsTasksScreen> createState() => _ProjectsTasksScreenState();
 }
 
-class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
+class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChecklistMixin {
   Task? _selectedTask;
   int _taskFilterIndex = 0; // 0: All, 1: Today, 2: In Progress, 3: Completed
   String? _selectedProjectId;
@@ -59,46 +60,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
     );
   }
 
-  List<({String text, bool isDone, int lineIndex})> _parseTaskChecklist(String? notes) {
-    if (notes == null || notes.isEmpty) return [];
-    final lines = notes.split('\n');
-    final list = <({String text, bool isDone, int lineIndex})>[];
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
-      if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- [X]')) {
-        final isDone = line.startsWith('- [x]') || line.startsWith('- [X]');
-        final text = line.substring(5).trim();
-        list.add((text: text, isDone: isDone, lineIndex: i));
-      }
-    }
-    return list;
-  }
-
-  String _stripChecklistFromNotes(String? notes) {
-    if (notes == null || notes.trim().isEmpty) return '';
-    final lines = notes.split('\n');
-    final nonChecklistLines = lines.where((line) {
-      final trimmed = line.trim();
-      return !trimmed.startsWith('- [ ]') &&
-             !trimmed.startsWith('- [x]') &&
-             !trimmed.startsWith('- [X]');
-    }).toList();
-    return nonChecklistLines.join('\n').trim();
-  }
-
-  Future<void> _toggleTaskChecklist(Task task, int lineIndex) async {
-    final lines = (task.notes ?? '').split('\n');
-    if (lineIndex < 0 || lineIndex >= lines.length) return;
-    final line = lines[lineIndex];
-    if (line.contains('- [ ]')) {
-      lines[lineIndex] = line.replaceFirst('- [ ]', '- [x]');
-    } else if (line.contains('- [x]') || line.contains('- [X]')) {
-      lines[lineIndex] = line.replaceFirst(RegExp(r'- \[[xX]\]'), '- [ ]');
-    }
-    final updated = task.copyWith(notes: lines.join('\n'));
-    await TaskRepository().updateTask(updated);
-    setState(() => _selectedTask = updated);
-  }
+  // Checklist helpers provided by TaskChecklistMixin
 
   Future<void> _promptAddSubtask(Task task) async {
     final controller = TextEditingController();
@@ -956,7 +918,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
                 const SizedBox(height: 6),
                 Builder(
                   builder: (context) {
-                    final displayNotes = _stripChecklistFromNotes(task.notes);
+                    final displayNotes = stripChecklistFromNotes(task.notes);
                     if (displayNotes.isNotEmpty) {
                       return AxisMarkdownViewer(
                         markdown: displayNotes,
@@ -1015,7 +977,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
                 const SizedBox(height: 8),
                 Builder(
                   builder: (context) {
-                    final checklist = _parseTaskChecklist(task.notes);
+                    final checklist = parseTaskChecklist(task.notes);
                     if (checklist.isEmpty) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -1028,7 +990,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
                     return Column(
                       children: checklist.map((item) {
                         return InkWell(
-                          onTap: () => _toggleTaskChecklist(task, item.lineIndex),
+                          onTap: () => toggleTaskChecklist(task, item.lineIndex),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4.0),
                             child: Row(

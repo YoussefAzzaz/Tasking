@@ -17,6 +17,7 @@ import '../../notes/create_note_sheet.dart';
 import '../../notes/widgets/daily_journal_card.dart';
 import '../../today/widgets/time_slot_card.dart';
 import '../core/desktop_layout.dart';
+import '../core/task_checklist_mixin.dart';
 import '../dialogs/quick_habit_dialog.dart';
 import '../dialogs/quick_task_dialog.dart';
 import '../widgets/accent_button.dart';
@@ -44,7 +45,7 @@ class CommandDeckScreen extends StatefulWidget {
   State<CommandDeckScreen> createState() => _CommandDeckScreenState();
 }
 
-class _CommandDeckScreenState extends State<CommandDeckScreen> {
+class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklistMixin {
   late Timer _clockTimer;
   DateTime _currentTime = DateTime.now();
 
@@ -62,46 +63,7 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
     super.dispose();
   }
 
-  List<({String text, bool isDone, int lineIndex})> _parseTaskChecklist(String? notes) {
-    if (notes == null || notes.isEmpty) return [];
-    final lines = notes.split('\n');
-    final list = <({String text, bool isDone, int lineIndex})>[];
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
-      if (line.startsWith('- [ ]') || line.startsWith('- [x]') || line.startsWith('- [X]')) {
-        final isDone = line.startsWith('- [x]') || line.startsWith('- [X]');
-        final text = line.substring(5).trim();
-        list.add((text: text, isDone: isDone, lineIndex: i));
-      }
-    }
-    return list;
-  }
-
-  String _stripChecklistFromNotes(String? notes) {
-    if (notes == null || notes.trim().isEmpty) return '';
-    final lines = notes.split('\n');
-    final nonChecklistLines = lines.where((line) {
-      final trimmed = line.trim();
-      return !trimmed.startsWith('- [ ]') &&
-             !trimmed.startsWith('- [x]') &&
-             !trimmed.startsWith('- [X]');
-    }).toList();
-    return nonChecklistLines.join('\n').trim();
-  }
-
-  Future<Task> _toggleTaskChecklist(Task task, int lineIndex) async {
-    final lines = (task.notes ?? '').split('\n');
-    if (lineIndex < 0 || lineIndex >= lines.length) return task;
-    final line = lines[lineIndex];
-    if (line.contains('- [ ]')) {
-      lines[lineIndex] = line.replaceFirst('- [ ]', '- [x]');
-    } else if (line.contains('- [x]') || line.contains('- [X]')) {
-      lines[lineIndex] = line.replaceFirst(RegExp(r'- \[[xX]\]'), '- [ ]');
-    }
-    final updated = task.copyWith(notes: lines.join('\n'));
-    await TaskRepository().updateTask(updated);
-    return updated;
-  }
+  // Checklist helpers provided by TaskChecklistMixin
 
   void _showTaskPreviewDialog(Task initialTask) {
     Task currentTask = initialTask;
@@ -113,8 +75,8 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
         return StatefulBuilder(
           builder: (context, setPreviewState) {
             final isDone = currentTask.isCompleted;
-            final checklist = _parseTaskChecklist(currentTask.notes);
-            final displayNotes = _stripChecklistFromNotes(currentTask.notes);
+            final checklist = parseTaskChecklist(currentTask.notes);
+            final displayNotes = stripChecklistFromNotes(currentTask.notes);
 
             return Dialog(
               backgroundColor: Colors.transparent,
@@ -215,10 +177,11 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
                                 DesktopCheckbox(
                                   value: isDone,
                                   onChanged: (val) async {
+                                    final updated = currentTask.copyWith(status: val ? 'done' : 'todo');
+                                    setPreviewState(() {
+                                      currentTask = updated;
+                                    });
                                     await TaskRepository().toggleTaskStatus(currentTask, val);
-                                    if (dialogCtx.mounted) {
-                                      Navigator.of(dialogCtx).pop();
-                                    }
                                   },
                                 ),
                                 const SizedBox(width: 12),
@@ -334,7 +297,7 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
                                               size: 18,
                                               color: AxisColors.secondary,
                                               onChanged: (val) async {
-                                                final updated = await _toggleTaskChecklist(currentTask, item.lineIndex);
+                                                final updated = await toggleTaskChecklist(currentTask, item.lineIndex);
                                                 if (dialogCtx.mounted) {
                                                   setPreviewState(() {
                                                     currentTask = updated;

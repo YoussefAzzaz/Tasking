@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,7 +11,28 @@ import '../../../data/task_repository.dart';
 import '../widgets/section_header.dart';
 import '../widgets/telemetry_chip.dart';
 
-/// Top-anchored command palette / omnibar dialog with live grouped search.
+class _OmnibarItem {
+  final String category;
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String? badge;
+  final Color? badgeColor;
+  final VoidCallback onTap;
+
+  const _OmnibarItem({
+    required this.category,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.badge,
+    this.badgeColor,
+    required this.onTap,
+  });
+}
+
+/// Top-anchored command palette / omnibar dialog with live grouped search
+/// and full arrow-key and Enter keyboard navigation.
 class OmnibarDialog extends StatefulWidget {
   const OmnibarDialog({
     super.key,
@@ -40,72 +62,161 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
   String _query = '';
+  int _selectedIndex = 0;
 
   List<Task> _tasks = [];
   List<Habit> _habits = [];
   List<Note> _notes = [];
   List<Project> _projects = [];
 
+  StreamSubscription<List<Task>>? _tasksSub;
+  StreamSubscription<List<Habit>>? _habitsSub;
+  StreamSubscription<List<Note>>? _notesSub;
+  StreamSubscription<List<Project>>? _projectsSub;
+
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    _subscribeToLiveStreams();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _focusNode.dispose();
+    _tasksSub?.cancel();
+    _habitsSub?.cancel();
+    _notesSub?.cancel();
+    _projectsSub?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadInitialData() async {
-    final tasks = await TaskRepository().watchTasks().first;
-    final habits = await HabitRepository().watchHabits().first;
-    final notes = await NoteRepository().watchNotes().first;
-    final projects = await ProjectRepository().watchProjects().first;
+  void _subscribeToLiveStreams() {
+    _tasksSub = TaskRepository().watchTasks().listen((tasks) {
+      if (mounted) setState(() => _tasks = tasks);
+    });
+    _habitsSub = HabitRepository().watchHabits().listen((habits) {
+      if (mounted) setState(() => _habits = habits);
+    });
+    _notesSub = NoteRepository().watchNotes().listen((notes) {
+      if (mounted) setState(() => _notes = notes);
+    });
+    _projectsSub = ProjectRepository().watchProjects().listen((projects) {
+      if (mounted) setState(() => _projects = projects);
+    });
+  }
 
-    if (mounted) {
-      setState(() {
-        _tasks = tasks;
-        _habits = habits;
-        _notes = notes;
-        _projects = projects;
-      });
+  List<_OmnibarItem> _buildItemList(String q) {
+    final items = <_OmnibarItem>[];
+
+    // Tasks
+    final matchingTasks = q.isEmpty
+        ? _tasks.take(4).toList()
+        : _tasks.where((t) => t.title.toLowerCase().contains(q)).take(5).toList();
+    for (final t in matchingTasks) {
+      items.add(_OmnibarItem(
+        category: 'TASKS',
+        icon: Icons.check_circle_outline_rounded,
+        title: t.title,
+        badge: t.priority == 1 ? 'P1' : null,
+        badgeColor: AxisColors.priorityHigh,
+        onTap: () {
+          Navigator.of(context).pop();
+          widget.onNavigateToTab(1); // Projects & Tasks
+        },
+      ));
     }
+
+    // Projects
+    final matchingProjects = q.isEmpty
+        ? _projects.take(2).toList()
+        : _projects.where((p) => p.name.toLowerCase().contains(q)).take(3).toList();
+    for (final p in matchingProjects) {
+      items.add(_OmnibarItem(
+        category: 'PROJECTS',
+        icon: Icons.folder_outlined,
+        title: p.name,
+        subtitle: 'Project Workspace',
+        onTap: () {
+          Navigator.of(context).pop();
+          widget.onNavigateToTab(1); // Projects & Tasks
+        },
+      ));
+    }
+
+    // Habits
+    final matchingHabits = q.isEmpty
+        ? _habits.take(3).toList()
+        : _habits.where((h) => h.name.toLowerCase().contains(q)).take(4).toList();
+    for (final h in matchingHabits) {
+      items.add(_OmnibarItem(
+        category: 'HABITS',
+        icon: Icons.track_changes_rounded,
+        title: h.name,
+        subtitle: '${h.streakDays}d streak',
+        onTap: () {
+          Navigator.of(context).pop();
+          widget.onNavigateToTab(2); // Prayer & Habits
+        },
+      ));
+    }
+
+    // Notes & Vault
+    final matchingNotes = q.isEmpty
+        ? _notes.take(3).toList()
+        : _notes.where((n) => n.title.toLowerCase().contains(q) || n.bodyMd.toLowerCase().contains(q)).take(4).toList();
+    for (final n in matchingNotes) {
+      items.add(_OmnibarItem(
+        category: 'NOTES & VAULT',
+        icon: Icons.description_outlined,
+        title: n.title.isEmpty ? 'Untitled Note' : n.title,
+        subtitle: n.category,
+        onTap: () {
+          Navigator.of(context).pop();
+          widget.onNavigateToTab(3); // Journal & Vault
+        },
+      ));
+    }
+
+    return items;
   }
 
   @override
   Widget build(BuildContext context) {
     final q = _query.trim().toLowerCase();
+    final items = _buildItemList(q);
 
-    final matchingTasks = q.isEmpty
-        ? _tasks.take(4).toList()
-        : _tasks.where((t) => t.title.toLowerCase().contains(q)).take(5).toList();
-
-    final matchingHabits = q.isEmpty
-        ? _habits.take(3).toList()
-        : _habits.where((h) => h.name.toLowerCase().contains(q)).take(4).toList();
-
-    final matchingNotes = q.isEmpty
-        ? _notes.take(3).toList()
-        : _notes.where((n) => n.title.toLowerCase().contains(q) || n.bodyMd.toLowerCase().contains(q)).take(4).toList();
-
-    final matchingProjects = q.isEmpty
-        ? _projects.take(2).toList()
-        : _projects.where((p) => p.name.toLowerCase().contains(q)).take(3).toList();
-
-    final hasResults = matchingTasks.isNotEmpty ||
-        matchingHabits.isNotEmpty ||
-        matchingNotes.isNotEmpty ||
-        matchingProjects.isNotEmpty;
+    // Keep selected index within bounds
+    if (items.isNotEmpty && _selectedIndex >= items.length) {
+      _selectedIndex = items.length - 1;
+    }
 
     return Focus(
       autofocus: true,
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
-          Navigator.of(context).pop();
-          return KeyEventResult.handled;
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.of(context).pop();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.arrowDown && items.isNotEmpty) {
+            setState(() {
+              _selectedIndex = (_selectedIndex + 1) % items.length;
+            });
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.arrowUp && items.isNotEmpty) {
+            setState(() {
+              _selectedIndex = (_selectedIndex - 1 + items.length) % items.length;
+            });
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.enter && items.isNotEmpty) {
+            if (_selectedIndex >= 0 && _selectedIndex < items.length) {
+              items[_selectedIndex].onTap();
+              return KeyEventResult.handled;
+            }
+          }
         }
         return KeyEventResult.ignored;
       },
@@ -117,7 +228,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
             color: Colors.transparent,
             child: Container(
               width: 640,
-              constraints: const BoxConstraints(maxHeight: 520),
+              constraints: const BoxConstraints(maxHeight: 540),
               decoration: BoxDecoration(
                 color: AxisColors.canvasBase,
                 borderRadius: BorderRadius.circular(12),
@@ -161,7 +272,12 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                             controller: _searchController,
                             focusNode: _focusNode,
                             autofocus: true,
-                            onChanged: (val) => setState(() => _query = val),
+                            onChanged: (val) {
+                              setState(() {
+                                _query = val;
+                                _selectedIndex = 0;
+                              });
+                            },
                             style: GoogleFonts.getFont(
                               'Geist',
                               fontSize: 14,
@@ -184,10 +300,12 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                           IconButton(
                             icon: const Icon(Icons.clear_rounded, size: 16),
                             color: AxisColors.textDim,
-                            splashRadius: 16,
                             onPressed: () {
                               _searchController.clear();
-                              setState(() => _query = '');
+                              setState(() {
+                                _query = '';
+                                _selectedIndex = 0;
+                              });
                             },
                           ),
                         const TelemetryChip(
@@ -201,73 +319,40 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
 
                   // Results list
                   Flexible(
-                    child: hasResults
-                        ? ListView(
+                    child: items.isNotEmpty
+                        ? ListView.builder(
                             shrinkWrap: true,
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            children: [
-                              if (matchingTasks.isNotEmpty) ...[
-                                const SectionHeader(
-                                  title: 'TASKS',
-                                  padding: EdgeInsets.only(top: 6, bottom: 6),
-                                ),
-                                ...matchingTasks.map((t) => _buildItemRow(
-                                      icon: Icons.check_circle_outline_rounded,
-                                      title: t.title,
-                                      badge: t.priority == 1 ? 'P1' : null,
-                                      badgeColor: AxisColors.priorityHigh,
-                                      onTap: () {
-                                        Navigator.of(context).pop();
-                                        widget.onNavigateToTab(1); // Projects & Tasks
-                                      },
-                                    )),
-                              ],
-                              if (matchingProjects.isNotEmpty) ...[
-                                const SectionHeader(
-                                  title: 'PROJECTS',
-                                  padding: EdgeInsets.only(top: 10, bottom: 6),
-                                ),
-                                ...matchingProjects.map((p) => _buildItemRow(
-                                      icon: Icons.folder_outlined,
-                                      title: p.name,
-                                      subtitle: 'Project Workspace',
-                                      onTap: () {
-                                        Navigator.of(context).pop();
-                                        widget.onNavigateToTab(1); // Projects & Tasks
-                                      },
-                                    )),
-                              ],
-                              if (matchingHabits.isNotEmpty) ...[
-                                const SectionHeader(
-                                  title: 'HABITS',
-                                  padding: EdgeInsets.only(top: 10, bottom: 6),
-                                ),
-                                ...matchingHabits.map((h) => _buildItemRow(
-                                      icon: Icons.track_changes_rounded,
-                                      title: h.name,
-                                      subtitle: '${h.streakDays}d streak',
-                                      onTap: () {
-                                        Navigator.of(context).pop();
-                                        widget.onNavigateToTab(2); // Prayer & Habits
-                                      },
-                                    )),
-                              ],
-                              if (matchingNotes.isNotEmpty) ...[
-                                const SectionHeader(
-                                  title: 'NOTES & VAULT',
-                                  padding: EdgeInsets.only(top: 10, bottom: 6),
-                                ),
-                                ...matchingNotes.map((n) => _buildItemRow(
-                                      icon: Icons.description_outlined,
-                                      title: n.title.isEmpty ? 'Untitled Note' : n.title,
-                                      subtitle: n.category,
-                                      onTap: () {
-                                        Navigator.of(context).pop();
-                                        widget.onNavigateToTab(3); // Journal & Vault
-                                      },
-                                    )),
-                              ],
-                            ],
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              final isFirstInCategory =
+                                  index == 0 || items[index - 1].category != item.category;
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isFirstInCategory)
+                                    SectionHeader(
+                                      title: item.category,
+                                      padding: EdgeInsets.only(
+                                        top: index == 0 ? 4 : 12,
+                                        bottom: 6,
+                                      ),
+                                    ),
+                                  _SearchItemRow(
+                                    icon: item.icon,
+                                    title: item.title,
+                                    subtitle: item.subtitle,
+                                    badge: item.badge,
+                                    badgeColor: item.badgeColor,
+                                    isSelected: index == _selectedIndex,
+                                    onTap: item.onTap,
+                                  ),
+                                ],
+                              );
+                            },
                           )
                         : Padding(
                             padding: const EdgeInsets.symmetric(vertical: 36.0),
@@ -283,30 +368,71 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                             ),
                           ),
                   ),
+
+                  // Keyboard Navigation Footer
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          color: AxisColors.borderSubtle,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Navigate',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 10,
+                            color: AxisColors.textDim,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const TelemetryChip(
+                          label: '↑ ↓',
+                          color: AxisColors.textDim,
+                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Open',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 10,
+                            color: AxisColors.textDim,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const TelemetryChip(
+                          label: '↵',
+                          color: AxisColors.textDim,
+                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Close',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 10,
+                            color: AxisColors.textDim,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const TelemetryChip(
+                          label: 'ESC',
+                          color: AxisColors.textDim,
+                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildItemRow({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    String? badge,
-    Color? badgeColor,
-    required VoidCallback onTap,
-  }) {
-    return _SearchItemRow(
-      icon: icon,
-      title: title,
-      subtitle: subtitle,
-      badge: badge,
-      badgeColor: badgeColor,
-      onTap: onTap,
     );
   }
 }
@@ -318,6 +444,7 @@ class _SearchItemRow extends StatefulWidget {
     this.subtitle,
     this.badge,
     this.badgeColor,
+    required this.isSelected,
     required this.onTap,
   });
 
@@ -326,6 +453,7 @@ class _SearchItemRow extends StatefulWidget {
   final String? subtitle;
   final String? badge;
   final Color? badgeColor;
+  final bool isSelected;
   final VoidCallback onTap;
 
   @override
@@ -337,6 +465,8 @@ class _SearchItemRowState extends State<_SearchItemRow> {
 
   @override
   Widget build(BuildContext context) {
+    final active = widget.isSelected || _isHovered;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: MouseRegion(
@@ -348,15 +478,19 @@ class _SearchItemRowState extends State<_SearchItemRow> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: _isHovered ? AxisColors.surfaceHigh.withValues(alpha: 0.6) : Colors.transparent,
+              color: active ? AxisColors.surfaceHigh.withValues(alpha: 0.6) : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: widget.isSelected ? AxisColors.secondary.withValues(alpha: 0.4) : Colors.transparent,
+                width: 1,
+              ),
             ),
             child: Row(
               children: [
                 Icon(
                   widget.icon,
                   size: 16,
-                  color: _isHovered ? AxisColors.secondary : AxisColors.textMuted,
+                  color: active ? AxisColors.secondary : AxisColors.textMuted,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -368,7 +502,7 @@ class _SearchItemRowState extends State<_SearchItemRow> {
                       'Geist',
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: _isHovered ? AxisColors.textHigh : AxisColors.textMuted,
+                      color: active ? AxisColors.textHigh : AxisColors.textMuted,
                     ),
                   ),
                 ),

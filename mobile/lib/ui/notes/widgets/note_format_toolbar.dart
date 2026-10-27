@@ -1,19 +1,21 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 
-/// Formatting toolbar providing one-tap insertion of markdown & markup:
-/// Ordered lists, bullet points, checklists, headings, bold, italic, quotes, code, and timestamp logs.
+/// Formatting toolbar providing one-tap insertion of comprehensive markdown & markup tools:
+/// Bold, Italic, Strikethrough, Headings (H1, H2, H3), Ordered lists, Bullet points, Checklists,
+/// Blockquotes, Inline Code, Code Blocks, Links, Horizontal Dividers, Tables, and Timestamp event logs.
 class NoteFormatToolbar extends StatelessWidget {
   const NoteFormatToolbar({
     super.key,
     required this.controller,
-    required this.focusNode,
+    this.focusNode,
     this.onChanged,
   });
 
   final TextEditingController controller;
-  final FocusNode focusNode;
+  final FocusNode? focusNode;
   final VoidCallback? onChanged;
 
   void _applyFormat(String prefix, [String suffix = '']) {
@@ -43,7 +45,7 @@ class NoteFormatToolbar extends StatelessWidget {
       selection: TextSelection.collapsed(offset: newCursorPos),
     );
 
-    focusNode.requestFocus();
+    focusNode?.requestFocus();
     onChanged?.call();
   }
 
@@ -84,7 +86,94 @@ class NoteFormatToolbar extends StatelessWidget {
       selection: TextSelection.collapsed(offset: newCursorPos),
     );
 
-    focusNode.requestFocus();
+    focusNode?.requestFocus();
+    onChanged?.call();
+  }
+
+  void _insertCodeBlock() {
+    final text = controller.text;
+    final selection = controller.selection;
+    int start = selection.start;
+    int end = selection.end;
+    if (start < 0 || end < 0) {
+      start = text.length;
+      end = text.length;
+    }
+    final selectedText = text.substring(start, end);
+    const prefix = '```\n';
+    const suffix = '\n```';
+    final inner = selectedText.isEmpty ? 'code' : selectedText;
+    final replacement = '$prefix$inner$suffix';
+    final newText = text.replaceRange(start, end, replacement);
+    final cursorPos = start + prefix.length + inner.length;
+
+    controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursorPos.clamp(0, newText.length)),
+    );
+    focusNode?.requestFocus();
+    onChanged?.call();
+  }
+
+  void _insertLink() {
+    final text = controller.text;
+    final selection = controller.selection;
+    int start = selection.start;
+    int end = selection.end;
+    if (start < 0 || end < 0) {
+      start = text.length;
+      end = text.length;
+    }
+    final selectedText = text.substring(start, end);
+    final title = selectedText.isEmpty ? 'link text' : selectedText;
+    final replacement = '[$title](https://)';
+    final newText = text.replaceRange(start, end, replacement);
+    final urlStart = start + title.length + 3; // right after [title](
+    final urlEnd = start + replacement.length - 1;
+
+    controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection(baseOffset: urlStart, extentOffset: urlEnd),
+    );
+    focusNode?.requestFocus();
+    onChanged?.call();
+  }
+
+  void _insertHorizontalRule() {
+    final text = controller.text;
+    final selection = controller.selection;
+    int start = selection.start;
+    if (start < 0 || start > text.length) start = text.length;
+    final needsLeadingNewline = start > 0 && text[start - 1] != '\n';
+    final snippet = '${needsLeadingNewline ? '\n' : ''}\n---\n\n';
+    final newText = text.replaceRange(start, start, snippet);
+    final cursorPos = start + snippet.length;
+
+    controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursorPos.clamp(0, newText.length)),
+    );
+    focusNode?.requestFocus();
+    onChanged?.call();
+  }
+
+  void _insertTable() {
+    final text = controller.text;
+    final selection = controller.selection;
+    int start = selection.start;
+    if (start < 0 || start > text.length) start = text.length;
+    final needsLeadingNewline = start > 0 && text[start - 1] != '\n';
+    const tableTemplate =
+        '| Header 1 | Header 2 |\n| --- | --- |\n| Item 1 | Item 2 |\n';
+    final snippet = '${needsLeadingNewline ? '\n' : ''}\n$tableTemplate';
+    final newText = text.replaceRange(start, start, snippet);
+    final cursorPos = start + snippet.length;
+
+    controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursorPos.clamp(0, newText.length)),
+    );
+    focusNode?.requestFocus();
     onChanged?.call();
   }
 
@@ -103,90 +192,148 @@ class NoteFormatToolbar extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AxisColors.borderSubtle),
       ),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        children: [
-          // Bold
-          _ToolbarItem(
-            tooltip: 'Bold (**text**)',
-            label: 'B',
-            isBold: true,
-            onTap: () => _applyFormat('**', '**'),
-          ),
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+            PointerDeviceKind.stylus,
+          },
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+            // Bold
+            _ToolbarItem(
+              tooltip: 'Bold (**text**)',
+              label: 'B',
+              isBold: true,
+              onTap: () => _applyFormat('**', '**'),
+            ),
 
-          // Italic
-          _ToolbarItem(
-            tooltip: 'Italic (*text*)',
-            label: 'I',
-            isItalic: true,
-            onTap: () => _applyFormat('*', '*'),
-          ),
+            // Italic
+            _ToolbarItem(
+              tooltip: 'Italic (*text*)',
+              label: 'I',
+              isItalic: true,
+              onTap: () => _applyFormat('*', '*'),
+            ),
 
-          const _ToolbarDivider(),
+            // Strikethrough
+            _ToolbarItem(
+              tooltip: 'Strikethrough (~~text~~)',
+              icon: Icons.format_strikethrough_rounded,
+              onTap: () => _applyFormat('~~', '~~'),
+            ),
 
-          // Heading 2
-          _ToolbarItem(
-            tooltip: 'Heading 2 (## Title)',
-            label: 'H2',
-            isBold: true,
-            onTap: () => _insertLinePrefix('## '),
-          ),
+            const _ToolbarDivider(),
 
-          // Heading 3
-          _ToolbarItem(
-            tooltip: 'Heading 3 (### Subtitle)',
-            label: 'H3',
-            onTap: () => _insertLinePrefix('### '),
-          ),
+            // Heading 1
+            _ToolbarItem(
+              tooltip: 'Heading 1 (# Title)',
+              label: 'H1',
+              isBold: true,
+              onTap: () => _insertLinePrefix('# '),
+            ),
 
-          const _ToolbarDivider(),
+            // Heading 2
+            _ToolbarItem(
+              tooltip: 'Heading 2 (## Section)',
+              label: 'H2',
+              isBold: true,
+              onTap: () => _insertLinePrefix('## '),
+            ),
 
-          // Ordered list (1., 2.)
-          _ToolbarItem(
-            tooltip: 'Numbered List (1. Item)',
-            icon: Icons.format_list_numbered_rounded,
-            onTap: () => _insertLinePrefix('1. '),
-          ),
+            // Heading 3
+            _ToolbarItem(
+              tooltip: 'Heading 3 (### Subtitle)',
+              label: 'H3',
+              onTap: () => _insertLinePrefix('### '),
+            ),
 
-          // Bullet points / unordered list (•)
-          _ToolbarItem(
-            tooltip: 'Bullet Points (- Item)',
-            icon: Icons.format_list_bulleted_rounded,
-            onTap: () => _insertLinePrefix('- '),
-          ),
+            const _ToolbarDivider(),
 
-          // Checklist
-          _ToolbarItem(
-            tooltip: 'Checklist (- [ ] Item)',
-            icon: Icons.check_box_outlined,
-            onTap: () => _insertLinePrefix('- [ ] '),
-          ),
+            // Ordered list (1., 2.)
+            _ToolbarItem(
+              tooltip: 'Numbered List (1. Item)',
+              icon: Icons.format_list_numbered_rounded,
+              onTap: () => _insertLinePrefix('1. '),
+            ),
 
-          const _ToolbarDivider(),
+            // Bullet points / unordered list (•)
+            _ToolbarItem(
+              tooltip: 'Bullet Points (- Item)',
+              icon: Icons.format_list_bulleted_rounded,
+              onTap: () => _insertLinePrefix('- '),
+            ),
 
-          // Quote
-          _ToolbarItem(
-            tooltip: 'Quote (> Note)',
-            icon: Icons.format_quote_rounded,
-            onTap: () => _insertLinePrefix('> '),
-          ),
+            // Checklist
+            _ToolbarItem(
+              tooltip: 'Checklist (- [ ] Task)',
+              icon: Icons.check_box_outlined,
+              onTap: () => _insertLinePrefix('- [ ] '),
+            ),
 
-          // Code
-          _ToolbarItem(
-            tooltip: 'Inline Code (`code`)',
-            icon: Icons.code_rounded,
-            onTap: () => _applyFormat('`', '`'),
-          ),
+            const _ToolbarDivider(),
 
-          // Timestamp Event Log (Great for Daily Journal)
-          _ToolbarItem(
-            tooltip: 'Log Event Time (**HH:mm** - )',
-            icon: Icons.schedule_rounded,
-            accentColor: AxisColors.secondary,
-            onTap: _insertTimeLog,
-          ),
-        ],
+            // Quote
+            _ToolbarItem(
+              tooltip: 'Quote (> Note)',
+              icon: Icons.format_quote_rounded,
+              onTap: () => _insertLinePrefix('> '),
+            ),
+
+            // Inline Code
+            _ToolbarItem(
+              tooltip: 'Inline Code (`code`)',
+              icon: Icons.code_rounded,
+              onTap: () => _applyFormat('`', '`'),
+            ),
+
+            // Code Block
+            _ToolbarItem(
+              tooltip: 'Code Block (```)',
+              icon: Icons.data_object_rounded,
+              onTap: _insertCodeBlock,
+            ),
+
+            // Link
+            _ToolbarItem(
+              tooltip: 'Link ([text](url))',
+              icon: Icons.link_rounded,
+              onTap: _insertLink,
+            ),
+
+            // Horizontal Rule / Divider
+            _ToolbarItem(
+              tooltip: 'Divider Line (---)',
+              icon: Icons.horizontal_rule_rounded,
+              onTap: _insertHorizontalRule,
+            ),
+
+            // Table
+            _ToolbarItem(
+              tooltip: 'Markdown Table',
+              icon: Icons.table_chart_outlined,
+              onTap: _insertTable,
+            ),
+
+            const _ToolbarDivider(),
+
+            // Timestamp Event Log (Great for Daily Journal)
+            _ToolbarItem(
+              tooltip: 'Log Event Time (**HH:mm** - )',
+              icon: Icons.schedule_rounded,
+              accentColor: AxisColors.secondary,
+              onTap: _insertTimeLog,
+            ),
+          ],
+        ),
+      ),
       ),
     );
   }

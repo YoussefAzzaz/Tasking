@@ -115,6 +115,14 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                   isSelected: widget.selectedTab == 4,
                   onTap: () => widget.onSelectTab(4),
                 ),
+                _NavItem(
+                  index: 5,
+                  label: 'Profile & Settings',
+                  shortcut: 'Ctrl + 6',
+                  icon: Icons.manage_accounts_rounded,
+                  isSelected: widget.selectedTab == 5,
+                  onTap: () => widget.onSelectTab(5),
+                ),
               ],
             ),
           ),
@@ -214,7 +222,6 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                       size: 18,
                       color: AxisColors.textMuted,
                     ),
-                    splashRadius: 18,
                     tooltip: 'Profile & Settings',
                     onPressed: () => widget.onSelectTab(5),
                   ),
@@ -235,17 +242,20 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
         errorBuilder: (_, _, _) => _avatarFallback(),
       );
     }
-    try {
-      final file = File(url);
-      if (file.existsSync()) {
-        return Image.file(
-          file,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _avatarFallback(),
-        );
-      }
-    } catch (_) {}
-    return _avatarFallback();
+    // Use async file existence check to avoid blocking the UI isolate
+    return FutureBuilder<bool>(
+      future: File(url).exists(),
+      builder: (context, snapshot) {
+        if (snapshot.data == true) {
+          return Image.file(
+            File(url),
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _avatarFallback(),
+          );
+        }
+        return _avatarFallback();
+      },
+    );
   }
 
   Widget _avatarFallback() {

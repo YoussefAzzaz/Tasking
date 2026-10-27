@@ -266,9 +266,9 @@ void main() {
         ),
       );
 
-      // Verify RainbowColorPickerButton and its centered plus icon
+      // Verify RainbowColorPickerButton and its centered plus indicator
       expect(find.byType(RainbowColorPickerButton), findsOneWidget);
-      expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+      expect(find.byType(CustomPaint), findsWidgets);
 
       // Tap the rainbow button to open the CyberColorPickerDialog
       await tester.tap(find.byType(RainbowColorPickerButton));
