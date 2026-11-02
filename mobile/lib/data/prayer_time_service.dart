@@ -8,6 +8,7 @@ import 'package:axis/data/location_service.dart';
 import 'package:axis/data/qibla_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/stats_repository.dart';
+import 'package:axis/data/friend_repository.dart';
 import 'package:axis/domain/id_generator.dart';
 
 /// Database representation of a prayer from the dedicated `prayers` table.
@@ -773,6 +774,7 @@ class PrayerTimeService with WidgetsBindingObserver {
       StatsRepository().invalidateStats();
       await syncGlobalUserLevel();
       AppWidgetSyncService().syncHabitStreak();
+      unawaited(FriendRepository().syncMyDailyPrayerStatus());
     } catch (e) {
       debugPrint('[PrayerTimeService] Error toggling prayer: $e');
     }

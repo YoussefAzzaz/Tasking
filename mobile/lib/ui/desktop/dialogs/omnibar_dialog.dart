@@ -96,7 +96,8 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
       if (mounted) setState(() => _tasks = tasks);
     });
     _habitsSub = HabitRepository().watchHabits().listen((habits) {
-      if (mounted) setState(() => _habits = habits);
+      final sorted = List<Habit>.from(habits)..sort(HabitRepository.compareByTime);
+      if (mounted) setState(() => _habits = sorted);
     });
     _notesSub = NoteRepository().watchNotes().listen((notes) {
       if (mounted) setState(() => _notes = notes);
@@ -153,7 +154,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
         category: 'HABITS',
         icon: Icons.track_changes_rounded,
         title: h.name,
-        subtitle: '${h.streakDays}d streak',
+        subtitle: '${h.remindTime != null && h.remindTime!.trim().isNotEmpty ? "${h.remindTime} · " : ""}${h.streakDays}d streak',
         onTap: () {
           Navigator.of(context).pop();
           widget.onNavigateToTab(2); // Prayer & Habits

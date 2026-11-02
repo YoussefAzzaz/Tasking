@@ -167,12 +167,12 @@ class _AxisHeaderState extends State<AxisHeader> {
           ),
           const Spacer(),
           const SizedBox(width: 6),
-          // FOCUS button pill with accessible 44px touch target
+          // FRIENDS button pill with accessible 44px touch target
           Semantics(
             button: true,
-            label: 'Open Focus Mode',
+            label: 'Open Friends & Companions',
             child: InkWell(
-              onTap: () => context.push('/focus'),
+              onTap: () => context.push('/friends'),
               borderRadius: BorderRadius.circular(9999),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 44),
@@ -193,10 +193,10 @@ class _AxisHeaderState extends State<AxisHeader> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.timer_outlined, color: AxisColors.primarySoft, size: 14),
+                        const Icon(Icons.people_alt_rounded, color: AxisColors.primarySoft, size: 14),
                         const SizedBox(width: 4),
                         Text(
-                          'FOCUS',
+                          'FRIENDS',
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                 color: AxisColors.primarySoft,
                                 fontWeight: FontWeight.bold,

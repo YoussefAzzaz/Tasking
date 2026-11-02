@@ -6,6 +6,7 @@ import 'package:axis/ui/desktop/screens/command_deck_screen.dart';
 import 'package:axis/ui/desktop/screens/prayer_habits_screen.dart';
 import 'package:axis/ui/desktop/screens/projects_tasks_screen.dart';
 import 'package:axis/ui/desktop/screens/focus_timers_screen.dart';
+import 'package:axis/ui/desktop/screens/friends_accountability_screen.dart';
 import 'package:axis/ui/desktop/screens/journal_vault_screen.dart';
 import 'package:axis/ui/desktop/screens/profile_settings_screen.dart';
 import 'package:axis/ui/desktop/widgets/accent_button.dart';
@@ -74,6 +75,7 @@ void main() {
       expect(find.text('Prayer & Habits'), findsOneWidget);
       expect(find.text('Journal & Vault'), findsOneWidget);
       expect(find.text('Focus Timers'), findsOneWidget);
+      expect(find.text('Companions'), findsOneWidget);
       expect(find.text('Profile & Settings'), findsOneWidget);
 
       // Log Out button replaces vault integrity footer
@@ -111,6 +113,11 @@ void main() {
       await tester.tap(find.text('Focus Timers'));
       await tester.pumpAndSettle();
       expect(find.byType(FocusTimersScreen), findsOneWidget);
+
+      // Tab 5: Companions & Friends
+      await tester.tap(find.text('Companions'));
+      await tester.pumpAndSettle();
+      expect(find.byType(FriendsAccountabilityScreen), findsOneWidget);
 
       // Settings button next to profile: Profile & Settings Screen
       await tester.tap(find.byIcon(Icons.settings_outlined));

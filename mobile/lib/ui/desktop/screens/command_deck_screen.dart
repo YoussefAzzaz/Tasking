@@ -1123,7 +1123,8 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklis
                 return StreamBuilder<List<Habit>>(
                   stream: HabitRepository().watchHabits(),
                   builder: (context, snapshot) {
-                    final habits = (snapshot.data ?? []).take(4).toList();
+                    final rawHabits = List<Habit>.from(snapshot.data ?? [])..sort(HabitRepository.compareByTime);
+                    final habits = rawHabits.take(4).toList();
                     if (habits.isEmpty) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -1207,7 +1208,7 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklis
                                           const SizedBox(width: 4),
                                           Expanded(
                                             child: Text(
-                                              '${h.streakDays}d streak · ${h.category.isNotEmpty ? h.category : "General"}',
+                                              '${h.streakDays}d streak · ${h.category.isNotEmpty ? h.category : "General"}${h.remindTime != null && h.remindTime!.trim().isNotEmpty ? " · ${h.remindTime}" : ""}',
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: GoogleFonts.spaceGrotesk(

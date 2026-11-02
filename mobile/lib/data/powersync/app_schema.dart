@@ -232,11 +232,64 @@ final appSchema = Schema([
       Column.text('avatar_url'),
       Column.integer('total_xp'),
       Column.integer('level'),
+      Column.text('friend_code'),
       Column.text('created_at'),
       Column.text('updated_at'),
     ],
     indexes: [
       Index('user_id', [IndexedColumn.ascending('user_id')]),
+      Index('friend_code', [IndexedColumn.ascending('friend_code')]),
+    ],
+  ),
+  const Table(
+    'friendships',
+    [
+      Column.text('requester_id'),
+      Column.text('addressee_id'),
+      Column.text('status'), // 'pending', 'accepted', 'blocked'
+      Column.text('created_at'),
+      Column.text('updated_at'),
+    ],
+    indexes: [
+      Index('requester_id', [IndexedColumn.ascending('requester_id')]),
+      Index('addressee_id', [IndexedColumn.ascending('addressee_id')]),
+      Index('status', [IndexedColumn.ascending('status')]),
+    ],
+  ),
+  const Table(
+    'daily_prayer_status',
+    [
+      Column.text('user_id'),
+      Column.text('date'),
+      Column.integer('fajr'),
+      Column.integer('dhuhr'),
+      Column.integer('asr'),
+      Column.integer('maghrib'),
+      Column.integer('isha'),
+      Column.integer('streak_days'),
+      Column.integer('habits_done'),
+      Column.integer('habits_total'),
+      Column.text('created_at'),
+      Column.text('updated_at'),
+    ],
+    indexes: [
+      Index('user_id', [IndexedColumn.ascending('user_id')]),
+      Index('date', [IndexedColumn.ascending('date')]),
+      Index('user_date', [IndexedColumn.ascending('user_id'), IndexedColumn.ascending('date')]),
+    ],
+  ),
+  const Table(
+    'friend_activity_logs',
+    [
+      Column.text('user_id'),
+      Column.text('event_type'),
+      Column.text('title'),
+      Column.text('metadata'), // JSON string
+      Column.text('created_at'),
+    ],
+    indexes: [
+      Index('user_id', [IndexedColumn.ascending('user_id')]),
+      Index('created_at', [IndexedColumn.descending('created_at')]),
     ],
   ),
 ]);

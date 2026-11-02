@@ -12,6 +12,7 @@ class UserProfile {
   final String? avatarUrl;
   final int totalXp;
   final int level;
+  final String? friendCode;
 
   const UserProfile({
     this.name = 'Commander',
@@ -20,6 +21,7 @@ class UserProfile {
     this.avatarUrl,
     this.totalXp = 0,
     this.level = 1,
+    this.friendCode,
   });
 
   UserProfile copyWith({
@@ -30,6 +32,7 @@ class UserProfile {
     bool clearAvatarUrl = false,
     int? totalXp,
     int? level,
+    String? friendCode,
   }) {
     return UserProfile(
       name: name ?? this.name,
@@ -38,6 +41,7 @@ class UserProfile {
       avatarUrl: clearAvatarUrl ? null : (avatarUrl ?? this.avatarUrl),
       totalXp: totalXp ?? this.totalXp,
       level: level ?? this.level,
+      friendCode: friendCode ?? this.friendCode,
     );
   }
 }
@@ -86,8 +90,8 @@ class UserProfileRepository {
     try {
       final uid = currentUserId;
       final query = (uid.isNotEmpty && uid != 'local_guest')
-          ? 'SELECT id, name, title, avatar_color, avatar_url, total_xp, level FROM user_profiles WHERE user_id = ? LIMIT 1'
-          : 'SELECT id, name, title, avatar_color, avatar_url, total_xp, level FROM user_profiles LIMIT 1';
+          ? 'SELECT id, name, title, avatar_color, avatar_url, total_xp, level, friend_code FROM user_profiles WHERE user_id = ? LIMIT 1'
+          : 'SELECT id, name, title, avatar_color, avatar_url, total_xp, level, friend_code FROM user_profiles LIMIT 1';
       final params = (uid.isNotEmpty && uid != 'local_guest') ? [uid] : <dynamic>[];
       final rows = await db.getAll(query, params);
 
@@ -97,6 +101,7 @@ class UserProfileRepository {
       String? avatarUrl;
       int totalXp = 0;
       int level = 1;
+      String? friendCode;
 
       if (rows.isNotEmpty) {
         final r = rows.first;
@@ -106,6 +111,18 @@ class UserProfileRepository {
         avatarUrl = r['avatar_url'] as String?;
         totalXp = (r['total_xp'] as num?)?.toInt() ?? 0;
         level = (r['level'] as num?)?.toInt() ?? 1;
+        friendCode = r['friend_code'] as String?;
+      }
+
+      if ((friendCode == null || friendCode.isEmpty) && uid.isNotEmpty) {
+        final hashPart = uid.replaceAll('-', '').toUpperCase();
+        friendCode = 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
+        try {
+          await db.execute(
+            'UPDATE user_profiles SET friend_code = ? WHERE user_id = ?',
+            [friendCode, uid],
+          );
+        } catch (_) {}
       }
 
       // Check Supabase Auth user_metadata (cloud ground truth)
@@ -197,6 +214,7 @@ class UserProfileRepository {
         avatarUrl: avatarUrl,
         totalXp: totalXp,
         level: level,
+        friendCode: friendCode,
       );
     } catch (e) {
       debugPrint('[UserProfileRepository] Error reading profile from db: $e');

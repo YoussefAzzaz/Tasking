@@ -6,6 +6,7 @@ import 'package:axis/ui/habits/habits_screen.dart';
 import 'package:axis/ui/notes/notes_screen.dart';
 import 'package:axis/ui/me/me_screen.dart';
 import 'package:axis/ui/focus/focus_screen.dart';
+import 'package:axis/ui/friends/friends_screen.dart';
 import 'package:axis/ui/common/splash_screen.dart';
 import 'package:axis/ui/auth/auth_screen.dart';
 import 'package:axis/data/auth_service.dart';
@@ -100,6 +101,10 @@ final router = GoRouter(
     GoRoute(
       path: '/focus',
       builder: (context, state) => const FocusScreen(),
+    ),
+    GoRoute(
+      path: '/friends',
+      builder: (context, state) => const FriendsScreen(),
     ),
     GoRoute(
       path: '/badges',

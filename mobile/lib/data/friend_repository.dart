@@ -1,0 +1,460 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
+import 'package:axis/data/powersync_db.dart';
+import 'package:axis/domain/id_generator.dart';
+import 'package:axis/data/habit_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Data model representing a connected friend or incoming friend request.
+class FriendUser {
+  final String id;
+  final String userId;
+  final String name;
+  final String title;
+  final String avatarColor;
+  final String? avatarUrl;
+  final int totalXp;
+  final int level;
+  final String? friendCode;
+  final String friendshipId;
+  final String status; // 'pending', 'accepted'
+  final bool isRequester;
+
+  const FriendUser({
+    required this.id,
+    required this.userId,
+    required this.name,
+    this.title = 'Specialist',
+    this.avatarColor = '#6366F1',
+    this.avatarUrl,
+    this.totalXp = 0,
+    this.level = 1,
+    this.friendCode,
+    required this.friendshipId,
+    this.status = 'accepted',
+    this.isRequester = false,
+  });
+
+  factory FriendUser.fromRow(Map<String, dynamic> row, String currentUid) {
+    final reqId = row['requester_id'] as String? ?? '';
+    final isReq = reqId == currentUid;
+    return FriendUser(
+      id: (row['profile_id'] as String?) ?? (row['friendship_id'] as String? ?? ''),
+      userId: (row['user_id'] as String?) ?? (isReq ? (row['addressee_id'] as String? ?? '') : reqId),
+      name: (row['name'] as String?)?.trim().isNotEmpty == true ? row['name'] as String : 'Companion',
+      title: (row['title'] as String?) ?? 'Specialist',
+      avatarColor: (row['avatar_color'] as String?) ?? '#6366F1',
+      avatarUrl: row['avatar_url'] as String?,
+      totalXp: (row['total_xp'] as num?)?.toInt() ?? 0,
+      level: (row['level'] as num?)?.toInt() ?? 1,
+      friendCode: row['friend_code'] as String?,
+      friendshipId: (row['friendship_id'] as String?) ?? '',
+      status: (row['status'] as String?) ?? 'accepted',
+      isRequester: isReq,
+    );
+  }
+}
+
+/// Data model for today's 5 prayers and habit progress for a user.
+class DailyPrayerStatus {
+  final String id;
+  final String userId;
+  final String userName;
+  final String userAvatarColor;
+  final String? userAvatarUrl;
+  final String date;
+  final bool fajr;
+  final bool dhuhr;
+  final bool asr;
+  final bool maghrib;
+  final bool isha;
+  final int streakDays;
+  final int habitsDone;
+  final int habitsTotal;
+
+  const DailyPrayerStatus({
+    required this.id,
+    required this.userId,
+    this.userName = 'Companion',
+    this.userAvatarColor = '#6366F1',
+    this.userAvatarUrl,
+    required this.date,
+    this.fajr = false,
+    this.dhuhr = false,
+    this.asr = false,
+    this.maghrib = false,
+    this.isha = false,
+    this.streakDays = 0,
+    this.habitsDone = 0,
+    this.habitsTotal = 0,
+  });
+
+  int get completedCount =>
+      (fajr ? 1 : 0) + (dhuhr ? 1 : 0) + (asr ? 1 : 0) + (maghrib ? 1 : 0) + (isha ? 1 : 0);
+
+  bool isPrayerDone(String prayerCode) {
+    switch (prayerCode.toLowerCase()) {
+      case 'fajr':
+        return fajr;
+      case 'dhuhr':
+        return dhuhr;
+      case 'asr':
+        return asr;
+      case 'maghrib':
+        return maghrib;
+      case 'isha':
+        return isha;
+      default:
+        return false;
+    }
+  }
+
+  factory DailyPrayerStatus.fromRow(Map<String, dynamic> row) {
+    return DailyPrayerStatus(
+      id: row['id'] as String,
+      userId: (row['user_id'] as String?) ?? '',
+      userName: (row['user_name'] as String?) ?? 'Companion',
+      userAvatarColor: (row['avatar_color'] as String?) ?? '#6366F1',
+      userAvatarUrl: row['avatar_url'] as String?,
+      date: (row['date'] as String?) ?? '',
+      fajr: (row['fajr'] as num?)?.toInt() == 1,
+      dhuhr: (row['dhuhr'] as num?)?.toInt() == 1,
+      asr: (row['asr'] as num?)?.toInt() == 1,
+      maghrib: (row['maghrib'] as num?)?.toInt() == 1,
+      isha: (row['isha'] as num?)?.toInt() == 1,
+      streakDays: (row['streak_days'] as num?)?.toInt() ?? 0,
+      habitsDone: (row['habits_done'] as num?)?.toInt() ?? 0,
+      habitsTotal: (row['habits_total'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// Lightweight activity event to inspire mutual consistency.
+class FriendActivityLog {
+  final String id;
+  final String userId;
+  final String userName;
+  final String userAvatarColor;
+  final String eventType;
+  final String title;
+  final String createdAt;
+
+  const FriendActivityLog({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.userAvatarColor,
+    required this.eventType,
+    required this.title,
+    required this.createdAt,
+  });
+
+  factory FriendActivityLog.fromRow(Map<String, dynamic> row) {
+    return FriendActivityLog(
+      id: row['id'] as String,
+      userId: (row['user_id'] as String?) ?? '',
+      userName: (row['user_name'] as String?) ?? 'Companion',
+      userAvatarColor: (row['avatar_color'] as String?) ?? '#6366F1',
+      eventType: (row['event_type'] as String?) ?? 'prayer_done',
+      title: (row['title'] as String?) ?? '',
+      createdAt: (row['created_at'] as String?) ?? '',
+    );
+  }
+}
+
+/// Centralized repository handling friendships, daily prayer checklists,
+/// and gentle mutual accountability across mobile and desktop.
+class FriendRepository {
+  static final FriendRepository _instance = FriendRepository._internal();
+  factory FriendRepository() => _instance;
+  FriendRepository._internal();
+
+  SupabaseClient? get _supabaseClient {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Watches all accepted friends with their profiles and current levels.
+  Stream<List<FriendUser>> watchAcceptedFriends() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const []);
+    }
+
+    final uid = currentUserId;
+    if (uid.isEmpty) return Stream.value(const []);
+
+    const query = '''
+      SELECT 
+        f.id AS friendship_id,
+        f.requester_id,
+        f.addressee_id,
+        f.status,
+        p.id AS profile_id,
+        p.user_id,
+        COALESCE(p.name, 'Companion') AS name,
+        COALESCE(p.title, 'Specialist') AS title,
+        COALESCE(p.avatar_color, '#6366F1') AS avatar_color,
+        p.avatar_url,
+        COALESCE(p.total_xp, 0) AS total_xp,
+        COALESCE(p.level, 1) AS level,
+        p.friend_code
+      FROM friendships f
+      LEFT JOIN user_profiles p ON p.user_id = CASE WHEN f.requester_id = ? THEN f.addressee_id ELSE f.requester_id END
+      WHERE (f.requester_id = ? OR f.addressee_id = ?) AND f.status = 'accepted'
+      ORDER BY p.total_xp DESC
+    ''';
+
+    return db.watch(query, parameters: [uid, uid, uid]).map((rows) {
+      return rows.map((r) => FriendUser.fromRow(r, uid)).toList();
+    });
+  }
+
+  /// Watches pending incoming friend requests for the current user.
+  Stream<List<FriendUser>> watchPendingRequests() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const []);
+    }
+
+    final uid = currentUserId;
+    if (uid.isEmpty) return Stream.value(const []);
+
+    const query = '''
+      SELECT 
+        f.id AS friendship_id,
+        f.requester_id,
+        f.addressee_id,
+        f.status,
+        p.id AS profile_id,
+        p.user_id,
+        COALESCE(p.name, 'Companion') AS name,
+        COALESCE(p.title, 'Specialist') AS title,
+        COALESCE(p.avatar_color, '#6366F1') AS avatar_color,
+        p.avatar_url,
+        COALESCE(p.total_xp, 0) AS total_xp,
+        COALESCE(p.level, 1) AS level,
+        p.friend_code
+      FROM friendships f
+      LEFT JOIN user_profiles p ON p.user_id = f.requester_id
+      WHERE f.addressee_id = ? AND f.status = 'pending'
+      ORDER BY f.created_at DESC
+    ''';
+
+    return db.watch(query, parameters: [uid]).map((rows) {
+      return rows.map((r) => FriendUser.fromRow(r, uid)).toList();
+    });
+  }
+
+  /// Watches today's prayer checklists for current user and all accepted friends.
+  Stream<List<DailyPrayerStatus>> watchTodayChecklist([String? dateStr]) {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const []);
+    }
+
+    final date = dateStr ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final uid = currentUserId;
+
+    const query = '''
+      SELECT 
+        d.id,
+        d.user_id,
+        COALESCE(p.name, CASE WHEN d.user_id = ? THEN 'You' ELSE 'Companion' END) AS user_name,
+        COALESCE(p.avatar_color, '#6366F1') AS avatar_color,
+        p.avatar_url,
+        d.date,
+        d.fajr,
+        d.dhuhr,
+        d.asr,
+        d.maghrib,
+        d.isha,
+        d.streak_days,
+        d.habits_done,
+        d.habits_total
+      FROM daily_prayer_status d
+      LEFT JOIN user_profiles p ON p.user_id = d.user_id
+      WHERE d.date = ?
+      ORDER BY CASE WHEN d.user_id = ? THEN 0 ELSE 1 END, d.streak_days DESC
+    ''';
+
+    return db.watch(query, parameters: [uid, date, uid]).map((rows) {
+      return rows.map((r) => DailyPrayerStatus.fromRow(r)).toList();
+    });
+  }
+
+  /// Sends a friend request given a friend code (e.g. AX-7842) or username.
+  Future<bool> sendFriendRequest(String codeOrUsername) async {
+    final cleanInput = codeOrUsername.trim();
+    if (cleanInput.isEmpty) return false;
+
+    final uid = currentUserId;
+    if (uid.isEmpty) throw Exception('Must be logged in to add friends');
+
+    // 1. Look up profile locally or in Supabase
+    String? targetUserId;
+    if (isDatabaseInitialized) {
+      final local = await db.getOptional(
+        'SELECT user_id FROM user_profiles WHERE (UPPER(friend_code) = ? OR UPPER(name) = ?) AND user_id != ? LIMIT 1',
+        [cleanInput.toUpperCase(), cleanInput.toUpperCase(), uid],
+      );
+      if (local != null) {
+        targetUserId = local['user_id'] as String?;
+      }
+    }
+
+    if (targetUserId == null && _supabaseClient != null) {
+      try {
+        final res = await _supabaseClient!
+            .from('user_profiles')
+            .select('user_id')
+            .or('friend_code.ilike.$cleanInput,name.ilike.$cleanInput')
+            .neq('user_id', uid)
+            .limit(1)
+            .maybeSingle();
+        if (res != null) {
+          targetUserId = res['user_id'] as String?;
+        }
+      } catch (e) {
+        debugPrint('[FriendRepository] Remote lookup notice: $e');
+      }
+    }
+
+    if (targetUserId == null || targetUserId.isEmpty) {
+      return false;
+    }
+
+    // 2. Prevent duplicate friend requests
+    final friendshipId = IdGenerator.generateDeterministicId('friendship_${uid}_$targetUserId');
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+    if (isDatabaseInitialized) {
+      await db.execute('''
+        INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at)
+        VALUES (?, ?, ?, 'pending', ?, ?)
+        ON CONFLICT(id) DO UPDATE SET updated_at = ?
+      ''', [friendshipId, uid, targetUserId, nowUtc, nowUtc, nowUtc]);
+    }
+
+    return true;
+  }
+
+  /// Accepts an incoming friend request.
+  Future<void> acceptFriendRequest(String friendshipId) async {
+    if (!isDatabaseInitialized) return;
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+    await db.execute('''
+      UPDATE friendships SET status = 'accepted', updated_at = ? WHERE id = ?
+    ''', [nowUtc, friendshipId]);
+  }
+
+  /// Declines or removes a friendship.
+  Future<void> removeFriendship(String friendshipId) async {
+    if (!isDatabaseInitialized) return;
+    await db.execute('DELETE FROM friendships WHERE id = ?', [friendshipId]);
+  }
+
+  /// Synchronizes the current user's prayers and daily habit progress into `daily_prayer_status`
+  /// so friends can immediately view today's checklist.
+  Future<void> syncMyDailyPrayerStatus() async {
+    if (!isDatabaseInitialized) return;
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
+
+    final now = DateTime.now();
+    final today = DateFormat('yyyy-MM-dd').format(now);
+    final nowUtc = now.toUtc().toIso8601String();
+    final statusId = IdGenerator.generateDeterministicId('prs_${uid}_$today');
+
+    try {
+      // 1. Fetch current 5 prayers
+      final prayerRows = await db.getAll(
+        'SELECT prayer_code, is_done FROM prayers WHERE user_id = ? OR user_id IS NULL OR user_id = \'\'',
+        [uid],
+      );
+
+      bool fajr = false, dhuhr = false, asr = false, maghrib = false, isha = false;
+      for (final r in prayerRows) {
+        final code = (r['prayer_code'] as String? ?? '').toLowerCase();
+        final done = (r['is_done'] as num?)?.toInt() == 1;
+        if (code == 'fajr') fajr = done;
+        if (code == 'dhuhr') dhuhr = done;
+        if (code == 'asr') asr = done;
+        if (code == 'maghrib') maghrib = done;
+        if (code == 'isha') isha = done;
+      }
+
+      // 2. Fetch habits done count
+      final habitRows = await db.getAll(
+        'SELECT id FROM habits WHERE (schedule_type = \'daily\' OR schedule_type IS NULL OR schedule_type = \'\') AND (user_id = ? OR user_id IS NULL OR user_id = \'\')',
+        [uid],
+      );
+      final totalDailyHabits = habitRows.length;
+
+      final habitDoneRows = await db.getAll(
+        'SELECT DISTINCT habit_id FROM habit_logs WHERE log_date = ? AND status = \'done\' AND (user_id = ? OR user_id IS NULL OR user_id = \'\')',
+        [today, uid],
+      );
+      final doneDailyHabits = habitDoneRows.length;
+
+      // 3. Compute continuous streak days (5/5 prayers)
+      final allPrayersDoneToday = fajr && dhuhr && asr && maghrib && isha;
+      int streakDays = allPrayersDoneToday ? 1 : 0;
+      try {
+        final logs = await HabitRepository().getDailyStreakLogs();
+        if (logs.isNotEmpty) {
+          streakDays = logs.length;
+        }
+      } catch (_) {}
+
+      await db.execute('''
+        INSERT INTO daily_prayer_status (
+          id, user_id, date, fajr, dhuhr, asr, maghrib, isha, streak_days, habits_done, habits_total, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          fajr = excluded.fajr,
+          dhuhr = excluded.dhuhr,
+          asr = excluded.asr,
+          maghrib = excluded.maghrib,
+          isha = excluded.isha,
+          streak_days = excluded.streak_days,
+          habits_done = excluded.habits_done,
+          habits_total = excluded.habits_total,
+          updated_at = excluded.updated_at
+      ''', [
+        statusId,
+        uid,
+        today,
+        fajr ? 1 : 0,
+        dhuhr ? 1 : 0,
+        asr ? 1 : 0,
+        maghrib ? 1 : 0,
+        isha ? 1 : 0,
+        streakDays,
+        doneDailyHabits,
+        totalDailyHabits,
+        nowUtc,
+        nowUtc,
+      ]);
+    } catch (e) {
+      debugPrint('[FriendRepository] Error syncing daily prayer status: $e');
+    }
+  }
+
+  /// Sends a gentle reminder / salam to a friend for an upcoming or pending prayer.
+  Future<void> sendPrayerReminder(String friendUserId, String prayerName) async {
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
+
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+    final logId = IdGenerator.generateDeterministicId('nudge_${uid}_${friendUserId}_$nowUtc');
+
+    if (isDatabaseInitialized) {
+      await db.execute('''
+        INSERT INTO friend_activity_logs (id, user_id, event_type, title, created_at)
+        VALUES (?, ?, 'nudge', ?, ?)
+      ''', [logId, friendUserId, 'Gentle reminder to pray $prayerName 🕌', nowUtc]);
+    }
+  }
+}

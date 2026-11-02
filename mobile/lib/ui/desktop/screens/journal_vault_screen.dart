@@ -524,7 +524,14 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
               stream: NoteCategoryRepository().watchCategories(),
               builder: (context, catSnap) {
                 final cats = catSnap.data ?? [];
-                final allFilters = ['All', 'General', ...cats.map((c) => c.name)];
+                final seenFilters = <String>{'all', 'general'};
+                final allFilters = <String>['All', 'General'];
+                for (final c in cats) {
+                  final name = c.name.trim();
+                  if (name.isNotEmpty && seenFilters.add(name.toLowerCase())) {
+                    allFilters.add(name);
+                  }
+                }
                 return DesktopHorizontalScrollView(
                   child: Row(
                     children: allFilters.map((cat) {
@@ -914,7 +921,14 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
                   stream: NoteCategoryRepository().watchCategories(),
                   builder: (context, snapshot) {
                     final cats = snapshot.data ?? [];
-                    final catNames = ['General', ...cats.map((c) => c.name)];
+                    final seen = <String>{'general'};
+                    final catNames = <String>['General'];
+                    for (final c in cats) {
+                      final name = c.name.trim();
+                      if (name.isNotEmpty && seen.add(name.toLowerCase())) {
+                        catNames.add(name);
+                      }
+                    }
                     final currentCat = (_selectedNote != null && !_isCreating)
                         ? (_selectedNote!.category.isEmpty ? 'General' : _selectedNote!.category)
                         : _creatingCategory;

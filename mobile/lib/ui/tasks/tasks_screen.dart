@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/data/project_repository.dart';
@@ -133,6 +134,48 @@ class _TasksScreenState extends State<TasksScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Focus Button
+                  Semantics(
+                    button: true,
+                    label: 'Open Focus Mode',
+                    child: InkWell(
+                      onTap: () => context.push('/focus'),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceLow,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AxisColors.borderPrimary,
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.timer_outlined,
+                              color: AxisColors.primarySoft,
+                              size: 16,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Focus',
+                              style: TextStyle(
+                                color: AxisColors.primarySoft,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
                   // Filter Button with active indicator and badge
                   ValueListenableBuilder<TaskFilterCriteria>(
                     valueListenable: _filterCriteria,

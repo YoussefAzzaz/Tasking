@@ -926,9 +926,10 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
                         stream: HabitRepository().watchHabits(),
                         builder: (context, snapshot) {
                           final allHabits = snapshot.data ?? [];
-                          final habits = _selectedCategory == 'All Habits'
-                              ? allHabits
-                              : allHabits.where((h) => h.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
+                          final habits = (_selectedCategory == 'All Habits'
+                              ? List<Habit>.from(allHabits)
+                              : allHabits.where((h) => h.category.toLowerCase() == _selectedCategory.toLowerCase()).toList())
+                            ..sort(HabitRepository.compareByTime);
 
                           if (habits.isEmpty) {
                             return Center(
@@ -1012,9 +1013,30 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
                       color: habit.isDoneToday ? AxisColors.textDim : AxisColors.textHigh,
                     ),
                   ),
-                  Text(
-                    '${habit.scheduleType.isNotEmpty ? habit.scheduleType : "Daily"}  ·  ${habit.category.isNotEmpty ? habit.category : "General"}',
-                    style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                  Row(
+                    children: [
+                      Text(
+                        '${habit.scheduleType.isNotEmpty ? habit.scheduleType : "Daily"}  ·  ${habit.category.isNotEmpty ? habit.category : "General"}',
+                        style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                      ),
+                      if (habit.remindTime != null && habit.remindTime!.trim().isNotEmpty) ...[
+                        Text(
+                          '  ·  ',
+                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                        ),
+                        const Icon(Icons.access_time_rounded, size: 11, color: AxisColors.textMuted),
+                        const SizedBox(width: 3),
+                        Text(
+                          habit.remindTime!,
+                          style: GoogleFonts.getFont(
+                            'Geist',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: AxisColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

@@ -32,6 +32,27 @@ void main() {
       // Weekly habit 3 (which is done) must NOT be counted in doneDailyHabits
       expect(dailyHabits.any((h) => h.id == '3'), isFalse);
     });
+
+    test('Habits in desktop habits section are ordered chronologically by due time', () {
+      final habits = [
+        Habit(id: '3', name: 'Evening Reading', remindTime: '08:00 PM', category: 'Mindfulness'),
+        Habit(id: '1', name: 'Morning Meditation', remindTime: '06:30 AM', category: 'Mindfulness'),
+        Habit(id: '5', name: 'Night Journaling', remindTime: null, sortOrder: 2, category: 'Mindfulness'),
+        Habit(id: '2', name: 'Lunch Walk', remindTime: '12:15 PM', category: 'Health'),
+        Habit(id: '4', name: 'Anytime Pushups', remindTime: null, sortOrder: 1, category: 'Health'),
+      ];
+
+      // Ordering for "All Habits"
+      final allSorted = List<Habit>.from(habits)..sort(HabitRepository.compareByTime);
+      expect(allSorted.map((h) => h.id).toList(), equals(['1', '2', '3', '4', '5']));
+
+      // Ordering within filtered category "Mindfulness"
+      final mindfulnessSorted = habits
+          .where((h) => h.category.toLowerCase() == 'mindfulness')
+          .toList()
+        ..sort(HabitRepository.compareByTime);
+      expect(mindfulnessSorted.map((h) => h.id).toList(), equals(['1', '3', '5']));
+    });
   });
 
   group('Desktop Projects & Tasks - Deliverable Checklist', () {

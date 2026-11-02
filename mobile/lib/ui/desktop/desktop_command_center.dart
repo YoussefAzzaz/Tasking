@@ -9,6 +9,7 @@ import 'dialogs/omnibar_dialog.dart';
 import 'dialogs/quick_task_dialog.dart';
 import 'screens/command_deck_screen.dart';
 import 'screens/focus_timers_screen.dart';
+import 'screens/friends_accountability_screen.dart';
 import 'screens/journal_vault_screen.dart';
 import 'screens/prayer_habits_screen.dart';
 import 'screens/profile_settings_screen.dart';
@@ -35,7 +36,7 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
   }
 
   void _navigateToTab(int tabIndex) {
-    if (tabIndex >= 0 && tabIndex <= 5) {
+    if (tabIndex >= 0 && tabIndex <= 6) {
       setState(() => _selectedTab = tabIndex);
     }
   }
@@ -63,6 +64,7 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
         DesktopShortcuts.tab4: () => _navigateToTab(3),
         DesktopShortcuts.tab5: () => _navigateToTab(4),
         DesktopShortcuts.tab6: () => _navigateToTab(5),
+        DesktopShortcuts.tab7: () => _navigateToTab(6),
       },
       child: Focus(
         autofocus: true,
@@ -104,6 +106,7 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
                             const PrayerHabitsScreen(),
                             const JournalVaultScreen(),
                             const FocusTimersScreen(),
+                            const FriendsAccountabilityScreen(),
                             const ProfileSettingsScreen(),
                           ],
                         ),
