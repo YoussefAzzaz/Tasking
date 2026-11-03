@@ -175,6 +175,27 @@ class AppLocalizations {
   String get todaysBoard => isArabic ? 'لوحة اليوم' : "Today's Board";
   String get weeklyStandings => isArabic ? 'الترتيب الأسبوعي' : 'Weekly Standings';
   String get circle => isArabic ? 'الدائرة' : 'Circle';
+  String get todayPrayerSub =>
+      isArabic ? 'نلهم ونذكر بعضنا البعض بالصلوات والطاعات' : 'Inspire and remind each other. Stay steadfast together.';
+  String get connectedCompanions => isArabic ? 'الرفاق المتصلون' : 'Connected Companions';
+  String get pendingRequests => isArabic ? 'الطلبات المعلقة' : 'Pending Requests';
+  String get allCompletedBadge => isArabic ? 'اكتملت جميعاً ✨' : 'All completed ✨';
+  String get circleStandingsSub =>
+      isArabic ? 'تنافس أخوي مبني على نقاط الانضباط الأسبوعية' : 'Supportive weekly progress. Ranked by discipline XP.';
+  String get copyCodeSuccess => isArabic ? 'تم نسخ رمز الصديق إلى الحافظة!' : 'Friend code copied to clipboard!';
+  String get searchCompanionHint => isArabic ? 'رمز الصديق أو الاسم (مثلاً AX-8492)' : 'Friend code or name (e.g. AX-8492)';
+  String get addCompanionDesc =>
+      isArabic ? 'أدخل رمز الصديق أو اسمه للتواصل ومشاركة المتابعة اليومية للصلوات والعادات.' : 'Enter your companion\'s friend code or display name to connect and share daily prayer & habit consistency.';
+  String get noCompanionsDesc =>
+      isArabic ? 'أضف رفيقاً برمز الصديق للتعاون على الصلاة والمواظبة على العادات.' : 'Add a companion with their friend code to share daily prayer and habit consistency.';
+  String get removeCompanion => isArabic ? 'إزالة الرفيق' : 'Remove Companion';
+  String get removeCompanionConfirm => isArabic ? 'هل تريد إزالة هذا الرفيق من قائمة المتابعة؟' : 'Remove companion from your accountability circle?';
+  String get remove => isArabic ? 'إزالة' : 'Remove';
+  String get dailyHabitsCount => isArabic ? 'العادات اليومية' : 'Daily Habits';
+  String get sendConnectionRequest => isArabic ? 'إرسال طلب تواصل' : 'Send Connection Request';
+  String get prayersDoneCount => isArabic ? 'صلوات مكتملة اليوم' : 'prayers completed today';
+  String get youLabel => isArabic ? 'أنت' : 'YOU';
+  String get tapToRemind => isArabic ? 'انقر للتذكير' : 'Tap to remind';
 
   // --------------------------------------------------------------------------
   // Focus & Timers
