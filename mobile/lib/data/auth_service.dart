@@ -206,7 +206,7 @@ class AuthService {
       if (client == null) return;
 
       var session = client.auth.currentSession;
-      if (session == null || session.isExpired) {
+      if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
         try {
           final res = await client.auth.refreshSession();
           session = res.session;

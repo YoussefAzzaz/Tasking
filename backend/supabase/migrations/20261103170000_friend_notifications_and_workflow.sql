@@ -171,3 +171,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.send_prayer_reminder_rpc(uuid, text) TO authenticated;
+

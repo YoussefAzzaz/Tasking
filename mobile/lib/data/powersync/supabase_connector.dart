@@ -13,7 +13,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
   Future<PowerSyncCredentials?> fetchCredentials() async {
     final client = Supabase.instance.client;
     var session = client.auth.currentSession;
-    if (session == null || session.isExpired) {
+    if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
       try {
         final res = await client.auth.refreshSession();
         session = res.session;
@@ -283,7 +283,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 
     // 1. Ensure authenticated session
     var session = client.auth.currentSession;
-    if (session == null || session.isExpired) {
+    if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
       try {
         final res = await client.auth.refreshSession();
         session = res.session;
@@ -337,9 +337,11 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     } on AuthException catch (e) {
       debugPrint('[PowerSync SupabaseConnector] AuthException [${e.statusCode}]: ${e.message}');
       if (e.statusCode == '401' || e.statusCode == '403') {
-        try {
-          await client.auth.refreshSession();
-        } catch (_) {}
+        if (client.auth.currentSession?.refreshToken != null) {
+          try {
+            await client.auth.refreshSession();
+          } catch (_) {}
+        }
       }
       // Do NOT complete transaction; let PowerSync retry
       rethrow;
@@ -359,9 +361,11 @@ class SupabaseConnector extends PowerSyncBackendConnector {
           msg.contains('row-level security');
 
       if (isAuthError) {
-        try {
-          await client.auth.refreshSession();
-        } catch (_) {}
+        if (client.auth.currentSession?.refreshToken != null) {
+          try {
+            await client.auth.refreshSession();
+          } catch (_) {}
+        }
         // Do NOT complete transaction! Keep queued until auth succeeds
         rethrow;
       }

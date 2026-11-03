@@ -250,6 +250,19 @@ class FriendRepository {
     }
   }
 
+  /// True only when the client has an active, authenticated Supabase session.
+  /// Prevents anonymous/unauthorized REST requests that trigger RLS 42501 violations.
+  bool get isRemoteAuthenticated {
+    final client = _supabaseClient;
+    if (client == null) return false;
+    final session = client.auth.currentSession;
+    final user = client.auth.currentUser;
+    return session != null &&
+        user != null &&
+        user.id.isNotEmpty &&
+        user.id != 'local_guest';
+  }
+
   String get currentUserId {
     try {
       final uid = Supabase.instance.client.auth.currentUser?.id;
@@ -281,6 +294,16 @@ class FriendRepository {
   void _initRealtimeListeners() {
     final client = _supabaseClient;
     if (client == null || _realtimeChannel != null) return;
+
+    if (!isRemoteAuthenticated) {
+      // Defer realtime subscriptions until authenticated
+      client.auth.onAuthStateChange.listen((data) {
+        if (data.session != null && _realtimeChannel == null) {
+          _initRealtimeListeners();
+        }
+      });
+      return;
+    }
 
     try {
       _realtimeChannel = client.channel('public_friends_sync');
@@ -468,7 +491,7 @@ class FriendRepository {
     if (isDatabaseInitialized) {
       await db.execute('DELETE FROM friend_activity_logs WHERE user_id = ?', [uid]);
     }
-    if (_supabaseClient != null) {
+    if (isRemoteAuthenticated) {
       try {
         await _supabaseClient!.from('friend_activity_logs').delete().eq('user_id', uid);
       } catch (e) {
@@ -677,7 +700,7 @@ class FriendRepository {
       }
     }
 
-    if (existingStatus == 'none' && _supabaseClient != null) {
+    if (existingStatus == 'none' && isRemoteAuthenticated) {
       try {
         final remoteF = await _supabaseClient!
             .from('friendships')
@@ -736,7 +759,7 @@ class FriendRepository {
     }
 
     // 2. Direct Supabase write
-    if (_supabaseClient != null) {
+    if (isRemoteAuthenticated) {
       try {
         await _supabaseClient!.from('friendships').upsert({
           'id': friendshipId,
@@ -820,7 +843,7 @@ class FriendRepository {
     }
 
     // 2. Update Supabase
-    if (_supabaseClient != null) {
+    if (isRemoteAuthenticated) {
       try {
         await _supabaseClient!.from('friendships').update({
           'status': 'accepted',
@@ -899,7 +922,7 @@ class FriendRepository {
     }
 
     // 2. Remove / Update on Supabase
-    if (_supabaseClient != null) {
+    if (isRemoteAuthenticated) {
       try {
         await _supabaseClient!.from('friendships').delete().eq('id', friendshipId);
       } catch (e) {
@@ -957,7 +980,7 @@ class FriendRepository {
     if (isDatabaseInitialized) {
       await db.execute('DELETE FROM friendships WHERE id = ?', [friendshipId]);
     }
-    if (_supabaseClient != null) {
+    if (isRemoteAuthenticated) {
       try {
         await _supabaseClient!.from('friendships').delete().eq('id', friendshipId);
       } catch (e) {
@@ -993,7 +1016,7 @@ class FriendRepository {
     }
 
     // 2. Write to Supabase remote
-    if (_supabaseClient != null) {
+    if (isRemoteAuthenticated) {
       try {
         await _supabaseClient!.from('friend_activity_logs').insert({
           'id': logId,
@@ -1028,7 +1051,7 @@ class FriendRepository {
   /// Synchronizes a specific companion profile from Supabase into local SQLite
   Future<void> syncSingleProfileFromRemote(String otherUid) async {
     final client = _supabaseClient;
-    if (client == null || otherUid.isEmpty || !isDatabaseInitialized) return;
+    if (!isRemoteAuthenticated || client == null || otherUid.isEmpty || !isDatabaseInitialized) return;
 
     try {
       Map<String, dynamic>? prof;
@@ -1095,7 +1118,7 @@ class FriendRepository {
   Future<void> syncFriendshipsFromRemote() async {
     final client = _supabaseClient;
     final uid = currentUserId;
-    if (client == null || uid.isEmpty || !isDatabaseInitialized) return;
+    if (!isRemoteAuthenticated || client == null || uid.isEmpty || !isDatabaseInitialized) return;
 
     try {
       final remoteRows = await client
@@ -1134,7 +1157,7 @@ class FriendRepository {
   Future<void> syncActivityLogsFromRemote() async {
     final client = _supabaseClient;
     final uid = currentUserId;
-    if (client == null || uid.isEmpty || !isDatabaseInitialized) return;
+    if (!isRemoteAuthenticated || client == null || uid.isEmpty || !isDatabaseInitialized) return;
 
     try {
       final remoteLogs = await client
@@ -1272,7 +1295,7 @@ class FriendRepository {
       }
 
       // Also sync to Supabase remote daily_prayer_status
-      if (_supabaseClient != null) {
+      if (isRemoteAuthenticated) {
         try {
           await _supabaseClient!.from('daily_prayer_status').upsert({
             'id': statusId,
