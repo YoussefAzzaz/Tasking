@@ -197,7 +197,9 @@ class AuthService {
 
   /// Silently restores Supabase session in the background and connects PowerSync if online
   Future<void> tryAutoLoginOrSync() async {
-    if (_isAutoLoggingIn || isGuest) return;
+    if (_isAutoLoggingIn) return;
+    final savedUid = _lastSavedSession?['user_id'] as String?;
+    if (savedUid == null || savedUid.isEmpty || savedUid == 'local_guest') return;
     _isAutoLoggingIn = true;
     try {
       final client = _client;

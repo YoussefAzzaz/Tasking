@@ -4,7 +4,26 @@ import 'package:intl/intl.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/data/habit_repository.dart';
+import 'package:axis/data/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+bool _toBool(dynamic val) {
+  if (val == null) return false;
+  if (val is bool) return val;
+  if (val is num) return val.toInt() == 1;
+  if (val is String) {
+    final s = val.trim().toLowerCase();
+    return s == '1' || s == 'true';
+  }
+  return false;
+}
+
+int _toInt(dynamic val, [int fallback = 0]) {
+  if (val == null) return fallback;
+  if (val is num) return val.toInt();
+  if (val is String) return int.tryParse(val) ?? fallback;
+  return fallback;
+}
 
 /// Data model representing a connected friend or incoming friend request.
 class FriendUser {
@@ -37,20 +56,20 @@ class FriendUser {
   });
 
   factory FriendUser.fromRow(Map<String, dynamic> row, String currentUid) {
-    final reqId = row['requester_id'] as String? ?? '';
+    final reqId = row['requester_id']?.toString() ?? '';
     final isReq = reqId == currentUid;
     return FriendUser(
-      id: (row['profile_id'] as String?) ?? (row['friendship_id'] as String? ?? ''),
-      userId: (row['user_id'] as String?) ?? (isReq ? (row['addressee_id'] as String? ?? '') : reqId),
-      name: (row['name'] as String?)?.trim().isNotEmpty == true ? row['name'] as String : 'Companion',
-      title: (row['title'] as String?) ?? 'Specialist',
-      avatarColor: (row['avatar_color'] as String?) ?? '#6366F1',
-      avatarUrl: row['avatar_url'] as String?,
-      totalXp: (row['total_xp'] as num?)?.toInt() ?? 0,
-      level: (row['level'] as num?)?.toInt() ?? 1,
-      friendCode: row['friend_code'] as String?,
-      friendshipId: (row['friendship_id'] as String?) ?? '',
-      status: (row['status'] as String?) ?? 'accepted',
+      id: row['profile_id']?.toString() ?? row['friendship_id']?.toString() ?? '',
+      userId: row['user_id']?.toString() ?? (isReq ? row['addressee_id']?.toString() ?? '' : reqId),
+      name: (row['name']?.toString() ?? '').trim().isNotEmpty ? row['name'].toString() : 'Companion',
+      title: row['title']?.toString() ?? 'Specialist',
+      avatarColor: row['avatar_color']?.toString() ?? '#6366F1',
+      avatarUrl: row['avatar_url']?.toString(),
+      totalXp: _toInt(row['total_xp']),
+      level: _toInt(row['level'], 1),
+      friendCode: row['friend_code']?.toString(),
+      friendshipId: row['friendship_id']?.toString() ?? '',
+      status: row['status']?.toString() ?? 'accepted',
       isRequester: isReq,
     );
   }
@@ -112,20 +131,20 @@ class DailyPrayerStatus {
 
   factory DailyPrayerStatus.fromRow(Map<String, dynamic> row) {
     return DailyPrayerStatus(
-      id: (row['id'] as String?) ?? '',
-      userId: (row['user_id'] as String?) ?? '',
-      userName: (row['user_name'] as String?) ?? 'Companion',
-      userAvatarColor: (row['avatar_color'] as String?) ?? '#6366F1',
-      userAvatarUrl: row['avatar_url'] as String?,
-      date: (row['date'] as String?) ?? '',
-      fajr: (row['fajr'] as num?)?.toInt() == 1,
-      dhuhr: (row['dhuhr'] as num?)?.toInt() == 1,
-      asr: (row['asr'] as num?)?.toInt() == 1,
-      maghrib: (row['maghrib'] as num?)?.toInt() == 1,
-      isha: (row['isha'] as num?)?.toInt() == 1,
-      streakDays: (row['streak_days'] as num?)?.toInt() ?? 0,
-      habitsDone: (row['habits_done'] as num?)?.toInt() ?? 0,
-      habitsTotal: (row['habits_total'] as num?)?.toInt() ?? 0,
+      id: row['id']?.toString() ?? '',
+      userId: row['user_id']?.toString() ?? '',
+      userName: row['user_name']?.toString() ?? 'Companion',
+      userAvatarColor: row['avatar_color']?.toString() ?? '#6366F1',
+      userAvatarUrl: row['avatar_url']?.toString(),
+      date: row['date']?.toString() ?? '',
+      fajr: _toBool(row['fajr']),
+      dhuhr: _toBool(row['dhuhr']),
+      asr: _toBool(row['asr']),
+      maghrib: _toBool(row['maghrib']),
+      isha: _toBool(row['isha']),
+      streakDays: _toInt(row['streak_days']),
+      habitsDone: _toInt(row['habits_done']),
+      habitsTotal: _toInt(row['habits_total']),
     );
   }
 }
@@ -176,6 +195,14 @@ class FriendRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  String get currentUserId {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null && uid.isNotEmpty) return uid;
+    } catch (_) {}
+    return AuthService().currentUserId ?? '';
   }
 
   /// Watches all accepted friends with their profiles and current levels.

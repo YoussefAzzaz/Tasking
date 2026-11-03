@@ -106,3 +106,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.send_companion_request(text) TO authenticated;
+

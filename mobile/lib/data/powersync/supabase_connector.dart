@@ -44,14 +44,17 @@ class SupabaseConnector extends PowerSyncBackendConnector {
   ) {
     final data = Map<String, dynamic>.from(raw);
 
-    // 1. Ensure user_id is the active valid UUID
-    if (uid.isNotEmpty) {
+    // 1. Ensure user_id is the active valid UUID (for user-scoped tables)
+    if (table != 'friendships' && uid.isNotEmpty) {
       final existingUid = data['user_id'];
       if (existingUid == null ||
           existingUid == '' ||
           existingUid == 'local_guest') {
         data['user_id'] = uid;
       }
+    }
+    if (table == 'friendships') {
+      data.remove('user_id');
     }
 
     // 2. Boolean fields conversion (Postgres strictly expects boolean, SQLite stores 0/1)
@@ -63,6 +66,11 @@ class SupabaseConnector extends PowerSyncBackendConnector {
       'sounds_enabled',
       'adhan_notifications_enabled',
       'fajr_alarm_enabled',
+      'fajr',
+      'dhuhr',
+      'asr',
+      'maghrib',
+      'isha',
     };
     for (final field in boolFields) {
       if (data.containsKey(field) && data[field] != null) {

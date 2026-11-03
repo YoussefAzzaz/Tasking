@@ -17,6 +17,24 @@ class FriendsScreen extends StatefulWidget {
   State<FriendsScreen> createState() => _FriendsScreenState();
 }
 
+Color _parseHexColor(String? hexString, {Color fallback = const Color(0xFF6366F1)}) {
+  if (hexString == null || hexString.isEmpty) return fallback;
+  try {
+    String hex = hexString.replaceAll('#', '').trim();
+    if (hex.startsWith('0x') || hex.startsWith('0X')) {
+      hex = hex.substring(2);
+    }
+    if (hex.length == 6) {
+      hex = 'FF$hex';
+    }
+    if (hex.length == 8) {
+      final val = int.tryParse(hex, radix: 16);
+      if (val != null) return Color(val & 0xFFFFFFFF);
+    }
+  } catch (_) {}
+  return fallback;
+}
+
 class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final _friendRepo = FriendRepository();
@@ -683,7 +701,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       {'code': 'isha', 'name': l10n.prayerName('isha'), 'done': status.isha},
     ];
 
-    final isMe = status.userName == 'You' || status.userName == l10n.youLabel;
+    final isMe = status.userId == _friendRepo.currentUserId || status.userName == 'You' || status.userName == l10n.youLabel;
     final cardBg = isMe
         ? AxisColors.surfaceLow
         : AxisColors.surfaceLowest;
@@ -720,7 +738,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: Color(int.tryParse(status.userAvatarColor.replaceAll('#', '0xFF')) ?? 0xFF6366F1),
+                  color: _parseHexColor(status.userAvatarColor),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isMe ? AxisColors.primarySoft : Colors.white24,
@@ -1075,7 +1093,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           width: rank == 1 ? 48 : 42,
           height: rank == 1 ? 48 : 42,
           decoration: BoxDecoration(
-            color: Color(int.tryParse(user.avatarColor.replaceAll('#', '0xFF')) ?? 0xFF6366F1),
+            color: _parseHexColor(user.avatarColor),
             shape: BoxShape.circle,
             border: Border.all(color: color, width: 2),
             boxShadow: [
@@ -1178,7 +1196,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Color(int.tryParse(f.avatarColor.replaceAll('#', '0xFF')) ?? 0xFF6366F1),
+              color: _parseHexColor(f.avatarColor),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -1365,7 +1383,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: Color(int.tryParse(r.avatarColor.replaceAll('#', '0xFF')) ?? 0xFF6366F1),
+                              color: _parseHexColor(r.avatarColor),
                               shape: BoxShape.circle,
                             ),
                             child: Center(
@@ -1469,7 +1487,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: Color(int.tryParse(f.avatarColor.replaceAll('#', '0xFF')) ?? 0xFF6366F1),
+                                color: _parseHexColor(f.avatarColor),
                                 shape: BoxShape.circle,
                               ),
                               child: Center(

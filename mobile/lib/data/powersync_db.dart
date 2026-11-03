@@ -187,6 +187,7 @@ Future<void> openDatabase() async {
   // We only engage remote sync streaming when an active authenticated session exists.
   Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
     final session = data.session;
+    final event = data.event;
     if (session != null) {
       setCachedUserId(session.user.id);
       if (!db.connected) {
@@ -194,7 +195,7 @@ Future<void> openDatabase() async {
       }
       await purgeForeignUserData();
       await syncGlobalUserLevel();
-    } else {
+    } else if (event == AuthChangeEvent.signedOut) {
       setCachedUserId('');
       if (db.connected) {
         try {
