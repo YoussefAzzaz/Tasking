@@ -196,6 +196,18 @@ class AppLocalizations {
   String get prayersDoneCount => isArabic ? 'صلوات مكتملة اليوم' : 'prayers completed today';
   String get youLabel => isArabic ? 'أنت' : 'YOU';
   String get tapToRemind => isArabic ? 'انقر للتذكير' : 'Tap to remind';
+  String get candidateFound => isArabic ? 'تم العثور على رفيق' : 'Companion Found';
+  String get noCompanionFound => isArabic ? 'لم يتم العثور على رفيق بهذا الرمز أو الاسم' : 'No companion found with this code or name';
+  String get searching => isArabic ? 'جارٍ البحث...' : 'Searching...';
+  String get friendNotifications => isArabic ? 'إشعارات الرفاق والتذكيرات' : 'Companion Reminders & Activity';
+  String get noNotificationsYet => isArabic ? 'لا توجد تنبيهات جديدة من الرفاق' : 'No new companion notifications';
+  String get clearNotifications => isArabic ? 'مسح الكل' : 'Clear All';
+  String get refuse => isArabic ? 'رفض' : 'Refuse';
+  String get requestAccepted => isArabic ? 'تم قبول طلب الرفقة بنجاح' : 'Companion request accepted!';
+  String get requestDeclined => isArabic ? 'تم رفض طلب الرفقة' : 'Companion request declined';
+  String get alreadyFriends => isArabic ? 'رفيق متصل بالفعل' : 'Already connected companion';
+  String get requestAlreadyPending => isArabic ? 'الطلب معلق بالفعل' : 'Request already pending';
+  String sendRequestTo(String name) => isArabic ? 'إرسال طلب إلى $name' : 'Send Request to $name';
 
   // --------------------------------------------------------------------------
   // Focus & Timers
@@ -382,7 +394,11 @@ class AppLocalizations {
     'mutual prayer accountability': 'المتابعة المتبادلة للصلوات',
     'accept': 'قبول',
     'decline': 'رفض',
+    'refuse': 'رفض',
     'pending request': 'طلب معلق',
+    'pending requests': 'الطلبات المعلقة',
+    'connected companions': 'الرفاق المتصلون',
+    'companion reminders & activity': 'إشعارات الرفاق والتذكيرات',
     'friend code copied to clipboard!': 'تم نسخ رمز الصديق إلى الحافظة!',
 
     // Gamification & Telemetry

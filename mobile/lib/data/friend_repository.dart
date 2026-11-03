@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/data/user_profile_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 bool _toBool(dynamic val) {
@@ -37,7 +39,7 @@ class FriendUser {
   final int level;
   final String? friendCode;
   final String friendshipId;
-  final String status; // 'pending', 'accepted'
+  final String status; // 'none', 'pending', 'accepted'
   final bool isRequester;
 
   const FriendUser({
@@ -54,6 +56,36 @@ class FriendUser {
     this.status = 'accepted',
     this.isRequester = false,
   });
+
+  FriendUser copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    String? title,
+    String? avatarColor,
+    String? avatarUrl,
+    int? totalXp,
+    int? level,
+    String? friendCode,
+    String? friendshipId,
+    String? status,
+    bool? isRequester,
+  }) {
+    return FriendUser(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      title: title ?? this.title,
+      avatarColor: avatarColor ?? this.avatarColor,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      totalXp: totalXp ?? this.totalXp,
+      level: level ?? this.level,
+      friendCode: friendCode ?? this.friendCode,
+      friendshipId: friendshipId ?? this.friendshipId,
+      status: status ?? this.status,
+      isRequester: isRequester ?? this.isRequester,
+    );
+  }
 
   factory FriendUser.fromRow(Map<String, dynamic> row, String currentUid) {
     final reqId = row['requester_id']?.toString() ?? '';
@@ -149,14 +181,15 @@ class DailyPrayerStatus {
   }
 }
 
-/// Lightweight activity event to inspire mutual consistency.
+/// Lightweight activity event to inspire mutual consistency and notify users.
 class FriendActivityLog {
   final String id;
   final String userId;
   final String userName;
   final String userAvatarColor;
-  final String eventType;
+  final String eventType; // 'friend_request', 'request_accepted', 'request_declined', 'prayer_reminder', 'nudge', 'prayer_done'
   final String title;
+  final Map<String, dynamic> metadata;
   final String createdAt;
 
   const FriendActivityLog({
@@ -166,28 +199,48 @@ class FriendActivityLog {
     required this.userAvatarColor,
     required this.eventType,
     required this.title,
+    this.metadata = const {},
     required this.createdAt,
   });
 
+  bool get isFriendRequest => eventType == 'friend_request';
+  bool get isRequestAccepted => eventType == 'request_accepted';
+  bool get isRequestDeclined => eventType == 'request_declined';
+  bool get isPrayerReminder => eventType == 'prayer_reminder' || eventType == 'nudge';
+
   factory FriendActivityLog.fromRow(Map<String, dynamic> row) {
+    Map<String, dynamic> meta = {};
+    if (row['metadata'] != null) {
+      if (row['metadata'] is Map) {
+        meta = Map<String, dynamic>.from(row['metadata'] as Map);
+      } else if (row['metadata'] is String) {
+        try {
+          meta = Map<String, dynamic>.from(jsonDecode(row['metadata'] as String));
+        } catch (_) {}
+      }
+    }
+
     return FriendActivityLog(
       id: (row['id'] as String?) ?? '',
       userId: (row['user_id'] as String?) ?? '',
-      userName: (row['user_name'] as String?) ?? 'Companion',
-      userAvatarColor: (row['avatar_color'] as String?) ?? '#6366F1',
-      eventType: (row['event_type'] as String?) ?? 'prayer_done',
+      userName: (row['user_name'] as String?) ?? (row['sender_name'] as String?) ?? 'Companion',
+      userAvatarColor: (row['avatar_color'] as String?) ?? (row['sender_avatar_color'] as String?) ?? '#6366F1',
+      eventType: (row['event_type'] as String?) ?? 'prayer_reminder',
       title: (row['title'] as String?) ?? '',
+      metadata: meta,
       createdAt: (row['created_at'] as String?) ?? '',
     );
   }
 }
 
 /// Centralized repository handling friendships, daily prayer checklists,
-/// and gentle mutual accountability across mobile and desktop.
+/// live notifications, and gentle mutual accountability across mobile and desktop.
 class FriendRepository {
   static final FriendRepository _instance = FriendRepository._internal();
   factory FriendRepository() => _instance;
-  FriendRepository._internal();
+  FriendRepository._internal() {
+    _initRealtimeListeners();
+  }
 
   SupabaseClient? get _supabaseClient {
     try {
@@ -204,6 +257,66 @@ class FriendRepository {
     } catch (_) {}
     return AuthService().currentUserId ?? '';
   }
+
+  String get currentUserName {
+    try {
+      final profileName = UserProfileRepository().profileNotifier.value.name;
+      if (profileName.trim().isNotEmpty && profileName != 'Commander') {
+        return profileName;
+      }
+    } catch (_) {}
+    try {
+      final authName = Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.toString();
+      if (authName != null && authName.trim().isNotEmpty) return authName;
+    } catch (_) {}
+    final authServiceDisplayName = AuthService().displayName;
+    if (authServiceDisplayName.trim().isNotEmpty) {
+      return authServiceDisplayName;
+    }
+    return 'Companion';
+  }
+
+  RealtimeChannel? _realtimeChannel;
+
+  void _initRealtimeListeners() {
+    final client = _supabaseClient;
+    if (client == null || _realtimeChannel != null) return;
+
+    try {
+      _realtimeChannel = client.channel('public_friends_sync');
+      _realtimeChannel?.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'friendships',
+        callback: (_) {
+          debugPrint('[FriendRepository] Realtime: friendships updated');
+          unawaited(syncFriendshipsFromRemote());
+        },
+      ).onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'friend_activity_logs',
+        callback: (_) {
+          debugPrint('[FriendRepository] Realtime: friend_activity_logs updated');
+          unawaited(syncActivityLogsFromRemote());
+        },
+      ).onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'daily_prayer_status',
+        callback: (_) {
+          debugPrint('[FriendRepository] Realtime: daily_prayer_status updated');
+          unawaited(syncMyDailyPrayerStatus());
+        },
+      ).subscribe();
+    } catch (e) {
+      debugPrint('[FriendRepository] Notice setting up Realtime subscription: $e');
+    }
+  }
+
+  // ===========================================================================
+  // STREAMS FOR UI
+  // ===========================================================================
 
   /// Watches all accepted friends with their profiles and current levels.
   Stream<List<FriendUser>> watchAcceptedFriends() {
@@ -237,6 +350,47 @@ class FriendRepository {
 
     return db.watch(query, parameters: [uid, uid, uid]).map((rows) {
       return rows.map((r) => FriendUser.fromRow(r, uid)).toList();
+    });
+  }
+
+  /// Watches all standings (CURRENT USER + all accepted friends) sorted by XP.
+  Stream<List<FriendUser>> watchAllStandings() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const []);
+    }
+
+    final uid = currentUserId;
+    if (uid.isEmpty) return Stream.value(const []);
+
+    // Query both friends and current user
+    return watchAcceptedFriends().asyncMap((friends) async {
+      // Fetch current user's profile
+      final myProfileRow = await db.getOptional(
+        'SELECT id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code FROM user_profiles WHERE user_id = ? LIMIT 1',
+        [uid],
+      );
+
+      final myName = currentUserName;
+      final myUser = FriendUser(
+        id: myProfileRow?['id']?.toString() ?? 'prof_$uid',
+        userId: uid,
+        name: (myProfileRow?['name']?.toString() ?? '').trim().isNotEmpty
+            ? myProfileRow!['name'].toString()
+            : (myName.isNotEmpty ? myName : 'You'),
+        title: myProfileRow?['title']?.toString() ?? 'Specialist',
+        avatarColor: myProfileRow?['avatar_color']?.toString() ?? '#6366F1',
+        avatarUrl: myProfileRow?['avatar_url']?.toString(),
+        totalXp: _toInt(myProfileRow?['total_xp']),
+        level: _toInt(myProfileRow?['level'], 1),
+        friendCode: myProfileRow?['friend_code']?.toString(),
+        friendshipId: 'self',
+        status: 'accepted',
+        isRequester: false,
+      );
+
+      final all = <FriendUser>[myUser, ...friends];
+      all.sort((a, b) => b.totalXp.compareTo(a.totalXp));
+      return all;
     });
   }
 
@@ -275,7 +429,56 @@ class FriendRepository {
     });
   }
 
+  /// Watches in-app friend activity notifications and reminders for the current user.
+  Stream<List<FriendActivityLog>> watchFriendActivityLogs() {
+    if (!isDatabaseInitialized) {
+      return Stream.value(const []);
+    }
+
+    final uid = currentUserId;
+    if (uid.isEmpty) return Stream.value(const []);
+
+    const query = '''
+      SELECT 
+        l.id,
+        l.user_id,
+        l.event_type,
+        l.title,
+        l.metadata,
+        l.created_at,
+        COALESCE(p.name, 'Companion') AS sender_name,
+        COALESCE(p.avatar_color, '#6366F1') AS sender_avatar_color
+      FROM friend_activity_logs l
+      LEFT JOIN user_profiles p ON p.user_id = json_extract(l.metadata, '\$.sender_id')
+      WHERE l.user_id = ?
+      ORDER BY l.created_at DESC
+      LIMIT 30
+    ''';
+
+    return db.watch(query, parameters: [uid]).map((rows) {
+      return rows.map((r) => FriendActivityLog.fromRow(r)).toList();
+    });
+  }
+
+  /// Clears notifications for the current user.
+  Future<void> clearFriendNotifications() async {
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
+
+    if (isDatabaseInitialized) {
+      await db.execute('DELETE FROM friend_activity_logs WHERE user_id = ?', [uid]);
+    }
+    if (_supabaseClient != null) {
+      try {
+        await _supabaseClient!.from('friend_activity_logs').delete().eq('user_id', uid);
+      } catch (e) {
+        debugPrint('[FriendRepository] Notice clearing notifications on Supabase: $e');
+      }
+    }
+  }
+
   /// Watches today's prayer checklists for current user and all accepted friends.
+  /// Guarantees that EVERY accepted friend appears in the list even if they haven't logged today.
   Stream<List<DailyPrayerStatus>> watchTodayChecklist([String? dateStr]) {
     if (!isDatabaseInitialized) {
       return Stream.value(const []);
@@ -283,94 +486,141 @@ class FriendRepository {
 
     final date = dateStr ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
     final uid = currentUserId;
+    if (uid.isEmpty) return Stream.value(const []);
 
-    const query = '''
-      SELECT 
-        d.id,
-        d.user_id,
-        COALESCE(p.name, CASE WHEN d.user_id = ? THEN 'You' ELSE 'Companion' END) AS user_name,
-        COALESCE(p.avatar_color, '#6366F1') AS avatar_color,
-        p.avatar_url,
-        d.date,
-        d.fajr,
-        d.dhuhr,
-        d.asr,
-        d.maghrib,
-        d.isha,
-        d.streak_days,
-        d.habits_done,
-        d.habits_total
-      FROM daily_prayer_status d
-      LEFT JOIN user_profiles p ON p.user_id = d.user_id
-      WHERE d.date = ?
-      ORDER BY CASE WHEN d.user_id = ? THEN 0 ELSE 1 END, d.streak_days DESC
-    ''';
+    return watchAcceptedFriends().asyncMap((friends) async {
+      // 1. Fetch current user prayer status
+      final myRow = await db.getOptional(
+        '''SELECT 
+            d.id, d.user_id, d.date, d.fajr, d.dhuhr, d.asr, d.maghrib, d.isha,
+            d.streak_days, d.habits_done, d.habits_total,
+            p.name AS user_name, p.avatar_color, p.avatar_url
+           FROM daily_prayer_status d
+           LEFT JOIN user_profiles p ON p.user_id = d.user_id
+           WHERE d.user_id = ? AND d.date = ?
+           LIMIT 1''',
+        [uid, date],
+      );
 
-    return db.watch(query, parameters: [uid, date, uid]).map((rows) {
-      return rows.map((r) => DailyPrayerStatus.fromRow(r)).toList();
+      final myName = currentUserName;
+      DailyPrayerStatus myStatus;
+      if (myRow != null) {
+        myStatus = DailyPrayerStatus.fromRow(myRow);
+      } else {
+        // Fallback placeholder for current user
+        myStatus = DailyPrayerStatus(
+          id: 'prs_${uid}_$date',
+          userId: uid,
+          userName: myName.isNotEmpty ? myName : 'You',
+          date: date,
+        );
+      }
+
+      // 2. Fetch or synthesize prayer status for each friend
+      final friendStatuses = <DailyPrayerStatus>[];
+      for (final f in friends) {
+        final fRow = await db.getOptional(
+          '''SELECT 
+              d.id, d.user_id, d.date, d.fajr, d.dhuhr, d.asr, d.maghrib, d.isha,
+              d.streak_days, d.habits_done, d.habits_total
+             FROM daily_prayer_status d
+             WHERE d.user_id = ? AND d.date = ?
+             LIMIT 1''',
+          [f.userId, date],
+        );
+
+        if (fRow != null) {
+          friendStatuses.add(DailyPrayerStatus(
+            id: fRow['id']?.toString() ?? 'prs_${f.userId}_$date',
+            userId: f.userId,
+            userName: f.name,
+            userAvatarColor: f.avatarColor,
+            userAvatarUrl: f.avatarUrl,
+            date: date,
+            fajr: _toBool(fRow['fajr']),
+            dhuhr: _toBool(fRow['dhuhr']),
+            asr: _toBool(fRow['asr']),
+            maghrib: _toBool(fRow['maghrib']),
+            isha: _toBool(fRow['isha']),
+            streakDays: _toInt(fRow['streak_days']),
+            habitsDone: _toInt(fRow['habits_done']),
+            habitsTotal: _toInt(fRow['habits_total']),
+          ));
+        } else {
+          // Friend has not opened app yet today: display with 0 prayers completed so they are visible
+          friendStatuses.add(DailyPrayerStatus(
+            id: 'prs_${f.userId}_$date',
+            userId: f.userId,
+            userName: f.name,
+            userAvatarColor: f.avatarColor,
+            userAvatarUrl: f.avatarUrl,
+            date: date,
+            fajr: false,
+            dhuhr: false,
+            asr: false,
+            maghrib: false,
+            isha: false,
+            streakDays: 0,
+            habitsDone: 0,
+            habitsTotal: 0,
+          ));
+        }
+      }
+
+      // Sort friends by completed count descending
+      friendStatuses.sort((a, b) => b.completedCount.compareTo(a.completedCount));
+
+      // Current user is ALWAYS first in the comparison view
+      return [myStatus, ...friendStatuses];
     });
   }
 
-  /// Sends a friend request given a friend code (e.g. AX-7842) or username.
-  Future<bool> sendFriendRequest(String codeOrUsername) async {
-    final cleanInput = codeOrUsername.trim();
-    if (cleanInput.isEmpty) return false;
+  // ===========================================================================
+  // CANDIDATE LOOKUP & ADD FRIEND WORKFLOW
+  // ===========================================================================
+
+  /// Searches candidate companion by friend code (e.g. AX-7842 or 7842) or username.
+  /// Shows real candidate profile preview with friendship status before sending request.
+  Future<FriendUser?> searchCandidateCompanion(String query) async {
+    final cleanInput = query.trim();
+    if (cleanInput.isEmpty) return null;
 
     final uid = currentUserId;
-    if (uid.isEmpty) throw Exception('Must be logged in to add friends');
-
     final upper = cleanInput.toUpperCase();
     final rawCode = upper.replaceAll('AX-', '').replaceAll('-', '').replaceAll(' ', '');
     final formattedCode = 'AX-$rawCode';
 
-    // 1. Look up profile locally or in Supabase
-    String? targetUserId;
+    Map<String, dynamic>? candidateRow;
 
-    // A. Local SQLite lookup
+    // 1. Search local SQLite
     if (isDatabaseInitialized) {
-      final local = await db.getOptional(
-        '''SELECT user_id FROM user_profiles 
+      candidateRow = await db.getOptional(
+        '''SELECT id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code
+           FROM user_profiles 
            WHERE (UPPER(friend_code) = ? OR UPPER(friend_code) = ? OR UPPER(name) = ? OR (LENGTH(?) >= 4 AND user_id LIKE ?))
-             AND user_id != ? LIMIT 1''',
+             AND user_id != ? 
+           LIMIT 1''',
         [upper, formattedCode, upper, rawCode, '${rawCode.toLowerCase()}%', uid],
       );
-      if (local != null) {
-        targetUserId = local['user_id'] as String?;
-      }
     }
 
-    // B. Supabase RPC: search_companion
-    if ((targetUserId == null || targetUserId.isEmpty) && _supabaseClient != null) {
+    // 2. Query Supabase via search_companion RPC
+    if (candidateRow == null && _supabaseClient != null) {
       try {
         final rpcRes = await _supabaseClient!.rpc(
           'search_companion',
           params: {'search_query': cleanInput},
         );
         if (rpcRes is List && rpcRes.isNotEmpty) {
-          targetUserId = rpcRes.first['user_id'] as String?;
+          candidateRow = Map<String, dynamic>.from(rpcRes.first as Map);
         }
       } catch (e) {
-        debugPrint('[FriendRepository] Remote RPC search_companion notice: $e');
+        debugPrint('[FriendRepository] search_companion RPC notice: $e');
       }
     }
 
-    // C. Supabase RPC: send_companion_request directly
-    if ((targetUserId == null || targetUserId.isEmpty) && _supabaseClient != null) {
-      try {
-        final rpcRes = await _supabaseClient!.rpc(
-          'send_companion_request',
-          params: {'target_code_or_name': cleanInput},
-        );
-        if (rpcRes is Map && rpcRes['success'] == true) {
-          targetUserId = rpcRes['target_user_id'] as String?;
-        }
-      } catch (e) {
-        debugPrint('[FriendRepository] Remote RPC send_companion_request notice: $e');
-      }
-    }
-
-    // D. Supabase direct table query with multi-condition fallback
-    if ((targetUserId == null || targetUserId.isEmpty) && _supabaseClient != null) {
+    // 3. Fallback: Query Supabase user_profiles table directly
+    if (candidateRow == null && _supabaseClient != null) {
       try {
         final orFilters = <String>[
           'friend_code.ilike.$cleanInput',
@@ -386,47 +636,106 @@ class FriendRepository {
 
         final res = await _supabaseClient!
             .from('user_profiles')
-            .select('user_id, friend_code, name')
+            .select('id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code')
             .or(orFilters.join(','))
             .neq('user_id', uid)
             .limit(1)
             .maybeSingle();
 
         if (res != null) {
-          targetUserId = res['user_id'] as String?;
+          candidateRow = Map<String, dynamic>.from(res);
         }
       } catch (e) {
-        debugPrint('[FriendRepository] Remote direct table lookup notice: $e');
+        debugPrint('[FriendRepository] Direct user_profiles query notice: $e');
       }
     }
 
-    if (targetUserId == null || targetUserId.isEmpty) {
-      return false;
+    if (candidateRow == null) return null;
+
+    final targetUid = candidateRow['user_id']?.toString() ?? '';
+    if (targetUid.isEmpty || targetUid == uid) return null;
+
+    // Cache candidate profile in local SQLite
+    await _cacheProfileLocally(candidateRow);
+
+    // Check existing friendship status
+    String existingStatus = 'none';
+    String existingFriendshipId = '';
+    bool isRequester = false;
+
+    if (isDatabaseInitialized) {
+      final fRow = await db.getOptional(
+        '''SELECT id, status, requester_id, addressee_id FROM friendships
+           WHERE (requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)
+           LIMIT 1''',
+        [uid, targetUid, targetUid, uid],
+      );
+      if (fRow != null) {
+        existingStatus = fRow['status']?.toString() ?? 'none';
+        existingFriendshipId = fRow['id']?.toString() ?? '';
+        isRequester = fRow['requester_id']?.toString() == uid;
+      }
     }
 
-    // 2. Prevent duplicate friend requests
+    if (existingStatus == 'none' && _supabaseClient != null) {
+      try {
+        final remoteF = await _supabaseClient!
+            .from('friendships')
+            .select('id, status, requester_id, addressee_id')
+            .or('and(requester_id.eq.$uid,addressee_id.eq.$targetUid),and(requester_id.eq.$targetUid,addressee_id.eq.$uid)')
+            .maybeSingle();
+        if (remoteF != null) {
+          existingStatus = remoteF['status']?.toString() ?? 'none';
+          existingFriendshipId = remoteF['id']?.toString() ?? '';
+          isRequester = remoteF['requester_id']?.toString() == uid;
+        }
+      } catch (_) {}
+    }
+
+    return FriendUser(
+      id: candidateRow['id']?.toString() ?? 'prof_$targetUid',
+      userId: targetUid,
+      name: (candidateRow['name']?.toString() ?? '').trim().isNotEmpty
+          ? candidateRow['name'].toString()
+          : 'Companion',
+      title: candidateRow['title']?.toString() ?? 'Specialist',
+      avatarColor: candidateRow['avatar_color']?.toString() ?? '#6366F1',
+      avatarUrl: candidateRow['avatar_url']?.toString(),
+      totalXp: _toInt(candidateRow['total_xp']),
+      level: _toInt(candidateRow['level'], 1),
+      friendCode: candidateRow['friend_code']?.toString(),
+      friendshipId: existingFriendshipId,
+      status: existingStatus,
+      isRequester: isRequester,
+    );
+  }
+
+  /// Sends a friend request to a candidate companion.
+  Future<bool> sendFriendRequestToCandidate(FriendUser candidate) async {
+    final uid = currentUserId;
+    if (uid.isEmpty) throw Exception('Must be logged in to add friends');
+
+    final targetUserId = candidate.userId;
+    if (targetUserId.isEmpty || targetUserId == uid) return false;
+
     final friendshipId = IdGenerator.generateDeterministicId('friendship_${uid}_$targetUserId');
     final nowUtc = DateTime.now().toUtc().toIso8601String();
+    final myName = currentUserName;
 
-    // Local SQLite write
+    // 1. Write to local SQLite
     if (isDatabaseInitialized) {
-      final existing = await db.getOptional(
-        'SELECT id FROM friendships WHERE id = ?',
-        [friendshipId],
-      );
+      final existing = await db.getOptional('SELECT id FROM friendships WHERE id = ?', [friendshipId]);
       if (existing != null) {
-        await db.execute('''
-          UPDATE friendships SET updated_at = ? WHERE id = ?
-        ''', [nowUtc, friendshipId]);
+        await db.execute('UPDATE friendships SET status = \'pending\', updated_at = ? WHERE id = ?', [nowUtc, friendshipId]);
       } else {
-        await db.execute('''
-          INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at)
-          VALUES (?, ?, ?, 'pending', ?, ?)
-        ''', [friendshipId, uid, targetUserId, nowUtc, nowUtc]);
+        await db.execute(
+          'INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at) VALUES (?, ?, ?, \'pending\', ?, ?)',
+          [friendshipId, uid, targetUserId, nowUtc, nowUtc],
+        );
       }
     }
 
-    // Supabase remote direct write
+    // 2. Direct Supabase write
     if (_supabaseClient != null) {
       try {
         await _supabaseClient!.from('friendships').upsert({
@@ -438,15 +747,283 @@ class FriendRepository {
           'updated_at': nowUtc,
         });
       } catch (e) {
-        debugPrint('[FriendRepository] Supabase direct friendship write notice: $e');
+        debugPrint('[FriendRepository] Supabase friendship upsert notice: $e');
+      }
+
+      // 3. Write notification for candidate in Supabase & SQLite
+      final logId = 'log_${uid}_${targetUserId}_${DateTime.now().millisecondsSinceEpoch}';
+      final meta = jsonEncode({
+        'sender_id': uid,
+        'sender_name': myName,
+        'friendship_id': friendshipId,
+      });
+
+      try {
+        await _supabaseClient!.from('friend_activity_logs').insert({
+          'id': logId,
+          'user_id': targetUserId,
+          'event_type': 'friend_request',
+          'title': '$myName sent you a companion request',
+          'metadata': {
+            'sender_id': uid,
+            'sender_name': myName,
+            'friendship_id': friendshipId,
+          },
+          'created_at': nowUtc,
+        });
+      } catch (e) {
+        debugPrint('[FriendRepository] Remote friend_request notification notice: $e');
+      }
+
+      if (isDatabaseInitialized) {
+        try {
+          await db.execute(
+            'INSERT INTO friend_activity_logs (id, user_id, event_type, title, metadata, created_at) VALUES (?, ?, \'friend_request\', ?, ?, ?)',
+            [logId, targetUserId, '$myName sent you a companion request', meta, nowUtc],
+          );
+        } catch (_) {}
       }
     }
 
-    // Fetch and cache target companion profile locally
+    // Cache candidate profile locally
     unawaited(syncSingleProfileFromRemote(targetUserId));
-
     return true;
   }
+
+  /// Sends a friend request given a code or username string.
+  Future<bool> sendFriendRequest(String codeOrUsername) async {
+    final candidate = await searchCandidateCompanion(codeOrUsername);
+    if (candidate == null) return false;
+    return sendFriendRequestToCandidate(candidate);
+  }
+
+  // ===========================================================================
+  // REQUEST RESPONSE (ACCEPT / REFUSE)
+  // ===========================================================================
+
+  /// Accepts an incoming friend request and notifies the requester.
+  Future<void> acceptFriendRequest(String friendshipId, [String? requesterId]) async {
+    final uid = currentUserId;
+    if (uid.isEmpty) return;
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+    final myName = currentUserName;
+
+    String reqId = requesterId ?? '';
+    if (reqId.isEmpty && isDatabaseInitialized) {
+      final row = await db.getOptional('SELECT requester_id FROM friendships WHERE id = ?', [friendshipId]);
+      reqId = row?['requester_id']?.toString() ?? '';
+    }
+
+    // 1. Update local SQLite
+    if (isDatabaseInitialized) {
+      await db.execute('UPDATE friendships SET status = \'accepted\', updated_at = ? WHERE id = ?', [nowUtc, friendshipId]);
+    }
+
+    // 2. Update Supabase
+    if (_supabaseClient != null) {
+      try {
+        await _supabaseClient!.from('friendships').update({
+          'status': 'accepted',
+          'updated_at': nowUtc,
+        }).eq('id', friendshipId);
+      } catch (e) {
+        debugPrint('[FriendRepository] Supabase acceptFriendRequest update notice: $e');
+      }
+
+      // Also call RPC helper if present
+      try {
+        await _supabaseClient!.rpc('respond_companion_request', params: {
+          'p_friendship_id': friendshipId,
+          'p_action': 'accept',
+        });
+      } catch (_) {}
+
+      // 3. Send acceptance notification to requester
+      if (reqId.isNotEmpty) {
+        final logId = 'log_${uid}_${reqId}_${DateTime.now().millisecondsSinceEpoch}';
+        final meta = jsonEncode({
+          'sender_id': uid,
+          'sender_name': myName,
+          'friendship_id': friendshipId,
+        });
+
+        try {
+          await _supabaseClient!.from('friend_activity_logs').insert({
+            'id': logId,
+            'user_id': reqId,
+            'event_type': 'request_accepted',
+            'title': '$myName accepted your companion request! 🎉',
+            'metadata': {
+              'sender_id': uid,
+              'sender_name': myName,
+              'friendship_id': friendshipId,
+            },
+            'created_at': nowUtc,
+          });
+        } catch (e) {
+          debugPrint('[FriendRepository] Remote accept notification notice: $e');
+        }
+
+        if (isDatabaseInitialized) {
+          try {
+            await db.execute(
+              'INSERT INTO friend_activity_logs (id, user_id, event_type, title, metadata, created_at) VALUES (?, ?, \'request_accepted\', ?, ?, ?)',
+              [logId, reqId, '$myName accepted your companion request! 🎉', meta, nowUtc],
+            );
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (reqId.isNotEmpty) {
+      unawaited(syncSingleProfileFromRemote(reqId));
+    }
+    unawaited(syncMyDailyPrayerStatus());
+  }
+
+  /// Refuses / Declines an incoming friend request and notifies the requester.
+  Future<void> declineFriendRequest(String friendshipId, [String? requesterId]) async {
+    final uid = currentUserId;
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+    final myName = currentUserName;
+
+    String reqId = requesterId ?? '';
+    if (reqId.isEmpty && isDatabaseInitialized) {
+      final row = await db.getOptional('SELECT requester_id FROM friendships WHERE id = ?', [friendshipId]);
+      reqId = row?['requester_id']?.toString() ?? '';
+    }
+
+    // 1. Remove from local SQLite
+    if (isDatabaseInitialized) {
+      await db.execute('DELETE FROM friendships WHERE id = ?', [friendshipId]);
+    }
+
+    // 2. Remove / Update on Supabase
+    if (_supabaseClient != null) {
+      try {
+        await _supabaseClient!.from('friendships').delete().eq('id', friendshipId);
+      } catch (e) {
+        debugPrint('[FriendRepository] Supabase decline delete notice: $e');
+      }
+
+      // Also call RPC helper if present
+      try {
+        await _supabaseClient!.rpc('respond_companion_request', params: {
+          'p_friendship_id': friendshipId,
+          'p_action': 'decline',
+        });
+      } catch (_) {}
+
+      // 3. Send decline notification to requester so they know
+      if (reqId.isNotEmpty) {
+        final logId = 'log_${uid}_${reqId}_${DateTime.now().millisecondsSinceEpoch}';
+        final meta = jsonEncode({
+          'sender_id': uid,
+          'sender_name': myName,
+          'friendship_id': friendshipId,
+        });
+
+        try {
+          await _supabaseClient!.from('friend_activity_logs').insert({
+            'id': logId,
+            'user_id': reqId,
+            'event_type': 'request_declined',
+            'title': '$myName declined your companion request',
+            'metadata': {
+              'sender_id': uid,
+              'sender_name': myName,
+              'friendship_id': friendshipId,
+            },
+            'created_at': nowUtc,
+          });
+        } catch (e) {
+          debugPrint('[FriendRepository] Remote decline notification notice: $e');
+        }
+
+        if (isDatabaseInitialized) {
+          try {
+            await db.execute(
+              'INSERT INTO friend_activity_logs (id, user_id, event_type, title, metadata, created_at) VALUES (?, ?, \'request_declined\', ?, ?, ?)',
+              [logId, reqId, '$myName declined your companion request', meta, nowUtc],
+            );
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
+  /// Removes an existing friendship.
+  Future<void> removeFriendship(String friendshipId) async {
+    if (isDatabaseInitialized) {
+      await db.execute('DELETE FROM friendships WHERE id = ?', [friendshipId]);
+    }
+    if (_supabaseClient != null) {
+      try {
+        await _supabaseClient!.from('friendships').delete().eq('id', friendshipId);
+      } catch (e) {
+        debugPrint('[FriendRepository] Supabase removeFriendship notice: $e');
+      }
+    }
+  }
+
+  // ===========================================================================
+  // PRAYER REMINDERS & NUDGES
+  // ===========================================================================
+
+  /// Sends a gentle reminder / salam to a friend for an upcoming or pending prayer.
+  Future<void> sendPrayerReminder(String friendUserId, String prayerName) async {
+    final uid = currentUserId;
+    if (uid.isEmpty || friendUserId.isEmpty) return;
+
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+    final logId = IdGenerator.generateDeterministicId('nudge_${uid}_${friendUserId}_$nowUtc');
+    final myName = currentUserName;
+    final meta = jsonEncode({
+      'sender_id': uid,
+      'sender_name': myName,
+      'prayer_name': prayerName,
+    });
+
+    // 1. Write to local SQLite
+    if (isDatabaseInitialized) {
+      await db.execute('''
+        INSERT INTO friend_activity_logs (id, user_id, event_type, title, metadata, created_at)
+        VALUES (?, ?, 'prayer_reminder', ?, ?, ?)
+      ''', [logId, friendUserId, '$myName reminded you to pray $prayerName 🕌', meta, nowUtc]);
+    }
+
+    // 2. Write to Supabase remote
+    if (_supabaseClient != null) {
+      try {
+        await _supabaseClient!.from('friend_activity_logs').insert({
+          'id': logId,
+          'user_id': friendUserId,
+          'event_type': 'prayer_reminder',
+          'title': '$myName reminded you to pray $prayerName 🕌',
+          'metadata': {
+            'sender_id': uid,
+            'sender_name': myName,
+            'prayer_name': prayerName,
+          },
+          'created_at': nowUtc,
+        });
+      } catch (e) {
+        debugPrint('[FriendRepository] Supabase sendPrayerReminder notice: $e');
+      }
+
+      // Also call RPC helper
+      try {
+        await _supabaseClient!.rpc('send_prayer_reminder_rpc', params: {
+          'p_target_user_id': friendUserId,
+          'p_prayer_name': prayerName,
+        });
+      } catch (_) {}
+    }
+  }
+
+  // ===========================================================================
+  // REMOTE SYNCHRONIZATION HELPERS
+  // ===========================================================================
 
   /// Synchronizes a specific companion profile from Supabase into local SQLite
   Future<void> syncSingleProfileFromRemote(String otherUid) async {
@@ -454,35 +1031,63 @@ class FriendRepository {
     if (client == null || otherUid.isEmpty || !isDatabaseInitialized) return;
 
     try {
-      final prof = await client.from('user_profiles').select('*').eq('user_id', otherUid).maybeSingle();
-      if (prof != null) {
-        final profId = prof['id'] as String? ?? 'prof_$otherUid';
-        final name = prof['name'] as String? ?? 'Companion';
-        final title = prof['title'] as String? ?? 'Specialist';
-        final color = prof['avatar_color'] as String? ?? '#6366F1';
-        final url = prof['avatar_url'] as String?;
-        final xp = (prof['total_xp'] as num?)?.toInt() ?? 0;
-        final lvl = (prof['level'] as num?)?.toInt() ?? 1;
-        final hashPart = otherUid.replaceAll('-', '').toUpperCase();
-        final fCode = prof['friend_code'] as String? ?? 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
-        final nowUtc = DateTime.now().toUtc().toIso8601String();
+      Map<String, dynamic>? prof;
+      // 1. Direct query
+      try {
+        final res = await client.from('user_profiles').select('*').eq('user_id', otherUid).maybeSingle();
+        if (res != null) prof = Map<String, dynamic>.from(res);
+      } catch (_) {}
 
-        final existing = await db.getOptional('SELECT id FROM user_profiles WHERE user_id = ?', [otherUid]);
-        if (existing != null) {
-          await db.execute('''
-            UPDATE user_profiles SET
-              name = ?, title = ?, avatar_color = ?, avatar_url = ?, total_xp = ?, level = ?, friend_code = ?, updated_at = ?
-            WHERE user_id = ?
-          ''', [name, title, color, url, xp, lvl, fCode, nowUtc, otherUid]);
-        } else {
-          await db.execute('''
-            INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ''', [profId, otherUid, name, title, color, url, xp, lvl, fCode, nowUtc, nowUtc]);
-        }
+      // 2. RPC helper
+      if (prof == null) {
+        try {
+          final rpcRes = await client.rpc('get_companion_profile', params: {'target_uid': otherUid});
+          if (rpcRes is List && rpcRes.isNotEmpty) {
+            prof = Map<String, dynamic>.from(rpcRes.first as Map);
+          }
+        } catch (_) {}
+      }
+
+      if (prof != null) {
+        await _cacheProfileLocally(prof);
       }
     } catch (e) {
       debugPrint('[FriendRepository] syncSingleProfileFromRemote notice: $e');
+    }
+  }
+
+  Future<void> _cacheProfileLocally(Map<String, dynamic> prof) async {
+    if (!isDatabaseInitialized) return;
+    try {
+      final otherUid = prof['user_id']?.toString() ?? '';
+      if (otherUid.isEmpty) return;
+
+      final profId = prof['id']?.toString() ?? 'prof_$otherUid';
+      final name = (prof['name']?.toString() ?? '').trim().isNotEmpty ? prof['name'].toString() : 'Companion';
+      final title = prof['title']?.toString() ?? 'Specialist';
+      final color = prof['avatar_color']?.toString() ?? '#6366F1';
+      final url = prof['avatar_url']?.toString();
+      final xp = _toInt(prof['total_xp']);
+      final lvl = _toInt(prof['level'], 1);
+      final hashPart = otherUid.replaceAll('-', '').toUpperCase();
+      final fCode = prof['friend_code']?.toString() ?? 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+      final existing = await db.getOptional('SELECT id FROM user_profiles WHERE user_id = ?', [otherUid]);
+      if (existing != null) {
+        await db.execute('''
+          UPDATE user_profiles SET
+            name = ?, title = ?, avatar_color = ?, avatar_url = ?, total_xp = ?, level = ?, friend_code = ?, updated_at = ?
+          WHERE user_id = ?
+        ''', [name, title, color, url, xp, lvl, fCode, nowUtc, otherUid]);
+      } else {
+        await db.execute('''
+          INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [profId, otherUid, name, title, color, url, xp, lvl, fCode, nowUtc, nowUtc]);
+      }
+    } catch (e) {
+      debugPrint('[FriendRepository] _cacheProfileLocally error: $e');
     }
   }
 
@@ -518,49 +1123,50 @@ class FriendRepository {
         }
 
         final otherUid = (reqId == uid) ? addId : reqId;
-        unawaited(syncSingleProfileFromRemote(otherUid));
+        await syncSingleProfileFromRemote(otherUid);
       }
     } catch (e) {
       debugPrint('[FriendRepository] syncFriendshipsFromRemote notice: $e');
     }
   }
 
-  /// Accepts an incoming friend request.
-  Future<void> acceptFriendRequest(String friendshipId) async {
-    if (!isDatabaseInitialized) return;
-    final nowUtc = DateTime.now().toUtc().toIso8601String();
-    await db.execute('''
-      UPDATE friendships SET status = 'accepted', updated_at = ? WHERE id = ?
-    ''', [nowUtc, friendshipId]);
+  /// Pulls friend activity logs and notifications from Supabase
+  Future<void> syncActivityLogsFromRemote() async {
+    final client = _supabaseClient;
+    final uid = currentUserId;
+    if (client == null || uid.isEmpty || !isDatabaseInitialized) return;
 
-    if (_supabaseClient != null) {
-      try {
-        await _supabaseClient!.from('friendships').update({
-          'status': 'accepted',
-          'updated_at': nowUtc,
-        }).eq('id', friendshipId);
-      } catch (e) {
-        debugPrint('[FriendRepository] Supabase acceptFriendRequest notice: $e');
+    try {
+      final remoteLogs = await client
+          .from('friend_activity_logs')
+          .select('*')
+          .eq('user_id', uid)
+          .order('created_at', ascending: false)
+          .limit(30);
+
+      for (final r in remoteLogs) {
+        final lId = r['id']?.toString() ?? '';
+        if (lId.isEmpty) continue;
+        final evType = r['event_type']?.toString() ?? 'prayer_reminder';
+        final title = r['title']?.toString() ?? '';
+        final meta = r['metadata'] != null ? jsonEncode(r['metadata']) : '{}';
+        final created = r['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String();
+
+        final existing = await db.getOptional('SELECT id FROM friend_activity_logs WHERE id = ?', [lId]);
+        if (existing == null) {
+          await db.execute(
+            'INSERT INTO friend_activity_logs (id, user_id, event_type, title, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+            [lId, uid, evType, title, meta, created],
+          );
+        }
       }
-    }
-  }
-
-  /// Declines or removes a friendship.
-  Future<void> removeFriendship(String friendshipId) async {
-    if (!isDatabaseInitialized) return;
-    await db.execute('DELETE FROM friendships WHERE id = ?', [friendshipId]);
-
-    if (_supabaseClient != null) {
-      try {
-        await _supabaseClient!.from('friendships').delete().eq('id', friendshipId);
-      } catch (e) {
-        debugPrint('[FriendRepository] Supabase removeFriendship notice: $e');
-      }
+    } catch (e) {
+      debugPrint('[FriendRepository] syncActivityLogsFromRemote notice: $e');
     }
   }
 
   /// Synchronizes the current user's prayers and daily habit progress into `daily_prayer_status`
-  /// so friends can immediately view today's checklist.
+  /// and pulls friends' statuses from Supabase.
   Future<void> syncMyDailyPrayerStatus() async {
     if (!isDatabaseInitialized) return;
     final uid = currentUserId;
@@ -570,9 +1176,6 @@ class FriendRepository {
     final today = DateFormat('yyyy-MM-dd').format(now);
     final nowUtc = now.toUtc().toIso8601String();
     final statusId = IdGenerator.generateDeterministicId('prs_${uid}_$today');
-
-    // Run remote friendships sync in background
-    unawaited(syncFriendshipsFromRemote());
 
     try {
       // 1. Fetch current 5 prayers
@@ -748,19 +1351,10 @@ class FriendRepository {
     }
   }
 
-  /// Sends a gentle reminder / salam to a friend for an upcoming or pending prayer.
-  Future<void> sendPrayerReminder(String friendUserId, String prayerName) async {
-    final uid = currentUserId;
-    if (uid.isEmpty) return;
-
-    final nowUtc = DateTime.now().toUtc().toIso8601String();
-    final logId = IdGenerator.generateDeterministicId('nudge_${uid}_${friendUserId}_$nowUtc');
-
-    if (isDatabaseInitialized) {
-      await db.execute('''
-        INSERT INTO friend_activity_logs (id, user_id, event_type, title, created_at)
-        VALUES (?, ?, 'nudge', ?, ?)
-      ''', [logId, friendUserId, 'Gentle reminder to pray $prayerName 🕌', nowUtc]);
-    }
+  /// Performs full sync of friendships, prayer checklists, and activity logs.
+  Future<void> syncAllFriendData() async {
+    await syncFriendshipsFromRemote();
+    await syncActivityLogsFromRemote();
+    await syncMyDailyPrayerStatus();
   }
 }

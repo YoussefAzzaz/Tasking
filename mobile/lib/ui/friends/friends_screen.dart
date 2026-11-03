@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,16 +8,7 @@ import 'package:axis/data/friend_repository.dart';
 import 'package:axis/data/user_profile_repository.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 
-/// Redesigned Companions & Mutual Accountability Screen.
-/// Pro UI/UX with Obsidian Cyberpunk aesthetics, responsive bottom sheet (overflow-proof),
-/// gamified top-3 podium leaderboard, and interactive daily prayer checklist.
-class FriendsScreen extends StatefulWidget {
-  const FriendsScreen({super.key});
-
-  @override
-  State<FriendsScreen> createState() => _FriendsScreenState();
-}
-
+/// Parses 32-bit hex color string (e.g. '#6366F1' or '0xFF6366F1') safely without throwing.
 Color _parseHexColor(String? hexString, {Color fallback = const Color(0xFF6366F1)}) {
   if (hexString == null || hexString.isEmpty) return fallback;
   try {
@@ -35,36 +27,60 @@ Color _parseHexColor(String? hexString, {Color fallback = const Color(0xFF6366F1
   return fallback;
 }
 
+/// Companions & Mutual Accountability Screen.
+/// Pro UI/UX with Obsidian Cyberpunk theme, live candidate preview before invite,
+/// instant accept/refuse with notifications, today's prayer comparison, and gamified standings.
+class FriendsScreen extends StatefulWidget {
+  const FriendsScreen({super.key});
+
+  @override
+  State<FriendsScreen> createState() => _FriendsScreenState();
+}
+
 class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final _friendRepo = FriendRepository();
   final _profileRepo = UserProfileRepository();
-  final _searchController = TextEditingController();
-  bool _isSubmitting = false;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
+    // 3 tabs: Tab 0 = Circle, Tab 1 = Today's Prayers, Tab 2 = Standings & Habits
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
-    // Ensure daily checklist status is synced
-    _friendRepo.syncMyDailyPrayerStatus();
+
+    // Initial sync
+    _friendRepo.syncAllFriendData();
+
+    // Periodic sync every 12s while screen is active
+    _pollingTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (mounted) {
+        _friendRepo.syncAllFriendData();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _tabController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
   // ===========================================================================
-  // ADD COMPANION RESPONSIVE BOTTOM SHEET (OVERFLOW-PROOF)
+  // ADD COMPANION RESPONSIVE BOTTOM SHEET WITH LIVE CANDIDATE PREVIEW
   // ===========================================================================
   void _showAddCompanionSheet(BuildContext context, String myFriendCode) {
-    _searchController.clear();
+    final searchCtrl = TextEditingController();
+    FriendUser? foundCandidate;
+    bool isSearching = false;
+    bool isSubmitting = false;
+    String lastQuery = '';
+    Timer? debounce;
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -74,11 +90,48 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           final l10n = AppLocalizations.of(context);
           final viewInsets = MediaQuery.of(sheetCtx).viewInsets;
 
+          void performSearch(String query) {
+            debounce?.cancel();
+            final clean = query.trim();
+            if (clean.isEmpty) {
+              setSheetState(() {
+                foundCandidate = null;
+                isSearching = false;
+                lastQuery = '';
+              });
+              return;
+            }
+
+            setSheetState(() {
+              isSearching = true;
+              lastQuery = clean;
+            });
+
+            debounce = Timer(const Duration(milliseconds: 350), () async {
+              try {
+                final candidate = await _friendRepo.searchCandidateCompanion(clean);
+                if (sheetCtx.mounted) {
+                  setSheetState(() {
+                    foundCandidate = candidate;
+                    isSearching = false;
+                  });
+                }
+              } catch (_) {
+                if (sheetCtx.mounted) {
+                  setSheetState(() {
+                    foundCandidate = null;
+                    isSearching = false;
+                  });
+                }
+              }
+            });
+          }
+
           return Padding(
             padding: EdgeInsets.only(bottom: viewInsets.bottom),
             child: Container(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(sheetCtx).size.height * 0.88,
+                maxHeight: MediaQuery.of(sheetCtx).size.height * 0.90,
               ),
               decoration: const BoxDecoration(
                 color: AxisColors.canvasBase,
@@ -91,7 +144,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black,
-                    blurRadius: 32,
+                    blurRadius: 36,
                     spreadRadius: 8,
                     offset: Offset(0, -6),
                   ),
@@ -160,15 +213,18 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                         ),
                         IconButton(
                           icon: const Icon(Icons.close_rounded, size: 20, color: AxisColors.textDim),
-                          onPressed: () => Navigator.of(sheetCtx).pop(),
+                          onPressed: () {
+                            debounce?.cancel();
+                            Navigator.of(sheetCtx).pop();
+                          },
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
                     // Your Friend Code Showcase Card
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -183,28 +239,18 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                           color: AxisColors.primary.withValues(alpha: 0.35),
                           width: 1.2,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AxisColors.primary.withValues(alpha: 0.08),
-                            blurRadius: 16,
-                          ),
-                        ],
                       ),
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(9),
                             decoration: BoxDecoration(
                               color: AxisColors.primary.withValues(alpha: 0.15),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
-                              Icons.qr_code_rounded,
-                              size: 20,
-                              color: AxisColors.primarySoft,
-                            ),
+                            child: const Icon(Icons.qr_code_rounded, size: 18, color: AxisColors.primarySoft),
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,17 +258,17 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                                 Text(
                                   l10n.yourFriendCode.toUpperCase(),
                                   style: GoogleFonts.spaceGrotesk(
-                                    fontSize: 10,
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.9,
                                     color: AxisColors.textDim,
                                   ),
                                 ),
-                                const SizedBox(height: 3),
+                                const SizedBox(height: 2),
                                 Text(
                                   myFriendCode.isNotEmpty ? myFriendCode : 'AX-7842',
                                   style: GoogleFonts.spaceGrotesk(
-                                    fontSize: 17,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 1.2,
                                     color: AxisColors.primarySoft,
@@ -244,30 +290,30 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                                 ),
                               );
                             },
-                            icon: const Icon(Icons.copy_rounded, size: 14),
+                            icon: const Icon(Icons.copy_rounded, size: 13),
                             label: Text(
-                              l10n.isArabic ? 'نسخ' : 'Copy',
-                              style: GoogleFonts.getFont('Geist', fontSize: 12, fontWeight: FontWeight.w600),
+                              l10n.copy,
+                              style: GoogleFonts.getFont('Geist', fontSize: 11.5, fontWeight: FontWeight.w600),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AxisColors.primary.withValues(alpha: 0.25),
+                              backgroundColor: AxisColors.primary.withValues(alpha: 0.22),
                               foregroundColor: AxisColors.primarySoft,
                               elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(color: AxisColors.primary.withValues(alpha: 0.5)),
+                                side: BorderSide(color: AxisColors.primary.withValues(alpha: 0.45)),
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
-                    // Input Field with uppercase and search prefix
+                    // Input Field with Live Search Trigger
                     TextField(
-                      controller: _searchController,
+                      controller: searchCtrl,
                       textCapitalization: TextCapitalization.characters,
                       style: GoogleFonts.spaceGrotesk(
                         color: AxisColors.textHigh,
@@ -280,18 +326,27 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                         hintText: l10n.searchCompanionHint,
                         hintStyle: GoogleFonts.getFont('Geist', color: AxisColors.textDim.withValues(alpha: 0.6), fontSize: 13),
                         prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AxisColors.primarySoft),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 18, color: AxisColors.textDim),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setSheetState(() {});
-                                },
+                        suffixIcon: isSearching
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AxisColors.primarySoft),
+                                ),
                               )
-                            : null,
+                            : searchCtrl.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear_rounded, size: 18, color: AxisColors.textDim),
+                                    onPressed: () {
+                                      searchCtrl.clear();
+                                      performSearch('');
+                                    },
+                                  )
+                                : null,
                         filled: true,
                         fillColor: AxisColors.surfaceLowest,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: const BorderSide(color: AxisColors.borderSubtle),
@@ -305,37 +360,221 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                           borderSide: const BorderSide(color: AxisColors.primary, width: 1.8),
                         ),
                       ),
-                      onChanged: (_) => setSheetState(() {}),
+                      onChanged: performSearch,
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 16),
 
-                    // Submit Action Button
+                    // LIVE CANDIDATE PREVIEW CARD
+                    if (foundCandidate != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceLowest,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: foundCandidate!.status == 'accepted'
+                                ? AxisColors.success.withValues(alpha: 0.6)
+                                : AxisColors.primary.withValues(alpha: 0.6),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AxisColors.primary.withValues(alpha: 0.12),
+                              blurRadius: 18,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Status Pill
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: (foundCandidate!.status == 'accepted'
+                                            ? AxisColors.success
+                                            : AxisColors.primary)
+                                        .withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        foundCandidate!.status == 'accepted'
+                                            ? Icons.check_circle_rounded
+                                            : Icons.verified_user_rounded,
+                                        size: 13,
+                                        color: foundCandidate!.status == 'accepted'
+                                            ? AxisColors.success
+                                            : AxisColors.primarySoft,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        foundCandidate!.status == 'accepted'
+                                            ? l10n.alreadyFriends
+                                            : (foundCandidate!.status == 'pending'
+                                                ? l10n.requestAlreadyPending
+                                                : l10n.candidateFound),
+                                        style: GoogleFonts.spaceGrotesk(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: foundCandidate!.status == 'accepted'
+                                              ? AxisColors.success
+                                              : AxisColors.primarySoft,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  foundCandidate!.friendCode ?? '',
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AxisColors.textDim,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Profile row: Avatar + Name + Level
+                            Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: _parseHexColor(foundCandidate!.avatarColor),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white24, width: 1.5),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      foundCandidate!.name.isNotEmpty
+                                          ? foundCandidate!.name[0].toUpperCase()
+                                          : 'C',
+                                      style: GoogleFonts.spaceGrotesk(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        foundCandidate!.name,
+                                        style: GoogleFonts.spaceGrotesk(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                          color: AxisColors.textHigh,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: AxisColors.surfaceHigh,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'Lv. ${foundCandidate!.level}',
+                                              style: GoogleFonts.spaceGrotesk(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: AxisColors.warning,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            foundCandidate!.title,
+                                            style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '• ${foundCandidate!.totalXp} XP',
+                                            style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ] else if (!isSearching && lastQuery.length >= 3) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceLowest,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AxisColors.warning.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded, size: 20, color: AxisColors.warning),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                l10n.noCompanionFound,
+                                style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+
+                    // Send Request Button
                     Container(
                       height: 50,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AxisColors.primary, Color(0xFF818CF8)],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
+                        gradient: (foundCandidate != null && foundCandidate!.status == 'none')
+                            ? const LinearGradient(
+                                colors: [AxisColors.primary, Color(0xFF818CF8)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              )
+                            : null,
+                        color: (foundCandidate == null || foundCandidate!.status != 'none')
+                            ? AxisColors.surfaceHigh.withValues(alpha: 0.4)
+                            : null,
                         borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AxisColors.primary.withValues(alpha: 0.35),
-                            blurRadius: 14,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        boxShadow: (foundCandidate != null && foundCandidate!.status == 'none')
+                            ? [
+                                BoxShadow(
+                                  color: AxisColors.primary.withValues(alpha: 0.35),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
                       ),
                       child: ElevatedButton(
-                        onPressed: _isSubmitting || _searchController.text.trim().isEmpty
+                        onPressed: isSubmitting || foundCandidate == null || foundCandidate!.status != 'none'
                             ? null
                             : () async {
-                                final text = _searchController.text.trim();
-                                if (text.isEmpty) return;
-                                setSheetState(() => _isSubmitting = true);
+                                setSheetState(() => isSubmitting = true);
                                 try {
-                                  final success = await _friendRepo.sendFriendRequest(text);
+                                  final success = await _friendRepo.sendFriendRequestToCandidate(foundCandidate!);
                                   if (context.mounted) {
                                     Navigator.of(sheetCtx).pop();
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -343,11 +582,11 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                                         content: Text(
                                           success
                                               ? (l10n.isArabic
-                                                  ? 'تم إرسال طلب الصداقة بنجاح إلى $text!'
-                                                  : 'Friend request sent successfully to $text!')
+                                                  ? 'تم إرسال طلب الرفقة بنجاح إلى ${foundCandidate!.name}!'
+                                                  : 'Friend request sent successfully to ${foundCandidate!.name}!')
                                               : (l10n.isArabic
-                                                  ? 'تعذر العثور على رفيق بهذا الرمز أو الاسم.'
-                                                  : 'Could not find companion with that code or name.'),
+                                                  ? 'تعذر إرسال الطلب. حاول مرة أخرى.'
+                                                  : 'Could not send request. Please try again.'),
                                         ),
                                         backgroundColor: success ? AxisColors.success : AxisColors.warning,
                                         behavior: SnackBarBehavior.floating,
@@ -365,16 +604,19 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                                     );
                                   }
                                 } finally {
-                                  if (mounted) setSheetState(() => _isSubmitting = false);
+                                  if (sheetCtx.mounted) {
+                                    setSheetState(() => isSubmitting = false);
+                                  }
                                 }
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
                           foregroundColor: Colors.white,
+                          disabledForegroundColor: AxisColors.textDim,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
-                        child: _isSubmitting
+                        child: isSubmitting
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
@@ -386,7 +628,9 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                                   const Icon(Icons.send_rounded, size: 16),
                                   const SizedBox(width: 8),
                                   Text(
-                                    l10n.sendConnectionRequest,
+                                    foundCandidate != null
+                                        ? l10n.sendRequestTo(foundCandidate!.name)
+                                        : l10n.sendConnectionRequest,
                                     style: GoogleFonts.spaceGrotesk(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
@@ -520,26 +764,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                     labelStyle: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700),
                     unselectedLabelStyle: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w500),
                     tabs: [
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.checklist_rtl_rounded, size: 15),
-                            const SizedBox(width: 5),
-                            Flexible(child: Text(l10n.todaysBoard, overflow: TextOverflow.ellipsis)),
-                          ],
-                        ),
-                      ),
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.emoji_events_rounded, size: 15),
-                            const SizedBox(width: 5),
-                            Flexible(child: Text(l10n.weeklyStandings, overflow: TextOverflow.ellipsis)),
-                          ],
-                        ),
-                      ),
+                      // TAB 0: CIRCLE (REQUESTS, NOTIFICATIONS, COMPANIONS)
                       Tab(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -564,6 +789,28 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                           ],
                         ),
                       ),
+                      // TAB 1: TODAY'S PRAYERS
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.checklist_rtl_rounded, size: 15),
+                            const SizedBox(width: 5),
+                            Flexible(child: Text(l10n.todaysBoard, overflow: TextOverflow.ellipsis)),
+                          ],
+                        ),
+                      ),
+                      // TAB 2: WEEKLY STANDINGS & HABITS
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.emoji_events_rounded, size: 15),
+                            const SizedBox(width: 5),
+                            Flexible(child: Text(l10n.weeklyStandings, overflow: TextOverflow.ellipsis)),
+                          ],
+                        ),
+                      ),
                     ],
                   );
                 },
@@ -575,9 +822,506 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       body: TabBarView(
         controller: _tabController,
         children: [
+          _buildCircleTab(),
           _buildTodaysPrayerBoard(todayStr),
           _buildWeeklyStandings(),
-          _buildCircleTab(),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // TAB 0: CIRCLE & NOTIFICATIONS (REQUESTS, NOTIFICATIONS, COMPANIONS, CODE)
+  // ===========================================================================
+  Widget _buildCircleTab() {
+    final l10n = AppLocalizations.of(context);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _friendRepo.syncAllFriendData();
+      },
+      color: AxisColors.primary,
+      backgroundColor: AxisColors.surfaceLow,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        children: [
+          // 1. Your Friend Code Showcase Card
+          ValueListenableBuilder<UserProfile>(
+            valueListenable: _profileRepo.profileNotifier,
+            builder: (context, profile, _) {
+              final myCode = profile.friendCode ?? 'AX-7842';
+              return Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AxisColors.surfaceLowest,
+                      AxisColors.surfaceLow,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AxisColors.primary.withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AxisColors.primary.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.share_rounded, color: AxisColors.primarySoft, size: 20),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.yourFriendCode.toUpperCase(),
+                            style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w800, color: AxisColors.textDim),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            myCode,
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                              color: AxisColors.primarySoft,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Clipboard.setData(ClipboardData(text: myCode));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.copyCodeSuccess),
+                            backgroundColor: AxisColors.surfaceLow,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 14),
+                      label: Text(
+                        l10n.copy,
+                        style: GoogleFonts.getFont('Geist', fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AxisColors.primary.withValues(alpha: 0.22),
+                        foregroundColor: AxisColors.primarySoft,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: AxisColors.primary.withValues(alpha: 0.45)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          // 2. INCOMING FRIEND REQUESTS SECTION (WITH REAL CANDIDATE DETAILS + ACCEPT/REFUSE)
+          StreamBuilder<List<FriendUser>>(
+            stream: _friendRepo.watchPendingRequests(),
+            builder: (context, snapshot) {
+              final requests = snapshot.data ?? [];
+              if (requests.isEmpty) return const SizedBox.shrink();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AxisColors.primary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.mark_email_unread_rounded, size: 15, color: AxisColors.primarySoft),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${l10n.pendingRequests.toUpperCase()} (${requests.length})',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: AxisColors.primarySoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...requests.map((r) => Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceLowest,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AxisColors.primary.withValues(alpha: 0.45), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AxisColors.primary.withValues(alpha: 0.08),
+                              blurRadius: 14,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Requester Avatar
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: _parseHexColor(r.avatarColor),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AxisColors.primarySoft.withValues(alpha: 0.5), width: 1.5),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  r.name.isNotEmpty ? r.name[0].toUpperCase() : 'C',
+                                  style: GoogleFonts.spaceGrotesk(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    r.name,
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AxisColors.textHigh,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Lv. ${r.level}  ·  ${r.friendCode ?? "AX-7842"}',
+                                    style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Accept Button
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                HapticFeedback.lightImpact();
+                                await _friendRepo.acceptFriendRequest(r.friendshipId, r.userId);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(l10n.requestAccepted),
+                                      backgroundColor: AxisColors.success,
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.check_rounded, size: 15),
+                              label: Text(
+                                l10n.accept,
+                                style: GoogleFonts.spaceGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AxisColors.success.withValues(alpha: 0.22),
+                                foregroundColor: AxisColors.success,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: BorderSide(color: AxisColors.success.withValues(alpha: 0.5)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // Refuse Button
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, color: AxisColors.error, size: 20),
+                              tooltip: l10n.refuse,
+                              onPressed: () async {
+                                HapticFeedback.lightImpact();
+                                await _friendRepo.declineFriendRequest(r.friendshipId, r.userId);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(l10n.requestDeclined),
+                                      backgroundColor: AxisColors.surfaceLow,
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      )),
+                  const SizedBox(height: 16),
+                ],
+              );
+            },
+          ),
+
+          // 3. COMPANION REMINDERS & NOTIFICATIONS SECTION
+          StreamBuilder<List<FriendActivityLog>>(
+            stream: _friendRepo.watchFriendActivityLogs(),
+            builder: (context, snapshot) {
+              final logs = snapshot.data ?? [];
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AxisColors.tertiary.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.notifications_active_rounded, size: 15, color: AxisColors.tertiaryBright),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        l10n.friendNotifications.toUpperCase(),
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: AxisColors.tertiaryBright,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (logs.isNotEmpty)
+                        TextButton(
+                          onPressed: () => _friendRepo.clearFriendNotifications(),
+                          child: Text(
+                            l10n.clearNotifications,
+                            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (logs.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      margin: const EdgeInsets.only(bottom: 18),
+                      decoration: BoxDecoration(
+                        color: AxisColors.surfaceLowest,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AxisColors.borderSubtle),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notifications_none_rounded, size: 16, color: AxisColors.textDim),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              l10n.noNotificationsYet,
+                              style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ...logs.take(5).map((log) {
+                      IconData iconData = Icons.notifications_rounded;
+                      Color iconColor = AxisColors.tertiary;
+
+                      if (log.isFriendRequest) {
+                        iconData = Icons.person_add_rounded;
+                        iconColor = AxisColors.primarySoft;
+                      } else if (log.isRequestAccepted) {
+                        iconData = Icons.celebration_rounded;
+                        iconColor = AxisColors.success;
+                      } else if (log.isRequestDeclined) {
+                        iconData = Icons.cancel_outlined;
+                        iconColor = AxisColors.error;
+                      } else if (log.isPrayerReminder) {
+                        iconData = Icons.mosque_rounded;
+                        iconColor = AxisColors.tertiaryBright;
+                      }
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AxisColors.surfaceLowest,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AxisColors.borderSubtle),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: iconColor.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(iconData, size: 15, color: iconColor),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                log.title,
+                                style: GoogleFonts.getFont(
+                                  'Geist',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: AxisColors.textHigh,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  const SizedBox(height: 18),
+                ],
+              );
+            },
+          ),
+
+          // 4. CONNECTED COMPANIONS LIST
+          StreamBuilder<List<FriendUser>>(
+            stream: _friendRepo.watchAcceptedFriends(),
+            builder: (context, snapshot) {
+              final friends = snapshot.data ?? [];
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.people_alt_rounded, size: 16, color: AxisColors.textDim),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${l10n.connectedCompanions.toUpperCase()} (${friends.length})',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: AxisColors.textDim,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (friends.isEmpty)
+                    _buildEmptyStateCard(
+                      icon: Icons.group_add_outlined,
+                      title: l10n.noCompanionsYet,
+                      subtitle: l10n.noCompanionsDesc,
+                      actionLabel: l10n.addCompanion,
+                      onAction: () {
+                        final code = _profileRepo.profileNotifier.value.friendCode ?? 'AX-7842';
+                        _showAddCompanionSheet(context, code);
+                      },
+                    )
+                  else
+                    ...friends.map((f) => Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AxisColors.surfaceLowest,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AxisColors.borderSubtle),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: _parseHexColor(f.avatarColor),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    f.name.isNotEmpty ? f.name[0].toUpperCase() : 'C',
+                                    style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      f.name,
+                                      style: GoogleFonts.spaceGrotesk(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AxisColors.textHigh,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${l10n.friendCode}: ${f.friendCode ?? "AX-7842"}  ·  Lv. ${f.level}',
+                                      style: GoogleFonts.getFont('Geist', fontSize: 10.5, color: AxisColors.textDim),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AxisColors.textDim),
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      backgroundColor: AxisColors.surfaceLow,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      title: Text(
+                                        l10n.removeCompanion,
+                                        style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh, fontWeight: FontWeight.w700),
+                                      ),
+                                      content: Text(
+                                        l10n.removeCompanionConfirm,
+                                        style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(ctx).pop(false),
+                                          child: Text(l10n.cancel, style: const TextStyle(color: AxisColors.textDim)),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(ctx).pop(true),
+                                          child: Text(l10n.remove, style: const TextStyle(color: AxisColors.error)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) {
+                                    await _friendRepo.removeFriendship(f.friendshipId);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        )),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -591,7 +1335,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
 
     return RefreshIndicator(
       onRefresh: () async {
-        await _friendRepo.syncMyDailyPrayerStatus();
+        await _friendRepo.syncAllFriendData();
       },
       color: AxisColors.primary,
       backgroundColor: AxisColors.surfaceLow,
@@ -663,7 +1407,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           ),
           const SizedBox(height: 16),
 
-          // Live Stream of Checklist Cards
+          // Live Stream of Checklist Cards (Current User FIRST + Companions)
           StreamBuilder<List<DailyPrayerStatus>>(
             stream: _friendRepo.watchTodayChecklist(),
             builder: (context, snapshot) {
@@ -701,10 +1445,11 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       {'code': 'isha', 'name': l10n.prayerName('isha'), 'done': status.isha},
     ];
 
-    final isMe = status.userId == _friendRepo.currentUserId || status.userName == 'You' || status.userName == l10n.youLabel;
-    final cardBg = isMe
-        ? AxisColors.surfaceLow
-        : AxisColors.surfaceLowest;
+    final isMe = status.userId == _friendRepo.currentUserId ||
+        status.userName == 'You' ||
+        status.userName == l10n.youLabel;
+
+    final cardBg = isMe ? AxisColors.surfaceLow : AxisColors.surfaceLowest;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -713,9 +1458,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
         color: cardBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isMe
-              ? AxisColors.primary.withValues(alpha: 0.5)
-              : AxisColors.borderSubtle,
+          color: isMe ? AxisColors.primary.withValues(alpha: 0.5) : AxisColors.borderSubtle,
           width: isMe ? 1.4 : 1.0,
         ),
         boxShadow: [
@@ -942,15 +1685,15 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   }
 
   // ===========================================================================
-  // TAB 2: WEEKLY FRIENDLY STANDINGS (LEADERBOARD & PODIUM)
+  // TAB 2: WEEKLY STANDINGS (PODIUM + LEADERBOARD INCLUDING CURRENT USER)
   // ===========================================================================
   Widget _buildWeeklyStandings() {
     final l10n = AppLocalizations.of(context);
 
     return StreamBuilder<List<FriendUser>>(
-      stream: _friendRepo.watchAcceptedFriends(),
+      stream: _friendRepo.watchAllStandings(),
       builder: (context, snapshot) {
-        final friends = snapshot.data ?? [];
+        final standings = snapshot.data ?? [];
 
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -1012,7 +1755,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             ),
             const SizedBox(height: 20),
 
-            if (friends.isEmpty)
+            if (standings.isEmpty)
               _buildEmptyStateCard(
                 icon: Icons.emoji_events_outlined,
                 title: l10n.noCompanionsYet,
@@ -1025,14 +1768,14 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               )
             else ...[
               // TOP 3 PODIUM SHOWCASE
-              _buildPodiumSection(friends),
+              _buildPodiumSection(standings),
               const SizedBox(height: 20),
 
               // RANKS 4+ LIST
-              if (friends.length > 3)
-                ...List.generate(friends.length - 3, (index) {
+              if (standings.length > 3)
+                ...List.generate(standings.length - 3, (index) {
                   final rank = index + 4;
-                  final f = friends[rank - 1];
+                  final f = standings[rank - 1];
                   return _buildLeaderboardRow(f, rank);
                 }),
             ],
@@ -1042,10 +1785,10 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildPodiumSection(List<FriendUser> friends) {
-    final top1 = friends.isNotEmpty ? friends[0] : null;
-    final top2 = friends.length > 1 ? friends[1] : null;
-    final top3 = friends.length > 2 ? friends[2] : null;
+  Widget _buildPodiumSection(List<FriendUser> standings) {
+    final top1 = standings.isNotEmpty ? standings[0] : null;
+    final top2 = standings.length > 1 ? standings[1] : null;
+    final top3 = standings.length > 2 ? standings[2] : null;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -1079,6 +1822,8 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     required double height,
     required Color color,
   }) {
+    final isMe = user.userId == _friendRepo.currentUserId;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1088,7 +1833,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             padding: EdgeInsets.only(bottom: 4),
             child: Icon(Icons.workspace_premium_rounded, size: 24, color: AxisColors.warning),
           ),
-        // Avatar with podium glowing border
+        // Avatar with podium border
         Container(
           width: rank == 1 ? 48 : 42,
           height: rank == 1 ? 48 : 42,
@@ -1115,16 +1860,34 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          user.name,
-          style: GoogleFonts.spaceGrotesk(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: AxisColors.textHigh,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                user.name,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AxisColors.textHigh,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            if (isMe) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AxisColors.primary,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('YOU', style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ],
         ),
         Text(
           '${user.totalXp} XP',
@@ -1169,13 +1932,17 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   }
 
   Widget _buildLeaderboardRow(FriendUser f, int rank) {
+    final isMe = f.userId == _friendRepo.currentUserId;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AxisColors.surfaceLowest,
+        color: isMe ? AxisColors.surfaceLow : AxisColors.surfaceLowest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AxisColors.borderSubtle),
+        border: Border.all(
+          color: isMe ? AxisColors.primary.withValues(alpha: 0.5) : AxisColors.borderSubtle,
+        ),
       ),
       child: Row(
         children: [
@@ -1211,13 +1978,31 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  f.name,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: AxisColors.textHigh,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        f.name,
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: AxisColors.textHigh,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isMe) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AxisColors.primary.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('YOU', style: TextStyle(fontSize: 8.5, color: AxisColors.primarySoft, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   'Lv. ${f.level}  ·  ${f.title}',
@@ -1247,323 +2032,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     );
   }
 
-  // ===========================================================================
-  // TAB 3: CIRCLE & REQUESTS (MANAGE COMPANIONS)
-  // ===========================================================================
-  Widget _buildCircleTab() {
-    final l10n = AppLocalizations.of(context);
-
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      children: [
-        // Your Friend Code Card
-        ValueListenableBuilder<UserProfile>(
-          valueListenable: _profileRepo.profileNotifier,
-          builder: (context, profile, _) {
-            final myCode = profile.friendCode ?? 'AX-7842';
-            return Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AxisColors.surfaceLowest,
-                    AxisColors.surfaceLow,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AxisColors.primary.withValues(alpha: 0.35)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AxisColors.primary.withValues(alpha: 0.18),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.share_rounded, color: AxisColors.primarySoft, size: 20),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.yourFriendCode.toUpperCase(),
-                          style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w800, color: AxisColors.textDim),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          myCode,
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                            color: AxisColors.primarySoft,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Clipboard.setData(ClipboardData(text: myCode));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.copyCodeSuccess),
-                          backgroundColor: AxisColors.surfaceLow,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.copy_rounded, size: 14),
-                    label: Text(
-                      l10n.isArabic ? 'نسخ' : 'Copy',
-                      style: GoogleFonts.getFont('Geist', fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AxisColors.primary.withValues(alpha: 0.22),
-                      foregroundColor: AxisColors.primarySoft,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(color: AxisColors.primary.withValues(alpha: 0.45)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-
-        // Pending Requests
-        StreamBuilder<List<FriendUser>>(
-          stream: _friendRepo.watchPendingRequests(),
-          builder: (context, snapshot) {
-            final requests = snapshot.data ?? [];
-            if (requests.isEmpty) return const SizedBox.shrink();
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.mark_email_unread_rounded, size: 16, color: AxisColors.primarySoft),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${l10n.pendingRequests.toUpperCase()} (${requests.length})',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: AxisColors.primarySoft,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                ...requests.map((r) => Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AxisColors.surfaceLowest,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AxisColors.primary.withValues(alpha: 0.45)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: _parseHexColor(r.avatarColor),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                r.name.isNotEmpty ? r.name[0].toUpperCase() : 'C',
-                                style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  r.name,
-                                  style: GoogleFonts.spaceGrotesk(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: AxisColors.textHigh,
-                                  ),
-                                ),
-                                Text(
-                                  l10n.isArabic ? 'يرغب في الانضمام إلى رفاقك' : 'wants to connect with you',
-                                  style: GoogleFonts.getFont('Geist', fontSize: 10.5, color: AxisColors.textDim),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.check_circle_rounded, color: AxisColors.success, size: 24),
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              _friendRepo.acceptFriendRequest(r.friendshipId);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.cancel_rounded, color: AxisColors.error, size: 24),
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              _friendRepo.removeFriendship(r.friendshipId);
-                            },
-                          ),
-                        ],
-                      ),
-                    )),
-                const SizedBox(height: 20),
-              ],
-            );
-          },
-        ),
-
-        // Connected Companions
-        StreamBuilder<List<FriendUser>>(
-          stream: _friendRepo.watchAcceptedFriends(),
-          builder: (context, snapshot) {
-            final friends = snapshot.data ?? [];
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.people_alt_rounded, size: 16, color: AxisColors.textDim),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${l10n.connectedCompanions.toUpperCase()} (${friends.length})',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: AxisColors.textDim,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                if (friends.isEmpty)
-                  _buildEmptyStateCard(
-                    icon: Icons.group_add_outlined,
-                    title: l10n.noCompanionsYet,
-                    subtitle: l10n.noCompanionsDesc,
-                    actionLabel: l10n.addCompanion,
-                    onAction: () {
-                      final code = _profileRepo.profileNotifier.value.friendCode ?? 'AX-7842';
-                      _showAddCompanionSheet(context, code);
-                    },
-                  )
-                else
-                  ...friends.map((f) => Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AxisColors.surfaceLowest,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AxisColors.borderSubtle),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: _parseHexColor(f.avatarColor),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  f.name.isNotEmpty ? f.name[0].toUpperCase() : 'C',
-                                  style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    f.name,
-                                    style: GoogleFonts.spaceGrotesk(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AxisColors.textHigh,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${l10n.friendCode}: ${f.friendCode ?? "AX-7842"}  ·  Lv. ${f.level}',
-                                    style: GoogleFonts.getFont('Geist', fontSize: 10.5, color: AxisColors.textDim),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AxisColors.textDim),
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    backgroundColor: AxisColors.surfaceLow,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    title: Text(
-                                      l10n.removeCompanion,
-                                      style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh, fontWeight: FontWeight.w700),
-                                    ),
-                                    content: Text(
-                                      l10n.removeCompanionConfirm,
-                                      style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(false),
-                                        child: Text(l10n.cancel, style: const TextStyle(color: AxisColors.textDim)),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(true),
-                                        child: Text(l10n.remove, style: const TextStyle(color: AxisColors.error)),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  await _friendRepo.removeFriendship(f.friendshipId);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      )),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  // ===========================================================================
-  // EMPTY STATE REUSABLE CARD
-  // ===========================================================================
   Widget _buildEmptyStateCard({
     required IconData icon,
     required String title,
@@ -1572,58 +2040,39 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     required VoidCallback onAction,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AxisColors.surfaceLowest,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AxisColors.borderSubtle),
       ),
-      child: Center(
-        child: Column(
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: AxisColors.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-                border: Border.all(color: AxisColors.primary.withValues(alpha: 0.3)),
-              ),
-              child: Icon(icon, size: 28, color: AxisColors.primarySoft),
+      child: Column(
+        children: [
+          Icon(icon, size: 40, color: AxisColors.textDim),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: onAction,
+            icon: const Icon(Icons.person_add_rounded, size: 15),
+            label: Text(actionLabel, style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w700, fontSize: 12.5)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AxisColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AxisColors.textHigh,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim, height: 1.4),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton.icon(
-              onPressed: onAction,
-              icon: const Icon(Icons.person_add_rounded, size: 15),
-              label: Text(
-                actionLabel,
-                style: GoogleFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.w700),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AxisColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

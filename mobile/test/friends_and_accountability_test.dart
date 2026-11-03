@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/data/friend_repository.dart';
 import 'package:axis/ui/desktop/shell/desktop_sidebar.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 void main() {
   group('DailyPrayerStatus model tests', () {
@@ -78,6 +79,81 @@ void main() {
       expect(friend.totalXp, equals(1200));
       expect(friend.friendCode, equals('AX-1234'));
     });
+
+    test('FriendUser copyWith preserves and updates fields correctly', () {
+      const friend = FriendUser(
+        id: 'prof_1',
+        userId: 'u_1',
+        name: 'Zaid',
+        friendshipId: 'f_1',
+        status: 'none',
+      );
+
+      final updated = friend.copyWith(status: 'pending', level: 5);
+      expect(updated.name, equals('Zaid'));
+      expect(updated.status, equals('pending'));
+      expect(updated.level, equals(5));
+      expect(updated.friendshipId, equals('f_1'));
+    });
+  });
+
+  group('FriendActivityLog model tests', () {
+    test('fromRow parses prayer reminders, request acceptances and declination', () {
+      final prayerRow = {
+        'id': 'log_1',
+        'user_id': 'u_target',
+        'event_type': 'prayer_reminder',
+        'title': 'Ali reminded you to pray Asr 🕌',
+        'metadata': '{"sender_id":"u_ali","sender_name":"Ali","prayer_name":"Asr"}',
+        'created_at': '2026-11-03T16:00:00Z',
+      };
+
+      final prayerLog = FriendActivityLog.fromRow(prayerRow);
+      expect(prayerLog.isPrayerReminder, isTrue);
+      expect(prayerLog.isFriendRequest, isFalse);
+      expect(prayerLog.metadata['prayer_name'], equals('Asr'));
+      expect(prayerLog.metadata['sender_name'], equals('Ali'));
+
+      final acceptRow = {
+        'id': 'log_2',
+        'user_id': 'u_req',
+        'event_type': 'request_accepted',
+        'title': 'Sara accepted your companion request! 🎉',
+        'created_at': '2026-11-03T16:05:00Z',
+      };
+      final acceptLog = FriendActivityLog.fromRow(acceptRow);
+      expect(acceptLog.isRequestAccepted, isTrue);
+      expect(acceptLog.isPrayerReminder, isFalse);
+
+      final declineRow = {
+        'id': 'log_3',
+        'user_id': 'u_req',
+        'event_type': 'request_declined',
+        'title': 'Omar declined your companion request',
+        'created_at': '2026-11-03T16:10:00Z',
+      };
+      final declineLog = FriendActivityLog.fromRow(declineRow);
+      expect(declineLog.isRequestDeclined, isTrue);
+    });
+  });
+
+  group('Companions Localization Tests', () {
+    test('AppLocalizations provides localized companion strings in Arabic and English', () {
+      final ar = AppLocalizations(const Locale('ar'));
+      final en = AppLocalizations(const Locale('en'));
+
+      expect(ar.candidateFound, equals('تم العثور على رفيق'));
+      expect(en.candidateFound, equals('Companion Found'));
+
+      expect(ar.refuse, equals('رفض'));
+      expect(en.refuse, equals('Refuse'));
+
+      expect(ar.friendNotifications, equals('إشعارات الرفاق والتذكيرات'));
+      expect(en.friendNotifications, equals('Companion Reminders & Activity'));
+
+      expect(ar.sendRequestTo('علي'), equals('إرسال طلب إلى علي'));
+      expect(en.sendRequestTo('Ali'), equals('Send Request to Ali'));
+    });
   });
 
   group('Desktop Sidebar Companions Navigation Tests', () {
@@ -111,4 +187,3 @@ void main() {
     });
   });
 }
-

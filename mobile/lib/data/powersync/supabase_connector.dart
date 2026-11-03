@@ -323,7 +323,9 @@ class SupabaseConnector extends PowerSyncBackendConnector {
           );
         } else if (op.op == UpdateType.delete) {
           final table = client.from(tableName);
-          if (uid.isNotEmpty) {
+          if (tableName == 'friendships') {
+            await table.delete().eq('id', op.id);
+          } else if (uid.isNotEmpty) {
             await table.delete().eq('id', op.id).eq('user_id', uid);
           } else {
             await table.delete().eq('id', op.id);
