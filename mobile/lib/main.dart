@@ -19,6 +19,9 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:axis/data/network_service.dart';
 import 'package:axis/data/reading_preferences_service.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
+import 'package:axis/core/l10n/locale_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:axis/core/bloc/blocs.dart';
 
@@ -63,6 +66,7 @@ Future<void> main() async {
   try {
     await openDatabase();
     await AuthService().init();
+    await LocaleService().init();
     unawaited(UserProfileRepository().getProfile());
   } catch (e, stack) {
     debugPrint('[Startup] Error initializing database or auth: $e\n$stack');
@@ -152,23 +156,37 @@ class AxisApp extends StatelessWidget {
         BlocProvider<FocusSessionCubit>(create: (_) => FocusSessionCubit()),
         BlocProvider<TasksBloc>(create: (_) => TasksBloc()),
       ],
-      child: MaterialApp.router(
-        title: 'Axis',
-        locale: DevicePreview.locale(context),
-        builder: DevicePreview.appBuilder,
-        debugShowCheckedModeBanner: false,
-        theme: AxisTheme.dark,
-        darkTheme: AxisTheme.dark,
-        themeMode: ThemeMode.dark,
-        routerConfig: router,
-        scrollBehavior: const MaterialScrollBehavior().copyWith(
-          dragDevices: {
-            PointerDeviceKind.mouse,
-            PointerDeviceKind.touch,
-            PointerDeviceKind.stylus,
-            PointerDeviceKind.trackpad,
-          },
-        ),
+      child: ValueListenableBuilder<Locale>(
+        valueListenable: LocaleService().localeNotifier,
+        builder: (context, activeLocale, _) {
+          return MaterialApp.router(
+            title: 'Axis',
+            locale: AppConfig.useDevicePreview
+                ? (DevicePreview.locale(context) ?? activeLocale)
+                : activeLocale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            builder: DevicePreview.appBuilder,
+            debugShowCheckedModeBanner: false,
+            theme: AxisTheme.dark,
+            darkTheme: AxisTheme.dark,
+            themeMode: ThemeMode.dark,
+            routerConfig: router,
+            scrollBehavior: const MaterialScrollBehavior().copyWith(
+              dragDevices: {
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.touch,
+                PointerDeviceKind.stylus,
+                PointerDeviceKind.trackpad,
+              },
+            ),
+          );
+        },
       ),
     );
   }

@@ -11,6 +11,7 @@ import 'package:axis/ui/habits/widgets/prayer_times_card.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/ui/common/category_filter_slider.dart';
 import 'package:axis/ui/common/cyber_search_bar.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 export 'package:axis/ui/habits/widgets/habit_continuity_card.dart';
 export 'package:axis/ui/habits/widgets/habit_category_card.dart';
@@ -285,6 +286,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -347,16 +349,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 children: [
                   Expanded(
                     child: Row(
-                      children: const [
-                        Icon(Icons.tune_rounded,
+                      children: [
+                        const Icon(Icons.tune_rounded,
                             color: AxisColors.success, size: 18),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'HABIT ROUTINES BY CATEGORY',
+                            l10n.habitRoutinesByCategory,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: AxisColors.success,
@@ -381,9 +383,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
                     ),
                     icon: const Icon(Icons.add_rounded,
                         size: 14, color: AxisColors.success),
-                    label: const Text(
-                      'Add Habit',
-                      style: TextStyle(
+                    label: Text(
+                      l10n.addHabit,
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: AxisColors.success,

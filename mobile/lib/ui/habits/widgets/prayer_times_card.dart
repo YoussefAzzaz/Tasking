@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/ui/habits/widgets/qibla_compass_sheet.dart';
 import 'package:axis/ui/habits/widgets/prayer_settings_sheet.dart';
@@ -98,6 +99,8 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isArabic = l10n.isArabic;
     const prayerColor = Color(0xFF10B981);
     final total = widget.prayers.length;
     final done = widget.prayers.where((p) => p.isDone).length;
@@ -160,12 +163,12 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                                 children: [
                                   Row(
                                     children: [
-                                      const Flexible(
+                                      Flexible(
                                         child: Text(
-                                          'Prayers',
+                                          isArabic ? 'الصلوات المفروضة' : 'Prayers',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.bold,
                                             color: AxisColors.textHigh,
@@ -209,7 +212,9 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '$done of $total prayers completed',
+                                    isArabic
+                                        ? 'تمت $done من أصل $total صلوات'
+                                        : '$done of $total prayers completed',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -394,23 +399,25 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                     ),
                   ),
                   child: Row(
-                    children: const [
-                      Icon(Icons.explore_rounded, size: 16, color: prayerColor),
-                      SizedBox(width: 8),
+                    children: [
+                      const Icon(Icons.explore_rounded, size: 16, color: prayerColor),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Qibla Direction (Live GPS & Compass)',
+                          isArabic
+                              ? 'اتجاه القبلة (بوصلة وGPS مباشر)'
+                              : 'Qibla Direction (Live GPS & Compass)',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: prayerColor,
                           ),
                         ),
                       ),
-                      SizedBox(width: 6),
-                      Icon(
+                      const SizedBox(width: 6),
+                      const Icon(
                         Icons.arrow_forward_ios_rounded,
                         size: 11,
                         color: Color(0xB310B981),
@@ -448,12 +455,14 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                           children: [
                             Row(
                               children: [
-                                const Flexible(
+                                Flexible(
                                   child: Text(
-                                    'Adhan Alerts & Fajr Alarm',
+                                    isArabic
+                                        ? 'تنبيهات الأذان ومنبه صلاة الفجر'
+                                        : 'Adhan Alerts & Fajr Alarm',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       color: Color(0xFFEF4444),
@@ -550,7 +559,7 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    prayer.name,
+                                    l10n.prayerName(prayer.name),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -574,7 +583,7 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                                   const SizedBox(width: 3),
                                   Flexible(
                                     child: Text(
-                                      'Adan ${prayer.time}',
+                                      isArabic ? 'الأذان ${prayer.time}' : 'Adan ${prayer.time}',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(

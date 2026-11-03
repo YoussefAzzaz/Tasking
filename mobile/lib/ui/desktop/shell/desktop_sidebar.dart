@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../data/auth_service.dart';
 import '../../../data/powersync_db.dart' show globalUserLevel;
 import '../../../data/stats_repository.dart';
@@ -51,6 +52,8 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Container(
       width: DesktopLayout.sidebarWidth,
       decoration: const BoxDecoration(
@@ -77,7 +80,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
               children: [
                 _NavItem(
                   index: 0,
-                  label: 'Command Deck',
+                  label: l10n.commandDeck,
                   shortcut: 'Ctrl + 1',
                   icon: Icons.space_dashboard_rounded,
                   isSelected: widget.selectedTab == 0,
@@ -85,7 +88,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 ),
                 _NavItem(
                   index: 1,
-                  label: 'Projects & Tasks',
+                  label: l10n.projectsTasks,
                   shortcut: 'Ctrl + 2',
                   icon: Icons.assignment_rounded,
                   isSelected: widget.selectedTab == 1,
@@ -93,7 +96,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 ),
                 _NavItem(
                   index: 2,
-                  label: 'Prayer & Habits',
+                  label: l10n.prayerHabits,
                   shortcut: 'Ctrl + 3',
                   icon: Icons.track_changes_rounded,
                   isSelected: widget.selectedTab == 2,
@@ -101,7 +104,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 ),
                 _NavItem(
                   index: 3,
-                  label: 'Journal & Vault',
+                  label: l10n.journalVault,
                   shortcut: 'Ctrl + 4',
                   icon: Icons.menu_book_rounded,
                   isSelected: widget.selectedTab == 3,
@@ -109,7 +112,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 ),
                 _NavItem(
                   index: 4,
-                  label: 'Focus Timers',
+                  label: l10n.focusTimers,
                   shortcut: 'Ctrl + 5',
                   icon: Icons.timer_rounded,
                   isSelected: widget.selectedTab == 4,
@@ -117,7 +120,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 ),
                 _NavItem(
                   index: 5,
-                  label: 'Companions',
+                  label: l10n.companions,
                   shortcut: 'Ctrl + 6',
                   icon: Icons.people_alt_rounded,
                   isSelected: widget.selectedTab == 5,
@@ -125,7 +128,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 ),
                 _NavItem(
                   index: 6,
-                  label: 'Profile & Settings',
+                  label: l10n.profileSettings,
                   shortcut: 'Ctrl + 7',
                   icon: Icons.manage_accounts_rounded,
                   isSelected: widget.selectedTab == 6,

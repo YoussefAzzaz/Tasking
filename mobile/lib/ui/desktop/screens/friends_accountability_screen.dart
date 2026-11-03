@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../data/friend_repository.dart';
 import '../../../data/user_profile_repository.dart';
 import '../core/desktop_layout.dart';
@@ -203,80 +204,90 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Companions & Mutual Accountability',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: AxisColors.textHigh,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Help each other stay steadfast in daily prayers and core habits',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  ValueListenableBuilder<UserProfile>(
-                    valueListenable: _profileRepo.profileNotifier,
-                    builder: (context, profile, _) {
-                      final code = profile.friendCode ?? 'AX-7842';
-                      return Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AxisColors.surfaceLowest,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: AxisColors.borderSubtle),
+              Builder(
+                builder: (context) {
+                  final l10n = AppLocalizations.of(context);
+                  final isArabic = l10n.isArabic;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isArabic
+                                  ? 'الرفاق والمتابعة والتشجيع المتبادل'
+                                  : 'Companions & Mutual Accountability',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: AxisColors.textHigh,
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                Text('MY CODE: ',
-                                    style: GoogleFonts.spaceGrotesk(
-                                        fontSize: 10, fontWeight: FontWeight.bold, color: AxisColors.textDim)),
-                                Text(code,
-                                    style: GoogleFonts.spaceGrotesk(
-                                        fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
-                                const SizedBox(width: 4),
-                                InkWell(
-                                  onTap: () {
-                                    Clipboard.setData(ClipboardData(text: code));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Friend code copied!')),
-                                    );
-                                  },
-                                  child: const Icon(Icons.copy_rounded, size: 14, color: AxisColors.textDim),
+                            const SizedBox(height: 4),
+                            Text(
+                              isArabic
+                                  ? 'التعاون والتواصي بالخير للاستمرار في أداء الصلوات والعادات الأساسية'
+                                  : 'Help each other stay steadfast in daily prayers and core habits',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ValueListenableBuilder<UserProfile>(
+                        valueListenable: _profileRepo.profileNotifier,
+                        builder: (context, profile, _) {
+                          final code = profile.friendCode ?? 'AX-7842';
+                          return Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AxisColors.surfaceLowest,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AxisColors.borderSubtle),
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          AccentButton(
-                            label: '+ Add Companion',
-                            icon: Icons.person_add_alt_1_rounded,
-                            height: 32,
-                            onPressed: () => _showAddFriendDialog(context, code),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                                child: Row(
+                                  children: [
+                                    Text(isArabic ? 'رمزي: ' : 'MY CODE: ',
+                                        style: GoogleFonts.spaceGrotesk(
+                                            fontSize: 10, fontWeight: FontWeight.bold, color: AxisColors.textDim)),
+                                    Text(code,
+                                        style: GoogleFonts.spaceGrotesk(
+                                            fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
+                                    const SizedBox(width: 4),
+                                    InkWell(
+                                      onTap: () {
+                                        Clipboard.setData(ClipboardData(text: code));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(isArabic ? 'تم نسخ الرمز!' : 'Friend code copied!')),
+                                        );
+                                      },
+                                      child: const Icon(Icons.copy_rounded, size: 14, color: AxisColors.textDim),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              AccentButton(
+                                label: l10n.addCompanion,
+                                icon: Icons.person_add_alt_1_rounded,
+                                height: 32,
+                                onPressed: () => _showAddFriendDialog(context, code),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: DesktopLayout.sectionSpacing),

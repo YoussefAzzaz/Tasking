@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/friend_repository.dart';
 import 'package:axis/data/user_profile_repository.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Friends & Mutual Accountability Hub screen.
 /// Focuses on cooperative motivation: daily prayer checklists (Fajr -> Isha) and habit consistency.
@@ -217,7 +218,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          'Companions',
+          AppLocalizations.of(context).companions,
           style: GoogleFonts.spaceGrotesk(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -229,6 +230,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
             valueListenable: _profileRepo.profileNotifier,
             builder: (context, profile, _) {
               final code = profile.friendCode ?? 'AX-7842';
+              final l10n = AppLocalizations.of(context);
               return Padding(
                 padding: const EdgeInsets.only(right: 12.0),
                 child: InkWell(
@@ -247,7 +249,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                         const Icon(Icons.person_add_alt_1_rounded, size: 14, color: AxisColors.primarySoft),
                         const SizedBox(width: 5),
                         Text(
-                          '+ Add Companion',
+                          l10n.addCompanion,
                           style: GoogleFonts.getFont('Geist',
                               fontSize: 11, fontWeight: FontWeight.w600, color: AxisColors.primarySoft),
                         ),
@@ -266,10 +268,10 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           labelColor: AxisColors.textHigh,
           unselectedLabelColor: AxisColors.textDim,
           labelStyle: GoogleFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(text: "Today's Board"),
-            Tab(text: 'Weekly Standings'),
-            Tab(text: 'Circle'),
+          tabs: [
+            Tab(text: AppLocalizations.of(context).todaysBoard),
+            Tab(text: AppLocalizations.of(context).weeklyStandings),
+            Tab(text: AppLocalizations.of(context).circle),
           ],
         ),
       ),

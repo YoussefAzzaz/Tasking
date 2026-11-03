@@ -43,11 +43,17 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appLabel"] = "Axis"
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "Axis (Dev)"
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
+            manifestPlaceholders["appLabel"] = "Axis"
         }
     }
 }

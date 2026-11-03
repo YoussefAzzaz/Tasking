@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../core/theme.dart';
+import '../../../core/l10n/locale_service.dart';
 import '../../../data/network_service.dart';
 import '../core/desktop_layout.dart';
 import '../widgets/telemetry_chip.dart';
@@ -255,7 +256,9 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Search tasks, projects, habits, telemetry, or enter command...',
+                  LocaleService().isArabic
+                      ? 'ابحث في المهام، المشاريع، العادات، أو اكتب أمراً...'
+                      : 'Search tasks, projects, habits, telemetry, or enter command...',
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.getFont(
                     'Geist',

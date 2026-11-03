@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/network_service.dart';
@@ -196,7 +197,7 @@ class _AxisHeaderState extends State<AxisHeader> {
                         const Icon(Icons.people_alt_rounded, color: AxisColors.primarySoft, size: 14),
                         const SizedBox(width: 4),
                         Text(
-                          'FRIENDS',
+                          AppLocalizations.of(context).friends.toUpperCase(),
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                 color: AxisColors.primarySoft,
                                 fontWeight: FontWeight.bold,

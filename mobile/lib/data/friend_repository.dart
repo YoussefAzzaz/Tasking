@@ -112,7 +112,7 @@ class DailyPrayerStatus {
 
   factory DailyPrayerStatus.fromRow(Map<String, dynamic> row) {
     return DailyPrayerStatus(
-      id: row['id'] as String,
+      id: (row['id'] as String?) ?? '',
       userId: (row['user_id'] as String?) ?? '',
       userName: (row['user_name'] as String?) ?? 'Companion',
       userAvatarColor: (row['avatar_color'] as String?) ?? '#6366F1',
@@ -152,7 +152,7 @@ class FriendActivityLog {
 
   factory FriendActivityLog.fromRow(Map<String, dynamic> row) {
     return FriendActivityLog(
-      id: row['id'] as String,
+      id: (row['id'] as String?) ?? '',
       userId: (row['user_id'] as String?) ?? '',
       userName: (row['user_name'] as String?) ?? 'Companion',
       userAvatarColor: (row['avatar_color'] as String?) ?? '#6366F1',
@@ -330,11 +330,20 @@ class FriendRepository {
     final nowUtc = DateTime.now().toUtc().toIso8601String();
 
     if (isDatabaseInitialized) {
-      await db.execute('''
-        INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at)
-        VALUES (?, ?, ?, 'pending', ?, ?)
-        ON CONFLICT(id) DO UPDATE SET updated_at = ?
-      ''', [friendshipId, uid, targetUserId, nowUtc, nowUtc, nowUtc]);
+      final existing = await db.getOptional(
+        'SELECT id FROM friendships WHERE id = ?',
+        [friendshipId],
+      );
+      if (existing != null) {
+        await db.execute('''
+          UPDATE friendships SET updated_at = ? WHERE id = ?
+        ''', [nowUtc, friendshipId]);
+      } else {
+        await db.execute('''
+          INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at)
+          VALUES (?, ?, ?, 'pending', ?, ?)
+        ''', [friendshipId, uid, targetUserId, nowUtc, nowUtc]);
+      }
     }
 
     return true;
@@ -408,35 +417,57 @@ class FriendRepository {
         }
       } catch (_) {}
 
-      await db.execute('''
-        INSERT INTO daily_prayer_status (
-          id, user_id, date, fajr, dhuhr, asr, maghrib, isha, streak_days, habits_done, habits_total, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          fajr = excluded.fajr,
-          dhuhr = excluded.dhuhr,
-          asr = excluded.asr,
-          maghrib = excluded.maghrib,
-          isha = excluded.isha,
-          streak_days = excluded.streak_days,
-          habits_done = excluded.habits_done,
-          habits_total = excluded.habits_total,
-          updated_at = excluded.updated_at
-      ''', [
-        statusId,
-        uid,
-        today,
-        fajr ? 1 : 0,
-        dhuhr ? 1 : 0,
-        asr ? 1 : 0,
-        maghrib ? 1 : 0,
-        isha ? 1 : 0,
-        streakDays,
-        doneDailyHabits,
-        totalDailyHabits,
-        nowUtc,
-        nowUtc,
-      ]);
+      final existing = await db.getOptional(
+        'SELECT id FROM daily_prayer_status WHERE id = ?',
+        [statusId],
+      );
+
+      if (existing != null) {
+        await db.execute('''
+          UPDATE daily_prayer_status SET
+            fajr = ?,
+            dhuhr = ?,
+            asr = ?,
+            maghrib = ?,
+            isha = ?,
+            streak_days = ?,
+            habits_done = ?,
+            habits_total = ?,
+            updated_at = ?
+          WHERE id = ?
+        ''', [
+          fajr ? 1 : 0,
+          dhuhr ? 1 : 0,
+          asr ? 1 : 0,
+          maghrib ? 1 : 0,
+          isha ? 1 : 0,
+          streakDays,
+          doneDailyHabits,
+          totalDailyHabits,
+          nowUtc,
+          statusId,
+        ]);
+      } else {
+        await db.execute('''
+          INSERT INTO daily_prayer_status (
+            id, user_id, date, fajr, dhuhr, asr, maghrib, isha, streak_days, habits_done, habits_total, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [
+          statusId,
+          uid,
+          today,
+          fajr ? 1 : 0,
+          dhuhr ? 1 : 0,
+          asr ? 1 : 0,
+          maghrib ? 1 : 0,
+          isha ? 1 : 0,
+          streakDays,
+          doneDailyHabits,
+          totalDailyHabits,
+          nowUtc,
+          nowUtc,
+        ]);
+      }
     } catch (e) {
       debugPrint('[FriendRepository] Error syncing daily prayer status: $e');
     }

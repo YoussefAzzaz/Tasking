@@ -96,12 +96,15 @@ void main() {
         ),
       );
 
-      // Verify "Companions" label is rendered
-      expect(find.text('Companions'), findsOneWidget);
+      // Verify "Companions" / "الرفاق" label is rendered
+      final companionsFinder = find.byWidgetPredicate(
+        (widget) => widget is Text && (widget.data == 'Companions' || widget.data == 'الرفاق'),
+      );
+      expect(companionsFinder, findsOneWidget);
       expect(find.byIcon(Icons.people_alt_rounded), findsOneWidget);
 
       // Tap the Companions navigation item
-      await tester.tap(find.text('Companions'));
+      await tester.tap(companionsFinder);
       await tester.pump();
 
       expect(selectedTab, equals(5));

@@ -11,6 +11,7 @@ import 'package:axis/ui/tasks/upcoming_tab.dart';
 import 'package:axis/ui/tasks/outdated_tab.dart';
 import 'package:axis/ui/tasks/projects_tab.dart';
 import 'package:axis/ui/tasks/task_filter_sheet.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:axis/core/bloc/blocs.dart';
 
@@ -35,7 +36,6 @@ class _TasksScreenState extends State<TasksScreen> {
   final _projectRepo = ProjectRepository();
   int _currentTabIndex = 0;
 
-  static const _segments = ['Inbox', 'Upcoming', 'Outdated', 'Projects'];
   late final List<Widget> _tabs;
   final _filterCriteria = ValueNotifier<TaskFilterCriteria>(const TaskFilterCriteria());
 
@@ -121,6 +121,9 @@ class _TasksScreenState extends State<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final segments = [l10n.inbox, l10n.upcoming, l10n.outdated, l10n.projects];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -130,7 +133,7 @@ class _TasksScreenState extends State<TasksScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Tasks', style: Theme.of(context).textTheme.displaySmall),
+              Text(l10n.tasks, style: Theme.of(context).textTheme.displaySmall),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -152,18 +155,18 @@ class _TasksScreenState extends State<TasksScreen> {
                             width: 1,
                           ),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.timer_outlined,
                               color: AxisColors.primarySoft,
                               size: 16,
                             ),
-                            SizedBox(width: 4),
+                            const SizedBox(width: 4),
                             Text(
-                              'Focus',
-                              style: TextStyle(
+                              l10n.focus,
+                              style: const TextStyle(
                                 color: AxisColors.primarySoft,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -270,12 +273,12 @@ class _TasksScreenState extends State<TasksScreen> {
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                          SizedBox(width: 4),
+                        children: [
+                          const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                          const SizedBox(width: 4),
                           Text(
-                            'New Task',
-                            style: TextStyle(
+                            l10n.newTask,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -296,7 +299,7 @@ class _TasksScreenState extends State<TasksScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: AxisSlidingSegmentedBar(
-            segments: _segments,
+            segments: segments,
             selectedIndex: _currentTabIndex,
             activeColor: AxisColors.primary,
             onSegmentSelected: (index) {

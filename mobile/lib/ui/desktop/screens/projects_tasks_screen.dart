@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../data/focus_session_service.dart';
 import '../../../data/project_repository.dart';
 import '../../../data/task_repository.dart';
@@ -839,7 +840,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
           ),
         ),
         child: Text(
-          label,
+          label.tr(context),
           style: GoogleFonts.getFont(
             'Geist',
             fontSize: 11,

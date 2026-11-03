@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../data/adhan_alarm_service.dart';
 import '../../../data/habit_category_repository.dart';
 import '../../../data/habit_repository.dart';
@@ -671,7 +672,7 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  prayer.name,
+                  AppLocalizations.of(context).prayerName(prayer.name),
                   style: GoogleFonts.getFont(
                     'Geist',
                     fontSize: 14,

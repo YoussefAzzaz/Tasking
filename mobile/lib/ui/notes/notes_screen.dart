@@ -8,6 +8,7 @@ import 'package:axis/ui/notes/widgets/note_category_card.dart';
 import 'package:axis/ui/notes/widgets/daily_journal_card.dart';
 import 'package:axis/ui/common/category_filter_slider.dart';
 import 'package:axis/ui/common/cyber_search_bar.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 export 'package:axis/ui/notes/widgets/note_detail_sheet.dart';
 export 'package:axis/ui/notes/widgets/note_card_widget.dart';
@@ -178,6 +179,9 @@ class _NotesScreenState extends State<NotesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isArabic = l10n.isArabic;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -193,7 +197,9 @@ class _NotesScreenState extends State<NotesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _activeTab == 'journal' ? 'Journals' : 'Notes & Journal',
+                        _activeTab == 'journal'
+                            ? l10n.journals
+                            : (isArabic ? 'الملاحظات واليوميات' : 'Notes & Journal'),
                         style: Theme.of(context).textTheme.displaySmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -201,8 +207,8 @@ class _NotesScreenState extends State<NotesScreen> {
                       const SizedBox(height: 2),
                       Text(
                         _activeTab == 'journal'
-                            ? 'Daily reflections, logs & prompts'
-                            : 'Categorized notes & knowledge base',
+                            ? (isArabic ? 'تأملات يومية ومذكرات وتدوينات' : 'Daily reflections, logs & prompts')
+                            : (isArabic ? 'ملاحظات مصنفة وقاعدة معرفية' : 'Categorized notes & knowledge base'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context)
@@ -258,7 +264,9 @@ class _NotesScreenState extends State<NotesScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _activeTab == 'journal' ? 'New Journal' : 'New Note',
+                          _activeTab == 'journal'
+                              ? (isArabic ? 'يومية جديدة' : 'New Journal')
+                              : (isArabic ? 'ملاحظة جديدة' : 'New Note'),
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -323,7 +331,7 @@ class _NotesScreenState extends State<NotesScreen> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'Notes',
+                              l10n.notes,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: _activeTab == 'notes'
@@ -377,7 +385,7 @@ class _NotesScreenState extends State<NotesScreen> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'Journals',
+                              l10n.journals,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: _activeTab == 'journal'

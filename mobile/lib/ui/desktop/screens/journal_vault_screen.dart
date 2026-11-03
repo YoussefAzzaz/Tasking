@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../data/note_category_repository.dart';
 import '../../../data/note_repository.dart';
 import '../../../data/reading_preferences_service.dart';
@@ -435,7 +436,9 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
               const SizedBox(width: 8),
             ],
             AccentButton(
-              label: _activeTab == 'journal' ? 'New Journal' : 'New Note',
+              label: AppLocalizations.of(context).isArabic
+                  ? (_activeTab == 'journal' ? 'يومية جديدة' : 'ملاحظة جديدة')
+                  : (_activeTab == 'journal' ? 'New Journal' : 'New Note'),
               icon: Icons.add_rounded,
               onPressed: () => _handleStartNewEntry(category: _activeTab),
             ),
@@ -446,6 +449,9 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
   }
 
   Widget _buildNoteNavigatorPane() {
+    final l10n = AppLocalizations.of(context);
+    final isArabic = l10n.isArabic;
+
     return DesktopCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -468,7 +474,7 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        '≡ Notes',
+                        isArabic ? '≡ الملاحظات' : '≡ Notes',
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -495,7 +501,7 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        'Journals',
+                        l10n.journals,
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

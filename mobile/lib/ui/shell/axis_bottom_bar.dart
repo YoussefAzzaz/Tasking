@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 const _tabIcons = [
   Icons.today_rounded,
@@ -8,8 +9,6 @@ const _tabIcons = [
   Icons.edit_note_rounded,
   Icons.person_outline_rounded,
 ];
-
-const _tabLabels = ['Today', 'Tasks', 'Habits', 'Notes', 'Me'];
 
 /// 5-slot bottom bar: Today | Tasks | [+orb] | Habits | Notes
 class AxisBottomBar extends StatelessWidget {
@@ -76,11 +75,12 @@ class AxisBottomBar extends StatelessWidget {
           }
 
           final isSelected = tabIdx == selected;
+          final tabLabel = _getTabLabel(context, tabIdx);
           return Expanded(
             child: Semantics(
               button: true,
               selected: isSelected,
-              label: '${_tabLabels[tabIdx]} Tab',
+              label: '$tabLabel Tab',
               child: GestureDetector(
                 onTap: () => onTap(barIdx),
                 behavior: HitTestBehavior.opaque,
@@ -105,7 +105,7 @@ class AxisBottomBar extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _tabLabels[tabIdx],
+                      tabLabel,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: isSelected ? AxisColors.primarySoft : AxisColors.textDim,
                           ),
@@ -118,5 +118,23 @@ class AxisBottomBar extends StatelessWidget {
         }),
       ),
     );
+  }
+
+  String _getTabLabel(BuildContext context, int tabIdx) {
+    final l10n = AppLocalizations.of(context);
+    switch (tabIdx) {
+      case 0:
+        return l10n.today;
+      case 1:
+        return l10n.tasks;
+      case 2:
+        return l10n.habits;
+      case 3:
+        return l10n.notes;
+      case 4:
+        return l10n.me;
+      default:
+        return '';
+    }
   }
 }
