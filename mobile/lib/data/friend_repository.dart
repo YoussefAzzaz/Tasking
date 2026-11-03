@@ -292,32 +292,84 @@ class FriendRepository {
     final uid = currentUserId;
     if (uid.isEmpty) throw Exception('Must be logged in to add friends');
 
+    final upper = cleanInput.toUpperCase();
+    final rawCode = upper.replaceAll('AX-', '').replaceAll('-', '').replaceAll(' ', '');
+    final formattedCode = 'AX-$rawCode';
+
     // 1. Look up profile locally or in Supabase
     String? targetUserId;
+
+    // A. Local SQLite lookup
     if (isDatabaseInitialized) {
       final local = await db.getOptional(
-        'SELECT user_id FROM user_profiles WHERE (UPPER(friend_code) = ? OR UPPER(name) = ?) AND user_id != ? LIMIT 1',
-        [cleanInput.toUpperCase(), cleanInput.toUpperCase(), uid],
+        '''SELECT user_id FROM user_profiles 
+           WHERE (UPPER(friend_code) = ? OR UPPER(friend_code) = ? OR UPPER(name) = ? OR (LENGTH(?) >= 4 AND user_id LIKE ?))
+             AND user_id != ? LIMIT 1''',
+        [upper, formattedCode, upper, rawCode, '${rawCode.toLowerCase()}%', uid],
       );
       if (local != null) {
         targetUserId = local['user_id'] as String?;
       }
     }
 
-    if (targetUserId == null && _supabaseClient != null) {
+    // B. Supabase RPC: search_companion
+    if ((targetUserId == null || targetUserId.isEmpty) && _supabaseClient != null) {
       try {
+        final rpcRes = await _supabaseClient!.rpc(
+          'search_companion',
+          params: {'search_query': cleanInput},
+        );
+        if (rpcRes is List && rpcRes.isNotEmpty) {
+          targetUserId = rpcRes.first['user_id'] as String?;
+        }
+      } catch (e) {
+        debugPrint('[FriendRepository] Remote RPC search_companion notice: $e');
+      }
+    }
+
+    // C. Supabase RPC: send_companion_request directly
+    if ((targetUserId == null || targetUserId.isEmpty) && _supabaseClient != null) {
+      try {
+        final rpcRes = await _supabaseClient!.rpc(
+          'send_companion_request',
+          params: {'target_code_or_name': cleanInput},
+        );
+        if (rpcRes is Map && rpcRes['success'] == true) {
+          targetUserId = rpcRes['target_user_id'] as String?;
+        }
+      } catch (e) {
+        debugPrint('[FriendRepository] Remote RPC send_companion_request notice: $e');
+      }
+    }
+
+    // D. Supabase direct table query with multi-condition fallback
+    if ((targetUserId == null || targetUserId.isEmpty) && _supabaseClient != null) {
+      try {
+        final orFilters = <String>[
+          'friend_code.ilike.$cleanInput',
+          'friend_code.ilike.$formattedCode',
+          'name.ilike.$cleanInput',
+        ];
+        if (rawCode.isNotEmpty) {
+          orFilters.add('friend_code.ilike.%$rawCode%');
+        }
+        if (rawCode.length >= 4) {
+          orFilters.add('user_id.ilike.${rawCode.toLowerCase()}%');
+        }
+
         final res = await _supabaseClient!
             .from('user_profiles')
-            .select('user_id')
-            .or('friend_code.ilike.$cleanInput,name.ilike.$cleanInput')
+            .select('user_id, friend_code, name')
+            .or(orFilters.join(','))
             .neq('user_id', uid)
             .limit(1)
             .maybeSingle();
+
         if (res != null) {
           targetUserId = res['user_id'] as String?;
         }
       } catch (e) {
-        debugPrint('[FriendRepository] Remote lookup notice: $e');
+        debugPrint('[FriendRepository] Remote direct table lookup notice: $e');
       }
     }
 
@@ -329,6 +381,7 @@ class FriendRepository {
     final friendshipId = IdGenerator.generateDeterministicId('friendship_${uid}_$targetUserId');
     final nowUtc = DateTime.now().toUtc().toIso8601String();
 
+    // Local SQLite write
     if (isDatabaseInitialized) {
       final existing = await db.getOptional(
         'SELECT id FROM friendships WHERE id = ?',
@@ -346,7 +399,103 @@ class FriendRepository {
       }
     }
 
+    // Supabase remote direct write
+    if (_supabaseClient != null) {
+      try {
+        await _supabaseClient!.from('friendships').upsert({
+          'id': friendshipId,
+          'requester_id': uid,
+          'addressee_id': targetUserId,
+          'status': 'pending',
+          'created_at': nowUtc,
+          'updated_at': nowUtc,
+        });
+      } catch (e) {
+        debugPrint('[FriendRepository] Supabase direct friendship write notice: $e');
+      }
+    }
+
+    // Fetch and cache target companion profile locally
+    unawaited(syncSingleProfileFromRemote(targetUserId));
+
     return true;
+  }
+
+  /// Synchronizes a specific companion profile from Supabase into local SQLite
+  Future<void> syncSingleProfileFromRemote(String otherUid) async {
+    final client = _supabaseClient;
+    if (client == null || otherUid.isEmpty || !isDatabaseInitialized) return;
+
+    try {
+      final prof = await client.from('user_profiles').select('*').eq('user_id', otherUid).maybeSingle();
+      if (prof != null) {
+        final profId = prof['id'] as String? ?? 'prof_$otherUid';
+        final name = prof['name'] as String? ?? 'Companion';
+        final title = prof['title'] as String? ?? 'Specialist';
+        final color = prof['avatar_color'] as String? ?? '#6366F1';
+        final url = prof['avatar_url'] as String?;
+        final xp = (prof['total_xp'] as num?)?.toInt() ?? 0;
+        final lvl = (prof['level'] as num?)?.toInt() ?? 1;
+        final hashPart = otherUid.replaceAll('-', '').toUpperCase();
+        final fCode = prof['friend_code'] as String? ?? 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
+        final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+        final existing = await db.getOptional('SELECT id FROM user_profiles WHERE user_id = ?', [otherUid]);
+        if (existing != null) {
+          await db.execute('''
+            UPDATE user_profiles SET
+              name = ?, title = ?, avatar_color = ?, avatar_url = ?, total_xp = ?, level = ?, friend_code = ?, updated_at = ?
+            WHERE user_id = ?
+          ''', [name, title, color, url, xp, lvl, fCode, nowUtc, otherUid]);
+        } else {
+          await db.execute('''
+            INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ''', [profId, otherUid, name, title, color, url, xp, lvl, fCode, nowUtc, nowUtc]);
+        }
+      }
+    } catch (e) {
+      debugPrint('[FriendRepository] syncSingleProfileFromRemote notice: $e');
+    }
+  }
+
+  /// Pulls active friendships and pending requests directly from Supabase for instant real-time sync
+  Future<void> syncFriendshipsFromRemote() async {
+    final client = _supabaseClient;
+    final uid = currentUserId;
+    if (client == null || uid.isEmpty || !isDatabaseInitialized) return;
+
+    try {
+      final remoteRows = await client
+          .from('friendships')
+          .select('*')
+          .or('requester_id.eq.$uid,addressee_id.eq.$uid');
+
+      for (final r in remoteRows) {
+        final fId = r['id'] as String? ?? '';
+        final reqId = r['requester_id'] as String? ?? '';
+        final addId = r['addressee_id'] as String? ?? '';
+        final status = r['status'] as String? ?? 'pending';
+        final createdAt = r['created_at'] as String? ?? DateTime.now().toUtc().toIso8601String();
+        final updatedAt = r['updated_at'] as String? ?? createdAt;
+        if (fId.isEmpty) continue;
+
+        final existing = await db.getOptional('SELECT id FROM friendships WHERE id = ?', [fId]);
+        if (existing != null) {
+          await db.execute('UPDATE friendships SET status = ?, updated_at = ? WHERE id = ?', [status, updatedAt, fId]);
+        } else {
+          await db.execute(
+            'INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+            [fId, reqId, addId, status, createdAt, updatedAt],
+          );
+        }
+
+        final otherUid = (reqId == uid) ? addId : reqId;
+        unawaited(syncSingleProfileFromRemote(otherUid));
+      }
+    } catch (e) {
+      debugPrint('[FriendRepository] syncFriendshipsFromRemote notice: $e');
+    }
   }
 
   /// Accepts an incoming friend request.
@@ -356,12 +505,31 @@ class FriendRepository {
     await db.execute('''
       UPDATE friendships SET status = 'accepted', updated_at = ? WHERE id = ?
     ''', [nowUtc, friendshipId]);
+
+    if (_supabaseClient != null) {
+      try {
+        await _supabaseClient!.from('friendships').update({
+          'status': 'accepted',
+          'updated_at': nowUtc,
+        }).eq('id', friendshipId);
+      } catch (e) {
+        debugPrint('[FriendRepository] Supabase acceptFriendRequest notice: $e');
+      }
+    }
   }
 
   /// Declines or removes a friendship.
   Future<void> removeFriendship(String friendshipId) async {
     if (!isDatabaseInitialized) return;
     await db.execute('DELETE FROM friendships WHERE id = ?', [friendshipId]);
+
+    if (_supabaseClient != null) {
+      try {
+        await _supabaseClient!.from('friendships').delete().eq('id', friendshipId);
+      } catch (e) {
+        debugPrint('[FriendRepository] Supabase removeFriendship notice: $e');
+      }
+    }
   }
 
   /// Synchronizes the current user's prayers and daily habit progress into `daily_prayer_status`
@@ -375,6 +543,9 @@ class FriendRepository {
     final today = DateFormat('yyyy-MM-dd').format(now);
     final nowUtc = now.toUtc().toIso8601String();
     final statusId = IdGenerator.generateDeterministicId('prs_${uid}_$today');
+
+    // Run remote friendships sync in background
+    unawaited(syncFriendshipsFromRemote());
 
     try {
       // 1. Fetch current 5 prayers
@@ -417,6 +588,7 @@ class FriendRepository {
         }
       } catch (_) {}
 
+      // Write locally to SQLite
       final existing = await db.getOptional(
         'SELECT id FROM daily_prayer_status WHERE id = ?',
         [statusId],
@@ -467,6 +639,82 @@ class FriendRepository {
           nowUtc,
           nowUtc,
         ]);
+      }
+
+      // Also sync to Supabase remote daily_prayer_status
+      if (_supabaseClient != null) {
+        try {
+          await _supabaseClient!.from('daily_prayer_status').upsert({
+            'id': statusId,
+            'user_id': uid,
+            'date': today,
+            'fajr': fajr,
+            'dhuhr': dhuhr,
+            'asr': asr,
+            'maghrib': maghrib,
+            'isha': isha,
+            'streak_days': streakDays,
+            'habits_done': doneDailyHabits,
+            'habits_total': totalDailyHabits,
+            'updated_at': nowUtc,
+          });
+
+          // Pull friends' today's prayer status
+          final remoteStatuses = await _supabaseClient!
+              .from('daily_prayer_status')
+              .select('*')
+              .eq('date', today);
+
+          for (final row in remoteStatuses) {
+            final rId = row['id'] as String? ?? '';
+            final rUid = row['user_id'] as String? ?? '';
+            if (rId.isEmpty || rUid == uid) continue;
+
+            final existingStatus = await db.getOptional('SELECT id FROM daily_prayer_status WHERE id = ?', [rId]);
+            if (existingStatus != null) {
+              await db.execute('''
+                UPDATE daily_prayer_status SET
+                  fajr = ?, dhuhr = ?, asr = ?, maghrib = ?, isha = ?,
+                  streak_days = ?, habits_done = ?, habits_total = ?, updated_at = ?
+                WHERE id = ?
+              ''', [
+                row['fajr'] == true ? 1 : 0,
+                row['dhuhr'] == true ? 1 : 0,
+                row['asr'] == true ? 1 : 0,
+                row['maghrib'] == true ? 1 : 0,
+                row['isha'] == true ? 1 : 0,
+                row['streak_days'] ?? 0,
+                row['habits_done'] ?? 0,
+                row['habits_total'] ?? 0,
+                row['updated_at'] ?? nowUtc,
+                rId,
+              ]);
+            } else {
+              await db.execute('''
+                INSERT INTO daily_prayer_status (
+                  id, user_id, date, fajr, dhuhr, asr, maghrib, isha,
+                  streak_days, habits_done, habits_total, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ''', [
+                rId,
+                rUid,
+                today,
+                row['fajr'] == true ? 1 : 0,
+                row['dhuhr'] == true ? 1 : 0,
+                row['asr'] == true ? 1 : 0,
+                row['maghrib'] == true ? 1 : 0,
+                row['isha'] == true ? 1 : 0,
+                row['streak_days'] ?? 0,
+                row['habits_done'] ?? 0,
+                row['habits_total'] ?? 0,
+                row['created_at'] ?? nowUtc,
+                row['updated_at'] ?? nowUtc,
+              ]);
+            }
+          }
+        } catch (e) {
+          debugPrint('[FriendRepository] Remote daily_prayer_status sync notice: $e');
+        }
       }
     } catch (e) {
       debugPrint('[FriendRepository] Error syncing daily prayer status: $e');

@@ -125,6 +125,18 @@ class UserProfileRepository {
         } catch (_) {}
       }
 
+      // Immediately synchronize friend_code to Supabase remote user_profiles table
+      if (friendCode != null && friendCode.isNotEmpty && uid.isNotEmpty && uid != 'local_guest' && _supabaseClient != null) {
+        try {
+          await _supabaseClient!.from('user_profiles').update({
+            'friend_code': friendCode,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          }).eq('user_id', uid);
+        } catch (e) {
+          debugPrint('[UserProfileRepository] Remote friend_code sync notice: $e');
+        }
+      }
+
       // Check Supabase Auth user_metadata (cloud ground truth)
       Map<String, dynamic>? authMeta;
       try {

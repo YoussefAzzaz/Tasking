@@ -354,10 +354,13 @@ Future<void> syncGlobalUserLevel() async {
         }
         final titleToUse = (metaTitle != null && metaTitle.trim().isNotEmpty) ? metaTitle.trim() : 'Specialist';
 
+        final hashPart = uid.replaceAll('-', '').toUpperCase();
+        final friendCode = 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
+
         await db.execute('''
-          INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, created_at, updated_at)
-          VALUES (?, ?, ?, ?, '#6366F1', ?, ?, ?, ?, ?)
-        ''', [profileId, uid, nameToUse, titleToUse, metaAvatar, effectiveXp, lvl, nowUtc, nowUtc]);
+          INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code, created_at, updated_at)
+          VALUES (?, ?, ?, ?, '#6366F1', ?, ?, ?, ?, ?, ?)
+        ''', [profileId, uid, nameToUse, titleToUse, metaAvatar, effectiveXp, lvl, friendCode, nowUtc, nowUtc]);
       }
     }
   } catch (e) {
