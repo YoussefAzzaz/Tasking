@@ -29,6 +29,12 @@ CREATE POLICY "friend_activity_logs_insert" ON public.friend_activity_logs
   FOR INSERT TO authenticated
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "friend_activity_logs_update" ON public.friend_activity_logs;
+CREATE POLICY "friend_activity_logs_update" ON public.friend_activity_logs
+  FOR UPDATE TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
 DROP POLICY IF EXISTS "friend_activity_logs_delete" ON public.friend_activity_logs;
 CREATE POLICY "friend_activity_logs_delete" ON public.friend_activity_logs
   FOR DELETE TO authenticated
@@ -108,7 +114,7 @@ BEGIN
       log_id,
       f_row.requester_id,
       'request_accepted',
-      curr_name || ' accepted your companion request! 🎉',
+      curr_name || ' accepted your companion request',
       jsonb_build_object('sender_id', curr_uid, 'sender_name', curr_name, 'friendship_id', p_friendship_id),
       now_iso
     );
@@ -161,7 +167,7 @@ BEGIN
     log_id,
     p_target_user_id,
     'prayer_reminder',
-    curr_name || ' reminded you to pray ' || p_prayer_name || ' 🕌',
+    curr_name || ' reminded you to pray ' || p_prayer_name,
     jsonb_build_object('sender_id', curr_uid, 'sender_name', curr_name, 'prayer_name', p_prayer_name),
     now_iso
   );

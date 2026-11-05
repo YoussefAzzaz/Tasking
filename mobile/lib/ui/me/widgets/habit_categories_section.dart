@@ -188,6 +188,41 @@ class HabitCategoriesSection extends StatelessWidget {
     );
   }
 
+  void _confirmDeleteCategory(BuildContext context, String id, String name) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AxisColors.surfaceLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AxisColors.borderPrimary),
+        ),
+        title: Text(
+          'Delete "$name"?',
+          style: const TextStyle(color: AxisColors.textHigh),
+        ),
+        content: Text(
+          'Are you sure you want to delete the "$name" habit category? Habits in this category will move to General Routines.',
+          style: const TextStyle(color: AxisColors.textMuted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: AxisColors.textDim)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              onDeleteCategory(id, name);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -207,33 +242,36 @@ class HabitCategoriesSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            InkWell(
-              onTap: () => _showAddCategoryDialog(context),
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AxisColors.success.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: AxisColors.success.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add, size: 14, color: AxisColors.success),
-                    SizedBox(width: 4),
-                    Text(
-                      'New Category',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AxisColors.success,
-                        fontWeight: FontWeight.bold,
-                      ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _showAddCategoryDialog(context),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AxisColors.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AxisColors.success.withValues(alpha: 0.35),
                     ),
-                  ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 14, color: AxisColors.success),
+                      SizedBox(width: 4),
+                      Text(
+                        'New Category',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AxisColors.success,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -299,7 +337,8 @@ class HabitCategoriesSection extends StatelessWidget {
                           icon: const Icon(Icons.delete_outline_rounded,
                               size: 18, color: AxisColors.textDim),
                           tooltip: 'Delete Category',
-                          onPressed: () => onDeleteCategory(
+                          onPressed: () => _confirmDeleteCategory(
+                            context,
                             (categories[i]['id'] as String?) ?? '',
                             (categories[i]['name'] as String?) ?? 'Category',
                           ),

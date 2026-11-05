@@ -27,6 +27,7 @@ class DesktopCommandCenter extends StatefulWidget {
 
 class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
   int _selectedTab = 0;
+  final Set<int> _activatedTabs = {0};
 
   @override
   void initState() {
@@ -37,7 +38,10 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
 
   void _navigateToTab(int tabIndex) {
     if (tabIndex >= 0 && tabIndex <= 6) {
-      setState(() => _selectedTab = tabIndex);
+      setState(() {
+        _selectedTab = tabIndex;
+        _activatedTabs.add(tabIndex);
+      });
     }
   }
 
@@ -49,6 +53,19 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
     OmnibarDialog.show(
       context,
       onNavigateToTab: (index) => _navigateToTab(index),
+    );
+  }
+
+  Widget _buildTab(int index, Widget Function() builder) {
+    final isActivated = _activatedTabs.contains(index);
+    final isCurrent = _selectedTab == index;
+
+    return KeyedSubtree(
+      key: ValueKey('desktop_tab_$index'),
+      child: ExcludeSemantics(
+        excluding: !isCurrent,
+        child: isActivated ? builder() : const SizedBox.shrink(),
+      ),
     );
   }
 
@@ -96,18 +113,24 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
                         child: IndexedStack(
                           index: _selectedTab,
                           children: [
-                            CommandDeckScreen(
-                              onNavigateToTab: _navigateToTab,
-                              onOpenNewTaskDialog: _openQuickTask,
+                            _buildTab(
+                              0,
+                              () => CommandDeckScreen(
+                                onNavigateToTab: _navigateToTab,
+                                onOpenNewTaskDialog: _openQuickTask,
+                              ),
                             ),
-                            ProjectsTasksScreen(
-                              onNavigateToTab: _navigateToTab,
+                            _buildTab(
+                              1,
+                              () => ProjectsTasksScreen(
+                                onNavigateToTab: _navigateToTab,
+                              ),
                             ),
-                            const PrayerHabitsScreen(),
-                            const JournalVaultScreen(),
-                            const FocusTimersScreen(),
-                            const FriendsAccountabilityScreen(),
-                            const ProfileSettingsScreen(),
+                            _buildTab(2, () => const PrayerHabitsScreen()),
+                            _buildTab(3, () => const JournalVaultScreen()),
+                            _buildTab(4, () => const FocusTimersScreen()),
+                            _buildTab(5, () => const FriendsAccountabilityScreen()),
+                            _buildTab(6, () => const ProfileSettingsScreen()),
                           ],
                         ),
                       ),

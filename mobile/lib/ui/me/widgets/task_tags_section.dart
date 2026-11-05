@@ -99,6 +99,41 @@ class TaskTagsSection extends StatelessWidget {
     );
   }
 
+  void _confirmDeleteTag(BuildContext context, String tagName) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AxisColors.surfaceLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AxisColors.borderPrimary),
+        ),
+        title: Text(
+          'Delete tag "@$tagName"?',
+          style: const TextStyle(color: AxisColors.textHigh),
+        ),
+        content: Text(
+          'Are you sure you want to delete the tag "@$tagName"? Existing tasks with this tag will retain their history.',
+          style: const TextStyle(color: AxisColors.textMuted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: AxisColors.textDim)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              onDeleteTag(tagName);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -118,33 +153,36 @@ class TaskTagsSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            InkWell(
-              onTap: () => _showAddTagDialog(context),
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AxisColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: AxisColors.primary.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add, size: 14, color: AxisColors.primarySoft),
-                    SizedBox(width: 4),
-                    Text(
-                      'New Tag',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AxisColors.primarySoft,
-                        fontWeight: FontWeight.bold,
-                      ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _showAddTagDialog(context),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AxisColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AxisColors.primary.withValues(alpha: 0.35),
                     ),
-                  ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 14, color: AxisColors.primarySoft),
+                      SizedBox(width: 4),
+                      Text(
+                        'New Tag',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AxisColors.primarySoft,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -193,13 +231,19 @@ class TaskTagsSection extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    InkWell(
-                      onTap: () => onDeleteTag(tag),
-                      borderRadius: BorderRadius.circular(10),
-                      child: const Icon(
-                        Icons.close_rounded,
-                        size: 14,
-                        color: AxisColors.textDim,
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _confirmDeleteTag(context, tag),
+                        borderRadius: BorderRadius.circular(10),
+                        child: const Padding(
+                          padding: EdgeInsets.all(2),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 14,
+                            color: AxisColors.textDim,
+                          ),
+                        ),
                       ),
                     ),
                   ],

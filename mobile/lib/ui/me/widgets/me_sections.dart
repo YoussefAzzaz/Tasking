@@ -248,37 +248,40 @@ class _MasteryBadgesSectionState extends State<MasteryBadgesSection> {
               ),
             ),
             const SizedBox(width: 8),
-            InkWell(
-              onTap: _openBadgesScreen,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AxisColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AxisColors.primary.withValues(alpha: 0.25),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _openBadgesScreen,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AxisColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AxisColors.primary.withValues(alpha: 0.25),
+                    ),
                   ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'See All (50)',
-                      style: TextStyle(
-                        color: AxisColors.primarySoft,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'See All (50)',
+                        style: TextStyle(
+                          color: AxisColors.primarySoft,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 3),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 10,
-                      color: AxisColors.primarySoft,
-                    ),
-                  ],
+                      SizedBox(width: 3),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 10,
+                        color: AxisColors.primarySoft,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -317,49 +320,52 @@ class _MasteryBadgesSectionState extends State<MasteryBadgesSection> {
                 }),
 
                 // "View All 50 Badges" Card at end of scroll
-                InkWell(
-                  onTap: _openBadgesScreen,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 105,
-                    height: 122,
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AxisColors.surfaceHigh.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AxisColors.primary.withValues(alpha: 0.3),
-                        width: 1,
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _openBadgesScreen,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: 105,
+                      height: 122,
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AxisColors.surfaceHigh.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AxisColors.primary.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.grid_view_rounded,
-                          color: AxisColors.primarySoft,
-                          size: 24,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'View All',
-                          style: TextStyle(
-                            color: AxisColors.textHigh,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          '50 Badges →',
-                          style: TextStyle(
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.grid_view_rounded,
                             color: AxisColors.primarySoft,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
+                            size: 24,
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 8),
+                          Text(
+                            'View All',
+                            style: TextStyle(
+                              color: AxisColors.textHigh,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            '50 Badges →',
+                            style: TextStyle(
+                              color: AxisColors.primarySoft,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

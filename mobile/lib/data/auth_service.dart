@@ -215,7 +215,7 @@ class AuthService {
         }
       }
 
-      if (session != null) {
+      if (session != null && !session.isExpired) {
         setCachedUserId(session.user.id);
         if (isDatabaseInitialized && !db.connected) {
           db.connect(connector: createSupabaseConnector());
@@ -227,6 +227,34 @@ class AuthService {
     } finally {
       _isAutoLoggingIn = false;
     }
+  }
+
+  /// Ensures an active, unexpired authenticated Supabase cloud session exists.
+  /// Automatically refreshes expired JWT tokens or restores saved session from disk.
+  Future<bool> ensureAuthenticatedSession() async {
+    final client = _client;
+    if (client == null) return false;
+
+    var session = client.auth.currentSession;
+    if (session == null) {
+      final savedUid = currentUserId;
+      if (savedUid == null || savedUid.isEmpty || savedUid == 'local_guest') {
+        return false;
+      }
+      await tryAutoLoginOrSync();
+      session = client.auth.currentSession;
+    }
+
+    if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
+      try {
+        final res = await client.auth.refreshSession();
+        session = res.session;
+      } catch (e) {
+        debugPrint('[AuthService] ensureAuthenticatedSession refresh notice: $e');
+      }
+    }
+
+    return session != null && !session.isExpired && session.user.id.isNotEmpty && session.user.id != 'local_guest';
   }
 
   /// Sign in with email and password

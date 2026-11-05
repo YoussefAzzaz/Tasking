@@ -107,8 +107,14 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final isDesktop = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
 
-    return Scaffold(
+    return ExcludeSemantics(
+      excluding: isDesktop,
+      child: Scaffold(
       backgroundColor: AxisColors.canvasBase,
       body: Stack(
         children: [
@@ -232,8 +238,9 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // MARK: - Top Telemetry Bar
   Widget _buildTopTelemetryBar() {

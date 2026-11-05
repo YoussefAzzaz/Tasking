@@ -15,6 +15,7 @@ import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/habit_notification_service.dart';
+import 'package:axis/data/friend_repository.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:axis/data/network_service.dart';
@@ -36,7 +37,7 @@ Future<void> main() async {
     await windowManager.ensureInitialized();
 
     const windowOptions = WindowOptions(
-      size: Size(1440, 900),
+      size: Size(1440, 900),            
       minimumSize: Size(1024, 700),
       center: true,
       backgroundColor: Colors.transparent,
@@ -94,15 +95,16 @@ Future<void> main() async {
 }
 
 Future<void> _initBackgroundServices() async {
-  // 1. Asynchronous network probe & auto-sync without blocking cold launch
+  // 1. Asynchronous auto-sync without blocking cold launch
   unawaited(() async {
     try {
-      final isOnline = await NetworkService().checkSupabaseConnectivity();
-      if (isOnline && AuthService().hasActiveSession) {
+      if (AuthService().hasActiveSession) {
         await AuthService().tryAutoLoginOrSync();
+        await ensurePowerSyncConnected();
+        await FriendRepository().syncAllFriendData();
       }
     } catch (e) {
-      debugPrint('[Background] Connectivity probe error: $e');
+      debugPrint('[Background] Startup auth & friend sync notice: $e');
     }
   }());
 
@@ -140,6 +142,11 @@ Future<void> _initBackgroundServices() async {
         debugPrint('[Background] ReadingPreferencesService init error: $e');
       }),
     ),
+    Future(
+      () => FriendActivityRepository().purgeOldLogs().catchError((e) {
+        debugPrint('[Background] purgeOldLogs error: $e');
+      }),
+    ),
   ], eagerError: false);
 }
 
@@ -171,7 +178,17 @@ class AxisApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            builder: DevicePreview.appBuilder,
+            builder: (context, child) {
+              Widget appChild = child ?? const SizedBox.shrink();
+              if (AppConfig.useDevicePreview) {
+                appChild = DevicePreview.appBuilder(context, appChild);
+              }
+              final isDesktop = !kIsWeb &&
+                  (defaultTargetPlatform == TargetPlatform.windows ||
+                   defaultTargetPlatform == TargetPlatform.macOS ||
+                   defaultTargetPlatform == TargetPlatform.linux);
+              return isDesktop ? ExcludeSemantics(child: appChild) : appChild;
+            },
             debugShowCheckedModeBanner: false,
             theme: AxisTheme.dark,
             darkTheme: AxisTheme.dark,

@@ -179,7 +179,7 @@ class AppLocalizations {
       isArabic ? 'نلهم ونذكر بعضنا البعض بالصلوات والطاعات' : 'Inspire and remind each other. Stay steadfast together.';
   String get connectedCompanions => isArabic ? 'الرفاق المتصلون' : 'Connected Companions';
   String get pendingRequests => isArabic ? 'الطلبات المعلقة' : 'Pending Requests';
-  String get allCompletedBadge => isArabic ? 'اكتملت جميعاً ✨' : 'All completed ✨';
+  String get allCompletedBadge => isArabic ? 'اكتملت جميعاً' : 'All completed';
   String get circleStandingsSub =>
       isArabic ? 'تنافس أخوي مبني على نقاط الانضباط الأسبوعية' : 'Supportive weekly progress. Ranked by discipline XP.';
   String get copyCodeSuccess => isArabic ? 'تم نسخ رمز الصديق إلى الحافظة!' : 'Friend code copied to clipboard!';
@@ -196,6 +196,12 @@ class AppLocalizations {
   String get prayersDoneCount => isArabic ? 'صلوات مكتملة اليوم' : 'prayers completed today';
   String get youLabel => isArabic ? 'أنت' : 'YOU';
   String get tapToRemind => isArabic ? 'انقر للتذكير' : 'Tap to remind';
+  String get yourChecklist => isArabic ? 'حالتك اليوم' : 'YOUR CHECKLIST';
+  String get companionsAccountability => isArabic ? 'متابعة الرفاق' : 'COMPANIONS ACCOUNTABILITY';
+  String get companionProfile => isArabic ? 'ملف الرفيق' : 'Companion Profile';
+  String get completedBadges => isArabic ? 'الشارات المكتملة' : 'Completed Badges';
+  String get noBadgesYet => isArabic ? 'لا توجد شارات مكتملة بعد' : 'No badges completed yet';
+  String get companionHabitsProgress => isArabic ? 'عادات الرفيق اليومية' : 'Companion Daily Habits';
   String get candidateFound => isArabic ? 'تم العثور على رفيق' : 'Companion Found';
   String get noCompanionFound => isArabic ? 'لم يتم العثور على رفيق بهذا الرمز أو الاسم' : 'No companion found with this code or name';
   String get searching => isArabic ? 'جارٍ البحث...' : 'Searching...';

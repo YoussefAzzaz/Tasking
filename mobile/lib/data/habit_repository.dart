@@ -8,6 +8,7 @@ import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/stats_repository.dart';
 import 'package:axis/domain/streak_engine.dart';
 import 'package:axis/data/habit_notification_service.dart';
+import 'package:axis/data/daily_prayer_status_repository.dart';
 
 export 'package:axis/domain/streak_engine.dart' show StreakLog;
 
@@ -23,6 +24,7 @@ class Habit {
   final bool isDoneToday;
   final int streakDays;
   final int sortOrder;
+  final bool isEnabled;
   final String? createdAt;
 
   Habit({
@@ -37,8 +39,41 @@ class Habit {
     this.isDoneToday = false,
     this.streakDays = 0,
     this.sortOrder = 999,
+    this.isEnabled = true,
     this.createdAt,
   });
+
+  Habit copyWith({
+    String? id,
+    String? name,
+    String? category,
+    String? icon,
+    String? color,
+    String? scheduleType,
+    String? remindTime,
+    int? targetValue,
+    bool? isDoneToday,
+    int? streakDays,
+    int? sortOrder,
+    bool? isEnabled,
+    String? createdAt,
+  }) {
+    return Habit(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+      scheduleType: scheduleType ?? this.scheduleType,
+      remindTime: remindTime ?? this.remindTime,
+      targetValue: targetValue ?? this.targetValue,
+      isDoneToday: isDoneToday ?? this.isDoneToday,
+      streakDays: streakDays ?? this.streakDays,
+      sortOrder: sortOrder ?? this.sortOrder,
+      isEnabled: isEnabled ?? this.isEnabled,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 
   factory Habit.fromRow(Map<String, dynamic> row, {bool isDone = false, int streak = 0}) {
     String cat = (row['kind'] as String?)?.trim() ?? '';
@@ -58,6 +93,13 @@ class Habit {
       }
     }
 
+    final rawEnabled = row['is_enabled'];
+    final bool isEnabled = rawEnabled == null ||
+        rawEnabled == 1 ||
+        rawEnabled == true ||
+        rawEnabled == '1' ||
+        rawEnabled == 'true';
+
     return Habit(
       id: row['id'] as String,
       name: row['name'] as String,
@@ -70,6 +112,7 @@ class Habit {
       isDoneToday: isDone,
       streakDays: streak,
       sortOrder: (row['sort_order'] as num?)?.toInt() ?? 999,
+      isEnabled: isEnabled,
       createdAt: row['created_at'] as String?,
     );
   }
@@ -290,8 +333,8 @@ class HabitRepository {
     try {
       await db.execute('''
         INSERT INTO habits (
-          id, user_id, name, kind, icon, color, schedule_type, remind_time, target_value, sort_order, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, user_id, name, kind, icon, color, schedule_type, remind_time, target_value, sort_order, is_enabled, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''', [
         habit.id,
         uid,
@@ -303,6 +346,7 @@ class HabitRepository {
         habit.remindTime,
         habit.targetValue,
         habit.sortOrder,
+        habit.isEnabled ? 1 : 0,
         now,
         now,
       ]);
@@ -310,7 +354,9 @@ class HabitRepository {
       debugPrint('[HabitRepository] Error adding habit: $e');
     }
     AppWidgetSyncService().syncHabitStreak();
-    unawaited(HabitNotificationService().scheduleHabitReminders(habit));
+    if (habit.isEnabled) {
+      unawaited(HabitNotificationService().scheduleHabitReminders(habit));
+    }
   }
 
   Future<void> updateHabit(Habit habit) async {
@@ -321,7 +367,7 @@ class HabitRepository {
       await db.execute('''
         UPDATE habits SET
           user_id = COALESCE(NULLIF(user_id, ''), ?),
-          name = ?, kind = ?, icon = ?, color = ?, schedule_type = ?, remind_time = ?, target_value = ?, sort_order = ?, updated_at = ?
+          name = ?, kind = ?, icon = ?, color = ?, schedule_type = ?, remind_time = ?, target_value = ?, sort_order = ?, is_enabled = ?, updated_at = ?
         WHERE id = ?
       ''', [
         uid,
@@ -333,6 +379,7 @@ class HabitRepository {
         habit.remindTime,
         habit.targetValue,
         habit.sortOrder,
+        habit.isEnabled ? 1 : 0,
         now,
         habit.id,
       ]);
@@ -340,7 +387,42 @@ class HabitRepository {
       debugPrint('[HabitRepository] Error updating habit: $e');
     }
     AppWidgetSyncService().syncHabitStreak();
-    unawaited(HabitNotificationService().scheduleHabitReminders(habit));
+    if (habit.isEnabled) {
+      unawaited(HabitNotificationService().scheduleHabitReminders(habit));
+    } else {
+      unawaited(HabitNotificationService().cancelHabitReminders(habit.id));
+    }
+  }
+
+  /// Toggles whether a habit is active or paused/disabled.
+  /// When toggled off, it does not count in today habits or streaks, and notifications are stopped.
+  Future<void> toggleHabitEnabled(String habitId, bool isEnabled) async {
+    final uid = currentUserId;
+    CacheService().invalidate('habit_streaks_map_${uid.isNotEmpty ? uid : 'global'}');
+    final now = DateTime.now().toUtc().toIso8601String();
+    try {
+      await db.execute('''
+        UPDATE habits SET is_enabled = ?, updated_at = ? WHERE id = ?
+      ''', [isEnabled ? 1 : 0, now, habitId]);
+    } catch (e) {
+      debugPrint('[HabitRepository] Error toggling habit enabled: $e');
+    }
+
+    if (!isEnabled) {
+      unawaited(HabitNotificationService().cancelHabitReminders(habitId));
+    } else {
+      try {
+        final row = await db.getOptional('SELECT * FROM habits WHERE id = ?', [habitId]);
+        if (row != null) {
+          final habit = Habit.fromRow(row);
+          unawaited(HabitNotificationService().scheduleHabitReminders(habit));
+        }
+      } catch (_) {}
+    }
+
+    AppWidgetSyncService().syncHabitStreak();
+    StatsRepository().invalidateStats();
+    unawaited(DailyPrayerStatusRepository().syncMyDailyPrayerStatus());
   }
 
   Future<void> toggleHabit(String habitId, bool done) async {
@@ -472,11 +554,17 @@ class HabitRepository {
     List<Map<String, dynamic>>? prayers,
     int minHabitsRequired = 10,
   }) {
-    // 1. Exclude legacy prayer records if any remain in habits
+    // 1. Exclude legacy prayer records and disabled habits
     final validHabits = habits.where((h) {
       final id = (h['id'] as String? ?? '').toLowerCase();
       final kind = (h['kind'] as String? ?? '').toLowerCase();
-      return !isPrayerIdentifier(id) && kind != 'prayers';
+      final rawEnabled = h['is_enabled'];
+      final isEnabled = rawEnabled == null ||
+          rawEnabled == 1 ||
+          rawEnabled == true ||
+          rawEnabled == '1' ||
+          rawEnabled == 'true';
+      return !isPrayerIdentifier(id) && kind != 'prayers' && isEnabled;
     }).toList();
 
     final validHabitIds = validHabits.map((h) => h['id'] as String).toSet();

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/prayer_time_service.dart';
@@ -86,12 +88,10 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
       await widget.onResetPrayers();
       if (mounted) {
         setState(() => _isResetting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Today's prayers have been reset to undone"),
-            backgroundColor: AxisColors.surfaceLow,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AxisSnackBar.show(
+          context,
+          message: "Today's prayers have been reset to undone",
+          icon: Icons.refresh_rounded,
         );
       }
     }
@@ -296,13 +296,10 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                             onPressed: () async {
                               await widget.onRefreshLocation();
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Prayer times refreshed for ${PrayerTimeService().currentCity}'),
-                                    backgroundColor: AxisColors.surfaceLow,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
+                                AxisSnackBar.show(
+                                  context,
+                                  message: 'Prayer times refreshed for ${PrayerTimeService().currentCity}',
+                                  icon: Icons.location_on_outlined,
                                 );
                               }
                             },
@@ -527,14 +524,17 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                 final isDone = prayer.isDone;
 
                 return Padding(
+                  key: ValueKey('habit_prayer_${prayer.id}'),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       AxisCheckbox(
                         checked: isDone,
-                        onChanged: (checked) =>
-                            widget.onTogglePrayer(prayer, checked),
+                        onChanged: (checked) {
+                          HapticFeedback.lightImpact();
+                          widget.onTogglePrayer(prayer, checked);
+                        },
                       ),
                       const SizedBox(width: 10),
                       Expanded(

@@ -31,19 +31,41 @@ class AvatarWidget extends StatelessWidget {
   final String? heroTag;
 
   String _getInitials(String input) {
-    final parts = input.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts[0].isEmpty) return '';
-    if (parts.length == 1) {
-      return parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return '';
+    final parts = trimmed.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '';
+    try {
+      if (parts.length == 1) {
+        final chars = parts[0].characters;
+        if (chars.isEmpty) return '';
+        return chars.take(2).toString().toUpperCase();
+      }
+      final firstChars = parts[0].characters;
+      final secondChars = parts[1].characters;
+      final first = firstChars.isNotEmpty ? firstChars.first : '';
+      final second = secondChars.isNotEmpty ? secondChars.first : '';
+      return '$first$second'.toUpperCase();
+    } catch (_) {
+      return '';
     }
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 
   Color _parseColor(String? hexString) {
-    if (hexString == null || hexString.isEmpty) return AxisColors.primary;
-    final hex = hexString.replaceAll('#', '');
-    if (hex.length == 6) {
-      return Color(int.parse('FF$hex', radix: 16));
+    if (hexString == null || hexString.trim().isEmpty) return AxisColors.primary;
+    try {
+      var hex = hexString.trim().replaceAll('#', '').replaceAll('0x', '');
+      if (hex.length == 6) {
+        hex = 'FF$hex';
+      }
+      if (hex.length == 8) {
+        final val = int.tryParse(hex, radix: 16);
+        if (val != null) {
+          return Color(val);
+        }
+      }
+    } catch (_) {
+      // Fallback on any parsing error
     }
     return AxisColors.primary;
   }
@@ -128,22 +150,10 @@ class AvatarWidget extends StatelessWidget {
             fit: BoxFit.cover,
             width: size,
             height: size,
-            placeholder: (context, url) => Container(
-              color: AxisColors.surfaceHigh,
-              child: Center(
-                child: SizedBox(
-                  width: size * 0.35,
-                  height: size * 0.35,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      baseColor.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            placeholder: (context, url) => _buildFallback(context),
             errorWidget: (context, url, error) => _buildFallback(context),
+            fadeInDuration: const Duration(milliseconds: 200),
+            fadeOutDuration: const Duration(milliseconds: 200),
           ),
         ),
       );

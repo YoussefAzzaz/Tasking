@@ -3,13 +3,12 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/data/friend_repository.dart';
 import 'package:axis/core/config/app_config.dart';
 
-/// Network Connectivity Service using direct TCP socket handshakes to Supabase.
+/// Network Connectivity Service using resilient multi-tier connectivity detection.
 ///
-/// Sends a TCP packet (SYN) to the Supabase host on port 443.
-/// If a response (SYN-ACK) is received, the device is verified ONLINE.
-/// If no response is received (timeout, socket exception, host unreachable), the device is verified OFFLINE.
+/// Combines DNS lookup, HTTPS REST heartbeat to Supabase, and fallback probes to verify connectivity.
 class NetworkService with WidgetsBindingObserver {
   static final NetworkService _instance = NetworkService._internal();
   factory NetworkService() => _instance;
@@ -21,16 +20,16 @@ class NetworkService with WidgetsBindingObserver {
   Timer? _monitorTimer;
   bool _isChecking = false;
   bool _observerRegistered = false;
+  int _consecutiveFailures = 0;
 
-  /// Sends a TCP packet to Supabase port 443 and awaits a response.
-  /// Returns true if a response was received (Online), false otherwise (Offline).
+  /// Checks reachability to Supabase and general internet.
+  /// Returns true if verified online, false otherwise.
   Future<bool> checkSupabaseConnectivity({
-    Duration timeout = const Duration(seconds: 3),
+    Duration timeout = const Duration(seconds: 6),
   }) async {
     if (_isChecking) return isOnline;
     _isChecking = true;
 
-    Socket? socket;
     bool connected = false;
 
     try {
@@ -39,42 +38,73 @@ class NetworkService with WidgetsBindingObserver {
       final host = uri.host.isNotEmpty ? uri.host : 'hzyvdkgdkxbxooatrzwy.supabase.co';
       final port = (uri.hasPort && uri.port != 0) ? uri.port : 443;
 
-      // TCP Handshake: sends SYN and awaits SYN-ACK response
+      // 1. Primary: DNS address resolution to the Supabase backend host
       try {
-        socket = await Socket.connect(host, port, timeout: timeout);
-        connected = true;
-      } catch (socketError) {
-        // Fallback: If raw TCP socket is blocked by network carrier/proxy, try HTTPS request
+        final addresses = await InternetAddress.lookup(host).timeout(timeout);
+        if (addresses.isNotEmpty && addresses.first.rawAddress.isNotEmpty) {
+          connected = true;
+        }
+      } catch (_) {}
+
+      // 2. Secondary: Active HTTPS REST heartbeat to Supabase with anon key
+      if (!connected) {
         try {
           final client = HttpClient()..connectionTimeout = timeout;
-          final request = await client.getUrl(Uri.parse('$url/rest/v1/'));
+          final request = await client.getUrl(Uri.parse('$url/rest/v1/user_profiles?select=id&limit=1'));
+          request.headers.add('apikey', AppConfig.supabaseAnonKey);
           final response = await request.close().timeout(timeout);
           client.close(force: true);
           connected = response.statusCode > 0;
+        } catch (_) {}
+      }
+
+      // 3. Tertiary: Fallback raw socket connect
+      if (!connected) {
+        Socket? socket;
+        try {
+          socket = await Socket.connect(host, port, timeout: timeout);
+          connected = true;
         } catch (_) {
-          connected = false;
+        } finally {
+          try {
+            socket?.destroy();
+          } catch (_) {}
         }
+      }
+
+      // 4. Quaternary: General internet fallback (e.g. if Supabase DNS is slow)
+      if (!connected) {
+        try {
+          final fallbackLookup = await InternetAddress.lookup('google.com').timeout(timeout);
+          if (fallbackLookup.isNotEmpty && fallbackLookup.first.rawAddress.isNotEmpty) {
+            connected = true;
+          }
+        } catch (_) {}
       }
     } catch (_) {
       connected = false;
     } finally {
-      try {
-        socket?.destroy();
-      } catch (_) {}
       _isChecking = false;
     }
 
     final previousState = isOnlineNotifier.value;
-    isOnlineNotifier.value = connected;
 
-    // Handle state transitions
-    if (previousState != connected) {
-      if (connected) {
-        debugPrint('[NetworkService] TCP response received from Supabase -> ONLINE. Reconnecting PowerSync sync.');
+    if (connected) {
+      _consecutiveFailures = 0;
+      isOnlineNotifier.value = true;
+      if (!previousState) {
+        debugPrint('[NetworkService] Reconnected to cloud backend -> ONLINE. Reconnecting sync.');
         _handleBackOnline();
-      } else {
-        debugPrint('[NetworkService] No response from Supabase -> OFFLINE. Operating with local SQLite.');
-        _handleWentOffline();
+      }
+    } else {
+      _consecutiveFailures++;
+      // Require 2 consecutive failed attempts before transitioning to OFFLINE to ignore transient jitter
+      if (_consecutiveFailures >= 2) {
+        isOnlineNotifier.value = false;
+        if (previousState) {
+          debugPrint('[NetworkService] Backend unreachable -> OFFLINE. Operating with local SQLite.');
+          _handleWentOffline();
+        }
       }
     }
 
@@ -85,7 +115,11 @@ class NetworkService with WidgetsBindingObserver {
     if (!isDatabaseInitialized) return;
     try {
       if (AuthService().hasActiveSession) {
-        AuthService().tryAutoLoginOrSync();
+        unawaited(AuthService().tryAutoLoginOrSync());
+        unawaited(FriendRepository().syncAllFriendData());
+      }
+      if (!db.connected) {
+        db.connect(connector: createSupabaseConnector());
       }
     } catch (e) {
       debugPrint('[NetworkService] Error reconnecting sync: $e');
@@ -99,7 +133,7 @@ class NetworkService with WidgetsBindingObserver {
     debugPrint('[NetworkService] Switched to offline mode. Continuing with local SQLite.');
   }
 
-  /// Starts periodic TCP connectivity heartbeat to monitor network status
+  /// Starts periodic connectivity heartbeat to monitor network status
   void startMonitoring({Duration interval = const Duration(seconds: 15)}) {
     _monitorTimer?.cancel();
     try {

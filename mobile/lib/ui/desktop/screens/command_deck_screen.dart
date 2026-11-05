@@ -1108,7 +1108,7 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklis
                 GhostButton(
                   label: 'View ↗',
                   height: 26,
-                  onPressed: () => widget.onNavigateToTab(1), // Prayer & Habits
+                  onPressed: () => widget.onNavigateToTab(2), // Prayer & Habits (Tab 2)
                 ),
               ],
             ),
@@ -1123,7 +1123,9 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklis
                 return StreamBuilder<List<Habit>>(
                   stream: HabitRepository().watchHabits(),
                   builder: (context, snapshot) {
-                    final rawHabits = List<Habit>.from(snapshot.data ?? [])..sort(HabitRepository.compareByTime);
+                    final rawHabits = List<Habit>.from(
+                      (snapshot.data ?? []).where((h) => h.isEnabled),
+                    )..sort(HabitRepository.compareByTime);
                     final habits = rawHabits.take(4).toList();
                     if (habits.isEmpty) {
                       return Padding(

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
-import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/network_service.dart';
 import 'package:axis/data/user_profile_repository.dart';
 import 'package:axis/ui/me/widgets/avatar_widget.dart';
+import 'package:axis/ui/common/sync_status_modal.dart';
 
 /// Top app header — Axis brand + sync status + LVL badge + avatar
 class AxisHeader extends StatefulWidget {
@@ -110,7 +109,8 @@ class _AxisHeaderState extends State<AxisHeader> {
                           }
 
                           return GestureDetector(
-                            onTap: isGuest ? () => context.go('/auth') : null,
+                            onTap: () => SyncStatusModal.show(context),
+                            behavior: HitTestBehavior.opaque,
                             child: Tooltip(
                               message: tooltipMsg,
                               child: Row(
@@ -167,51 +167,6 @@ class _AxisHeaderState extends State<AxisHeader> {
             ],
           ),
           const Spacer(),
-          const SizedBox(width: 6),
-          // FRIENDS button pill with accessible 44px touch target
-          Semantics(
-            button: true,
-            label: 'Open Friends & Companions',
-            child: InkWell(
-              onTap: () => context.push('/friends'),
-              borderRadius: BorderRadius.circular(9999),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 44),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AxisColors.primary.withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(9999),
-                      border: Border.all(color: AxisColors.primary.withValues(alpha: 0.6)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AxisColors.primary.withValues(alpha: 0.25),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.people_alt_rounded, color: AxisColors.primarySoft, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          AppLocalizations.of(context).friends.toUpperCase(),
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: AxisColors.primarySoft,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.8,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
           // LVL badge (dynamically synced)
           ValueListenableBuilder<int>(
             valueListenable: globalUserLevel,
@@ -241,33 +196,37 @@ class _AxisHeaderState extends State<AxisHeader> {
               );
             },
           ),
+          const SizedBox(width: 10),
           // Avatar → opens Me (renders real user pfp if available with active border when selected)
           ValueListenableBuilder<UserProfile>(
             valueListenable: UserProfileRepository().profileNotifier,
             builder: (context, profile, _) {
-              return Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: widget.isMeSelected ? AxisColors.primarySoft : Colors.transparent,
-                    width: 2,
+              return Tooltip(
+                message: 'Open Profile (Me)',
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: widget.isMeSelected ? AxisColors.primarySoft : Colors.transparent,
+                      width: 2,
+                    ),
+                    boxShadow: widget.isMeSelected
+                        ? [
+                            BoxShadow(
+                              color: AxisColors.primary.withValues(alpha: 0.5),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
                   ),
-                  boxShadow: widget.isMeSelected
-                      ? [
-                          BoxShadow(
-                            color: AxisColors.primary.withValues(alpha: 0.5),
-                            blurRadius: 10,
-                            spreadRadius: 1,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: AvatarWidget(
-                  avatarUrl: profile.avatarUrl,
-                  name: profile.name,
-                  avatarColor: profile.avatarColor,
-                  size: 34,
-                  onTap: widget.onAvatarTap,
+                  child: AvatarWidget(
+                    avatarUrl: profile.avatarUrl,
+                    name: profile.name,
+                    avatarColor: profile.avatarColor,
+                    size: 34,
+                    onTap: widget.onAvatarTap,
+                  ),
                 ),
               );
             },

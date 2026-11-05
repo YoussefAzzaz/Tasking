@@ -54,6 +54,7 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
             manifestPlaceholders["appLabel"] = "Axis"
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }

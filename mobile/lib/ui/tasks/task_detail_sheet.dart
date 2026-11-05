@@ -8,6 +8,7 @@ import 'package:axis/ui/tasks/create_task_sheet.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
 import 'package:axis/ui/common/reading_font_size_control.dart';
 import 'package:axis/data/reading_preferences_service.dart';
+import 'package:axis/ui/common/axis_snackbar.dart';
 
 /// Task detail bottom sheet — glass tier 2, full DESIGN.md spec
 class TaskDetailSheet extends StatefulWidget {
@@ -341,8 +342,12 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () async {
+                      final taskTitle = _task.title;
                       await _repo.deleteTask(_task.id);
-                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        AxisSnackBar.showDeleted(context, itemTitle: taskTitle, itemType: 'Task');
+                      }
                     },
                     icon: const Icon(Icons.delete_outline_rounded,
                         color: AxisColors.error, size: 18),

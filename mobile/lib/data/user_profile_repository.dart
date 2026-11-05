@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
@@ -44,6 +45,30 @@ class UserProfile {
       friendCode: friendCode ?? this.friendCode,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserProfile &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          title == other.title &&
+          avatarColor == other.avatarColor &&
+          avatarUrl == other.avatarUrl &&
+          totalXp == other.totalXp &&
+          level == other.level &&
+          friendCode == other.friendCode;
+
+  @override
+  int get hashCode => Object.hash(
+        name,
+        title,
+        avatarColor,
+        avatarUrl,
+        totalXp,
+        level,
+        friendCode,
+      );
 }
 
 /// Repository managing user profile data with caching and multi-user isolation.
@@ -55,6 +80,8 @@ class UserProfileRepository {
 
   final ValueNotifier<UserProfile> profileNotifier =
       ValueNotifier<UserProfile>(const UserProfile());
+
+  String? _lastUploadedAvatarHash;
 
   SupabaseClient? get _supabaseClient {
     try {
@@ -77,10 +104,12 @@ class UserProfileRepository {
       _fetchProfileFromDb,
       ttl: const Duration(minutes: 15),
       staleWhileRevalidate: true,
-      timeout: const Duration(seconds: 3),
-      fallback: const UserProfile(),
+      timeout: const Duration(seconds: 6),
+      fallback: profileNotifier.value,
     );
-    profileNotifier.value = profile;
+    if (profileNotifier.value != profile) {
+      profileNotifier.value = profile;
+    }
     return profile;
   }
 
@@ -125,16 +154,18 @@ class UserProfileRepository {
         } catch (_) {}
       }
 
-      // Immediately synchronize friend_code to Supabase remote user_profiles table
+      // Synchronize friend_code to Supabase remote user_profiles table asynchronously
       if (friendCode != null && friendCode.isNotEmpty && uid.isNotEmpty && uid != 'local_guest' && _supabaseClient != null) {
-        try {
-          await _supabaseClient!.from('user_profiles').update({
-            'friend_code': friendCode,
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          }).eq('user_id', uid);
-        } catch (e) {
-          debugPrint('[UserProfileRepository] Remote friend_code sync notice: $e');
-        }
+        unawaited(() async {
+          try {
+            await _supabaseClient!.from('user_profiles').update({
+              'friend_code': friendCode,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            }).eq('user_id', uid);
+          } catch (e) {
+            debugPrint('[UserProfileRepository] Remote friend_code sync notice: $e');
+          }
+        }());
       }
 
       // Check Supabase Auth user_metadata (cloud ground truth)
@@ -247,12 +278,12 @@ class UserProfileRepository {
     final uid = currentUserId;
     final targetAvatarUrl = clearAvatarUrl ? null : (avatarUrl ?? current.avatarUrl);
 
-    final updated = UserProfile(
+    final updated = current.copyWith(
       name: newName,
       title: newTitle,
       avatarColor: avatarColor ?? current.avatarColor,
       avatarUrl: targetAvatarUrl,
-      totalXp: current.totalXp,
+      clearAvatarUrl: clearAvatarUrl,
       level: globalUserLevel.value,
     );
 
@@ -324,10 +355,18 @@ class UserProfileRepository {
   }
 
   /// Uploads avatar binary to Supabase Storage and updates the profile record.
+  /// Deduplicates by hashing bytes so identical images are not uploaded multiple times.
   Future<String?> uploadAvatar(Uint8List imageBytes, {String contentType = 'image/jpeg'}) async {
     final uid = currentUserId;
     if (uid.isEmpty) {
       throw Exception('User is not authenticated');
+    }
+
+    final hash = sha256.convert(imageBytes).toString();
+    final current = await getProfile();
+    if (_lastUploadedAvatarHash == hash && current.avatarUrl != null && current.avatarUrl!.isNotEmpty) {
+      debugPrint('[UserProfileRepository] Avatar unchanged (hash match), skipping redundant upload');
+      return current.avatarUrl;
     }
 
     final ext = contentType.contains('png')
@@ -368,7 +407,6 @@ class UserProfileRepository {
     }
 
     // 4. Save to profile (local SQLite + PowerSync + local_auth_session)
-    final current = await getProfile();
     await saveProfile(
       current.name,
       current.title,
@@ -376,11 +414,13 @@ class UserProfileRepository {
       avatarUrl: cacheBusterUrl,
     );
 
+    _lastUploadedAvatarHash = hash;
     return cacheBusterUrl;
   }
 
   /// Removes avatar from Supabase Storage and clears avatar_url from profile.
   Future<void> removeAvatar() async {
+    _lastUploadedAvatarHash = null;
     final uid = currentUserId;
     final client = _supabaseClient;
     if (client != null && uid.isNotEmpty) {

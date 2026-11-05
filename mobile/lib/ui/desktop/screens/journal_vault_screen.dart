@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -245,6 +246,7 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
         _titleController.clear();
         _editorController.clear();
       });
+      AxisSnackBar.showDeleted(context, itemTitle: 'Entry', itemType: _activeTab == 'journal' ? 'Journal' : 'Note');
     }
   }
 

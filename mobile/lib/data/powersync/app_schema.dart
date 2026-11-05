@@ -96,6 +96,7 @@ final appSchema = Schema([
       Column.text('schedule_type'),
       Column.text('remind_time'),
       Column.integer('sort_order'),
+      Column.integer('is_enabled'),
       Column.text('created_at'),
       Column.text('updated_at'),
       Column.text('deleted_at'),

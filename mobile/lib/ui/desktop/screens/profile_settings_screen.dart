@@ -575,12 +575,16 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                               const Icon(Icons.check_circle_rounded, color: AxisColors.primarySoft, size: 16),
                               const SizedBox(width: 6),
                             ],
-                            Text(
-                              'English (US)',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 13,
-                                fontWeight: !isArabic ? FontWeight.w700 : FontWeight.w500,
-                                color: !isArabic ? AxisColors.textHigh : AxisColors.textMuted,
+                            Flexible(
+                              child: Text(
+                                'English (US)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 13,
+                                  fontWeight: !isArabic ? FontWeight.w700 : FontWeight.w500,
+                                  color: !isArabic ? AxisColors.textHigh : AxisColors.textMuted,
+                                ),
                               ),
                             ),
                           ],
@@ -613,12 +617,16 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                               const Icon(Icons.check_circle_rounded, color: AxisColors.primarySoft, size: 16),
                               const SizedBox(width: 6),
                             ],
-                            const Text(
-                              'العربية (Arabic)',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AxisColors.textHigh,
+                            const Flexible(
+                              child: Text(
+                                'العربية (Arabic)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AxisColors.textHigh,
+                                ),
                               ),
                             ),
                           ],

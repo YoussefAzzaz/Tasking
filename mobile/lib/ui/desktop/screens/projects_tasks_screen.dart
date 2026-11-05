@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -29,15 +30,18 @@ class ProjectsTasksScreen extends StatefulWidget {
   const ProjectsTasksScreen({
     super.key,
     required this.onNavigateToTab,
+    this.taskRepo,
   });
 
   final ValueChanged<int> onNavigateToTab;
+  final TaskRepository? taskRepo;
 
   @override
   State<ProjectsTasksScreen> createState() => _ProjectsTasksScreenState();
 }
 
 class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChecklistMixin {
+  TaskRepository get _taskRepo => widget.taskRepo ?? TaskRepository();
   Task? _selectedTask;
   String? _selectedTaskId;
   int _taskFilterIndex = 0; // 0: All, 1: Today, 2: In Progress, 3: Completed
@@ -103,7 +107,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
       final current = task.notes ?? '';
       final updatedNotes = current.isEmpty ? '- [ ] $subtask' : '$current\n- [ ] $subtask';
       final updated = task.copyWith(notes: updatedNotes);
-      await TaskRepository().updateTask(updated);
+      await _taskRepo.updateTask(updated);
       if (mounted) {
         setState(() {
           _selectedTask = updated;
@@ -281,6 +285,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
     );
 
     if (confirmed == true) {
+      final pName = p.name;
       await ProjectRepository().deleteProject(p.id, projectName: p.name);
       if (_selectedProjectId == p.id) {
         setState(() {
@@ -288,6 +293,9 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
           _selectedTask = null;
           _selectedTaskId = null;
         });
+      }
+      if (mounted) {
+        AxisSnackBar.showDeleted(context, itemTitle: pName, itemType: 'Project');
       }
     }
   }
@@ -340,7 +348,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
         );
 
         return StreamBuilder<List<Task>>(
-          stream: TaskRepository().watchTasks(),
+          stream: _taskRepo.watchTasks(),
           builder: (context, snapshot) {
             final tasks = snapshot.data ?? [];
             final activeCount = tasks.where((t) => !t.isCompleted).length;
@@ -444,7 +452,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
         }
 
         return StreamBuilder<List<Task>>(
-          stream: TaskRepository().watchTasks(),
+          stream: _taskRepo.watchTasks(),
           builder: (context, taskSnap) {
             final allTasks = taskSnap.data ?? [];
 
@@ -658,13 +666,14 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
               // Task items list
               Expanded(
                 child: StreamBuilder<List<Task>>(
-                stream: TaskRepository().watchTasks(),
+                stream: _taskRepo.watchTasks(),
                 builder: (context, snapshot) {
                   final tasks = snapshot.data ?? [];
                   final now = DateTime.now();
                   final todayStr = DateFormat('yyyy-MM-dd').format(now);
+                  final tomorrowStr = DateFormat('yyyy-MM-dd').format(now.add(const Duration(days: 1)));
 
-                  var filtered = tasks.where((t) {
+                  final filtered = tasks.where((t) {
                     if (_selectedProjectId != null) {
                       final tProj = t.projectId?.trim() ?? '';
                       final matches = tProj == _selectedProjectId ||
@@ -682,30 +691,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                       return t.isCompleted;
                     }
                     return true;
-                  }).toList()
-                    ..sort((a, b) {
-                      // 1. Automatically move checked/completed tasks down
-                      if (a.isCompleted != b.isCompleted) {
-                        return a.isCompleted ? 1 : -1;
-                      }
-                      // 2. Sort by date (earliest due date first, tasks without date placed at the end)
-                      final aDate = a.dueDate;
-                      final bDate = b.dueDate;
-                      if (aDate != null && bDate != null) {
-                        final dateComp = aDate.compareTo(bDate);
-                        if (dateComp != 0) return dateComp;
-                        final aTime = a.dueTime ?? '';
-                        final bTime = b.dueTime ?? '';
-                        final timeComp = aTime.compareTo(bTime);
-                        if (timeComp != 0) return timeComp;
-                      } else if (aDate != null && bDate == null) {
-                        return -1;
-                      } else if (aDate == null && bDate != null) {
-                        return 1;
-                      }
-                      // 3. Sort by name alphabetically
-                      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-                    });
+                  }).toList();
 
                   if (filtered.isEmpty) {
                     return Center(
@@ -716,15 +702,85 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                     );
                   }
 
+                  // Chronologically bucket tasks by due date matching mobile upcoming tab
+                  final overdueTasks = <Task>[];
+                  final todayTasks = <Task>[];
+                  final tomorrowTasks = <Task>[];
+                  final upcomingTasks = <Task>[];
+                  final noDateTasks = <Task>[];
+                  final finishedTasks = <Task>[];
+
+                  for (final task in filtered) {
+                    if (task.isCompleted) {
+                      finishedTasks.add(task);
+                      continue;
+                    }
+
+                    final d = task.dueDate;
+                    if (d == null || d.trim().isEmpty) {
+                      noDateTasks.add(task);
+                    } else if (d.compareTo(todayStr) < 0) {
+                      overdueTasks.add(task);
+                    } else if (d == todayStr) {
+                      todayTasks.add(task);
+                    } else if (d == tomorrowStr) {
+                      tomorrowTasks.add(task);
+                    } else {
+                      upcomingTasks.add(task);
+                    }
+                  }
+
+                  final sections = <_DesktopTaskSection>[
+                    if (overdueTasks.isNotEmpty)
+                      _DesktopTaskSection(
+                        title: 'OVERDUE',
+                        color: AxisColors.error,
+                        tasks: overdueTasks..sort(_compareTasks),
+                      ),
+                    if (todayTasks.isNotEmpty)
+                      _DesktopTaskSection(
+                        title: 'TODAY',
+                        color: AxisColors.primary,
+                        tasks: todayTasks..sort(_compareTasks),
+                      ),
+                    if (tomorrowTasks.isNotEmpty)
+                      _DesktopTaskSection(
+                        title: 'TOMORROW',
+                        color: AxisColors.secondary,
+                        tasks: tomorrowTasks..sort(_compareTasks),
+                      ),
+                    if (upcomingTasks.isNotEmpty)
+                      _DesktopTaskSection(
+                        title: 'UPCOMING',
+                        color: AxisColors.tertiary,
+                        tasks: upcomingTasks..sort(_compareTasks),
+                      ),
+                    if (noDateTasks.isNotEmpty)
+                      _DesktopTaskSection(
+                        title: 'NO DUE DATE',
+                        color: AxisColors.textDim,
+                        tasks: noDateTasks..sort(_compareTasks),
+                      ),
+                    if (finishedTasks.isNotEmpty)
+                      _DesktopTaskSection(
+                        title: 'FINISHED',
+                        color: AxisColors.tertiary,
+                        tasks: finishedTasks..sort(_compareTasks),
+                      ),
+                  ];
+
                   // Auto-select first task if none selected or no longer in filtered
+                  final allSortedTasks = [
+                    for (final s in sections) ...s.tasks,
+                  ];
                   final activeSelectedId = _selectedTaskId ?? _selectedTask?.id;
-                  if ((activeSelectedId == null || !filtered.any((t) => t.id == activeSelectedId)) && filtered.isNotEmpty) {
+                  if ((activeSelectedId == null || !allSortedTasks.any((t) => t.id == activeSelectedId)) && allSortedTasks.isNotEmpty) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       final currentId = _selectedTaskId ?? _selectedTask?.id;
-                      if (mounted && (currentId == null || !filtered.any((t) => t.id == currentId))) {
+                      if (mounted && (currentId == null || !allSortedTasks.any((t) => t.id == currentId))) {
                         setState(() {
-                          _selectedTask = filtered.first;
-                          _selectedTaskId = filtered.first.id;
+                          _selectedTask = allSortedTasks.first;
+                          _selectedTaskId = allSortedTasks.first.id;
                         });
                       }
                     });
@@ -733,95 +789,211 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                   return Scrollbar(
                     controller: _tasksScrollController,
                     thumbVisibility: true,
-                    child: ListView.builder(
+                    child: ListView(
                       controller: _tasksScrollController,
                       padding: const EdgeInsets.only(right: 12.0),
-                      itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final task = filtered[index];
-                          final isSelected = (_selectedTaskId ?? _selectedTask?.id) == task.id;
-                          final isDone = task.isCompleted;
-                          final railColor = isDone
-                              ? AxisColors.tertiary
-                              : switch (task.priority) {
-                                  1 => AxisColors.priorityHigh,
-                                  2 => AxisColors.priorityMed,
-                                  3 => AxisColors.priorityLow,
-                                  _ => AxisColors.secondary,
-                                };
+                      children: [
+                        for (final section in sections) ...[
+                          _buildSectionHeader(
+                            section.title,
+                            section.color,
+                            section.tasks.length,
+                          ),
+                          for (final task in section.tasks)
+                            _buildTaskItem(task, todayStr: todayStr),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
-                          return GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedTask = task;
-                              _selectedTaskId = task.id;
-                            }),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: 3.0),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AxisColors.primary.withValues(alpha: 0.16)
-                                    : AxisColors.surfaceLowest,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: isSelected ? AxisColors.primary : AxisColors.borderSubtle,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  TaskStatusRail(color: railColor, height: 20),
-                                  const SizedBox(width: 10),
-                                  DesktopCheckbox(
-                                    value: isDone,
-                                    onChanged: (val) {
-                                      TaskRepository().toggleTaskStatus(task, val);
-                                    },
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          task.title,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.getFont(
-                                            'Geist',
-                                            fontSize: 13,
-                                            decoration: isDone ? TextDecoration.lineThrough : null,
-                                            color: isDone ? AxisColors.textDim : AxisColors.textHigh,
-                                          ),
-                                        ),
-                                        if (task.dueDate != null) ...[
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Due ${task.dueDate} ${task.dueTime ?? ""}',
-                                            style: GoogleFonts.spaceGrotesk(fontSize: 10, color: AxisColors.textDim),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  if (task.priority != null && !isDone) ...[
-                                    const SizedBox(width: 8),
-                                    PriorityBadge(priority: task.priority, compact: true),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+  int _compareTasks(Task a, Task b) {
+    // 1. Automatically move checked/completed tasks down
+    if (a.isCompleted != b.isCompleted) {
+      return a.isCompleted ? 1 : -1;
+    }
+    // 2. Sort by date (earliest due date first, tasks without date placed at the end)
+    final aDate = a.dueDate;
+    final bDate = b.dueDate;
+    if (aDate != null && bDate != null) {
+      final dateComp = aDate.compareTo(bDate);
+      if (dateComp != 0) return dateComp;
+      final aTime = a.dueTime ?? '';
+      final bTime = b.dueTime ?? '';
+      final timeComp = aTime.compareTo(bTime);
+      if (timeComp != 0) return timeComp;
+    } else if (aDate != null && bDate == null) {
+      return -1;
+    } else if (aDate == null && bDate != null) {
+      return 1;
+    }
+    // 3. Sort by name alphabetically
+    return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+  }
+
+  Widget _buildSectionHeader(String title, Color color, int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: color.withValues(alpha: 0.3), width: 0.8),
+            ),
+            child: Text(
+              '$count',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskItem(Task task, {String? todayStr}) {
+    final isSelected = (_selectedTaskId ?? _selectedTask?.id) == task.id;
+    final isDone = task.isCompleted;
+    final railColor = isDone
+        ? AxisColors.tertiary
+        : switch (task.priority) {
+            1 => AxisColors.priorityHigh,
+            2 => AxisColors.priorityMed,
+            3 => AxisColors.priorityLow,
+            _ => AxisColors.secondary,
+          };
+
+    final isOverdue = !isDone &&
+        task.dueDate != null &&
+        task.dueDate!.trim().isNotEmpty &&
+        todayStr != null &&
+        task.dueDate!.compareTo(todayStr) < 0;
+
+    return GestureDetector(
+      onTap: () => setState(() {
+        _selectedTask = task;
+        _selectedTaskId = task.id;
+      }),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 3.0),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AxisColors.primary.withValues(alpha: 0.16)
+              : AxisColors.surfaceLowest,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected ? AxisColors.primary : AxisColors.borderSubtle,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            TaskStatusRail(color: railColor, height: 20),
+            const SizedBox(width: 10),
+            DesktopCheckbox(
+              value: isDone,
+              onChanged: (val) {
+                _taskRepo.toggleTaskStatus(task, val);
+              },
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.getFont(
+                      'Geist',
+                      fontSize: 13,
+                      decoration: isDone ? TextDecoration.lineThrough : null,
+                      color: isDone ? AxisColors.textDim : AxisColors.textHigh,
+                    ),
+                  ),
+                  if (task.dueDate != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      isOverdue
+                          ? 'Overdue • ${task.dueDate} ${task.dueTime ?? ""}'.trim()
+                          : isDone
+                              ? 'Finished • ${task.dueDate} ${task.dueTime ?? ""}'.trim()
+                              : 'Due ${task.dueDate} ${task.dueTime ?? ""}'.trim(),
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 10,
+                        color: isOverdue
+                            ? AxisColors.error
+                            : isDone
+                                ? AxisColors.tertiary
+                                : AxisColors.textDim,
+                        fontWeight: (isOverdue || isDone) ? FontWeight.w600 : FontWeight.normal,
                       ),
-                    );
-                  },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (isDone) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AxisColors.tertiary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: AxisColors.tertiary.withValues(alpha: 0.3),
+                    width: 0.8,
+                  ),
+                ),
+                child: Text(
+                  'FINISHED',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AxisColors.tertiary,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
+            ] else if (task.priority != null) ...[
+              const SizedBox(width: 8),
+              PriorityBadge(priority: task.priority, compact: true),
             ],
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -854,7 +1026,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
 
   Widget _buildTaskInspectorPane() {
     return StreamBuilder<List<Task>>(
-      stream: TaskRepository().watchTasks(),
+      stream: _taskRepo.watchTasks(),
       builder: (context, taskSnap) {
         final tasks = taskSnap.data ?? [];
         final currentId = _selectedTaskId ?? _selectedTask?.id;
@@ -903,7 +1075,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                       if (task.priority != null) PriorityBadge(priority: task.priority),
                       const SizedBox(width: 8),
                       TelemetryChip(
-                        label: isDone ? 'COMPLETED' : 'IN PROGRESS',
+                        label: isDone ? 'FINISHED' : 'IN PROGRESS',
                         color: isDone ? AxisColors.tertiary : AxisColors.secondary,
                       ),
                       const SizedBox(width: 8),
@@ -1095,7 +1267,7 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                         label: isDone ? 'Mark as Incomplete' : 'Mark Completed',
                         icon: isDone ? Icons.undo_rounded : Icons.check_circle_outline_rounded,
                         onPressed: () {
-                          TaskRepository().toggleTaskStatus(task, !isDone);
+                          _taskRepo.toggleTaskStatus(task, !isDone);
                           setState(() {
                             _selectedTask = task.copyWith(status: isDone ? 'todo' : 'done');
                             _selectedTaskId = task.id;
@@ -1106,11 +1278,15 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
                         label: 'Delete',
                         icon: Icons.delete_outline_rounded,
                         onPressed: () async {
-                          await TaskRepository().deleteTask(task.id);
+                          final taskTitle = task.title;
+                          await _taskRepo.deleteTask(task.id);
                           setState(() {
                             _selectedTask = null;
                             _selectedTaskId = null;
                           });
+                          if (context.mounted) {
+                            AxisSnackBar.showDeleted(context, itemTitle: taskTitle, itemType: 'Task');
+                          }
                         },
                       ),
                     ],
@@ -1131,4 +1307,16 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> with TaskChec
       },
     );
   }
+}
+
+class _DesktopTaskSection {
+  const _DesktopTaskSection({
+    required this.title,
+    required this.color,
+    required this.tasks,
+  });
+
+  final String title;
+  final Color color;
+  final List<Task> tasks;
 }

@@ -267,32 +267,35 @@ class NoteCategoriesSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            InkWell(
-              onTap: () => _showAddCategoryDialog(context),
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AxisColors.secondary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: AxisColors.secondary.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add, size: 14, color: AxisColors.secondary),
-                    SizedBox(width: 4),
-                    Text(
-                      'New Category',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AxisColors.secondary,
-                        fontWeight: FontWeight.bold,
-                      ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _showAddCategoryDialog(context),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AxisColors.secondary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AxisColors.secondary.withValues(alpha: 0.35),
                     ),
-                  ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 14, color: AxisColors.secondary),
+                      SizedBox(width: 4),
+                      Text(
+                        'New Category',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AxisColors.secondary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

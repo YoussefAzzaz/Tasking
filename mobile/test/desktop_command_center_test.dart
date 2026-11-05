@@ -15,10 +15,14 @@ import 'package:axis/ui/desktop/dialogs/quick_task_dialog.dart';
 import 'package:axis/ui/notes/widgets/note_format_toolbar.dart';
 import 'package:axis/ui/desktop/widgets/desktop_card.dart';
 import 'package:axis/data/focus_session_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
+import 'package:axis/core/l10n/locale_service.dart';
 
 void main() {
   setUp(() {
     FocusSessionService().terminateSession();
+    LocaleService().setLocale(const Locale('en'));
   });
 
   tearDown(() {
@@ -28,6 +32,14 @@ void main() {
   Widget buildDesktopApp({Size size = const Size(1440, 900)}) {
     return MaterialApp(
       theme: AxisTheme.dark,
+      locale: const Locale('en'),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en'), Locale('ar')],
       home: MediaQuery(
         data: MediaQueryData(size: size),
         child: const DesktopCommandCenter(),

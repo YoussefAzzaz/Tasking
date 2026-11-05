@@ -59,14 +59,6 @@ final router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/today',
-              builder: (context, state) => const TodayScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
               path: '/tasks',
               builder: (context, state) => const TasksScreen(),
             ),
@@ -83,6 +75,14 @@ final router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
+              path: '/today',
+              builder: (context, state) => const TodayScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
               path: '/notes',
               builder: (context, state) => const NotesScreen(),
             ),
@@ -91,20 +91,20 @@ final router = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/me',
-              builder: (context, state) => const MeScreen(),
+              path: '/friends',
+              builder: (context, state) => const FriendsScreen(),
             ),
           ],
         ),
       ],
     ),
     GoRoute(
-      path: '/focus',
-      builder: (context, state) => const FocusScreen(),
+      path: '/me',
+      builder: (context, state) => const MeScreen(),
     ),
     GoRoute(
-      path: '/friends',
-      builder: (context, state) => const FriendsScreen(),
+      path: '/focus',
+      builder: (context, state) => const FocusScreen(),
     ),
     GoRoute(
       path: '/badges',

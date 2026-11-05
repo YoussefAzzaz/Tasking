@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:axis/core/config/app_config.dart';
+import 'payload_sanitizer.dart';
 
 /// PowerSync backend connector bridging local SQLite CRUD mutations to Supabase REST / Postgres
 class SupabaseConnector extends PowerSyncBackendConnector {
+  final PowerSyncDatabase? Function()? getDatabase;
   final String Function()? getCurrentUserId;
 
-  SupabaseConnector({this.getCurrentUserId}) : super();
+  SupabaseConnector({this.getDatabase, this.getCurrentUserId}) : super();
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
@@ -21,146 +24,42 @@ class SupabaseConnector extends PowerSyncBackendConnector {
         debugPrint('[PowerSync SupabaseConnector] fetchCredentials session refresh error: $e');
       }
     }
-    if (session == null) {
+
+    // 1. Guard against unauthenticated session on startup
+    if (session == null || (session.isExpired && (session.refreshToken == null || session.refreshToken!.isEmpty))) {
+      debugPrint('[PowerSync SupabaseConnector] fetchCredentials: No authenticated session. Pausing sync until auth is active.');
       return null;
     }
+
+    // 2. Validate endpoint configuration
+    final endpoint = AppConfig.powerSyncUrl.trim();
+    if (endpoint.isEmpty || endpoint.contains('your-instance') || endpoint.contains('placeholder')) {
+      debugPrint('[PowerSync SupabaseConnector] Invalid or unconfigured POWERSYNC_URL: "$endpoint". Pausing sync.');
+      return null;
+    }
+
+    // 3. Validate access token
     final token = session.accessToken;
+    if (token.isEmpty) {
+      debugPrint('[PowerSync SupabaseConnector] Empty access token for user ${session.user.id}. Pausing sync.');
+      return null;
+    }
+
+    debugPrint('[PowerSync SupabaseConnector] Supplying credentials for user: ${session.user.id} -> $endpoint');
 
     return PowerSyncCredentials(
-      endpoint: AppConfig.powerSyncUrl,
+      endpoint: endpoint,
       token: token,
       userId: session.user.id,
     );
   }
 
-  /// Sanitize client payload before sending to Supabase Postgres:
-  /// 1. Map 0/1 integers to Dart booleans for Postgres boolean columns
-  /// 2. Convert empty strings ("") to null for date/time/timestamptz/uuid fields
-  /// 3. Replace 'local_guest' or empty user_id with active authenticated UID
   Map<String, dynamic> _sanitizePayload(
     String table,
     Map<String, dynamic> raw,
     String uid,
   ) {
-    final data = Map<String, dynamic>.from(raw);
-
-    // 1. Ensure user_id is the active valid UUID (for user-scoped tables)
-    if (table != 'friendships' && uid.isNotEmpty) {
-      final existingUid = data['user_id'];
-      if (existingUid == null ||
-          existingUid == '' ||
-          existingUid == 'local_guest') {
-        data['user_id'] = uid;
-      }
-    }
-    if (table == 'friendships') {
-      data.remove('user_id');
-    }
-
-    // 2. Boolean fields conversion (Postgres strictly expects boolean, SQLite stores 0/1)
-    const boolFields = {
-      'pinned',
-      'is_done',
-      'completed',
-      'animations_enabled',
-      'sounds_enabled',
-      'adhan_notifications_enabled',
-      'fajr_alarm_enabled',
-      'fajr',
-      'dhuhr',
-      'asr',
-      'maghrib',
-      'isha',
-    };
-    for (final field in boolFields) {
-      if (data.containsKey(field) && data[field] != null) {
-        final val = data[field];
-        if (val is int) {
-          data[field] = (val == 1);
-        } else if (val is String) {
-          data[field] = (val == '1' || val.toLowerCase() == 'true');
-        }
-      }
-    }
-
-    // 3. Clean empty strings in timestamp/date/time columns (convert "" to null)
-    const nullableDateTimeFields = {
-      'due_date',
-      'due_time',
-      'completed_at',
-      'completed_date',
-      'deleted_at',
-      'started_at',
-      'ended_at',
-      'remind_at',
-      'remind_time',
-      'archived_at',
-      'archived_date',
-      'planned_at',
-      'reviewed_at',
-      'start_at',
-      'end_at',
-      'last_sync_date',
-    };
-    for (final field in nullableDateTimeFields) {
-      if (data.containsKey(field) &&
-          data[field] is String &&
-          (data[field] as String).trim().isEmpty) {
-        data[field] = null;
-      }
-    }
-
-    // 4. Foreign key / UUID fields: convert empty strings to null
-    const nullableFkFields = {
-      'project_id',
-      'task_id',
-      'habit_id',
-      'parent_task_id',
-      'top1_task_id',
-      'top2_task_id',
-      'top3_task_id',
-      'series_id',
-    };
-    for (final field in nullableFkFields) {
-      if (data.containsKey(field) &&
-          data[field] is String &&
-          (data[field] as String).trim().isEmpty) {
-        data[field] = null;
-      }
-    }
-
-    // 5. Table-specific schema constraint compliance
-    if (table == 'habits') {
-      // Supabase habits table: start_date is NOT NULL
-      if (!data.containsKey('start_date') ||
-          data['start_date'] == null ||
-          (data['start_date'] is String && (data['start_date'] as String).isEmpty)) {
-        final created = data['created_at'] as String?;
-        data['start_date'] = (created != null && created.length >= 10)
-            ? created.substring(0, 10)
-            : DateTime.now().toUtc().toIso8601String().substring(0, 10);
-      }
-    } else if (table == 'tasks') {
-      // Supabase tasks table: CHECK (status IN ('todo','done','cancelled'))
-      if (data['status'] == 'skipped') {
-        data['status'] = 'done';
-      } else if (data['status'] != 'todo' && data['status'] != 'done' && data['status'] != 'cancelled') {
-        data['status'] = 'todo';
-      }
-      // Supabase tasks table: CHECK (priority BETWEEN 0 AND 3)
-      if (data['priority'] is int) {
-        data['priority'] = (data['priority'] as int).clamp(0, 3);
-      }
-      // Supabase tasks table: CHECK (recurrence_mode IN ('fixed','after_completion'))
-      if (data.containsKey('recurrence_mode') && data['recurrence_mode'] != null) {
-        final mode = data['recurrence_mode'];
-        if (mode != 'fixed' && mode != 'after_completion') {
-          data['recurrence_mode'] = 'fixed';
-        }
-      }
-    }
-
-    return data;
+    return PayloadSanitizer.sanitize(table, raw, uid);
   }
 
   /// Executes an upsert or update with self-healing retry logic:
@@ -172,6 +71,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     required Map<String, dynamic> initialData,
     required bool isPatch,
     required String recordId,
+    PowerSyncDatabase? database,
   }) async {
     final table = Supabase.instance.client.from(tableName);
     final data = Map<String, dynamic>.from(initialData);
@@ -182,16 +82,137 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     while (attempt < maxRetries) {
       attempt++;
       try {
-        if (isPatch) {
+        if (tableName == 'friendships') {
+          // For friendships, an existing record might have been created by the other participant.
+          // Attempt an UPDATE first so the addressee can update status without triggering INSERT policy evaluations.
           final updated = await table.update(data).eq('id', recordId).select('id');
           if (updated.isEmpty) {
-            // Row didn't exist remotely; fall back to upsert to ensure insertion
             data['id'] = recordId;
             await table.upsert(data);
           }
+        } else if (isPatch) {
+          if (tableName == 'daily_prayer_status' && database != null) {
+            try {
+              final local = await database.getOptional('SELECT * FROM daily_prayer_status WHERE id = ?', [recordId]);
+              if (local != null) {
+                for (final key in ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'streak_days', 'habits_done', 'habits_total', 'user_id', 'date']) {
+                  if (!data.containsKey(key) && local.containsKey(key) && local[key] != null) {
+                    data[key] = local[key];
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+          var updated = await table.update(data).eq('id', recordId).select('id');
+          if (updated.isEmpty && tableName == 'daily_prayer_status') {
+            final uidVal = data['user_id']?.toString() ?? '';
+            final dateVal = data['date']?.toString() ?? DateTime.now().toUtc().toIso8601String().substring(0, 10);
+            if (uidVal.isNotEmpty) {
+              updated = await table
+                  .update(data)
+                  .eq('user_id', uidVal)
+                  .eq('date', dateVal)
+                  .select('id');
+              if (updated.isNotEmpty) {
+                return;
+              }
+            }
+          }
+          if (updated.isEmpty && tableName == 'prayers') {
+            final prayerCode = data['prayer_code']?.toString() ??
+                RegExp(r'(fajr|dhuhr|asr|maghrib|isha)', caseSensitive: false).firstMatch(recordId)?.group(1)?.toLowerCase();
+            final uidVal = data['user_id']?.toString() ?? '';
+            if (prayerCode != null && uidVal.isNotEmpty) {
+              updated = await table
+                  .update(data)
+                  .eq('user_id', uidVal)
+                  .eq('prayer_code', prayerCode)
+                  .select('id');
+              if (updated.isNotEmpty) {
+                return; // Successfully updated remote prayer row by (user_id, prayer_code)
+              }
+            }
+          }
+          if (updated.isEmpty) {
+            // Row didn't exist remotely; fall back to upsert to ensure insertion
+            data['id'] = recordId;
+            if (tableName == 'daily_prayer_status' &&
+                (!data.containsKey('date') || data['date'] == null || (data['date'] is String && (data['date'] as String).trim().isEmpty))) {
+              data['date'] = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+            }
+            if (tableName == 'daily_prayer_status') {
+              if (database != null) {
+                try {
+                  final local = await database.getOptional('SELECT * FROM daily_prayer_status WHERE id = ?', [recordId]);
+                  if (local != null) {
+                    for (final key in ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'streak_days', 'habits_done', 'habits_total']) {
+                      if (!data.containsKey(key) && local.containsKey(key) && local[key] != null) {
+                        data[key] = local[key];
+                      }
+                    }
+                  }
+                } catch (_) {}
+              }
+              await table.upsert(data, onConflict: 'user_id,date');
+            } else if (tableName == 'prayers') {
+              final prayerCode = data['prayer_code']?.toString() ??
+                  RegExp(r'(fajr|dhuhr|asr|maghrib|isha)', caseSensitive: false).firstMatch(recordId)?.group(1)?.toLowerCase() ??
+                  'fajr';
+              data['prayer_code'] = prayerCode;
+              data['name'] ??= prayerCode[0].toUpperCase() + prayerCode.substring(1);
+              data['icon'] ??= prayerCode;
+              data['time'] ??= '12:00 PM';
+              data['sort_order'] ??= ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].indexOf(prayerCode) + 1;
+              final uidVal = data['user_id']?.toString() ?? '';
+              if (uidVal.isNotEmpty) {
+                data['id'] = 'prayer_${uidVal}_$prayerCode';
+                await table.upsert(data, onConflict: 'user_id,prayer_code');
+              } else {
+                await table.upsert(data);
+              }
+            } else {
+              await table.upsert(data);
+            }
+          }
         } else {
           data['id'] = recordId;
-          await table.upsert(data);
+          if (tableName == 'daily_prayer_status' &&
+              (!data.containsKey('date') || data['date'] == null || (data['date'] is String && (data['date'] as String).trim().isEmpty))) {
+            data['date'] = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+          }
+          if (tableName == 'daily_prayer_status') {
+            if (database != null) {
+              try {
+                final local = await database.getOptional('SELECT * FROM daily_prayer_status WHERE id = ?', [recordId]);
+                if (local != null) {
+                  for (final key in ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'streak_days', 'habits_done', 'habits_total']) {
+                    if (!data.containsKey(key) && local.containsKey(key) && local[key] != null) {
+                      data[key] = local[key];
+                    }
+                  }
+                }
+              } catch (_) {}
+            }
+            await table.upsert(data, onConflict: 'user_id,date');
+          } else if (tableName == 'prayers') {
+            final prayerCode = data['prayer_code']?.toString() ??
+                RegExp(r'(fajr|dhuhr|asr|maghrib|isha)', caseSensitive: false).firstMatch(recordId)?.group(1)?.toLowerCase() ??
+                'fajr';
+            data['prayer_code'] = prayerCode;
+            data['name'] ??= prayerCode[0].toUpperCase() + prayerCode.substring(1);
+            data['icon'] ??= prayerCode;
+            data['time'] ??= '12:00 PM';
+            data['sort_order'] ??= ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].indexOf(prayerCode) + 1;
+            final uidVal = data['user_id']?.toString() ?? '';
+            if (uidVal.isNotEmpty) {
+              data['id'] = 'prayer_${uidVal}_$prayerCode';
+              await table.upsert(data, onConflict: 'user_id,prayer_code');
+            } else {
+              await table.upsert(data);
+            }
+          } else {
+            await table.upsert(data);
+          }
         }
         return; // Success!
       } on PostgrestException catch (e) {
@@ -215,7 +236,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
             }
           }
           // Fallback: check known columns that might be missing on older schemas
-          final knownOptionalCols = ['tags', 'category', 'mood', 'energy', 'avatar_url'];
+          final knownOptionalCols = ['tags', 'category', 'mood', 'energy', 'avatar_url', 'start_date'];
           bool removedAny = false;
           for (final col in knownOptionalCols) {
             if (data.containsKey(col) && msg.contains(col)) {
@@ -266,6 +287,61 @@ class SupabaseConnector extends PowerSyncBackendConnector {
           }
         }
 
+        // Case 4: RLS policy violation (Error 42501)
+        if (code == '42501' ||
+            msg.contains('row-level security') ||
+            msg.contains('violates row-level security policy') ||
+            msg.contains('forbidden') ||
+            (e.details != null && e.details.toString().toLowerCase().contains('forbidden'))) {
+          debugPrint('[PowerSync SupabaseConnector] RLS policy violation for "$tableName" [Code: 42501]: ${e.message}. Discarding unauthorizable mutation.');
+          return;
+        }
+
+        // Case 5: Not-null constraint violation (Error 23502), e.g. missing date on daily_prayer_status or prayer_code on prayers
+        if (code == '23502' || msg.contains('violates not-null constraint')) {
+          final missingColMatch = RegExp(r'''column "([^"]+)" of relation''', caseSensitive: false).firstMatch(msg) ??
+              RegExp(r'''null value in column "([^"]+)"''', caseSensitive: false).firstMatch(msg);
+          final colName = missingColMatch?.group(1);
+          if (colName == 'date' && tableName == 'daily_prayer_status') {
+            final todayIso = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+            data['date'] = todayIso;
+            debugPrint('[PowerSync SupabaseConnector] Self-healing: supplied missing "date" ($todayIso) on daily_prayer_status and retrying...');
+            continue;
+          }
+          if (colName == 'prayer_code' && tableName == 'prayers') {
+            final pCode = RegExp(r'(fajr|dhuhr|asr|maghrib|isha)', caseSensitive: false).firstMatch(recordId)?.group(1)?.toLowerCase() ?? 'fajr';
+            data['prayer_code'] = pCode;
+            data['name'] ??= pCode[0].toUpperCase() + pCode.substring(1);
+            data['icon'] ??= pCode;
+            data['time'] ??= '12:00 PM';
+            data['sort_order'] ??= ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].indexOf(pCode) + 1;
+            final uidVal = data['user_id']?.toString() ?? '';
+            if (uidVal.isNotEmpty) {
+              data['id'] = 'prayer_${uidVal}_$pCode';
+            }
+            debugPrint('[PowerSync SupabaseConnector] Self-healing: supplied missing "prayer_code" ($pCode) on prayers and retrying...');
+            continue;
+          }
+        }
+
+        // Case 6: Unique constraint violation (Error 23505), e.g. duplicate (user_id, prayer_code)
+        if (code == '23505' || msg.contains('duplicate key value violates unique constraint')) {
+          if (tableName == 'daily_prayer_status') {
+            return;
+          }
+
+        if (tableName == 'prayers') {
+            final pCode = data['prayer_code']?.toString() ??
+                RegExp(r'(fajr|dhuhr|asr|maghrib|isha)', caseSensitive: false).firstMatch(recordId)?.group(1)?.toLowerCase();
+            final uidVal = data['user_id']?.toString() ?? '';
+            if (pCode != null && uidVal.isNotEmpty) {
+              debugPrint('[PowerSync SupabaseConnector] Self-healing: resolving duplicate prayer by (user_id, prayer_code) update...');
+              await table.update(data).eq('user_id', uidVal).eq('prayer_code', pCode);
+              return;
+            }
+          }
+        }
+
         // Rethrow any unhandled PostgrestException to outer handler
         rethrow;
       }
@@ -305,7 +381,50 @@ class SupabaseConnector extends PowerSyncBackendConnector {
       for (var op in transaction.crud) {
         final tableName = op.table;
         final rawData = op.opData != null ? Map<String, dynamic>.from(op.opData!) : <String, dynamic>{};
+
+        // Determine the record's true user_id owner.
+        // For patch operations, op.opData often contains only changed columns and omits user_id.
+        var recordOwner = rawData['user_id'] as String?;
+        if ((recordOwner == null || recordOwner.isEmpty) &&
+            tableName != 'friendships' &&
+            op.op != UpdateType.delete) {
+          try {
+            final row = await database.getOptional(
+              'SELECT user_id FROM $tableName WHERE id = ?',
+              [op.id],
+            );
+            if (row != null && row['user_id'] != null) {
+              final localOwner = row['user_id'] as String?;
+              if (localOwner != null && localOwner.isNotEmpty) {
+                recordOwner = localOwner;
+              }
+            }
+          } catch (_) {
+            // Table might not have user_id column
+          }
+        }
+
+        // Strictly skip attempting to push other users' records to Supabase
+        if (tableName != 'friendships' &&
+            recordOwner != null &&
+            recordOwner != uid &&
+            recordOwner.isNotEmpty &&
+            recordOwner != 'local_guest') {
+          debugPrint('[PowerSync SupabaseConnector] Skipping foreign mutation on "$tableName" for user_id=$recordOwner (active uid is $uid)');
+          continue;
+        }
+
         final sanitizedData = _sanitizePayload(tableName, rawData, uid);
+
+        if (tableName == 'prayers') {
+          final pCode = sanitizedData['prayer_code']?.toString() ??
+              RegExp(r'(fajr|dhuhr|asr|maghrib|isha)', caseSensitive: false).firstMatch(op.id)?.group(1)?.toLowerCase();
+          if (pCode != null) {
+            sanitizedData['prayer_code'] = pCode;
+            sanitizedData['name'] ??= pCode[0].toUpperCase() + pCode.substring(1);
+            sanitizedData['icon'] ??= pCode;
+          }
+        }
 
         if (op.op == UpdateType.put) {
           await _upsertWithRetry(
@@ -313,6 +432,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
             initialData: sanitizedData,
             isPatch: false,
             recordId: op.id,
+            database: database,
           );
         } else if (op.op == UpdateType.patch) {
           await _upsertWithRetry(
@@ -320,6 +440,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
             initialData: sanitizedData,
             isPatch: true,
             recordId: op.id,
+            database: database,
           );
         } else if (op.op == UpdateType.delete) {
           final table = client.from(tableName);
@@ -350,15 +471,23 @@ class SupabaseConnector extends PowerSyncBackendConnector {
       final code = e.code ?? '';
       final msg = e.message.toLowerCase();
 
+      final isRlsViolation = code == '42501' ||
+          msg.contains('row-level security') ||
+          msg.contains('violates row-level security policy');
+
+      if (isRlsViolation) {
+        debugPrint('[PowerSync SupabaseConnector] Discarding RLS-blocked transaction [Code: 42501]: ${e.message}');
+        await transaction.complete();
+        return;
+      }
+
       final isAuthError = code == '401' ||
           code == '403' ||
-          code == '42501' || // RLS policy violation
           code == 'PGRST301' ||
           msg.contains('jwt') ||
           msg.contains('token') ||
           msg.contains('unauthorized') ||
-          msg.contains('forbidden') ||
-          msg.contains('row-level security');
+          msg.contains('forbidden');
 
       if (isAuthError) {
         if (client.auth.currentSession?.refreshToken != null) {
@@ -370,10 +499,11 @@ class SupabaseConnector extends PowerSyncBackendConnector {
         rethrow;
       }
 
-      // Truly unrecoverable schema errors (e.g., table does not exist at all, or foreign key constraint violation)
+      // Truly unrecoverable schema errors (e.g., table does not exist at all, foreign key or unhealable constraint violation)
       final isTrulyFatal = code == '42P01' || // undefined table
           code == '23503' || // foreign key violation
-          code == '23505';   // unique violation that couldn't be upserted
+          code == '23505' || // unique violation that couldn't be upserted
+          code == '23502';   // not-null violation that couldn't be healed
 
       if (isTrulyFatal) {
         debugPrint('[PowerSync SupabaseConnector] CRITICAL: Discarding unrecoverable transaction [Code: $code]: ${e.message} (ops: ${transaction.crud.map((o) => "${o.table}:${o.id}").join(",")})');

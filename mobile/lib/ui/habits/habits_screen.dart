@@ -523,7 +523,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                       label: 'All Habits',
                       iconData: Icons.apps_rounded,
                       color: AxisColors.success,
-                      count: allHabits.where((h) => h.category.trim().toLowerCase() != 'prayers').length,
+                      count: allHabits.where((h) => h.category.trim().toLowerCase() != 'prayers' && h.isEnabled).length,
                     ),
                     ...allCategories.map((category) {
                       final habits = habitsByCategory[category.name] ?? [];
@@ -532,7 +532,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         label: category.name,
                         icon: category.icon,
                         color: _parseHex(category.color),
-                        count: habits.length,
+                        count: habits.where((h) => h.isEnabled).length,
                       );
                     }),
                     if (unassignedHabits.isNotEmpty)
@@ -541,7 +541,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         label: 'General Routines',
                         iconData: Icons.fitness_center_rounded,
                         color: const Color(0xFF64748B),
-                        count: unassignedHabits.length,
+                        count: unassignedHabits.where((h) => h.isEnabled).length,
                       ),
                   ];
 

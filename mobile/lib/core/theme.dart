@@ -142,6 +142,27 @@ class AxisTheme {
         onSecondary: AxisColors.canvasBase,
         onTertiary: AxisColors.canvasBase,
         outline: AxisColors.borderSubtle,
+        inverseSurface: AxisColors.surfaceHigh,
+        onInverseSurface: AxisColors.textHigh,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AxisColors.surfaceHigh,
+        contentTextStyle: GoogleFonts.getFont(
+          'Geist',
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+          color: AxisColors.textHigh,
+          letterSpacing: 0.2,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AxisColors.borderGlass2, width: 1.2),
+        ),
+        elevation: 8,
+        actionTextColor: AxisColors.primarySoft,
+        disabledActionTextColor: AxisColors.textDim,
+        closeIconColor: AxisColors.textMuted,
       ),
       textTheme: textTheme,
       useMaterial3: true,
@@ -183,6 +204,22 @@ class AxisTheme {
     return base.copyWith(
       colorScheme: base.colorScheme.copyWith(
         outline: const Color(0x4DFFFFFF), // 30% white
+        inverseSurface: AxisColors.surfaceLowest,
+        onInverseSurface: Colors.white,
+      ),
+      snackBarTheme: base.snackBarTheme.copyWith(
+        backgroundColor: AxisColors.surfaceLowest,
+        contentTextStyle: GoogleFonts.getFont(
+          'Geist',
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          letterSpacing: 0.2,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Colors.white, width: 1.5),
+        ),
       ),
       cardTheme: base.cardTheme.copyWith(
         shape: RoundedRectangleBorder(
@@ -214,6 +251,27 @@ class AxisTheme {
         onSecondary: Colors.white,
         onTertiary: Colors.white,
         outline: Color(0xFFCBD5E1),
+        inverseSurface: Color(0xFF0F172A),
+        onInverseSurface: Colors.white,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF0F172A),
+        contentTextStyle: GoogleFonts.getFont(
+          'Geist',
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+          letterSpacing: 0.2,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFF334155), width: 1.2),
+        ),
+        elevation: 8,
+        actionTextColor: AxisColors.primary,
+        disabledActionTextColor: const Color(0xFF94A3B8),
+        closeIconColor: Colors.white70,
       ),
       textTheme: textTheme,
       useMaterial3: true,

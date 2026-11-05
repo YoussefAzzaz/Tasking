@@ -4,6 +4,7 @@ import 'package:axis/core/widgets.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
+import 'package:axis/ui/common/axis_snackbar.dart';
 
 class ProjectBigTaskCard extends StatefulWidget {
   const ProjectBigTaskCard({
@@ -214,12 +215,10 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                           widget.onDelete?.call();
 
                                           if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text('Project "${widget.project.name}" deleted'),
-                                                backgroundColor: AxisColors.surfaceLow,
-                                                behavior: SnackBarBehavior.floating,
-                                              ),
+                                            AxisSnackBar.showDeleted(
+                                              context,
+                                              itemTitle: widget.project.name,
+                                              itemType: 'Project',
                                             );
                                           }
                                         },

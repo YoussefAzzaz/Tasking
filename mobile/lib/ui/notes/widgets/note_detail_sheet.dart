@@ -57,11 +57,11 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(color: AxisColors.borderPrimary, width: 1.2),
         ),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               // Top handle and category bar (tap to close automatically)
               ModalSheetTopBar(
                 child: Column(
@@ -193,46 +193,58 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
             ),
             const SizedBox(height: 8),
             const Divider(color: AxisColors.borderSubtle, height: 1),
-            const SizedBox(height: 12),
-            ValueListenableBuilder<double>(
-              valueListenable: ReadingPreferencesService().fontScaleNotifier,
-              builder: (context, fontScale, _) {
-                return AxisMarkdownViewer(
-                  markdown: _note.bodyMd,
-                  fontScale: fontScale,
-                  onMarkdownChanged: (updatedBody) async {
-                    final updated = _note.copyWith(bodyMd: updatedBody);
-                    setState(() => _note = updated);
-                    await NoteRepository().updateNote(updated);
-                    widget.onNoteUpdated?.call(updated);
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onEdit();
-                },
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Edit Entry'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AxisColors.secondary,
-                  side: const BorderSide(color: AxisColors.secondary),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+            const SizedBox(height: 10),
+
+            // Scrollable Note Markdown Content
+            Flexible(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ValueListenableBuilder<double>(
+                      valueListenable:
+                          ReadingPreferencesService().fontScaleNotifier,
+                      builder: (context, fontScale, _) {
+                        return AxisMarkdownViewer(
+                          markdown: _note.bodyMd,
+                          fontScale: fontScale,
+                          onMarkdownChanged: (updatedBody) async {
+                            final updated = _note.copyWith(bodyMd: updatedBody);
+                            setState(() => _note = updated);
+                            await NoteRepository().updateNote(updated);
+                            widget.onNoteUpdated?.call(updated);
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onEdit();
+                        },
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: const Text('Edit Entry'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AxisColors.secondary,
+                          side: const BorderSide(color: AxisColors.secondary),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

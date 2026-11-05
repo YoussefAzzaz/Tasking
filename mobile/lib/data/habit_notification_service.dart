@@ -126,14 +126,18 @@ class HabitNotificationService {
     try {
       final uid = currentUserId;
       final query = uid.isNotEmpty
-          ? "SELECT * FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND remind_time IS NOT NULL AND remind_time != ''"
-          : "SELECT * FROM habits WHERE remind_time IS NOT NULL AND remind_time != ''";
+          ? "SELECT * FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''"
+          : "SELECT * FROM habits WHERE (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''";
       final params = uid.isNotEmpty ? [uid] : <dynamic>[];
       final rows = await db.getAll(query, params);
 
       final habits = rows.map((r) => Habit.fromRow(r)).toList();
       for (final habit in habits) {
-        await scheduleHabitReminders(habit);
+        if (habit.isEnabled) {
+          await scheduleHabitReminders(habit);
+        } else {
+          await cancelHabitReminders(habit.id);
+        }
       }
     } catch (e) {
       debugPrint('[HabitNotificationService] rescheduleAllHabits error: $e');
@@ -144,7 +148,7 @@ class HabitNotificationService {
   Future<void> syncHabitReminders(List<Habit> habits) async {
     try {
       for (final habit in habits) {
-        if (habit.remindTime != null && habit.remindTime!.trim().isNotEmpty) {
+        if (habit.isEnabled && habit.remindTime != null && habit.remindTime!.trim().isNotEmpty) {
           await scheduleHabitReminders(habit);
         } else {
           await cancelHabitReminders(habit.id);
@@ -157,7 +161,7 @@ class HabitNotificationService {
 
   /// Schedules both 10-minute and 5-minute pre-habit reminders for a habit.
   Future<void> scheduleHabitReminders(Habit habit) async {
-    if (habit.remindTime == null || habit.remindTime!.trim().isEmpty) {
+    if (!habit.isEnabled || habit.remindTime == null || habit.remindTime!.trim().isEmpty) {
       await cancelHabitReminders(habit.id);
       return;
     }

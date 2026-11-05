@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/note_repository.dart';
+import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:axis/data/note_category_repository.dart';
 import 'package:axis/ui/notes/create_note_sheet.dart';
 import 'package:axis/ui/notes/widgets/note_detail_sheet.dart';
@@ -94,8 +95,12 @@ class _NotesScreenState extends State<NotesScreen> {
           noteToEdit: note,
         ),
         onDelete: () async {
+          final title = note.title.isNotEmpty ? note.title : 'Entry';
           await _repo.deleteNote(note.id);
           setState(() {});
+          if (mounted) {
+            AxisSnackBar.showDeleted(context, itemTitle: title, itemType: 'Note');
+          }
         },
       ),
     );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -34,6 +35,8 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
   DateTime _currentTime = DateTime.now();
   String _selectedCategory = 'All Habits';
   final ScrollController _habitsScrollController = ScrollController();
+  final Map<String, bool> _optimisticEnabled = {};
+  final Map<String, bool> _optimisticDone = {};
 
   @override
   void initState() {
@@ -404,10 +407,11 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
           builder: (context, habitSnap) {
             final habits = habitSnap.data ?? [];
             final dailyHabits = habits.where((h) {
+              if (!h.isEnabled) return false;
               final schedule = h.scheduleType.toLowerCase().trim();
               return schedule == 'daily' || schedule.isEmpty;
             }).toList();
-            final maxStreak = habits.fold<int>(0, (max, h) => h.streakDays > max ? h.streakDays : max);
+            final maxStreak = habits.where((h) => h.isEnabled).fold<int>(0, (max, h) => h.streakDays > max ? h.streakDays : max);
             final doneDailyHabits = dailyHabits.where((h) => h.isDoneToday).length;
 
             return IntrinsicHeight(
@@ -730,7 +734,7 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
               stream: HabitRepository().watchHabits(),
               builder: (context, habitSnap) {
                 final habits = habitSnap.data ?? [];
-                final doneHabitsToday = habits.where((h) => h.isDoneToday).length;
+                final doneHabitsToday = habits.where((h) => h.isEnabled && h.isDoneToday).length;
 
                 final isTodayActive = donePrayers > 0 || doneHabitsToday > 0;
                 final currentWeekday = now.weekday; // 1 = Monday, 7 = Sunday
@@ -927,6 +931,14 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
                         stream: HabitRepository().watchHabits(),
                         builder: (context, snapshot) {
                           final allHabits = snapshot.data ?? [];
+                          for (final h in allHabits) {
+                            if (_optimisticEnabled.containsKey(h.id) && _optimisticEnabled[h.id] == h.isEnabled) {
+                              _optimisticEnabled.remove(h.id);
+                            }
+                            if (_optimisticDone.containsKey(h.id) && _optimisticDone[h.id] == h.isDoneToday) {
+                              _optimisticDone.remove(h.id);
+                            }
+                          }
                           final habits = (_selectedCategory == 'All Habits'
                               ? List<Habit>.from(allHabits)
                               : allHabits.where((h) => h.category.toLowerCase() == _selectedCategory.toLowerCase()).toList())
@@ -969,145 +981,198 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
 
   Widget _buildHabitRow(Habit habit, [List<HabitCategory>? categories]) {
     final habitColor = HabitCategoryRepository().resolveHabitCategoryColor(habit, categories);
+    final isEnabled = _optimisticEnabled.containsKey(habit.id)
+        ? _optimisticEnabled[habit.id]!
+        : habit.isEnabled;
+    final isDone = _optimisticDone.containsKey(habit.id)
+        ? _optimisticDone[habit.id]!
+        : habit.isDoneToday;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AxisColors.surfaceLowest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AxisColors.borderSubtle, width: 1),
-      ),
-      child: Row(
-        children: [
-          DesktopCheckbox(
-            value: habit.isDoneToday,
-            color: habitColor,
-            onChanged: (val) {
-              HabitRepository().toggleHabit(habit.id, val);
-            },
-          ),
-          const SizedBox(width: 10),
-          Container(
-            width: 3,
-            height: 24,
-            decoration: BoxDecoration(
-              color: habitColor,
-              borderRadius: BorderRadius.circular(2),
+    return Opacity(
+      opacity: isEnabled ? 1.0 : 0.6,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AxisColors.surfaceLowest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AxisColors.borderSubtle, width: 1),
+        ),
+        child: Row(
+          children: [
+            DesktopCheckbox(
+              value: isDone,
+              color: isEnabled ? habitColor : AxisColors.textDim,
+              onChanged: isEnabled
+                  ? (val) {
+                      setState(() {
+                        _optimisticDone[habit.id] = val;
+                      });
+                      HabitRepository().toggleHabit(habit.id, val);
+                    }
+                  : null,
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: InkWell(
-              onTap: () => _showCreateHabitDialog(habit),
-              borderRadius: BorderRadius.circular(4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    habit.name,
-                    style: GoogleFonts.getFont(
-                      'Geist',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      decoration: habit.isDoneToday ? TextDecoration.lineThrough : null,
-                      color: habit.isDoneToday ? AxisColors.textDim : AxisColors.textHigh,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        '${habit.scheduleType.isNotEmpty ? habit.scheduleType : "Daily"}  ·  ${habit.category.isNotEmpty ? habit.category : "General"}',
-                        style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+            const SizedBox(width: 10),
+            Container(
+              width: 3,
+              height: 24,
+              decoration: BoxDecoration(
+                color: isEnabled ? habitColor : AxisColors.textDim,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: InkWell(
+                onTap: () => _showCreateHabitDialog(habit),
+                borderRadius: BorderRadius.circular(4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      habit.name,
+                      style: GoogleFonts.getFont(
+                        'Geist',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        decoration: habit.isDoneToday ? TextDecoration.lineThrough : null,
+                        color: !isEnabled
+                            ? AxisColors.textDim
+                            : (habit.isDoneToday ? AxisColors.textDim : AxisColors.textHigh),
                       ),
-                      if (habit.remindTime != null && habit.remindTime!.trim().isNotEmpty) ...[
+                    ),
+                    Row(
+                      children: [
                         Text(
-                          '  ·  ',
+                          '${habit.scheduleType.isNotEmpty ? habit.scheduleType : "Daily"}  ·  ${habit.category.isNotEmpty ? habit.category : "General"}${!isEnabled ? "  ·  (Paused)" : ""}',
                           style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                         ),
-                        const Icon(Icons.access_time_rounded, size: 11, color: AxisColors.textMuted),
-                        const SizedBox(width: 3),
-                        Text(
-                          habit.remindTime!,
-                          style: GoogleFonts.getFont(
-                            'Geist',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: AxisColors.textMuted,
+                        if (habit.remindTime != null && habit.remindTime!.trim().isNotEmpty && isEnabled) ...[
+                          Text(
+                            '  ·  ',
+                            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                           ),
-                        ),
+                          const Icon(Icons.access_time_rounded, size: 11, color: AxisColors.textMuted),
+                          const SizedBox(width: 3),
+                          Text(
+                            habit.remindTime!,
+                            style: GoogleFonts.getFont(
+                              'Geist',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AxisColors.textMuted,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (isEnabled) ...[
+              Row(
+                children: [
+                  const Icon(Icons.local_fire_department_rounded, size: 14, color: AxisColors.warning),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${habit.streakDays}d streak',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AxisColors.warning,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
-          Row(
-            children: [
-              const Icon(Icons.local_fire_department_rounded, size: 14, color: AxisColors.warning),
-              const SizedBox(width: 2),
-              Text(
-                '${habit.streakDays}d streak',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AxisColors.warning,
-                ),
+              const SizedBox(width: 8),
+              TelemetryChip(
+                label: habit.isDoneToday ? 'Done' : 'Scheduled',
+                color: habit.isDoneToday ? AxisColors.tertiary : AxisColors.textDim,
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              ),
+            ] else ...[
+              const TelemetryChip(
+                label: 'Paused',
+                color: AxisColors.textDim,
+                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               ),
             ],
-          ),
-          const SizedBox(width: 8),
-          TelemetryChip(
-            label: habit.isDoneToday ? 'Done' : 'Scheduled',
-            color: habit.isDoneToday ? AxisColors.tertiary : AxisColors.textDim,
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          ),
-          const SizedBox(width: 4),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () => _showCreateHabitDialog(habit),
-              child: const Padding(
-                padding: EdgeInsets.all(4.0),
-                child: Icon(Icons.edit_outlined, size: 15, color: AxisColors.textDim),
-              ),
-            ),
-          ),
-          const SizedBox(width: 2),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: AxisColors.canvasBase,
-                    title: Text('Delete Habit', style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh)),
-                    content: Text('Are you sure you want to delete "${habit.name}"?', style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted)),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        child: Text('Cancel', style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted)),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        child: const Text('Delete', style: TextStyle(color: AxisColors.priorityHigh)),
-                      ),
-                    ],
+            const SizedBox(width: 8),
+            // Active / Pause toggle switch
+            Tooltip(
+              message: isEnabled ? 'Pause habit' : 'Activate habit',
+              child: SizedBox(
+                height: 20,
+                width: 32,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: Switch(
+                    value: isEnabled,
+                    activeThumbColor: AxisColors.primary,
+                    activeTrackColor: AxisColors.primary.withValues(alpha: 0.35),
+                    inactiveThumbColor: AxisColors.textDim,
+                    inactiveTrackColor: AxisColors.surfaceHigh,
+                    onChanged: (val) {
+                      setState(() {
+                        _optimisticEnabled[habit.id] = val;
+                      });
+                      HabitRepository().toggleHabitEnabled(habit.id, val);
+                    },
                   ),
-                );
-                if (confirm == true) {
-                  await HabitRepository().deleteHabit(habit.id);
-                }
-              },
-              child: const Padding(
-                padding: EdgeInsets.all(4.0),
-                child: Icon(Icons.delete_outline_rounded, size: 15, color: AxisColors.textDim),
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => _showCreateHabitDialog(habit),
+                child: const Padding(
+                  padding: EdgeInsets.all(4.0),
+                  child: Icon(Icons.edit_outlined, size: 15, color: AxisColors.textDim),
+                ),
+              ),
+            ),
+            const SizedBox(width: 2),
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: AxisColors.canvasBase,
+                      title: Text('Delete Habit', style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh)),
+                      content: Text('Are you sure you want to delete "${habit.name}"?', style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted)),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: Text('Cancel', style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted)),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: const Text('Delete', style: TextStyle(color: AxisColors.priorityHigh)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    final hName = habit.name;
+                    await HabitRepository().deleteHabit(habit.id);
+                    if (mounted) {
+                      AxisSnackBar.showDeleted(context, itemTitle: hName, itemType: 'Habit');
+                    }
+                  }
+                },
+                child: const Padding(
+                  padding: EdgeInsets.all(4.0),
+                  child: Icon(Icons.delete_outline_rounded, size: 15, color: AxisColors.textDim),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -107,6 +107,33 @@ void main() {
       await tester.tap(find.byType(AvatarWidget));
       expect(tapped, isTrue);
     });
+
+    testWidgets('Handles Arabic name and unusual hex color formats safely', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                AvatarWidget(
+                  name: 'أحمد علي',
+                  avatarColor: '#00FF66',
+                ),
+                AvatarWidget(
+                  name: 'مريم',
+                  avatarColor: '0xFF6366F1',
+                ),
+                AvatarWidget(
+                  name: '',
+                  avatarColor: 'invalid_hex',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(AvatarWidget), findsNWidgets(3));
+    });
   });
 
   group('UserProfileCard Avatar Integration Tests', () {

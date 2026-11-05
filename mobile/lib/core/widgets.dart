@@ -239,9 +239,11 @@ class AxisCheckbox extends StatefulWidget {
     super.key,
     required this.checked,
     required this.onChanged,
+    this.enabled = true,
   });
   final bool checked;
   final ValueChanged<bool> onChanged;
+  final bool enabled;
 
   @override
   State<AxisCheckbox> createState() => _AxisCheckboxState();
@@ -268,6 +270,7 @@ class _AxisCheckboxState extends State<AxisCheckbox>
   }
 
   void _toggle() {
+    if (!widget.enabled) return;
     HapticFeedback.mediumImpact();
     _ctrl.forward().then((_) => _ctrl.reverse());
     widget.onChanged(!widget.checked);
@@ -277,9 +280,10 @@ class _AxisCheckboxState extends State<AxisCheckbox>
   Widget build(BuildContext context) {
     return Semantics(
       checked: widget.checked,
+      enabled: widget.enabled,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: _toggle,
+        onTap: widget.enabled ? _toggle : null,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
           child: Center(
@@ -290,15 +294,21 @@ class _AxisCheckboxState extends State<AxisCheckbox>
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: widget.checked ? AxisColors.success : Colors.transparent,
+                  color: !widget.enabled
+                      ? AxisColors.surfaceHigh.withValues(alpha: 0.3)
+                      : widget.checked
+                          ? AxisColors.success
+                          : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: widget.checked
-                        ? AxisColors.success
-                        : AxisColors.textMuted.withValues(alpha: 0.4),
+                    color: !widget.enabled
+                        ? AxisColors.textMuted.withValues(alpha: 0.2)
+                        : widget.checked
+                            ? AxisColors.success
+                            : AxisColors.textMuted.withValues(alpha: 0.4),
                     width: 1.8,
                   ),
-                  boxShadow: widget.checked
+                  boxShadow: widget.enabled && widget.checked
                       ? [
                           BoxShadow(
                             color: AxisColors.success.withValues(alpha: 0.4),
@@ -309,8 +319,9 @@ class _AxisCheckboxState extends State<AxisCheckbox>
                       : null,
                 ),
                 child: widget.checked
-                    ? const Icon(Icons.check_rounded,
-                        size: 14, color: AxisColors.canvasBase)
+                    ? Icon(Icons.check_rounded,
+                        size: 14,
+                        color: widget.enabled ? AxisColors.canvasBase : AxisColors.textDim)
                     : null,
               ),
             ),
