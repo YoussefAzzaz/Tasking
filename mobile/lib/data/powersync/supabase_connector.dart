@@ -62,6 +62,8 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     return PayloadSanitizer.sanitize(table, raw, uid);
   }
 
+  static final Set<String> _missingRemoteColumns = {};
+
   /// Executes an upsert or update with self-healing retry logic:
   /// - Strips columns that do not exist on Supabase (error 42703)
   /// - Fixes boolean type mismatches (error 42804)
@@ -75,6 +77,14 @@ class SupabaseConnector extends PowerSyncBackendConnector {
   }) async {
     final table = Supabase.instance.client.from(tableName);
     final data = Map<String, dynamic>.from(initialData);
+
+    // Strip known missing remote columns upfront to avoid unnecessary retry delays
+    for (final missingCol in _missingRemoteColumns) {
+      if (missingCol.startsWith('$tableName.')) {
+        final colName = missingCol.substring('$tableName.'.length);
+        data.remove(colName);
+      }
+    }
 
     const int maxRetries = 6;
     int attempt = 0;
@@ -231,15 +241,17 @@ class SupabaseConnector extends PowerSyncBackendConnector {
             final colName = missingColMatch.group(1);
             if (colName != null && data.containsKey(colName)) {
               debugPrint('[PowerSync SupabaseConnector] Self-healing: removing missing column "$colName" from payload and retrying...');
+              _missingRemoteColumns.add('$tableName.$colName');
               data.remove(colName);
               continue;
             }
           }
           // Fallback: check known columns that might be missing on older schemas
-          final knownOptionalCols = ['tags', 'category', 'mood', 'energy', 'avatar_url', 'start_date'];
+          final knownOptionalCols = ['tags', 'category', 'mood', 'energy', 'avatar_url', 'start_date', 'is_enabled'];
           bool removedAny = false;
           for (final col in knownOptionalCols) {
             if (data.containsKey(col) && msg.contains(col)) {
+              _missingRemoteColumns.add('$tableName.$col');
               data.remove(col);
               removedAny = true;
               break;

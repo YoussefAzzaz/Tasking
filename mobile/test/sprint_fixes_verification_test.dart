@@ -4,7 +4,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/note_repository.dart';
-import 'package:axis/data/habit_repository.dart';
 import 'package:axis/ui/shell/axis_bottom_bar.dart';
 import 'package:axis/ui/notes/widgets/note_detail_sheet.dart';
 import 'package:axis/ui/common/reading_font_size_control.dart';

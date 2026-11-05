@@ -31,6 +31,7 @@ class PayloadSanitizer {
       'pinned',
       'is_done',
       'completed',
+      'is_enabled',
       'animations_enabled',
       'sounds_enabled',
       'adhan_notifications_enabled',
