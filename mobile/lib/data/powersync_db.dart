@@ -16,6 +16,7 @@ import 'package:axis/domain/domain_events.dart';
 // Re-export modular components for clean architecture and 100% backwards compatibility
 import 'package:axis/data/powersync/app_schema.dart';
 import 'package:axis/data/powersync/supabase_connector.dart';
+import 'package:axis/data/habit_repository.dart';
 
 export 'package:axis/data/powersync/app_schema.dart';
 export 'package:axis/data/powersync/supabase_connector.dart';
@@ -197,6 +198,19 @@ Future<void> openDatabase() async {
     }
   });
 
+  // Ensure local habit pause state table exists
+  try {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS local_habit_state (
+        habit_id TEXT PRIMARY KEY,
+        is_enabled INTEGER NOT NULL DEFAULT 1,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+  } catch (e) {
+    debugPrint('[PowerSync] local_habit_state init notice: $e');
+  }
+
   // Self-heal: automatically repair any habit whose category was corrupted to 'boolean' or 'numeric'
   try {
     await db.execute('''
@@ -295,6 +309,7 @@ Future<void> openDatabase() async {
   _dbInitialized = true;
 
   await initCustomLocalTables();
+  await HabitRepository.ensureStateLoaded();
   await purgeForeignUserData();
   await syncGlobalUserLevel();
 }

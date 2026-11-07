@@ -439,116 +439,89 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(5),
-                                        decoration: BoxDecoration(
-                                          color: AxisColors.surfaceHigh
-                                              .withValues(alpha: 0.5),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Icon(
-                                          _iconData(habit.icon),
-                                          size: 14,
-                                          color: !isEnabled
+                                  AutoDirectionText(
+                                    habit.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: !isEnabled
+                                          ? AxisColors.textDim
+                                          : isDone
                                               ? AxisColors.textDim
-                                              : isDone
-                                                  ? AxisColors.textDim
-                                                  : widget.color,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: AutoDirectionText(
-                                          habit.name,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: !isEnabled
-                                                ? AxisColors.textDim
-                                                : isDone
-                                                    ? AxisColors.textDim
-                                                    : AxisColors.textHigh,
-                                            decoration: isDone
-                                                ? TextDecoration.lineThrough
-                                                : null,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                              : AxisColors.textHigh,
+                                      decoration: isDone
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
                                   ),
                                   if ((habit.remindTime != null &&
                                           habit.remindTime!.isNotEmpty) ||
                                       habit.streakDays > 0) ...[
                                     const SizedBox(height: 3),
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 27),
-                                      child: LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          return Wrap(
-                                            spacing: 8,
-                                            runSpacing: 2,
-                                            crossAxisAlignment:
-                                                WrapCrossAlignment.center,
-                                            children: [
-                                              if (habit.remindTime != null &&
-                                                  habit.remindTime!.isNotEmpty)
-                                                ConstrainedBox(
-                                                  constraints: BoxConstraints(
-                                                      maxWidth:
-                                                          constraints.maxWidth),
-                                                  child: Text(
-                                                    habit.remindTime!,
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                        fontSize: 11,
-                                                        color:
-                                                            AxisColors.textMuted),
-                                                  ),
+                                    LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        return Wrap(
+                                          spacing: 8,
+                                          runSpacing: 2,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            if (habit.remindTime != null &&
+                                                habit.remindTime!.isNotEmpty)
+                                              ConstrainedBox(
+                                                constraints: BoxConstraints(
+                                                    maxWidth:
+                                                        constraints.maxWidth),
+                                                child: Text(
+                                                  habit.remindTime!,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color:
+                                                          AxisColors.textMuted),
                                                 ),
-                                              if (habit.streakDays > 0 && isEnabled)
-                                                ConstrainedBox(
-                                                  constraints: BoxConstraints(
-                                                      maxWidth:
-                                                          constraints.maxWidth),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                          Icons
-                                                              .local_fire_department_rounded,
-                                                          size: 12,
+                                              ),
+                                            if (habit.streakDays > 0 && isEnabled)
+                                              ConstrainedBox(
+                                                constraints: BoxConstraints(
+                                                    maxWidth:
+                                                        constraints.maxWidth),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(
+                                                        Icons
+                                                            .local_fire_department_rounded,
+                                                        size: 12,
+                                                        color:
+                                                            AxisColors.warning),
+                                                    const SizedBox(width: 2),
+                                                    Flexible(
+                                                      child: Text(
+                                                        '${habit.streakDays}d streak',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
                                                           color:
-                                                              AxisColors.warning),
-                                                      const SizedBox(width: 2),
-                                                      Flexible(
-                                                        child: Text(
-                                                          '${habit.streakDays}d streak',
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          style: const TextStyle(
-                                                            fontSize: 11,
-                                                            color:
-                                                                AxisColors.warning,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
+                                                              AxisColors.warning,
+                                                          fontWeight:
+                                                              FontWeight.bold,
                                                         ),
                                                       ),
-                                                    ],
-                                                  ),
+                                                    ),
+                                                  ],
                                                 ),
-                                            ],
-                                          );
-                                        },
-                                      ),
+                                              ),
+                                          ],
+                                        );
+                                      },
                                     ),
                                   ],
                                 ],
@@ -628,50 +601,6 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                       ],
                                     ),
                                   ),
-                                const SizedBox(width: 6),
-                                GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: () {
-                                    final nextVal = !isEnabled;
-                                    setState(() {
-                                      _optimisticEnabled[habit.id] = nextVal;
-                                    });
-                                    HabitRepository().toggleHabitEnabled(habit.id, nextVal);
-                                  },
-                                  child: Tooltip(
-                                    message: isEnabled
-                                        ? 'Pause habit'
-                                        : 'Activate habit',
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                                      child: SizedBox(
-                                        height: 24,
-                                        width: 36,
-                                        child: FittedBox(
-                                          fit: BoxFit.contain,
-                                          child: Switch(
-                                            value: isEnabled,
-                                            activeThumbColor: widget.color,
-                                            activeTrackColor: widget.color
-                                                .withValues(alpha: 0.35),
-                                            inactiveThumbColor:
-                                                AxisColors.textDim,
-                                            inactiveTrackColor:
-                                                AxisColors.surfaceHigh,
-                                            onChanged: (val) {
-                                              setState(() {
-                                                _optimisticEnabled[habit.id] = val;
-                                              });
-                                              HabitRepository()
-                                                  .toggleHabitEnabled(
-                                                      habit.id, val);
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
                                 const SizedBox(width: 4),
                                 PopupMenuButton<String>(
                                   icon: const Icon(

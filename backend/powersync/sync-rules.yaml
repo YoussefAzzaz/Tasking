@@ -45,7 +45,7 @@ streams:
       - SELECT
           id, user_id, created_at, updated_at, deleted_at,
           name, icon, color, kind, target_value, unit,
-          schedule_type, remind_time, sort_order
+          schedule_type, remind_time, sort_order, is_enabled
         FROM habits
         WHERE user_id = auth.user_id()
 

@@ -269,6 +269,7 @@ class DailyPrayerStatusRepository {
             if (!HabitRepository.isPrayerIdentifier(hId) &&
                 kind != 'prayers' &&
                 kind != 'prayer' &&
+                !HabitRepository.isHabitPaused(hId) &&
                 !hId.startsWith('prayer_') &&
                 !hId.startsWith('habit_prayer_')) {
               validHabitIds.add(hId);
@@ -533,6 +534,7 @@ class DailyPrayerStatusRepository {
         if (!HabitRepository.isPrayerIdentifier(hId) &&
             kind != 'prayers' &&
             kind != 'prayer' &&
+            !HabitRepository.isHabitPaused(hId) &&
             !hId.startsWith('prayer_') &&
             !hId.startsWith('habit_prayer_')) {
           validHabitIds.add(hId);

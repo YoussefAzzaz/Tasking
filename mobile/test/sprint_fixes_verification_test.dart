@@ -10,6 +10,10 @@ import 'package:axis/ui/common/reading_font_size_control.dart';
 import 'package:axis/ui/desktop/screens/command_deck_screen.dart';
 import 'package:axis/ui/desktop/widgets/ghost_button.dart';
 
+import 'package:axis/data/habit_repository.dart';
+import 'package:axis/ui/habits/widgets/habit_category_card.dart';
+import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
+
 void main() {
   Widget buildTestApp(Widget child) {
     return MaterialApp(
@@ -115,6 +119,82 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(navigatedTab, equals(2)); // Tab 2 is Prayer & Habits
+    });
+
+    testWidgets('HabitCategoryCard hides toggle switch and habit icon for long habit names', (tester) async {
+      const category = HabitCategory(
+        id: 'cat_growth',
+        name: 'Personal Growth',
+        icon: 'book',
+        color: '#10B981',
+      );
+
+      final habits = [
+        Habit(
+          id: 'habit_super_long_name',
+          name: 'Read 30 pages of high performance habits and clean code architecture',
+          category: 'Personal Growth',
+          icon: 'book',
+          remindTime: '08:00 AM',
+          isDoneToday: false,
+          isEnabled: true,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        buildTestApp(
+          HabitCategoryCard(
+            category: category,
+            color: const Color(0xFF10B981),
+            habits: habits,
+            onToggleHabit: (h, d) {},
+            onEditHabit: (h) {},
+            onDeleteHabit: (h) {},
+            onAddHabit: () {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify the habit name is displayed
+      expect(find.text('Read 30 pages of high performance habits and clean code architecture'), findsOneWidget);
+
+      // Verify NO Switch widget exists on the card
+      expect(find.byType(Switch), findsNothing);
+
+      // Verify options menu button exists
+      expect(find.byType(PopupMenuButton<String>), findsOneWidget);
+    });
+
+    test('Habit.fromRow respects HabitRepository.isHabitPaused even if remote PowerSync syncs null', () {
+      const habitId = 'test_habit_pause_retention';
+
+      // 1. Initially habit is not paused
+      final rowBefore = {
+        'id': habitId,
+        'name': 'Test Habit',
+        'is_enabled': 1,
+      };
+      expect(Habit.fromRow(rowBefore).isEnabled, isTrue);
+
+      // 2. Pause habit
+      HabitRepository().toggleHabitEnabled(habitId, false);
+      expect(HabitRepository.isHabitPaused(habitId), isTrue);
+
+      // 3. Simulating PowerSync downloading from remote Supabase where is_enabled is NULL
+      final rowFromSupabaseSync = {
+        'id': habitId,
+        'name': 'Test Habit',
+        'is_enabled': null, // PowerSync wiped local value because remote had no is_enabled
+      };
+      // The habit MUST REMAIN PAUSED (isEnabled == false) and not get turned on again
+      final habitAfterSync = Habit.fromRow(rowFromSupabaseSync);
+      expect(habitAfterSync.isEnabled, isFalse);
+
+      // 4. Unpause habit
+      HabitRepository().toggleHabitEnabled(habitId, true);
+      expect(HabitRepository.isHabitPaused(habitId), isFalse);
+      expect(Habit.fromRow(rowFromSupabaseSync).isEnabled, isTrue);
     });
   });
 }

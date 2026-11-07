@@ -93,15 +93,21 @@ class Habit {
       }
     }
 
-    final rawEnabled = row['is_enabled'];
-    final bool isEnabled = rawEnabled == null ||
-        rawEnabled == 1 ||
-        rawEnabled == true ||
-        rawEnabled == '1' ||
-        rawEnabled == 'true';
+    final id = row['id'] as String;
+    final bool isEnabled;
+    if (HabitRepository.isHabitPaused(id)) {
+      isEnabled = false;
+    } else {
+      final rawEnabled = row['is_enabled'];
+      isEnabled = rawEnabled == null ||
+          rawEnabled == 1 ||
+          rawEnabled == true ||
+          rawEnabled == '1' ||
+          rawEnabled == 'true';
+    }
 
     return Habit(
-      id: row['id'] as String,
+      id: id,
       name: row['name'] as String,
       category: cat,
       icon: (row['icon'] as String?) ?? 'fitness',
@@ -119,6 +125,43 @@ class Habit {
 }
 
 class HabitRepository {
+  static final Set<String> _pausedHabitIds = {};
+  static bool _stateLoaded = false;
+
+  /// Returns true if this habit has been explicitly paused locally.
+  static bool isHabitPaused(String habitId) {
+    return _pausedHabitIds.contains(habitId);
+  }
+
+  /// Ensures locally tracked paused habit states are loaded into memory from local storage/db
+  static Future<void> ensureStateLoaded() async {
+    if (_stateLoaded || !isDatabaseInitialized) return;
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS local_habit_state (
+          habit_id TEXT PRIMARY KEY,
+          is_enabled INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+      final rows = await db.getAll('SELECT habit_id, is_enabled FROM local_habit_state');
+      for (final r in rows) {
+        final hId = r['habit_id'] as String? ?? '';
+        final enabled = (r['is_enabled'] as num?)?.toInt() ?? 1;
+        if (hId.isNotEmpty) {
+          if (enabled == 0) {
+            _pausedHabitIds.add(hId);
+          } else {
+            _pausedHabitIds.remove(hId);
+          }
+        }
+      }
+      _stateLoaded = true;
+    } catch (e) {
+      debugPrint('[HabitRepository] ensureStateLoaded notice: $e');
+    }
+  }
+
   String _todayStr() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
   /// Parses human-readable time strings like '07:30 AM', '2:15 PM', or '14:00' into minutes from midnight.
@@ -191,6 +234,7 @@ class HabitRepository {
     if (!isDatabaseInitialized) {
       return Stream.value(const <Habit>[]);
     }
+    unawaited(ensureStateLoaded());
     final now = DateTime.now();
     final uid = currentUserId;
 
@@ -400,12 +444,43 @@ class HabitRepository {
     final uid = currentUserId;
     CacheService().invalidate('habit_streaks_map_${uid.isNotEmpty ? uid : 'global'}');
     final now = DateTime.now().toUtc().toIso8601String();
-    try {
-      await db.execute('''
-        UPDATE habits SET is_enabled = ?, updated_at = ? WHERE id = ?
-      ''', [isEnabled ? 1 : 0, now, habitId]);
-    } catch (e) {
-      debugPrint('[HabitRepository] Error toggling habit enabled: $e');
+
+    // 1. Update in-memory paused state immediately (immune to remote sync resets)
+    if (!isEnabled) {
+      _pausedHabitIds.add(habitId);
+    } else {
+      _pausedHabitIds.remove(habitId);
+    }
+
+    // 2. Persist in local_habit_state table
+    if (isDatabaseInitialized) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS local_habit_state (
+            habit_id TEXT PRIMARY KEY,
+            is_enabled INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT NOT NULL
+          )
+        ''');
+        await db.execute('''
+          INSERT INTO local_habit_state (habit_id, is_enabled, updated_at)
+          VALUES (?, ?, ?)
+          ON CONFLICT(habit_id) DO UPDATE SET
+            is_enabled = excluded.is_enabled,
+            updated_at = excluded.updated_at
+        ''', [habitId, isEnabled ? 1 : 0, now]);
+      } catch (e) {
+        debugPrint('[HabitRepository] Error persisting local_habit_state: $e');
+      }
+
+      // 3. Also update SQLite habits table
+      try {
+        await db.execute('''
+          UPDATE habits SET is_enabled = ?, updated_at = ? WHERE id = ?
+        ''', [isEnabled ? 1 : 0, now, habitId]);
+      } catch (e) {
+        debugPrint('[HabitRepository] Error toggling habit enabled in habits table: $e');
+      }
     }
 
     if (!isEnabled) {
@@ -558,12 +633,14 @@ class HabitRepository {
     final validHabits = habits.where((h) {
       final id = (h['id'] as String? ?? '').toLowerCase();
       final kind = (h['kind'] as String? ?? '').toLowerCase();
+      final rawId = (h['id'] as String? ?? '');
       final rawEnabled = h['is_enabled'];
-      final isEnabled = rawEnabled == null ||
-          rawEnabled == 1 ||
-          rawEnabled == true ||
-          rawEnabled == '1' ||
-          rawEnabled == 'true';
+      final isEnabled = !HabitRepository.isHabitPaused(rawId) &&
+          (rawEnabled == null ||
+              rawEnabled == 1 ||
+              rawEnabled == true ||
+              rawEnabled == '1' ||
+              rawEnabled == 'true');
       return !isPrayerIdentifier(id) && kind != 'prayers' && isEnabled;
     }).toList();
 

@@ -693,6 +693,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: HabitCategoryCard(
+                              key: ValueKey(category.id),
                               category: category,
                               color: color,
                               habits: habits,
@@ -739,6 +740,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: HabitCategoryCard(
+                              key: const ValueKey('general_routines'),
                               category: const HabitCategory(
                                 id: 'general_routines',
                                 name: 'General Routines',
