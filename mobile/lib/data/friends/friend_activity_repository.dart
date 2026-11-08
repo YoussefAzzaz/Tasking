@@ -108,7 +108,8 @@ class FriendActivityRepository {
     }
   }
 
-  /// Purges activity logs and general logs older than 15 days in both Supabase and local SQLite.
+  /// Purges transient friend activity logs older than 15 days in both Supabase and local SQLite.
+  /// Note: Never purges the `logs` table, which stores persistent user XP and gamification history.
   Future<void> purgeOldLogs() async {
     final cutoff = DateTime.now().subtract(const Duration(days: 15)).toUtc().toIso8601String();
 
@@ -116,7 +117,6 @@ class FriendActivityRepository {
     if (isDatabaseInitialized) {
       try {
         await db.execute('DELETE FROM friend_activity_logs WHERE created_at < ?', [cutoff]);
-        await db.execute('DELETE FROM logs WHERE timestamp < ?', [cutoff]);
       } catch (e) {
         debugPrint('[LogCleanup] Local purge error: $e');
       }
@@ -131,15 +131,6 @@ class FriendActivityRepository {
             .lt('created_at', cutoff);
       } catch (e) {
         debugPrint('[LogCleanup] Supabase friend_activity_logs purge notice: $e');
-      }
-
-      try {
-        await _supabaseClient!
-            .from('logs')
-            .delete()
-            .lt('timestamp', cutoff);
-      } catch (e) {
-        debugPrint('[LogCleanup] Supabase logs purge notice: $e');
       }
 
       try {

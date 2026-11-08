@@ -150,7 +150,8 @@ class NoteRepository {
 
   Future<void> deleteNote(String id) async {
     try {
-      await db.execute('DELETE FROM notes WHERE id = ?', [id]);
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+      await db.execute('UPDATE notes SET deleted_at = ?, updated_at = ? WHERE id = ?', [nowUtc, nowUtc, id]);
     } catch (e) {
       debugPrint('[NoteRepository] Error deleting note: $e');
       rethrow;

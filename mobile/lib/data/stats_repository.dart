@@ -106,14 +106,14 @@ class StatsRepository {
             COALESCE(SUM(xp_earned), 0) AS total_xp,
             COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
           FROM logs
-          WHERE user_id = ? AND (event_type IS NULL OR event_type != 'focus_completed')
+          WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')
           '''
           : '''
           SELECT 
             COALESCE(SUM(xp_earned), 0) AS total_xp,
             COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
           FROM logs
-          WHERE event_type IS NULL OR event_type != 'focus_completed'
+          WHERE (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')
           ''';
       final logParams = uid.isNotEmpty ? [todayPattern, uid] : [todayPattern];
       final logRow = await db.getOptional(logQuery, logParams);

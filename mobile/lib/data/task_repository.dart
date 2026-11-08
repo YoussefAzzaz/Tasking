@@ -278,18 +278,30 @@ class TaskRepository {
 
       final now = DateTime.now().toUtc().toIso8601String();
       if (task.status == 'done' && oldStatus != 'done') {
-        final xp = task.priority == 1 ? 75 : (task.priority == 2 ? 50 : 25);
-        final logId = IdGenerator.generateDeterministicId('xp_task_${task.id}_$now');
+        int xp = 5;
+        if (task.priority == 3) {
+          xp = 20;
+        } else if (task.priority == 2) {
+          xp = 10;
+        }
+        final today = now.substring(0, 10);
+        if (task.dueDate != null && task.dueDate!.isNotEmpty) {
+          if (today.compareTo(task.dueDate!) <= 0) {
+            xp += 5; // +5 bonus if completed on or before due date (SPEC §6.6)
+          }
+        }
+        final logId = IdGenerator.generateDeterministicId('xp_task_${task.id}_$today');
         await db.execute('''
-          INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp)
-          VALUES (?, ?, ?, 'task_completed', ?, ?)
-        ''', [logId, uid, task.id, xp, now]);
+          INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp, created_at, updated_at)
+          VALUES (?, ?, ?, 'task_completed', ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET xp_earned = excluded.xp_earned, updated_at = excluded.updated_at, deleted_at = NULL
+        ''', [logId, uid, task.id, xp, now, now, now]);
         DomainEvents.emit(TaskCompletedEvent(task.id, xp));
       } else if (task.status != 'done' && oldStatus == 'done') {
         final deleteQuery = uid.isNotEmpty
-            ? "DELETE FROM logs WHERE task_id = ? AND event_type = 'task_completed' AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-            : "DELETE FROM logs WHERE task_id = ? AND event_type = 'task_completed'";
-        final deleteParams = uid.isNotEmpty ? [task.id, uid] : [task.id];
+            ? "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE task_id = ? AND event_type = 'task_completed' AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+            : "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE task_id = ? AND event_type = 'task_completed'";
+        final deleteParams = uid.isNotEmpty ? [now, now, task.id, uid] : [now, now, task.id];
         await db.execute(deleteQuery, deleteParams);
       }
 
@@ -310,13 +322,17 @@ class TaskRepository {
     if (!isDatabaseInitialized) return;
     final uid = currentUserId;
     try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
       final deleteLogQuery = uid.isNotEmpty
-          ? "DELETE FROM logs WHERE task_id = ? AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-          : 'DELETE FROM logs WHERE task_id = ?';
-      final deleteLogParams = uid.isNotEmpty ? [id, uid] : [id];
+          ? "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE task_id = ? AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+          : 'UPDATE logs SET deleted_at = ?, updated_at = ? WHERE task_id = ?';
+      final deleteLogParams = uid.isNotEmpty ? [nowUtc, nowUtc, id, uid] : [nowUtc, nowUtc, id];
       await db.execute(deleteLogQuery, deleteLogParams);
 
-      await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
+      await db.execute(
+        'UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?',
+        [nowUtc, nowUtc, id],
+      );
 
       StatsRepository().invalidateStats();
       await syncGlobalUserLevel();

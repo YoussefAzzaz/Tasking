@@ -380,8 +380,8 @@ Future<void> syncGlobalUserLevel() async {
   try {
     final uid = currentUserId;
     final logQuery = uid.isNotEmpty
-        ? 'SELECT COALESCE(SUM(xp_earned), 0) AS total FROM logs WHERE user_id = ?'
-        : 'SELECT COALESCE(SUM(xp_earned), 0) AS total FROM logs';
+        ? "SELECT COALESCE(SUM(xp_earned), 0) AS total FROM logs WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')"
+        : "SELECT COALESCE(SUM(xp_earned), 0) AS total FROM logs WHERE (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')";
     final focusQuery = uid.isNotEmpty
         ? 'SELECT COALESCE(SUM(xp_earned), 0) AS total FROM focus_sessions WHERE completed = 1 AND user_id = ?'
         : 'SELECT COALESCE(SUM(xp_earned), 0) AS total FROM focus_sessions WHERE completed = 1';

@@ -307,13 +307,16 @@ class UserProfileRepository {
     final client = _supabaseClient;
     if (client?.auth.currentUser != null) {
       try {
+        final metaData = <String, dynamic>{
+          'display_name': newName,
+          'title': newTitle,
+          'callsign': newTitle,
+        };
+        if (targetAvatarUrl != null) {
+          metaData['avatar_url'] = targetAvatarUrl;
+        }
         await client!.auth.updateUser(
-          UserAttributes(data: {
-            'display_name': newName,
-            'title': newTitle,
-            'callsign': newTitle,
-            'avatar_url': ?targetAvatarUrl,
-          }),
+          UserAttributes(data: metaData),
         );
       } catch (e) {
         debugPrint('[UserProfileRepository] Supabase auth updateUser metadata notice: $e');
@@ -343,9 +346,9 @@ class UserProfileRepository {
       } else {
         final profileId = IdGenerator.generateDeterministicId('profile_${uid.isNotEmpty ? uid : "default"}');
         await db.execute('''
-          INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
-        ''', [profileId, uid, newName, newTitle, updated.avatarColor, targetAvatarUrl, globalUserLevel.value, nowUtc, nowUtc]).timeout(const Duration(seconds: 4));
+          INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, friend_code, total_xp, level, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+        ''', [profileId, uid, newName, newTitle, updated.avatarColor, targetAvatarUrl, updated.friendCode, globalUserLevel.value, nowUtc, nowUtc]).timeout(const Duration(seconds: 4));
       }
 
       await syncGlobalUserLevel();
