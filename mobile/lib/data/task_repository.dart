@@ -199,8 +199,8 @@ class TaskRepository {
     }
     final uid = currentUserId;
     final query = uid.isNotEmpty
-        ? 'SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC'
-        : 'SELECT * FROM tasks ORDER BY created_at DESC';
+        ? "SELECT * FROM tasks WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = '') ORDER BY created_at DESC"
+        : "SELECT * FROM tasks WHERE (deleted_at IS NULL OR deleted_at = '') ORDER BY created_at DESC";
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
 
     return db.watch(query, parameters: params).map((rows) {

@@ -66,6 +66,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  msix: ^3.16.8
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -136,3 +137,13 @@ hooks:
   user_defines:
     sqlite3:
       url_pattern: "https://ghproxy.net/https://github.com/simolus3/sqlite3.dart/releases/download/$RELEASE_TAG/$FILENAME"
+
+msix_config:
+  display_name: Axis
+  publisher_display_name: Axis Productivity
+  identity_name: com.axis.tasking
+  publisher: CN=Axis
+  msix_version: 1.2.0.0
+  logo_path: assets/logo.png
+  capabilities:
+    - internetClient

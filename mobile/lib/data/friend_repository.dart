@@ -350,36 +350,38 @@ class FriendRepository {
     }
 
     if (isRemoteAuthenticated) {
-      try {
-        await _supabaseClient!.from('friendships').upsert({
-          'id': friendshipId,
-          'requester_id': uid,
-          'addressee_id': targetUserId,
-          'status': 'pending',
-          'created_at': nowUtc,
-          'updated_at': nowUtc,
-        });
-      } catch (e) {
-        debugPrint('[FriendRepository] Supabase friendship upsert notice: $e');
-      }
+      unawaited(() async {
+        try {
+          await _supabaseClient!.from('friendships').upsert({
+            'id': friendshipId,
+            'requester_id': uid,
+            'addressee_id': targetUserId,
+            'status': 'pending',
+            'created_at': nowUtc,
+            'updated_at': nowUtc,
+          }).timeout(const Duration(seconds: 5));
+        } catch (e) {
+          debugPrint('[FriendRepository] Supabase friendship upsert notice: $e');
+        }
 
-      final logId = 'log_${uid}_${targetUserId}_${DateTime.now().millisecondsSinceEpoch}';
-      try {
-        await _supabaseClient!.from('friend_activity_logs').insert({
-          'id': logId,
-          'user_id': targetUserId,
-          'event_type': 'friend_request',
-          'title': '$myName sent you a companion request',
-          'metadata': {
-            'sender_id': uid,
-            'sender_name': myName,
-            'friendship_id': friendshipId,
-          },
-          'created_at': nowUtc,
-        });
-      } catch (e) {
-        debugPrint('[FriendRepository] Remote friend_request notification notice: $e');
-      }
+        final logId = 'log_${uid}_${targetUserId}_${DateTime.now().millisecondsSinceEpoch}';
+        try {
+          await _supabaseClient!.from('friend_activity_logs').insert({
+            'id': logId,
+            'user_id': targetUserId,
+            'event_type': 'friend_request',
+            'title': '$myName sent you a companion request',
+            'metadata': {
+              'sender_id': uid,
+              'sender_name': myName,
+              'friendship_id': friendshipId,
+            },
+            'created_at': nowUtc,
+          }).timeout(const Duration(seconds: 5));
+        } catch (e) {
+          debugPrint('[FriendRepository] Remote friend_request notification notice: $e');
+        }
+      }());
     }
 
     unawaited(syncSingleProfileFromRemote(targetUserId));

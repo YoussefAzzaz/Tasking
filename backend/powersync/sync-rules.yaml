@@ -116,8 +116,10 @@ streams:
           id, user_id, date, fajr, dhuhr, asr, maghrib, isha,
           streak_days, habits_done, habits_total, created_at, updated_at
         FROM daily_prayer_status
+        WHERE user_id = auth.user_id()
 
       # ── Friend Activity Logs ────────────────────────────────────────────────
       - SELECT
           id, user_id, event_type, title, metadata, created_at
         FROM friend_activity_logs
+        WHERE user_id = auth.user_id()

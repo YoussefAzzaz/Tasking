@@ -98,20 +98,22 @@ class StatsRepository {
     final uid = currentUserId;
 
     try {
-      // 1. Optimized aggregate query for general logs
+      // 1. Optimized aggregate query for general logs (tasks, habits, and gamification events)
+      // Excludes 'focus_completed' to prevent double-counting since focus session XP is aggregated below.
       final logQuery = uid.isNotEmpty
           ? '''
           SELECT 
             COALESCE(SUM(xp_earned), 0) AS total_xp,
             COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
           FROM logs
-          WHERE user_id = ?
+          WHERE user_id = ? AND (event_type IS NULL OR event_type != 'focus_completed')
           '''
           : '''
           SELECT 
             COALESCE(SUM(xp_earned), 0) AS total_xp,
             COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
           FROM logs
+          WHERE event_type IS NULL OR event_type != 'focus_completed'
           ''';
       final logParams = uid.isNotEmpty ? [todayPattern, uid] : [todayPattern];
       final logRow = await db.getOptional(logQuery, logParams);

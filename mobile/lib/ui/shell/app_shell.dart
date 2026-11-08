@@ -31,9 +31,7 @@ class AppShell extends StatelessWidget {
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
     if (isDesktopPlatform || MediaQuery.sizeOf(context).width >= 1024) {
-      return const ExcludeSemantics(
-        child: DesktopCommandCenter(),
-      );
+      return const DesktopCommandCenter();
     }
 
     // Branch 2 is the center /today tab

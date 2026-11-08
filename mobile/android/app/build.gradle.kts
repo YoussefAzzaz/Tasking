@@ -54,6 +54,8 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
             manifestPlaceholders["appLabel"] = "Axis"
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

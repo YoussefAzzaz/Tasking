@@ -12,6 +12,7 @@ import '../../../core/l10n/locale_service.dart';
 import '../../../data/network_service.dart';
 import '../core/desktop_layout.dart';
 import '../widgets/telemetry_chip.dart';
+import '../widgets/desktop_live_clock.dart';
 
 /// Top desktop titlebar (44px) with window drag, omnibar trigger, clock, sync status,
 /// and native window control buttons (Minimize, Maximize / Fullscreen, Exit) pinned to the max right.
@@ -30,21 +31,10 @@ class DesktopTitlebar extends StatefulWidget {
 class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
   bool _isMaximized = false;
   bool _isFullScreen = false;
-  late DateTime _currentTime;
-  Timer? _clockTimer;
 
   @override
   void initState() {
     super.initState();
-    _currentTime = DateTime.now();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() {
-          _currentTime = DateTime.now();
-        });
-      }
-    });
-
     if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       try {
         windowManager.addListener(this);
@@ -55,7 +45,6 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
 
   @override
   void dispose() {
-    _clockTimer?.cancel();
     if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       try {
         windowManager.removeListener(this);
@@ -172,60 +161,64 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
   }
 
   Widget _buildClockWidget() {
-    final dateStr = DateFormat('EEE, d MMM').format(_currentTime);
-    final timeStr = DateFormat('hh:mm a').format(_currentTime);
+    return DesktopLiveClock(
+      builder: (context, now) {
+        final dateStr = DateFormat('EEE, d MMM').format(now);
+        final timeStr = DateFormat('hh:mm a').format(now);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AxisColors.surfaceLowest,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: AxisColors.borderSubtle,
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.calendar_today_rounded,
-            size: 11,
-            color: AxisColors.secondary,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            dateStr,
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AxisColors.textHigh,
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AxisColors.surfaceLowest,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: AxisColors.borderSubtle,
+              width: 1,
             ),
           ),
-          const SizedBox(width: 6),
-          Container(
-            width: 1,
-            height: 10,
-            color: AxisColors.borderSubtle,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.calendar_today_rounded,
+                size: 11,
+                color: AxisColors.secondary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                dateStr,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AxisColors.textHigh,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                width: 1,
+                height: 10,
+                color: AxisColors.borderSubtle,
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.schedule_rounded,
+                size: 11,
+                color: AxisColors.primarySoft,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                timeStr,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AxisColors.primarySoft,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          const Icon(
-            Icons.schedule_rounded,
-            size: 11,
-            color: AxisColors.primarySoft,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            timeStr,
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AxisColors.primarySoft,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

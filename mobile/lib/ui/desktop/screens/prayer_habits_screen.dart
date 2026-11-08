@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,6 +20,7 @@ import '../widgets/ghost_button.dart';
 import '../widgets/progress_gauge.dart';
 import '../widgets/section_header.dart';
 import '../widgets/telemetry_chip.dart';
+import '../widgets/desktop_live_clock.dart';
 
 /// Prayer & Habits Telemetry Screen (Tab 1).
 class PrayerHabitsScreen extends StatefulWidget {
@@ -31,24 +31,13 @@ class PrayerHabitsScreen extends StatefulWidget {
 }
 
 class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
-  late Timer _clockTimer;
-  DateTime _currentTime = DateTime.now();
   String _selectedCategory = 'All Habits';
   final ScrollController _habitsScrollController = ScrollController();
   final Map<String, bool> _optimisticEnabled = {};
   final Map<String, bool> _optimisticDone = {};
 
   @override
-  void initState() {
-    super.initState();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _currentTime = DateTime.now());
-    });
-  }
-
-  @override
   void dispose() {
-    _clockTimer.cancel();
     _habitsScrollController.dispose();
     super.dispose();
   }
@@ -303,8 +292,6 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('HH:mm:ss').format(_currentTime);
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final content = Padding(
@@ -339,13 +326,17 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
                       ),
                     ],
                   ),
-                  Text(
-                    timeStr,
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AxisColors.textHigh,
-                    ),
+                  DesktopLiveClock(
+                    builder: (context, now) {
+                      return Text(
+                        DateFormat('HH:mm:ss').format(now),
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AxisColors.textHigh,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

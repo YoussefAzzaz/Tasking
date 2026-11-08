@@ -240,9 +240,10 @@ class HabitRepository {
 
     final query = uid.isNotEmpty
         ? 'SELECT * FROM habits '
-          'WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') '
+          'WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') AND (deleted_at IS NULL OR deleted_at = \'\') '
           'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC'
         : 'SELECT * FROM habits '
+          'WHERE (deleted_at IS NULL OR deleted_at = \'\') '
           'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC';
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
 

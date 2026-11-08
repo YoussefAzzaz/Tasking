@@ -121,25 +121,8 @@ class DailyPrayerStatusRepository {
     _currentUserPrayerCache[code] = isDone;
 
     try {
-      // 1. Fetch remote Supabase record for today to preserve already checked prayers
-      Map<String, dynamic>? remoteRow;
-      final todayUtc = DateFormat('yyyy-MM-dd').format(now.toUtc());
-      if (isRemoteAuthenticated && _supabaseClient != null) {
-        try {
-          final res = await _supabaseClient!
-              .from('daily_prayer_status')
-              .select('*')
-              .eq('user_id', uid)
-              .or('date.eq.$today,date.eq.$todayUtc')
-              .order('updated_at', ascending: false)
-              .limit(1);
-          if (res.isNotEmpty) {
-            remoteRow = Map<String, dynamic>.from(res.first);
-          }
-        } catch (e) {
-          debugPrint('[DailyPrayerStatusRepository] Supabase pre-fetch notice: $e');
-        }
-      }
+      // 1. Local-first resolution: Use local SQLite and cache as ground truth for instant UI
+      // avoiding blocking network pre-fetches that stall offline or slow-connection users.
 
       // 2. Fetch local SQLite daily_prayer_status record for today
       Map<String, dynamic>? localStatusRow;
@@ -223,10 +206,9 @@ class DailyPrayerStatusRepository {
         if (_currentUserPrayerCache.containsKey(p)) {
           return _currentUserPrayerCache[p] == true;
         }
-        final remoteDone = remoteRow != null && parseToBool(remoteRow[p]);
         final localStatusDone = localStatusRow != null && parseToBool(localStatusRow[p]);
         final localDone = localPrayerDoneMap[p] == true;
-        return remoteDone || localStatusDone || localDone;
+        return localStatusDone || localDone;
       }
 
       final bool curFajr = resolvePrayer('fajr');
@@ -295,14 +277,8 @@ class DailyPrayerStatusRepository {
       if (habitsTotal == 0 && localStatusRow != null && parseToInt(localStatusRow['habits_total']) > 0) {
         habitsTotal = parseToInt(localStatusRow['habits_total']);
       }
-      if (habitsTotal == 0 && remoteRow != null && parseToInt(remoteRow['habits_total']) > 0) {
-        habitsTotal = parseToInt(remoteRow['habits_total']);
-      }
       if (habitsDone == 0 && localStatusRow != null && parseToInt(localStatusRow['habits_done']) > 0) {
         habitsDone = parseToInt(localStatusRow['habits_done']);
-      }
-      if (habitsDone == 0 && remoteRow != null && parseToInt(remoteRow['habits_done']) > 0) {
-        habitsDone = parseToInt(remoteRow['habits_done']);
       }
 
       int streakDays = 0;
@@ -318,9 +294,6 @@ class DailyPrayerStatusRepository {
       } catch (_) {}
       if (localStatusRow != null && parseToInt(localStatusRow['streak_days']) > streakDays) {
         streakDays = parseToInt(localStatusRow['streak_days']);
-      }
-      if (remoteRow != null && parseToInt(remoteRow['streak_days']) > streakDays) {
-        streakDays = parseToInt(remoteRow['streak_days']);
       }
 
       // 6. Persist to local SQLite daily_prayer_status
@@ -356,42 +329,44 @@ class DailyPrayerStatusRepository {
         }
       }
 
-      // 7. Authoritatively persist to Supabase:
-      // Uses the atomic PostgreSQL function `toggle_user_prayer` to eliminate race conditions,
-      // preserve untouched prayer flags server-side, and immediately broadcast via Realtime.
+      // 7. Authoritatively persist to Supabase asynchronously:
+      // Uses the atomic PostgreSQL function `toggle_user_prayer` in the background with timeout
+      // to eliminate race conditions, preserve untouched prayer flags server-side, and immediately broadcast via Realtime.
       if (isRemoteAuthenticated && _supabaseClient != null) {
-        try {
-          final rpcRes = await _supabaseClient!.rpc('toggle_user_prayer', params: {
-            'p_code': code,
-            'p_done': isDone,
-            'p_date': today,
-            'p_streak': streakDays,
-            'p_habits_done': habitsDone,
-            'p_habits_total': habitsTotal,
-          });
-          debugPrint('[DailyPrayerStatusRepository] Atomic toggle_user_prayer RPC success: $code=$isDone -> $rpcRes');
-        } catch (e) {
-          debugPrint('[DailyPrayerStatusRepository] RPC toggle_user_prayer fallback notice: $e');
+        unawaited(() async {
           try {
-            await _supabaseClient!.from('daily_prayer_status').upsert({
-              'id': statusId,
-              'user_id': uid,
-              'date': today,
-              'fajr': curFajr,
-              'dhuhr': curDhuhr,
-              'asr': curAsr,
-              'maghrib': curMaghrib,
-              'isha': curIsha,
-              'streak_days': streakDays,
-              'habits_done': habitsDone,
-              'habits_total': habitsTotal,
-              'updated_at': nowUtc,
-            }, onConflict: 'user_id,date');
-            debugPrint('[DailyPrayerStatusRepository] Supabase fallback prayer upsert successful: $code=$isDone');
-          } catch (err) {
-            debugPrint('[DailyPrayerStatusRepository] Supabase fallback upsert error: $err');
+            final rpcRes = await _supabaseClient!.rpc('toggle_user_prayer', params: {
+              'p_code': code,
+              'p_done': isDone,
+              'p_date': today,
+              'p_streak': streakDays,
+              'p_habits_done': habitsDone,
+              'p_habits_total': habitsTotal,
+            }).timeout(const Duration(seconds: 5));
+            debugPrint('[DailyPrayerStatusRepository] Atomic toggle_user_prayer RPC success: $code=$isDone -> $rpcRes');
+          } catch (e) {
+            debugPrint('[DailyPrayerStatusRepository] RPC toggle_user_prayer fallback notice: $e');
+            try {
+              await _supabaseClient!.from('daily_prayer_status').upsert({
+                'id': statusId,
+                'user_id': uid,
+                'date': today,
+                'fajr': curFajr,
+                'dhuhr': curDhuhr,
+                'asr': curAsr,
+                'maghrib': curMaghrib,
+                'isha': curIsha,
+                'streak_days': streakDays,
+                'habits_done': habitsDone,
+                'habits_total': habitsTotal,
+                'updated_at': nowUtc,
+              }, onConflict: 'user_id,date').timeout(const Duration(seconds: 5));
+              debugPrint('[DailyPrayerStatusRepository] Supabase fallback prayer upsert successful: $code=$isDone');
+            } catch (err) {
+              debugPrint('[DailyPrayerStatusRepository] Supabase fallback upsert error: $err');
+            }
           }
-        }
+        }());
       }
 
       notifyChecklistChanged();

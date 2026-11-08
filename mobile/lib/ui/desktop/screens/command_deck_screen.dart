@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -29,6 +28,7 @@ import '../widgets/progress_gauge.dart';
 import '../widgets/section_header.dart';
 import '../widgets/task_status_rail.dart';
 import '../widgets/telemetry_chip.dart';
+import '../widgets/desktop_live_clock.dart';
 
 /// Command Deck Dashboard (Tab 0) - Primary desktop mission control view.
 class CommandDeckScreen extends StatefulWidget {
@@ -46,23 +46,6 @@ class CommandDeckScreen extends StatefulWidget {
 }
 
 class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklistMixin {
-  late Timer _clockTimer;
-  DateTime _currentTime = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _currentTime = DateTime.now());
-    });
-  }
-
-  @override
-  void dispose() {
-    _clockTimer.cancel();
-    super.dispose();
-  }
-
   // Checklist helpers provided by TaskChecklistMixin
 
   void _showTaskPreviewDialog(Task initialTask) {
@@ -428,9 +411,6 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklis
   }
 
   Widget _buildWelcomeHeader() {
-    final timeStr = DateFormat('HH:mm:ss').format(_currentTime);
-    final dateStr = DateFormat('EEE, MMM d').format(_currentTime);
-
     return ValueListenableBuilder<UserProfile>(
       valueListenable: UserProfileRepository().profileNotifier,
       builder: (context, profile, _) {
@@ -488,13 +468,19 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> with TaskChecklis
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '$timeStr  ·  $dateStr',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AxisColors.textMuted,
-                  ),
+                DesktopLiveClock(
+                  builder: (context, now) {
+                    final timeStr = DateFormat('HH:mm:ss').format(now);
+                    final dateStr = DateFormat('EEE, MMM d').format(now);
+                    return Text(
+                      '$timeStr  ·  $dateStr',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AxisColors.textMuted,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(width: 12),
                 const TelemetryChip(

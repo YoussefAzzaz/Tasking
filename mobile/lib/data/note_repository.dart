@@ -75,18 +75,18 @@ class NoteRepository {
 
     if (uid.isNotEmpty) {
       if (category != null && category != 'all') {
-        query = 'SELECT * FROM notes WHERE category = ? AND user_id = ? ORDER BY created_at DESC';
+        query = 'SELECT * FROM notes WHERE category = ? AND user_id = ? AND (deleted_at IS NULL OR deleted_at = \'\') ORDER BY pinned DESC, created_at DESC';
         params = [category, uid];
       } else {
-        query = 'SELECT * FROM notes WHERE user_id = ? ORDER BY pinned DESC, created_at DESC';
+        query = 'SELECT * FROM notes WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = \'\') ORDER BY pinned DESC, created_at DESC';
         params = [uid];
       }
     } else {
       if (category != null && category != 'all') {
-        query = 'SELECT * FROM notes WHERE category = ? ORDER BY created_at DESC';
+        query = 'SELECT * FROM notes WHERE category = ? AND (deleted_at IS NULL OR deleted_at = \'\') ORDER BY pinned DESC, created_at DESC';
         params = [category];
       } else {
-        query = 'SELECT * FROM notes ORDER BY pinned DESC, created_at DESC';
+        query = 'SELECT * FROM notes WHERE (deleted_at IS NULL OR deleted_at = \'\') ORDER BY pinned DESC, created_at DESC';
         params = [];
       }
     }

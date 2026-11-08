@@ -183,11 +183,7 @@ class AxisApp extends StatelessWidget {
               if (AppConfig.useDevicePreview) {
                 appChild = DevicePreview.appBuilder(context, appChild);
               }
-              final isDesktop = !kIsWeb &&
-                  (defaultTargetPlatform == TargetPlatform.windows ||
-                   defaultTargetPlatform == TargetPlatform.macOS ||
-                   defaultTargetPlatform == TargetPlatform.linux);
-              return isDesktop ? ExcludeSemantics(child: appChild) : appChild;
+              return appChild;
             },
             debugShowCheckedModeBanner: false,
             theme: AxisTheme.dark,
