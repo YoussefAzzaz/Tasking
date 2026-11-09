@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/task_card.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
@@ -128,7 +129,9 @@ class _UpcomingTabState extends State<UpcomingTab> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                '${overdue.length} outdated ${overdue.length == 1 ? 'task' : 'tasks'} pending',
+                                context.isArabic
+                                    ? 'هناك ${overdue.length} مهام فائتة معلقة'
+                                    : '${overdue.length} outdated ${overdue.length == 1 ? 'task' : 'tasks'} pending',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -136,17 +139,19 @@ class _UpcomingTabState extends State<UpcomingTab> {
                                 ),
                               ),
                             ),
-                            const Text(
-                              'View Outdated',
-                              style: TextStyle(
+                            Text(
+                              context.isArabic ? 'عرض الفائتة' : 'View Outdated',
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: AxisColors.error,
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(
-                              Icons.arrow_forward_ios_rounded,
+                            Icon(
+                              context.isArabic
+                                  ? Icons.arrow_back_ios_rounded
+                                  : Icons.arrow_forward_ios_rounded,
                               size: 11,
                               color: AxisColors.error,
                             ),
@@ -157,18 +162,20 @@ class _UpcomingTabState extends State<UpcomingTab> {
                   )
                 else if (overdue.isNotEmpty)
                   UpcomingSection(
-                    title: 'OVERDUE',
+                    title: context.isArabic ? 'متأخرة' : 'OVERDUE',
                     color: AxisColors.error,
                     tasks: overdue,
                     repo: widget.repo,
                   ),
                 if (!hasUpcoming && overdue.isNotEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Center(
                       child: Text(
-                        'No upcoming tasks scheduled',
-                        style: TextStyle(
+                        context.isArabic
+                            ? 'لا توجد مهام قادمة مجدولة'
+                            : 'No upcoming tasks scheduled',
+                        style: const TextStyle(
                           color: AxisColors.textDim,
                           fontSize: 13,
                         ),
@@ -177,28 +184,28 @@ class _UpcomingTabState extends State<UpcomingTab> {
                   ),
                 if (today.isNotEmpty)
                   UpcomingSection(
-                    title: 'TODAY',
+                    title: context.isArabic ? 'اليوم' : 'TODAY',
                     color: AxisColors.primary,
                     tasks: today,
                     repo: widget.repo,
                   ),
                 if (tomorrow.isNotEmpty)
                   UpcomingSection(
-                    title: 'TOMORROW',
+                    title: context.isArabic ? 'غداً' : 'TOMORROW',
                     color: AxisColors.secondary,
                     tasks: tomorrow,
                     repo: widget.repo,
                   ),
                 if (upcoming.isNotEmpty)
                   UpcomingSection(
-                    title: 'LATER THIS MONTH',
+                    title: context.isArabic ? 'في وقت لاحق هذا الشهر' : 'LATER THIS MONTH',
                     color: AxisColors.tertiary,
                     tasks: upcoming,
                     repo: widget.repo,
                   ),
                 if (noDate.isNotEmpty)
                   UpcomingSection(
-                    title: 'NO DUE DATE',
+                    title: context.isArabic ? 'بدون تاريخ استحقاق' : 'NO DUE DATE',
                     color: AxisColors.textDim,
                     tasks: noDate,
                     repo: widget.repo,
@@ -261,6 +268,7 @@ class UpcomingSection extends StatelessWidget {
         ...tasks.map((task) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: TaskCard(
+                key: ValueKey(task.id),
                 task: task,
                 onToggle: (checked) async {
                   try {

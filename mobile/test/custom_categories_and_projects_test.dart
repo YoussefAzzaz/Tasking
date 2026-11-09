@@ -142,7 +142,7 @@ void main() {
       final focusNode = FocusNode();
       bool isOpen = true;
 
-      final categories = const [
+      const categories = [
         HabitCategory(id: 'cat_workout', name: 'Workout'), // legacy default
         HabitCategory(id: 'cat_deepwork', name: 'Deep Work', icon: 'code', color: '#6366F1'),
       ];
@@ -182,7 +182,7 @@ void main() {
       final focusNode = FocusNode();
       bool isOpen = true;
 
-      final categories = const [
+      const categories = [
         HabitCategory(id: 'cat_deepwork', name: 'Deep Work', icon: 'code', color: '#6366F1'),
         HabitCategory(id: 'cat_fitness_routine', name: 'Fitness Routine', icon: 'fitness', color: '#10B981'),
         HabitCategory(id: 'cat_meditation', name: 'Mindfulness', icon: 'meditation', color: '#A855F7'),

@@ -27,18 +27,76 @@ class HabitReminderTime {
   });
 }
 
+/// Represents a single chronological occurrence slot in the rolling notification queue.
+class HabitOccurrence {
+  final int id;
+  final Habit habit;
+  final DateTime triggerTime;
+  final int minutesBefore;
+  final int dateKey;
+  final bool isFollowUp;
+  final bool isCheckpoint;
+
+  const HabitOccurrence({
+    required this.id,
+    required this.habit,
+    required this.triggerTime,
+    required this.minutesBefore,
+    required this.dateKey,
+    required this.isFollowUp,
+    this.isCheckpoint = false,
+  });
+
+  HabitOccurrence copyWith({
+    int? id,
+    Habit? habit,
+    DateTime? triggerTime,
+    int? minutesBefore,
+    int? dateKey,
+    bool? isFollowUp,
+    bool? isCheckpoint,
+  }) {
+    return HabitOccurrence(
+      id: id ?? this.id,
+      habit: habit ?? this.habit,
+      triggerTime: triggerTime ?? this.triggerTime,
+      minutesBefore: minutesBefore ?? this.minutesBefore,
+      dateKey: dateKey ?? this.dateKey,
+      isFollowUp: isFollowUp ?? this.isFollowUp,
+      isCheckpoint: isCheckpoint ?? this.isCheckpoint,
+    );
+  }
+
+  /// Fingerprint hashing config and trigger time to skip redundant platform calls.
+  String get fingerprint =>
+      '${habit.id}_${habit.name}_${habit.remindTime}_${habit.scheduleType}_${habit.isEnabled}_${habit.color}_${triggerTime.millisecondsSinceEpoch}_$isCheckpoint';
+}
+
 /// Service managing scheduled pre-habit notifications (10m and 5m before habit time),
-/// handling action buttons, cancellation, and tray dismissal upon completion.
+/// implementing a Sliding Window "Next-N" Queue combined with a Daisy-Chain Checkpoint pattern.
 class HabitNotificationService {
   static final HabitNotificationService _instance =
       HabitNotificationService._internal();
   factory HabitNotificationService() => _instance;
   HabitNotificationService._internal();
 
+  /// Maximum size of the rolling upcoming notification queue registered with the platform
+  static const int maxQueueSize = 40;
+  static const String channelKey = 'habit_reminder_channel';
+
   bool _initialized = false;
   StreamSubscription<List<Habit>>? _habitsSub;
+  final Map<int, String> _scheduledFingerprints = {};
+  final Map<int, String> _slotHabitIds = {};
+  bool _isSyncing = false;
+  bool _needsResync = false;
 
-  static const String channelKey = 'habit_reminder_channel';
+  @visibleForTesting
+  Map<int, String> get scheduledFingerprints =>
+      Map.unmodifiable(_scheduledFingerprints);
+
+  @visibleForTesting
+  Map<int, String> get slotHabitIds => Map.unmodifiable(_slotHabitIds);
 
   /// Calculates the 10-minute and 5-minute pre-habit reminder times.
   /// Returns null if the remindTime string is null, empty, or unparseable.
@@ -61,8 +119,29 @@ class HabitNotificationService {
     );
   }
 
-  /// Generates deterministic unique 32-bit positive integer IDs for Awesome Notifications
-  /// for a given habit ID, reminder offset (10 or 5), and optional weekday (0 for daily, 1-7 for Mon-Sun).
+  /// Formats a DateTime into a YYYYMMDD integer date key (e.g. 20261109).
+  static int toDateKey(DateTime dt) {
+    return dt.year * 10000 + dt.month * 100 + dt.day;
+  }
+
+  /// Generates collision-safe 32-bit positive integer IDs based on habitId, dateKey (YYYYMMDD),
+  /// and isFollowUp flag (false for 10m reminder, true for 5m reminder).
+  static int generateOccurrenceId({
+    required String habitId,
+    required int dateKey,
+    required bool isFollowUp,
+  }) {
+    int hash = 0;
+    for (int i = 0; i < habitId.length; i++) {
+      hash = (31 * hash + habitId.codeUnitAt(i)) & 0x7FFFFFFF;
+    }
+    final base = isFollowUp ? 200000000 : 100000000;
+    final dateComponent = (dateKey % 10000) * 65536;
+    final habitComponent = hash % 65536;
+    return base + dateComponent + habitComponent;
+  }
+
+  /// Legacy ID generator kept for backwards-compatibility with existing tests and callers.
   static int generateNotificationId(String habitId, int minutesBefore, [int weekday = 0]) {
     int hash = 0;
     for (int i = 0; i < habitId.length; i++) {
@@ -103,9 +182,9 @@ class HabitNotificationService {
         await AwesomeNotifications().requestPermissionToSendNotifications();
       }
 
-      await rescheduleAllHabits();
-
-      // Listen to habit changes from PowerSync or local DB
+      // Listen to habit changes from PowerSync or local DB.
+      // watchHabits() immediately emits the initial list of habits from SQLite,
+      // avoiding duplicate scheduling passes on startup.
       _habitsSub?.cancel();
       _habitsSub = HabitRepository().watchHabits().listen(
         (habits) async {
@@ -120,207 +199,276 @@ class HabitNotificationService {
     }
   }
 
-  /// Reschedules all habits directly from SQLite
-  Future<void> rescheduleAllHabits() async {
-    if (!isDatabaseInitialized) return;
-    try {
-      final uid = currentUserId;
-      final query = uid.isNotEmpty
-          ? "SELECT * FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''"
-          : "SELECT * FROM habits WHERE (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''";
-      final params = uid.isNotEmpty ? [uid] : <dynamic>[];
-      final rows = await db.getAll(query, params);
-
-      final habits = rows.map((r) => Habit.fromRow(r)).toList();
-      for (final habit in habits) {
-        if (habit.isEnabled) {
-          await scheduleHabitReminders(habit);
-        } else {
-          await cancelHabitReminders(habit.id);
-        }
-      }
-    } catch (e) {
-      debugPrint('[HabitNotificationService] rescheduleAllHabits error: $e');
+  /// Determines if a habit is scheduled to run on a given date
+  static bool isHabitScheduledForDate(
+    Habit habit,
+    DateTime date,
+    DateTime createdDate,
+  ) {
+    final scheduleType = habit.scheduleType.toLowerCase().trim();
+    if (scheduleType == 'weekdays') {
+      return date.weekday >= DateTime.monday && date.weekday <= DateTime.friday;
+    } else if (scheduleType == 'weekly') {
+      return date.weekday == DateTime.friday;
+    } else if (scheduleType == 'every_3_days' || scheduleType == '3days') {
+      final daysDiff = date.difference(createdDate).inDays;
+      return daysDiff >= 0 && (daysDiff % 3 == 0);
     }
+    return true; // daily (default)
   }
 
-  /// Syncs scheduled reminders with the current list of habits
+  /// Builds a chronological list of upcoming reminder occurrences across all habits,
+  /// up to [limit] (default: [maxQueueSize] = 40).
+  /// Every 10th item (and the last item) is flagged as a checkpoint for daisy-chain refills.
+  Future<List<HabitOccurrence>> buildUpcomingOccurrences(
+    List<Habit> habits, {
+    int limit = maxQueueSize,
+    DateTime? fromTime,
+    Future<bool> Function(String habitId)? isCompletedToday,
+  }) async {
+    final now = fromTime ?? DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final candidates = <HabitOccurrence>[];
+    final completedCache = <String, bool>{};
+
+    final activeHabits = habits.where((h) {
+      if (!h.isEnabled) return false;
+      final rt = h.remindTime;
+      return rt != null && rt.trim().isNotEmpty;
+    }).toList();
+
+    if (activeHabits.isEmpty || limit <= 0) {
+      return const [];
+    }
+
+    final habitTimes = <String, HabitReminderTime>{};
+    final habitCreatedDates = <String, DateTime>{};
+
+    for (final habit in activeHabits) {
+      final times = calculateReminderTimes(habit.remindTime);
+      if (times != null) {
+        habitTimes[habit.id] = times;
+      }
+      try {
+        final dt = DateTime.parse(habit.createdAt ?? '').toLocal();
+        habitCreatedDates[habit.id] = DateTime(dt.year, dt.month, dt.day);
+      } catch (_) {
+        habitCreatedDates[habit.id] = today;
+      }
+    }
+
+    for (int d = 0; d < 90; d++) {
+      final targetDate = today.add(Duration(days: d));
+      final isToday = (d == 0);
+
+      for (final habit in activeHabits) {
+        final times = habitTimes[habit.id];
+        if (times == null) continue;
+
+        if (!isHabitScheduledForDate(
+          habit,
+          targetDate,
+          habitCreatedDates[habit.id] ?? today,
+        )) {
+          continue;
+        }
+
+        if (isToday) {
+          bool isDone = completedCache[habit.id] ?? false;
+          if (!completedCache.containsKey(habit.id)) {
+            isDone = isCompletedToday != null
+                ? await isCompletedToday(habit.id)
+                : await isHabitCompletedToday(habit.id);
+            completedCache[habit.id] = isDone;
+          }
+          if (isDone) continue;
+        }
+
+        final habitTargetDateTime = DateTime(
+          targetDate.year,
+          targetDate.month,
+          targetDate.day,
+        ).add(Duration(minutes: times.habitMinutes));
+
+        final dt10 = habitTargetDateTime.subtract(const Duration(minutes: 10));
+        final dt5 = habitTargetDateTime.subtract(const Duration(minutes: 5));
+        final dateKey = toDateKey(targetDate);
+
+        if (dt10.isAfter(now)) {
+          candidates.add(HabitOccurrence(
+            id: generateOccurrenceId(
+              habitId: habit.id,
+              dateKey: dateKey,
+              isFollowUp: false,
+            ),
+            habit: habit,
+            triggerTime: dt10,
+            minutesBefore: 10,
+            dateKey: dateKey,
+            isFollowUp: false,
+          ));
+        }
+
+        if (dt5.isAfter(now)) {
+          candidates.add(HabitOccurrence(
+            id: generateOccurrenceId(
+              habitId: habit.id,
+              dateKey: dateKey,
+              isFollowUp: true,
+            ),
+            habit: habit,
+            triggerTime: dt5,
+            minutesBefore: 5,
+            dateKey: dateKey,
+            isFollowUp: true,
+          ));
+        }
+      }
+
+      if (candidates.length >= limit) {
+        break;
+      }
+    }
+
+    candidates.sort((a, b) {
+      final comp = a.triggerTime.compareTo(b.triggerTime);
+      if (comp != 0) return comp;
+      return a.id.compareTo(b.id);
+    });
+
+    final selected = candidates.take(limit).toList();
+
+    for (int i = 0; i < selected.length; i++) {
+      final isCheckpoint = ((i + 1) % 10 == 0) || (i == selected.length - 1);
+      if (isCheckpoint) {
+        selected[i] = selected[i].copyWith(isCheckpoint: true);
+      }
+    }
+
+    return selected;
+  }
+
+  /// Syncs scheduled reminders with the rolling "Next-N" queue.
+  /// Skips unchanged slots using the [_scheduledFingerprints] cache and cancels dropped slots.
   Future<void> syncHabitReminders(List<Habit> habits) async {
     try {
-      for (final habit in habits) {
-        if (habit.isEnabled && habit.remindTime != null && habit.remindTime!.trim().isNotEmpty) {
-          await scheduleHabitReminders(habit);
-        } else {
-          await cancelHabitReminders(habit.id);
+      final upcomingOccurrences = await buildUpcomingOccurrences(
+        habits,
+        limit: maxQueueSize,
+      );
+
+      final newIds = upcomingOccurrences.map((o) => o.id).toSet();
+
+      // Cancel obsolete slots that dropped out of the rolling window
+      final obsoleteIds = _scheduledFingerprints.keys
+          .where((id) => !newIds.contains(id))
+          .toList();
+
+      for (final oldId in obsoleteIds) {
+        await AwesomeNotifications().cancel(oldId);
+        _scheduledFingerprints.remove(oldId);
+        _slotHabitIds.remove(oldId);
+      }
+
+      // Schedule or retain slots
+      for (final slot in upcomingOccurrences) {
+        final fp = slot.fingerprint;
+        if (_scheduledFingerprints[slot.id] == fp) {
+          // Unchanged slot in rolling window, skip redundant PlatformChannel call
+          continue;
         }
+
+        await _scheduleOccurrence(slot);
+        _scheduledFingerprints[slot.id] = fp;
+        _slotHabitIds[slot.id] = slot.habit.id;
       }
     } catch (e) {
       debugPrint('[HabitNotificationService] syncHabitReminders error: $e');
     }
   }
 
-  /// Schedules both 10-minute and 5-minute pre-habit reminders for a habit.
-  Future<void> scheduleHabitReminders(Habit habit) async {
+  /// Refills the sliding window queue by fetching all active habits from SQLite.
+  /// Protected against concurrent re-entrant calls.
+  Future<void> refillQueue({bool force = false}) async {
+    if (!isDatabaseInitialized) return;
+    if (_isSyncing) {
+      _needsResync = true;
+      return;
+    }
+    _isSyncing = true;
+    try {
+      if (force) {
+        _scheduledFingerprints.clear();
+        _slotHabitIds.clear();
+      }
+      final uid = currentUserId;
+      final query = uid.isNotEmpty
+          ? "SELECT * FROM habits WHERE user_id = ? AND (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''"
+          : "SELECT * FROM habits WHERE (user_id IS NULL OR user_id = '') AND (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''";
+      final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+      final rows = await db.getAll(query, params);
+      final habits = rows.map((r) => Habit.fromRow(r)).toList();
+      await syncHabitReminders(habits);
+    } catch (e) {
+      debugPrint('[HabitNotificationService] refillQueue error: $e');
+    } finally {
+      _isSyncing = false;
+      if (_needsResync) {
+        _needsResync = false;
+        unawaited(refillQueue());
+      }
+    }
+  }
+
+  /// Reschedules all habits directly from SQLite.
+  Future<void> rescheduleAllHabits() async {
+    await refillQueue(force: true);
+  }
+
+  /// Schedules habit reminders by integrating into the rolling queue.
+  Future<void> scheduleHabitReminders(Habit habit, {bool force = false}) async {
     if (!habit.isEnabled || habit.remindTime == null || habit.remindTime!.trim().isEmpty) {
       await cancelHabitReminders(habit.id);
       return;
     }
 
-    final times = calculateReminderTimes(habit.remindTime);
-    if (times == null) return;
-
-    // Clear existing notifications for this habit first
-    await cancelHabitReminders(habit.id);
-
-    final habitColor = parseHex(habit.color);
-    final scheduleType = habit.scheduleType.toLowerCase().trim();
-
-    try {
-      if (scheduleType == 'weekdays') {
-        // Monday (1) through Friday (5)
-        for (int weekday = DateTime.monday; weekday <= DateTime.friday; weekday++) {
-          await _createReminder(
-            id: generateNotificationId(habit.id, 10, weekday),
-            habit: habit,
-            minutesBefore: 10,
-            hour: times.hour10,
-            minute: times.minute10,
-            color: habitColor,
-            weekday: weekday,
-            repeats: true,
-          );
-
-          await _createReminder(
-            id: generateNotificationId(habit.id, 5, weekday),
-            habit: habit,
-            minutesBefore: 5,
-            hour: times.hour5,
-            minute: times.minute5,
-            color: habitColor,
-            weekday: weekday,
-            repeats: true,
-          );
-        }
-      } else if (scheduleType == 'weekly') {
-        // Friday (5)
-        await _createReminder(
-          id: generateNotificationId(habit.id, 10, DateTime.friday),
-          habit: habit,
-          minutesBefore: 10,
-          hour: times.hour10,
-          minute: times.minute10,
-          color: habitColor,
-          weekday: DateTime.friday,
-          repeats: true,
-        );
-
-        await _createReminder(
-          id: generateNotificationId(habit.id, 5, DateTime.friday),
-          habit: habit,
-          minutesBefore: 5,
-          hour: times.hour5,
-          minute: times.minute5,
-          color: habitColor,
-          weekday: DateTime.friday,
-          repeats: true,
-        );
-      } else if (scheduleType == 'every_3_days' || scheduleType == '3days') {
-        // Schedule next 30 days of 3-day cycle occurrences
-        final now = DateTime.now();
-        DateTime createdDate;
-        try {
-          final dt = DateTime.parse(habit.createdAt ?? '').toLocal();
-          createdDate = DateTime(dt.year, dt.month, dt.day);
-        } catch (_) {
-          createdDate = DateTime(now.year, now.month, now.day);
-        }
-
-        for (int d = 0; d < 30; d++) {
-          final targetDate =
-              DateTime(now.year, now.month, now.day).add(Duration(days: d));
-          final daysDiff = targetDate.difference(createdDate).inDays;
-          if (daysDiff >= 0 && daysDiff % 3 == 0) {
-            // Check if reminder times are in future
-            final dt10 = DateTime(targetDate.year, targetDate.month,
-                targetDate.day, times.hour10, times.minute10);
-            if (dt10.isAfter(now)) {
-              await _createDateSpecificReminder(
-                id: generateNotificationId(habit.id, 10, (d % 7) + 1),
-                habit: habit,
-                minutesBefore: 10,
-                scheduledDate: dt10,
-                color: habitColor,
-              );
-            }
-            final dt5 = DateTime(targetDate.year, targetDate.month,
-                targetDate.day, times.hour5, times.minute5);
-            if (dt5.isAfter(now)) {
-              await _createDateSpecificReminder(
-                id: generateNotificationId(habit.id, 5, (d % 7) + 1),
-                habit: habit,
-                minutesBefore: 5,
-                scheduledDate: dt5,
-                color: habitColor,
-              );
-            }
-          }
-        }
-      } else {
-        // Daily (default) — repeats daily at hour & minute
-        await _createReminder(
-          id: generateNotificationId(habit.id, 10, 0),
-          habit: habit,
-          minutesBefore: 10,
-          hour: times.hour10,
-          minute: times.minute10,
-          color: habitColor,
-          weekday: null,
-          repeats: true,
-        );
-
-        await _createReminder(
-          id: generateNotificationId(habit.id, 5, 0),
-          habit: habit,
-          minutesBefore: 5,
-          hour: times.hour5,
-          minute: times.minute5,
-          color: habitColor,
-          weekday: null,
-          repeats: true,
-        );
+    if (force) {
+      final idsToClear = _slotHabitIds.entries
+          .where((e) => e.value == habit.id)
+          .map((e) => e.key)
+          .toList();
+      for (final id in idsToClear) {
+        _scheduledFingerprints.remove(id);
       }
-    } catch (e) {
-      debugPrint(
-          '[HabitNotificationService] Error scheduling habit reminders for ${habit.name}: $e');
+    }
+
+    if (isDatabaseInitialized) {
+      await refillQueue();
+    } else {
+      await syncHabitReminders([habit]);
     }
   }
 
-  /// Helper to create repeating or weekday reminder
-  Future<void> _createReminder({
-    required int id,
-    required Habit habit,
-    required int minutesBefore,
-    required int hour,
-    required int minute,
-    required Color color,
-    int? weekday,
-    required bool repeats,
-  }) async {
-    final title = minutesBefore == 10
+  /// Internal helper to schedule a single-shot exact occurrence.
+  Future<void> _scheduleOccurrence(HabitOccurrence slot) async {
+    final habit = slot.habit;
+    final habitColor = parseHex(habit.color);
+
+    final title = slot.minutesBefore == 10
         ? 'Reminder: ${habit.name} in 10 minutes'
         : 'Starting soon: ${habit.name} in 5 minutes';
 
-    final body = minutesBefore == 10
+    final body = slot.minutesBefore == 10
         ? '"${habit.name}" is scheduled for ${habit.remindTime}. Get ready to start and earn +${habit.targetValue} XP!'
         : 'Almost time for "${habit.name}" (${habit.remindTime}). Start preparing now!';
 
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
-        id: id,
+        id: slot.id,
         channelKey: channelKey,
         title: title,
         body: body,
-        color: color,
+        color: habitColor,
         notificationLayout: NotificationLayout.Default,
         category: NotificationCategory.Reminder,
         wakeUpScreen: true,
@@ -328,8 +476,12 @@ class HabitNotificationService {
           'type': 'habit_reminder',
           'habit_id': habit.id,
           'habit_name': habit.name,
-          'minutes_before': '$minutesBefore',
+          'user_id': currentUserId,
+          'minutes_before': '${slot.minutesBefore}',
           'remind_time': habit.remindTime ?? '',
+          'date_key': '${slot.dateKey}',
+          'is_follow_up': slot.isFollowUp ? 'true' : 'false',
+          'is_checkpoint': slot.isCheckpoint ? 'true' : 'false',
         },
       ),
       actionButtons: [
@@ -345,70 +497,11 @@ class HabitNotificationService {
         ),
       ],
       schedule: NotificationCalendar(
-        weekday: weekday,
-        hour: hour,
-        minute: minute,
-        second: 0,
-        millisecond: 0,
-        repeats: repeats,
-        allowWhileIdle: true,
-        preciseAlarm: true,
-      ),
-    );
-  }
-
-  /// Helper to create specific date reminder (e.g. for every 3 days)
-  Future<void> _createDateSpecificReminder({
-    required int id,
-    required Habit habit,
-    required int minutesBefore,
-    required DateTime scheduledDate,
-    required Color color,
-  }) async {
-    final title = minutesBefore == 10
-        ? 'Reminder: ${habit.name} in 10 minutes'
-        : 'Starting soon: ${habit.name} in 5 minutes';
-
-    final body = minutesBefore == 10
-        ? '"${habit.name}" is scheduled for ${habit.remindTime}. Get ready to start and earn +${habit.targetValue} XP!'
-        : 'Almost time for "${habit.name}" (${habit.remindTime}). Start preparing now!';
-
-    await AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: id,
-        channelKey: channelKey,
-        title: title,
-        body: body,
-        color: color,
-        notificationLayout: NotificationLayout.Default,
-        category: NotificationCategory.Reminder,
-        wakeUpScreen: true,
-        payload: {
-          'type': 'habit_reminder',
-          'habit_id': habit.id,
-          'habit_name': habit.name,
-          'minutes_before': '$minutesBefore',
-          'remind_time': habit.remindTime ?? '',
-        },
-      ),
-      actionButtons: [
-        NotificationActionButton(
-          key: 'MARK_DONE',
-          label: 'Mark as Completed',
-          actionType: ActionType.Default,
-        ),
-        NotificationActionButton(
-          key: 'OPEN_HABITS',
-          label: 'Open Axis',
-          actionType: ActionType.Default,
-        ),
-      ],
-      schedule: NotificationCalendar(
-        year: scheduledDate.year,
-        month: scheduledDate.month,
-        day: scheduledDate.day,
-        hour: scheduledDate.hour,
-        minute: scheduledDate.minute,
+        year: slot.triggerTime.year,
+        month: slot.triggerTime.month,
+        day: slot.triggerTime.day,
+        hour: slot.triggerTime.hour,
+        minute: slot.triggerTime.minute,
         second: 0,
         millisecond: 0,
         repeats: false,
@@ -418,16 +511,38 @@ class HabitNotificationService {
     );
   }
 
+  /// Cancels all scheduled habit reminders and dismisses any active habit notifications
+  /// across all accounts (used on sign-out and account switching).
+  Future<void> cancelAllHabitReminders() async {
+    try {
+      _scheduledFingerprints.clear();
+      _slotHabitIds.clear();
+      await AwesomeNotifications().cancelSchedulesByChannelKey(channelKey);
+      await AwesomeNotifications().cancelNotificationsByChannelKey(channelKey);
+    } catch (e) {
+      debugPrint('[HabitNotificationService] cancelAllHabitReminders error: $e');
+    }
+  }
+
   /// Cancels all scheduled reminder notifications for a specific habit ID.
   Future<void> cancelHabitReminders(String habitId) async {
     try {
-      // Daily (weekday 0)
+      final idsToRemove = _slotHabitIds.entries
+          .where((e) => e.value == habitId)
+          .map((e) => e.key)
+          .toList();
+
+      for (final id in idsToRemove) {
+        _scheduledFingerprints.remove(id);
+        _slotHabitIds.remove(id);
+        await AwesomeNotifications().cancel(id);
+      }
+
+      // Legacy IDs
       await AwesomeNotifications()
           .cancel(generateNotificationId(habitId, 10, 0));
       await AwesomeNotifications()
           .cancel(generateNotificationId(habitId, 5, 0));
-
-      // Weekdays / multi-day
       for (int w = 1; w <= 7; w++) {
         await AwesomeNotifications()
             .cancel(generateNotificationId(habitId, 10, w));
@@ -440,21 +555,48 @@ class HabitNotificationService {
     }
   }
 
-  /// Dismisses delivered reminder notifications from the system status tray
-  /// when a habit is completed today.
+  /// Cancels pending alarms and dismisses delivered reminder notifications from the system status tray
+  /// when a habit is completed today, and rolls the queue over to tomorrow.
   Future<void> onHabitCompletedToday(String habitId) async {
     try {
-      // Dismiss daily
-      await AwesomeNotifications()
-          .dismiss(generateNotificationId(habitId, 10, 0));
-      await AwesomeNotifications()
-          .dismiss(generateNotificationId(habitId, 5, 0));
+      final now = DateTime.now();
+      final dateKey = toDateKey(now);
+      final todayWeekday = now.weekday;
 
-      final todayWeekday = DateTime.now().weekday;
-      await AwesomeNotifications()
-          .dismiss(generateNotificationId(habitId, 10, todayWeekday));
-      await AwesomeNotifications()
-          .dismiss(generateNotificationId(habitId, 5, todayWeekday));
+      final occId10 = generateOccurrenceId(
+        habitId: habitId,
+        dateKey: dateKey,
+        isFollowUp: false,
+      );
+      final occId5 = generateOccurrenceId(
+        habitId: habitId,
+        dateKey: dateKey,
+        isFollowUp: true,
+      );
+
+      final legacyId10 = generateNotificationId(habitId, 10, todayWeekday);
+      final legacyId5 = generateNotificationId(habitId, 5, todayWeekday);
+      final legacyId10Daily = generateNotificationId(habitId, 10, 0);
+      final legacyId5Daily = generateNotificationId(habitId, 5, 0);
+
+      final idsToCancel = [
+        occId10,
+        occId5,
+        legacyId10,
+        legacyId5,
+        legacyId10Daily,
+        legacyId5Daily,
+      ];
+
+      for (final id in idsToCancel) {
+        _scheduledFingerprints.remove(id);
+        _slotHabitIds.remove(id);
+        await AwesomeNotifications().cancelSchedule(id);
+        await AwesomeNotifications().dismiss(id);
+      }
+
+      // Daisy-chain roll over to tomorrow: trigger queue refill to dynamically push upcoming slots
+      unawaited(refillQueue());
     } catch (e) {
       debugPrint(
           '[HabitNotificationService] Error dismissing completed habit notifications: $e');

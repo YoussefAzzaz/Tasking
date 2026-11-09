@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/note_repository.dart';
 import 'package:axis/data/note_category_repository.dart';
 import 'package:axis/ui/common/category_filter_slider.dart';
@@ -44,6 +45,8 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
   }
 
   void _confirmDeleteCategory(BuildContext context) {
+    final catName = context.l10n.localizedNoteCategory(widget.category.name);
+    final isArabic = context.isArabic;
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -53,17 +56,22 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
           side: const BorderSide(color: AxisColors.borderPrimary),
         ),
         title: Text(
-          'Delete "${widget.category.name}"?',
+          isArabic ? 'حذف "$catName"؟' : 'Delete "${widget.category.name}"?',
           style: const TextStyle(color: AxisColors.textHigh),
         ),
         content: Text(
-          'Are you sure you want to delete the "${widget.category.name}" category? Notes in this category will remain safe in General Notes.',
+          isArabic
+              ? 'هل أنت متأكد من حذف فئة "$catName"؟ ستبقى الملاحظات بأمان ضمن الملاحظات العامة.'
+              : 'Are you sure you want to delete the "${widget.category.name}" category? Notes in this category will remain safe in General Notes.',
           style: const TextStyle(color: AxisColors.textMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: AxisColors.textDim)),
+            child: Text(
+              isArabic ? 'إلغاء' : 'Cancel',
+              style: const TextStyle(color: AxisColors.textDim),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
@@ -71,7 +79,10 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
               Navigator.pop(dialogCtx);
               widget.onDeleteCategory?.call();
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: Text(
+              isArabic ? 'حذف' : 'Delete',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -145,7 +156,7 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  widget.category.name,
+                                  context.l10n.localizedNoteCategory(widget.category.name),
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
@@ -175,7 +186,9 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            count == 1 ? '1 entry' : '$count entries',
+                            context.isArabic
+                                ? (count == 1 ? 'تدوينة واحدة' : '$count تدوينات')
+                                : (count == 1 ? '1 entry' : '$count entries'),
                             style: const TextStyle(
                               fontSize: 11,
                               color: AxisColors.textDim,
@@ -188,7 +201,9 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
                     // Quick "+ Add Note" Action
                     IconButton(
                       icon: Icon(Icons.add_rounded, size: 18, color: widget.color),
-                      tooltip: 'Add note to ${widget.category.name}',
+                      tooltip: context.isArabic
+                          ? 'إضافة ملاحظة إلى ${context.l10n.localizedNoteCategory(widget.category.name)}'
+                          : 'Add note to ${widget.category.name}',
                       visualDensity: VisualDensity.compact,
                       onPressed: widget.onAddNote,
                     ),
@@ -198,7 +213,7 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
                       IconButton(
                         icon: const Icon(Icons.delete_outline_rounded,
                             size: 18, color: AxisColors.textDim),
-                        tooltip: 'Delete category',
+                        tooltip: context.isArabic ? 'حذف الفئة' : 'Delete category',
                         visualDensity: VisualDensity.compact,
                         onPressed: () => _confirmDeleteCategory(context),
                       ),
@@ -238,7 +253,9 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             child: Center(
                               child: Text(
-                                'No notes in ${widget.category.name} yet',
+                                context.isArabic
+                                    ? 'لا توجد ملاحظات في ${context.l10n.localizedNoteCategory(widget.category.name)} بعد'
+                                    : 'No notes in ${widget.category.name} yet',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AxisColors.textDim,

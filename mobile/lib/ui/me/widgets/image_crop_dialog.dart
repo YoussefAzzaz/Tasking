@@ -135,6 +135,7 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final size = MediaQuery.of(context).size;
     final apertureSize = math.min(size.width * 0.76, 280.0);
 
@@ -154,23 +155,25 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
                     onPressed: _isProcessing
                         ? null
                         : () => Navigator.of(context).pop(null),
-                    tooltip: 'Cancel',
+                    tooltip: isArabic ? 'إلغاء' : 'Cancel',
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Crop & Reframe',
-                          style: TextStyle(
+                        Text(
+                          isArabic ? 'قص وتعديل الإطار' : 'Crop & Reframe',
+                          style: const TextStyle(
                             color: AxisColors.textHigh,
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          'Pinch or drag to align avatar in frame',
+                          isArabic
+                              ? 'قرّب أو اسحب لمحاذاة الصورة في الإطار'
+                              : 'Pinch or drag to align avatar in frame',
                           style: TextStyle(
                             color: AxisColors.textMuted.withValues(alpha: 0.8),
                             fontSize: 12,
@@ -183,9 +186,9 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
                     onPressed: _isProcessing ? null : _reset,
                     icon: const Icon(Icons.refresh_rounded,
                         size: 16, color: AxisColors.primarySoft),
-                    label: const Text(
-                      'Reset',
-                      style: TextStyle(
+                    label: Text(
+                      isArabic ? 'إعادة ضبط' : 'Reset',
+                      style: const TextStyle(
                         color: AxisColors.primarySoft,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
@@ -311,7 +314,7 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
                         icon: const Icon(Icons.rotate_right_rounded,
                             size: 16, color: AxisColors.primarySoft),
                         label: Text(
-                          'Rotate ${_rotation * 90}°',
+                          isArabic ? 'تدوير ${_rotation * 90}°' : 'Rotate ${_rotation * 90}°',
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -348,7 +351,7 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
                       onPressed: _isProcessing
                           ? null
                           : () => Navigator.of(context).pop(null),
-                      child: const Text('Cancel'),
+                      child: Text(isArabic ? 'إلغاء' : 'Cancel'),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -378,7 +381,9 @@ class _ImageCropDialogState extends State<ImageCropDialog> {
                             )
                           : const Icon(Icons.check_rounded, size: 18),
                       label: Text(
-                        _isProcessing ? 'Processing...' : 'Apply & Save',
+                        _isProcessing
+                            ? (isArabic ? 'جاري المعالجة...' : 'Processing...')
+                            : (isArabic ? 'تطبيق وحفظ' : 'Apply & Save'),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.4,

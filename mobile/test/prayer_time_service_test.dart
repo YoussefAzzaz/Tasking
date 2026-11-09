@@ -7,7 +7,7 @@ void main() {
   group('Islamic Prayer Times & Habits Service Tests', () {
     test('adhan_dart accurately calculates 5 daily prayers for coordinates', () {
       // Testing with coordinates for Algiers/Oran (Lat: 35.7065, Lng: -0.6292)
-      final coordinates = Coordinates(35.7065, -0.6292);
+      const coordinates = Coordinates(35.7065, -0.6292);
       final testDate = DateTime(2026, 10, 20);
       final params = CalculationMethodParameters.tunisia();
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/project_big_task_card.dart';
@@ -28,7 +29,7 @@ class ProjectsTab extends StatefulWidget {
 class _ProjectsTabState extends State<ProjectsTab> {
   late final Stream<List<Project>> _projectsStream;
   late final Stream<List<Task>> _tasksStream;
-  static final Set<String> _locallyDeletedProjects = {};
+  final Set<String> _locallyDeletedProjects = {};
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -75,7 +76,9 @@ class _ProjectsTabState extends State<ProjectsTab> {
             ),
             const SizedBox(height: 14),
             Text(
-              'No tasks found for "$query"',
+              context.isArabic
+                  ? 'لم يتم العثور على مهام لـ "$query"'
+                  : 'No tasks found for "$query"',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: AxisColors.textHigh,
@@ -84,10 +87,12 @@ class _ProjectsTabState extends State<ProjectsTab> {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Try checking your spelling or search with a different keyword.',
+            Text(
+              context.isArabic
+                  ? 'تحقق من الإملاء أو ابحث بكلمة مفتاحية مختلفة.'
+                  : 'Try checking your spelling or search with a different keyword.',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AxisColors.textDim,
                 fontSize: 12,
               ),
@@ -105,9 +110,9 @@ class _ProjectsTabState extends State<ProjectsTab> {
               ),
               icon: const Icon(Icons.close_rounded,
                   size: 14, color: AxisColors.secondary),
-              label: const Text(
-                'Clear Search',
-                style: TextStyle(
+              label: Text(
+                context.isArabic ? 'مسح البحث' : 'Clear Search',
+                style: const TextStyle(
                   color: AxisColors.secondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -222,7 +227,7 @@ class _ProjectsTabState extends State<ProjectsTab> {
             final sliderItems = <CategorySliderItem>[
               CategorySliderItem(
                 id: 'all',
-                label: 'All Projects',
+                label: context.isArabic ? 'جميع المشاريع' : 'All Projects',
                 iconData: Icons.hub_rounded,
                 color: AxisColors.secondary,
                 count: allTasks.length,
@@ -240,7 +245,7 @@ class _ProjectsTabState extends State<ProjectsTab> {
               if (unassignedTasks.isNotEmpty)
                 CategorySliderItem(
                   id: 'inbox_general',
-                  label: 'Inbox & General',
+                  label: context.isArabic ? 'الوارد والعام' : 'Inbox & General',
                   iconData: Icons.inbox_rounded,
                   color: const Color(0xFF64748B),
                   count: unassignedTasks.length,
@@ -314,16 +319,16 @@ class _ProjectsTabState extends State<ProjectsTab> {
                       children: [
                         Expanded(
                           child: Row(
-                            children: const [
-                              Icon(Icons.hub_rounded,
+                            children: [
+                              const Icon(Icons.hub_rounded,
                                   color: AxisColors.secondary, size: 18),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'PROJECT OBJECTIVES',
+                                  context.isArabic ? 'أهداف المشاريع' : 'PROJECT OBJECTIVES',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                     color: AxisColors.secondary,
@@ -348,11 +353,14 @@ class _ProjectsTabState extends State<ProjectsTab> {
                           ),
                           icon: const Icon(Icons.add_rounded,
                               size: 14, color: AxisColors.secondary),
-                          label: const Text('Add Project',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AxisColors.secondary)),
+                          label: Text(
+                            context.isArabic ? 'إضافة مشروع' : 'Add Project',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AxisColors.secondary,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -365,7 +373,7 @@ class _ProjectsTabState extends State<ProjectsTab> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: CyberSearchBar(
                     controller: _searchController,
-                    hintText: 'Search tasks or projects...',
+                    hintText: context.isArabic ? 'بحث في المهام أو المشاريع...' : 'Search tasks or projects...',
                     accentColor: AxisColors.secondary,
                     onChanged: (val) {
                       setState(() {
@@ -426,22 +434,24 @@ class _ProjectsTabState extends State<ProjectsTab> {
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.folder_open_rounded, size: 36, color: AxisColors.textDim),
-                          SizedBox(height: 12),
+                        children: [
+                          const Icon(Icons.folder_open_rounded, size: 36, color: AxisColors.textDim),
+                          const SizedBox(height: 12),
                           Text(
-                            'No Projects Created Yet',
-                            style: TextStyle(
+                            context.isArabic ? 'لم يتم إنشاء مشاريع بعد' : 'No Projects Created Yet',
+                            style: const TextStyle(
                               color: AxisColors.textHigh,
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
                             ),
                           ),
-                          SizedBox(height: 6),
+                          const SizedBox(height: 6),
                           Text(
-                            'Tap "Add Project" above to create your first custom project.',
+                            context.isArabic
+                                ? 'انقر على "إضافة مشروع" أعلاه لإنشاء مشروعك المخصص الأول.'
+                                : 'Tap "Add Project" above to create your first custom project.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: AxisColors.textDim,
                               fontSize: 12,
                             ),
@@ -498,7 +508,7 @@ class _ProjectsTabState extends State<ProjectsTab> {
                       child: ProjectBigTaskCard(
                         project: Project(
                           id: 'inbox_general',
-                          name: 'Inbox & General Tasks',
+                          name: context.isArabic ? 'الوارد والمهام العامة' : 'Inbox & General Tasks',
                           color: '#64748B',
                         ),
                         color: const Color(0xFF64748B),

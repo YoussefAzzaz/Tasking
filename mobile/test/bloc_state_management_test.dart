@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/core/bloc/blocs.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
+import 'package:axis/core/l10n/locale_service.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/task_filter_sheet.dart';
 
@@ -165,6 +170,98 @@ void main() {
       ));
 
       await expectation;
+    });
+  });
+
+  group('LocaleCubit & LocaleContextX Tests', () {
+    late LocaleCubit localeCubit;
+
+    setUp(() {
+      LocaleService().setLocale(const Locale('ar'));
+      localeCubit = LocaleCubit();
+    });
+
+    tearDown(() {
+      localeCubit.close();
+    });
+
+    test('initial state defaults to Arabic with isArabic=true and isEnglish=false', () {
+      expect(localeCubit.state, equals(const Locale('ar')));
+      expect(localeCubit.isArabic, isTrue);
+      expect(localeCubit.isEnglish, isFalse);
+    });
+
+    test('setLocale emits new locale and updates helper flags', () async {
+      await localeCubit.setLocale(const Locale('en'));
+      expect(localeCubit.state, equals(const Locale('en')));
+      expect(localeCubit.isArabic, isFalse);
+      expect(localeCubit.isEnglish, isTrue);
+      expect(LocaleService().isArabic, isFalse);
+    });
+
+    test('toggleLanguage alternates between en and ar reactively', () async {
+      expect(localeCubit.isArabic, isTrue);
+
+      await localeCubit.toggleLanguage();
+      expect(localeCubit.state, equals(const Locale('en')));
+      expect(localeCubit.isArabic, isFalse);
+
+      await localeCubit.toggleLanguage();
+      expect(localeCubit.state, equals(const Locale('ar')));
+      expect(localeCubit.isArabic, isTrue);
+    });
+
+    test('syncs state when LocaleService localeNotifier updates externally', () async {
+      expect(localeCubit.state, equals(const Locale('ar')));
+
+      await LocaleService().setLocale(const Locale('en'));
+      expect(localeCubit.state, equals(const Locale('en')));
+      expect(localeCubit.isEnglish, isTrue);
+    });
+
+    testWidgets('LocaleCubit updates MaterialApp and BuildContext.isArabic reactively', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider<LocaleCubit>(
+          create: (_) => LocaleCubit(),
+          child: BlocBuilder<LocaleCubit, Locale>(
+            builder: (context, locale) {
+              return MaterialApp(
+                locale: locale,
+                supportedLocales: const [Locale('en'), Locale('ar')],
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                home: Scaffold(
+                  body: Builder(
+                    builder: (context) {
+                      return Column(
+                        children: [
+                          Text(context.isArabic ? 'MODE_ARABIC' : 'MODE_ENGLISH'),
+                          ElevatedButton(
+                            onPressed: () => context.toggleLanguage(),
+                            child: const Text('TOGGLE_LANG'),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('MODE_ARABIC'), findsOneWidget);
+
+      await tester.tap(find.text('TOGGLE_LANG'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('MODE_ENGLISH'), findsOneWidget);
     });
   });
 }

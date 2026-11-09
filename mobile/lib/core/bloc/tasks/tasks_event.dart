@@ -22,6 +22,15 @@ class TaskUpdatedEvent extends TasksEvent {
   List<Object?> get props => [tasks];
 }
 
+class TaskLoadFailedEvent extends TasksEvent {
+  final String error;
+
+  const TaskLoadFailedEvent(this.error);
+
+  @override
+  List<Object?> get props => [error];
+}
+
 class CreateTaskRequested extends TasksEvent {
   final Task task;
 

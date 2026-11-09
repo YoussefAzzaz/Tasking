@@ -22,7 +22,7 @@ export 'package:axis/data/powersync/app_schema.dart';
 export 'package:axis/data/powersync/supabase_connector.dart';
 
 // Alias for existing callers
-final Schema schema = appSchema;
+const Schema schema = appSchema;
 
 PowerSyncDatabase? _dbInstance;
 
@@ -39,7 +39,6 @@ PowerSyncDatabase get db {
 
 set db(PowerSyncDatabase value) {
   _dbInstance = value;
-  _dbInitialized = true;
 }
 
 bool _dbInitialized = false;
@@ -97,26 +96,28 @@ Future<void> purgeForeignUserData() async {
   if (uid.isEmpty || uid == 'local_guest') return;
 
   try {
-    // Claim all local orphan records that were created without a user_id OR created in offline guest mode
-    const orphanClause = "WHERE user_id IS NULL OR user_id = '' OR user_id = 'local_guest'";
+    // Atomically claim all local orphan records in a transaction to prevent partial state corruption
+    await db.writeTransaction((tx) async {
+      const orphanClause = "WHERE user_id IS NULL OR user_id = '' OR user_id = 'local_guest'";
 
-    await db.execute("UPDATE tasks SET user_id = ? $orphanClause", [uid]);
-    await db.execute("UPDATE projects SET user_id = ? $orphanClause", [uid]);
-    await db.execute("UPDATE tags SET user_id = ? $orphanClause", [uid]);
-    await db.execute("UPDATE habits SET user_id = ? $orphanClause", [uid]);
-    await db.execute("UPDATE habit_logs SET user_id = ? $orphanClause", [uid]);
-    await db.execute("UPDATE notes SET user_id = ? $orphanClause", [uid]);
-    await db.execute("UPDATE focus_sessions SET user_id = ? $orphanClause", [uid]);
-    await db.execute("UPDATE logs SET user_id = ? $orphanClause", [uid]);
-    await db.execute("UPDATE habit_categories SET user_id = ? $orphanClause", [uid]);
-    try {
-      await db.execute("UPDATE note_categories SET user_id = ? $orphanClause", [uid]);
-    } catch (_) {}
-    await db.execute("UPDATE prayers SET user_id = ? $orphanClause", [uid]);
-    try {
-      await db.execute("UPDATE daily_prayer_status SET user_id = ? $orphanClause", [uid]);
-    } catch (_) {}
-    await db.execute("UPDATE user_profiles SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE tasks SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE projects SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE tags SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE habits SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE habit_logs SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE notes SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE focus_sessions SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE logs SET user_id = ? $orphanClause", [uid]);
+      await tx.execute("UPDATE habit_categories SET user_id = ? $orphanClause", [uid]);
+      try {
+        await tx.execute("UPDATE note_categories SET user_id = ? $orphanClause", [uid]);
+      } catch (_) {}
+      await tx.execute("UPDATE prayers SET user_id = ? $orphanClause", [uid]);
+      try {
+        await tx.execute("UPDATE daily_prayer_status SET user_id = ? $orphanClause", [uid]);
+      } catch (_) {}
+      await tx.execute("UPDATE user_profiles SET user_id = ? $orphanClause", [uid]);
+    });
   } catch (e) {
     debugPrint('[PowerSync] Error in purgeForeignUserData: $e');
   }
@@ -167,8 +168,8 @@ Future<void> openDatabase() async {
 
   _cleanupConflictingLegacyTables(path);
 
-  // 0. Expose hidden PowerSync logs through Logger.root
-  Logger.root.level = Level.ALL;
+  // 0. Expose PowerSync logs appropriately based on build mode
+  Logger.root.level = kReleaseMode ? Level.WARNING : Level.INFO;
   Logger.root.onRecord.listen((record) {
     if (record.loggerName.toLowerCase().contains('powersync')) {
       final lvl = record.level.name;
@@ -190,6 +191,11 @@ Future<void> openDatabase() async {
   db.statusStream.listen((status) {
     if (status.anyError != null) {
       debugPrint('[PowerSync Status Error] downloadError: ${status.downloadError}, uploadError: ${status.uploadError}');
+      final dlErr = status.downloadError?.toString() ?? '';
+      if (dlErr.contains('CredentialsException') || dlErr.contains('Not logged in')) {
+        debugPrint('[PowerSync] Detected CredentialsException in statusStream. Attempting automatic session recovery...');
+        unawaited(ensurePowerSyncConnected(forceReconnect: true));
+      }
     }
     if (status.connected) {
       debugPrint('[PowerSync Status] Connected and sync stream active.');
@@ -226,62 +232,75 @@ Future<void> openDatabase() async {
   }
 
   // Connect to Supabase
-  await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    publishableKey: AppConfig.supabaseAnonKey,
-  );
+  try {
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      publishableKey: AppConfig.supabaseAnonKey,
+    );
+  } catch (e) {
+    debugPrint('[PowerSync] Supabase.initialize notice: $e');
+  }
 
   final connector = createSupabaseConnector();
 
   // PowerSync runs 100% locally with SQLite for full offline-first functionality.
   // We only engage remote sync streaming when an active authenticated session exists.
-  Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
-    final session = data.session;
-    final event = data.event;
-    if (session != null && !session.isExpired) {
-      setCachedUserId(session.user.id);
-      if (!db.connected) {
-        db.connect(connector: connector);
-      }
-      await purgeForeignUserData();
-      await syncGlobalUserLevel();
-    } else if (session != null && session.isExpired) {
-      setCachedUserId(session.user.id);
-      if (session.refreshToken != null && session.refreshToken!.isNotEmpty) {
-        try {
-          final res = await Supabase.instance.client.auth.refreshSession();
-          final refreshed = res.session;
-          if (refreshed != null && !refreshed.isExpired) {
-            setCachedUserId(refreshed.user.id);
-            if (!db.connected) {
-              db.connect(connector: connector);
+  try {
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+      final session = data.session;
+      final event = data.event;
+      if (session != null && !session.isExpired) {
+        setCachedUserId(session.user.id);
+        if (!db.connected) {
+          db.connect(connector: connector);
+        }
+        await purgeForeignUserData();
+        await syncGlobalUserLevel();
+      } else if (session != null && session.isExpired) {
+        setCachedUserId(session.user.id);
+        if (session.refreshToken != null && session.refreshToken!.isNotEmpty) {
+          try {
+            final res = await Supabase.instance.client.auth.refreshSession();
+            final refreshed = res.session;
+            if (refreshed != null && !refreshed.isExpired) {
+              setCachedUserId(refreshed.user.id);
+              if (!db.connected) {
+                db.connect(connector: connector);
+              }
+              await purgeForeignUserData();
+              await syncGlobalUserLevel();
+              return;
             }
-            await purgeForeignUserData();
-            await syncGlobalUserLevel();
-            return;
+          } catch (e) {
+            debugPrint('[PowerSync] Auth refresh on state change notice: $e');
           }
-        } catch (e) {
-          debugPrint('[PowerSync] Auth refresh on state change notice: $e');
+        }
+        if (db.connected) {
+          try {
+            await db.disconnect();
+          } catch (_) {}
+        }
+      } else if (event == AuthChangeEvent.signedOut) {
+        setCachedUserId('');
+        if (db.connected) {
+          try {
+            await db.disconnect();
+          } catch (e) {
+            debugPrint('[PowerSync] db.disconnect on auth change error: $e');
+          }
         }
       }
-      if (db.connected) {
-        try {
-          await db.disconnect();
-        } catch (_) {}
-      }
-    } else if (event == AuthChangeEvent.signedOut) {
-      setCachedUserId('');
-      if (db.connected) {
-        try {
-          await db.disconnect();
-        } catch (e) {
-          debugPrint('[PowerSync] db.disconnect on auth change error: $e');
-        }
-      }
-    }
-  });
+    });
+  } catch (e) {
+    debugPrint('[PowerSync] Supabase auth state change listener notice: $e');
+  }
 
-  final startupSession = Supabase.instance.client.auth.currentSession;
+  Session? startupSession;
+  try {
+    startupSession = Supabase.instance.client.auth.currentSession;
+  } catch (_) {
+    startupSession = null;
+  }
   if (startupSession != null) {
     setCachedUserId(startupSession.user.id);
     if (!startupSession.isExpired && !db.connected) {
@@ -306,16 +325,16 @@ Future<void> openDatabase() async {
     }
   }
 
-  _dbInitialized = true;
-
   await initCustomLocalTables();
   await HabitRepository.ensureStateLoaded();
   await purgeForeignUserData();
   await syncGlobalUserLevel();
+
+  _dbInitialized = true;
 }
 
 Future<void> initCustomLocalTables() async {
-  if (!_dbInitialized) return;
+  if (_dbInstance == null) return;
   try {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS local_auth_session (
@@ -490,7 +509,7 @@ Future<void> resetAllData() async {
 }
 
 /// Verifies whether PowerSync is currently connected and reconnects if credentials exist.
-Future<void> ensurePowerSyncConnected() async {
+Future<void> ensurePowerSyncConnected({bool forceReconnect = false}) async {
   if (!_dbInitialized) return;
   try {
     final client = Supabase.instance.client;
@@ -503,9 +522,17 @@ Future<void> ensurePowerSyncConnected() async {
         debugPrint('[PowerSync] ensurePowerSyncConnected refresh notice: $e');
       }
     }
-    if (session != null && !session.isExpired && !db.connected) {
+    if (session != null && !session.isExpired) {
       setCachedUserId(session.user.id);
-      db.connect(connector: createSupabaseConnector());
+      final hasSyncError = db.currentStatus.anyError != null;
+      if (!db.connected || forceReconnect || hasSyncError) {
+        if (db.connected && (forceReconnect || hasSyncError)) {
+          try {
+            await db.disconnect();
+          } catch (_) {}
+        }
+        db.connect(connector: createSupabaseConnector());
+      }
       await purgeForeignUserData();
       await syncGlobalUserLevel();
     }

@@ -304,7 +304,7 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                                 border: Border.all(color: AxisColors.primarySoft.withValues(alpha: 0.5)),
                               ),
                               child: Text(
-                                'LVL $_level',
+                                '${isArabic ? "المستوى" : "LVL"} $_level',
                                 style: GoogleFonts.spaceGrotesk(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w800,
@@ -316,7 +316,13 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          _title,
+                          isArabic
+                              ? (_title.toLowerCase() == 'specialist'
+                                  ? 'أخصائي'
+                                  : _title.toLowerCase() == 'operator'
+                                      ? 'مشغل'
+                                      : _title)
+                              : _title,
                           style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
                         ),
                         const SizedBox(height: 8),
@@ -335,11 +341,11 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'CODE: $_friendCode',
+                                  '${isArabic ? "الرمز:" : "CODE:"} $_friendCode',
                                   style: GoogleFonts.spaceGrotesk(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.6,
+                                    letterSpacing: isArabic ? 0.0 : 0.6,
                                     color: AxisColors.secondarySoft,
                                   ),
                                 ),
@@ -367,7 +373,7 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                         child: _buildMetricTile(
                           icon: Icons.military_tech_rounded,
                           iconColor: AxisColors.primarySoft,
-                          title: 'LVL $_level',
+                          title: '${isArabic ? "المستوى" : "LVL"} $_level',
                           subtitle: isArabic ? 'المستوى' : 'Level',
                         ),
                       ),

@@ -94,7 +94,7 @@ void main() {
       expect(step5.isPrayerDone('asr'), isFalse);
 
       // Step 6: User B unchecks Fajr. All are now unchecked.
-      final step6 = DailyPrayerStatus(
+      const step6 = DailyPrayerStatus(
         id: 'prs_userB_2026-11-04',
         userId: 'userB',
         date: '2026-11-04',

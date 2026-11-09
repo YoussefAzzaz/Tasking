@@ -23,5 +23,8 @@
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
 
--keepattributes *Annotation*,Signature,Exception,InnerClasses
+# Supabase Auth Storage & App Links
+-keep class io.flutter.plugins.sharedpreferences.** { *; }
+-keep class com.llfbandit.app_links.** { *; }
 
+-keepattributes *Annotation*,Signature,Exception,InnerClasses

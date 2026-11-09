@@ -61,17 +61,25 @@ class FocusRepository {
   /// Watches the total completed focus minutes logged for today.
   Stream<int> watchTodayFocusMinutes() {
     if (!isDatabaseInitialized) return Stream.value(0);
-    final today = DateTime.now().toUtc();
-    final startOfDay = DateTime.utc(today.year, today.month, today.day).toIso8601String();
+    final now = DateTime.now();
+    final localStartOfDay = DateTime(now.year, now.month, now.day);
+    final startOfDay = localStartOfDay.toUtc().toIso8601String();
+    final uid = currentUserId;
 
-    return db.watch(
-      '''
-      SELECT COALESCE(SUM(actual_min), 0) AS total_min
-      FROM focus_sessions
-      WHERE started_at >= ?
-      ''',
-      parameters: [startOfDay],
-    ).map((rows) {
+    final query = uid.isNotEmpty
+        ? '''
+          SELECT COALESCE(SUM(actual_min), 0) AS total_min
+          FROM focus_sessions
+          WHERE completed = 1 AND started_at >= ? AND (user_id = ? OR user_id IS NULL OR user_id = '')
+          '''
+        : '''
+          SELECT COALESCE(SUM(actual_min), 0) AS total_min
+          FROM focus_sessions
+          WHERE completed = 1 AND started_at >= ?
+          ''';
+    final params = uid.isNotEmpty ? [startOfDay, uid] : [startOfDay];
+
+    return db.watch(query, parameters: params).map((rows) {
       if (rows.isEmpty) return 0;
       return (rows.first['total_min'] as num?)?.toInt() ?? 0;
     }).handleError((e) {
@@ -83,19 +91,29 @@ class FocusRepository {
   /// Watches the focus sessions recorded today, joining task title if available.
   Stream<List<Map<String, dynamic>>> watchTodayFocusSessions() {
     if (!isDatabaseInitialized) return Stream.value([]);
-    final today = DateTime.now().toUtc();
-    final startOfDay = DateTime.utc(today.year, today.month, today.day).toIso8601String();
+    final now = DateTime.now();
+    final localStartOfDay = DateTime(now.year, now.month, now.day);
+    final startOfDay = localStartOfDay.toUtc().toIso8601String();
+    final uid = currentUserId;
 
-    return db.watch(
-      '''
-      SELECT fs.id, fs.task_id, fs.actual_min, fs.started_at, fs.ended_at, fs.completed, t.title AS task_title
-      FROM focus_sessions fs
-      LEFT JOIN tasks t ON fs.task_id = t.id
-      WHERE fs.started_at >= ?
-      ORDER BY fs.started_at DESC
-      ''',
-      parameters: [startOfDay],
-    ).map((rows) {
+    final query = uid.isNotEmpty
+        ? '''
+          SELECT fs.id, fs.task_id, fs.actual_min, fs.started_at, fs.ended_at, fs.completed, t.title AS task_title
+          FROM focus_sessions fs
+          LEFT JOIN tasks t ON fs.task_id = t.id
+          WHERE fs.started_at >= ? AND (fs.user_id = ? OR fs.user_id IS NULL OR fs.user_id = '')
+          ORDER BY fs.started_at DESC
+          '''
+        : '''
+          SELECT fs.id, fs.task_id, fs.actual_min, fs.started_at, fs.ended_at, fs.completed, t.title AS task_title
+          FROM focus_sessions fs
+          LEFT JOIN tasks t ON fs.task_id = t.id
+          WHERE fs.started_at >= ?
+          ORDER BY fs.started_at DESC
+          ''';
+    final params = uid.isNotEmpty ? [startOfDay, uid] : [startOfDay];
+
+    return db.watch(query, parameters: params).map((rows) {
       return rows.map((r) => Map<String, dynamic>.from(r)).toList();
     }).handleError((e) {
       debugPrint('[FocusRepository] watchTodayFocusSessions error: $e');

@@ -28,8 +28,9 @@ class FocusSessionState extends Equatable {
       : 0.0;
 
   String get timeFormatted {
-    final mins = remainingSeconds ~/ 60;
-    final secs = remainingSeconds % 60;
+    final clamped = remainingSeconds < 0 ? 0 : remainingSeconds;
+    final mins = clamped ~/ 60;
+    final secs = clamped % 60;
     return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 

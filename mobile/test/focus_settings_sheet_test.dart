@@ -13,7 +13,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    final config = FocusSessionConfig(
+    const config = FocusSessionConfig(
       focusMinutes: 25,
       shortBreakMinutes: 5,
       longBreakMinutes: 15,

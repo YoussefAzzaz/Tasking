@@ -157,15 +157,15 @@ class AxisApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
+        BlocProvider<LocaleCubit>(create: (_) => LocaleCubit()),
         BlocProvider<AuthBloc>(
           create: (_) => AuthBloc()..add(const AuthCheckRequested()),
         ),
         BlocProvider<FocusSessionCubit>(create: (_) => FocusSessionCubit()),
         BlocProvider<TasksBloc>(create: (_) => TasksBloc()),
       ],
-      child: ValueListenableBuilder<Locale>(
-        valueListenable: LocaleService().localeNotifier,
-        builder: (context, activeLocale, _) {
+      child: BlocBuilder<LocaleCubit, Locale>(
+        builder: (context, activeLocale) {
           return MaterialApp.router(
             title: 'Axis',
             locale: AppConfig.useDevicePreview

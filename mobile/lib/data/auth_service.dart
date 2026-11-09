@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/data/habit_notification_service.dart';
 
 /// Full-stack Authentication Service bridging Supabase Auth & PowerSync multi-tenant isolation.
 /// Provides offline session persistence, background auto-login, and seamless reconnect sync.
@@ -287,6 +288,12 @@ class AuthService {
         unawaited(PrayerTimeService().syncPrayers());
       }
 
+      // Purge any foreign user habit notifications and reschedule for active user
+      try {
+        await HabitNotificationService().cancelAllHabitReminders();
+        unawaited(HabitNotificationService().rescheduleAllHabits());
+      } catch (_) {}
+
       return response;
     } catch (e) {
       debugPrint('[AuthService] Sign-in error: $e');
@@ -327,6 +334,12 @@ class AuthService {
         unawaited(PrayerTimeService().syncPrayers());
       }
 
+      // Purge any foreign user habit notifications and reschedule for active user
+      try {
+        await HabitNotificationService().cancelAllHabitReminders();
+        unawaited(HabitNotificationService().rescheduleAllHabits());
+      } catch (_) {}
+
       return response;
     } catch (e) {
       debugPrint('[AuthService] Sign-up error: $e');
@@ -337,6 +350,13 @@ class AuthService {
   /// Secure sign out: terminates any active sessions, disconnects PowerSync, clears local SQLite user data and terminates remote session
   Future<void> signOut() async {
     try {
+      // 0. Cancel and dismiss all habit notifications to prevent cross-account leaks
+      try {
+        await HabitNotificationService().cancelAllHabitReminders();
+      } catch (e) {
+        debugPrint('[AuthService] Clear habit notifications error: $e');
+      }
+
       // 1. Immediately terminate any active focus session / audio / timer
       try {
         FocusSessionService().terminateSession();

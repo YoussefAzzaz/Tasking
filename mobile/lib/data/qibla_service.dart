@@ -54,7 +54,7 @@ class QiblaService {
     const kaabaLon = 39.826206;
 
     final phi1 = lat * (math.pi / 180.0);
-    final phi2 = kaabaLat * (math.pi / 180.0);
+    const phi2 = kaabaLat * (math.pi / 180.0);
     final deltaLambda = (kaabaLon - lon) * (math.pi / 180.0);
 
     final y = math.sin(deltaLambda) * math.cos(phi2);

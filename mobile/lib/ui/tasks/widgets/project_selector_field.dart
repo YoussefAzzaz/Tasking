@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 
@@ -36,7 +37,7 @@ class ProjectSelectorField extends StatelessWidget {
     }
   }
 
-  List<Widget> _buildDropdownItems() {
+  List<Widget> _buildDropdownItems(BuildContext context) {
     final query = controller.text.trim().toLowerCase();
     final List<Widget> items = [];
 
@@ -48,7 +49,7 @@ class ProjectSelectorField extends StatelessWidget {
       DropdownOption(
         icon: Icons.inbox_rounded,
         iconColor: AxisColors.textDim,
-        title: 'Inbox (No Project)',
+        title: context.isArabic ? 'صندوق الوارد (بدون مشروع)' : 'Inbox (No Project)',
         isSelected: isInboxSelected,
         onTap: () {
           onSelectProject(null);
@@ -77,11 +78,13 @@ class ProjectSelectorField extends StatelessWidget {
 
     if (filtered.isEmpty && query.isEmpty) {
       items.add(
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Text(
-            'No custom projects yet. Type above to create one.',
-            style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+            context.isArabic
+                ? 'لا توجد مشاريع مخصصة بعد. اكتب أعلاه للإنشاء.'
+                : 'No custom projects yet. Type above to create one.',
+            style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
           ),
         ),
       );
@@ -112,7 +115,7 @@ class ProjectSelectorField extends StatelessWidget {
         DropdownOption(
           icon: Icons.add_rounded,
           iconColor: AxisColors.secondary,
-          title: 'Create project "$rawTyped"',
+          title: context.isArabic ? 'إنشاء مشروع "$rawTyped"' : 'Create project "$rawTyped"',
           isAction: true,
           onTap: () {
             onSelectProject(rawTyped);
@@ -131,7 +134,7 @@ class ProjectSelectorField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const FieldLabel(label: 'PROJECT'),
+        FieldLabel(label: context.isArabic ? 'المشروع' : 'PROJECT'),
         Container(
           decoration: BoxDecoration(
             color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
@@ -150,7 +153,7 @@ class ProjectSelectorField extends StatelessWidget {
                 ),
             cursorColor: AxisColors.secondary,
             decoration: InputDecoration(
-              hintText: 'Select or write project name...',
+              hintText: AppLocalizations.of(context).isArabic ? 'اختر أو اكتب اسم المشروع...' : 'Select or write project name...',
               hintStyle:
                   const TextStyle(color: AxisColors.textDim, fontSize: 13),
               border: InputBorder.none,
@@ -210,7 +213,7 @@ class ProjectSelectorField extends StatelessWidget {
               child: ListView(
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                children: _buildDropdownItems(),
+                children: _buildDropdownItems(context),
               ),
             ),
           ),

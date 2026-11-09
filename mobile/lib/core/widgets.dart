@@ -170,7 +170,8 @@ class XpBar extends StatelessWidget {
           duration: const Duration(milliseconds: 800),
           curve: Curves.easeOutCubic,
           height: height,
-          width: constraints.maxWidth * progress.clamp(0.0, 1.0),
+          width: (constraints.hasBoundedWidth ? constraints.maxWidth : 120.0) *
+              progress.clamp(0.0, 1.0),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [AxisColors.success, AxisColors.secondary],
@@ -218,7 +219,7 @@ class StreakBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.local_fire_department_rounded,
+          const Icon(Icons.local_fire_department_rounded,
               size: 14, color: AxisColors.tertiary),
           const SizedBox(width: 4),
           Text(
@@ -272,7 +273,9 @@ class _AxisCheckboxState extends State<AxisCheckbox>
   void _toggle() {
     if (!widget.enabled) return;
     HapticFeedback.mediumImpact();
-    _ctrl.forward().then((_) => _ctrl.reverse());
+    _ctrl.forward().then((_) {
+      if (mounted) _ctrl.reverse();
+    });
     widget.onChanged(!widget.checked);
   }
 

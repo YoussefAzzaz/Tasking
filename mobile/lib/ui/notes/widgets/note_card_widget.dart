@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/note_repository.dart';
 
 /// Card preview for note or journal entry with icon, title, snippet, time and mood
@@ -14,7 +14,7 @@ class NoteCardWidget extends StatelessWidget {
     final isJournal = note.category == 'journal';
     final icon =
         isJournal ? Icons.auto_stories_rounded : Icons.article_rounded;
-    final dateStr = DateFormat('h:mm a • MMM d').format(note.createdAt);
+    final dateStr = context.formatDate(note.createdAt, 'h:mm a • MMM d');
 
     return AxisCard(
       tier: GlassTier.two,
@@ -95,7 +95,7 @@ class NoteCardWidget extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
-                            margin: const EdgeInsets.only(right: 6),
+                            margin: const EdgeInsetsDirectional.only(end: 6),
                             decoration: BoxDecoration(
                               color: AxisColors.secondary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(4),
@@ -104,7 +104,7 @@ class NoteCardWidget extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              note.category,
+                              context.l10n.localizedNoteCategory(note.category),
                               style: const TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,

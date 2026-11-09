@@ -136,10 +136,13 @@ class PrayerCompletionHandler {
       } else {
         await _db.execute('DELETE FROM logs WHERE id = ?', [logEventId]);
         await _db.execute('DELETE FROM habit_logs WHERE id = ?', [habitLogId]);
-        await _db.execute(
-          'DELETE FROM habit_logs WHERE (habit_id = ? OR habit_id = ? OR habit_id LIKE ?) AND log_date = ?',
-          [canonicalId, prayerId, '%_$code', today],
-        );
+        final deleteQuery = uid.isNotEmpty
+            ? 'DELETE FROM habit_logs WHERE (habit_id = ? OR habit_id = ? OR habit_id LIKE ?) AND log_date = ? AND (user_id = ? OR user_id IS NULL OR user_id = \'\')'
+            : 'DELETE FROM habit_logs WHERE (habit_id = ? OR habit_id = ? OR habit_id LIKE ?) AND log_date = ?';
+        final deleteParams = uid.isNotEmpty
+            ? [canonicalId, prayerId, '%_$code', today, uid]
+            : [canonicalId, prayerId, '%_$code', today];
+        await _db.execute(deleteQuery, deleteParams);
       }
 
       // 5. Directly update daily_prayer_status in DailyPrayerStatusRepository for instant atomic sync

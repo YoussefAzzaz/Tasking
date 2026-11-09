@@ -15,6 +15,7 @@ class TaskTagsSection extends StatelessWidget {
   final ValueChanged<String> onDeleteTag;
 
   void _showAddTagDialog(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final tagCtrl = TextEditingController();
 
     showDialog(
@@ -25,9 +26,9 @@ class TaskTagsSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AxisColors.borderPrimary),
         ),
-        title: const Text(
-          'New Task Tag',
-          style: TextStyle(
+        title: Text(
+          isArabic ? 'وسم مهمة جديد' : 'New Task Tag',
+          style: const TextStyle(
             color: AxisColors.textHigh,
             fontWeight: FontWeight.bold,
           ),
@@ -40,12 +41,13 @@ class TaskTagsSection extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'TAG NAME',
+              Text(
+                isArabic ? 'اسم الوسم' : 'TAG NAME',
                 style: TextStyle(
                   color: AxisColors.textMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
+                  letterSpacing: isArabic ? 0.0 : 0.8,
                 ),
               ),
               const SizedBox(height: 6),
@@ -59,7 +61,9 @@ class TaskTagsSection extends StatelessWidget {
                     color: AxisColors.primarySoft,
                     fontWeight: FontWeight.bold,
                   ),
-                  hintText: 'e.g. urgent, backend, review',
+                  hintText: isArabic
+                      ? 'مثال: عاجل، تطوير، مراجعة'
+                      : 'e.g. urgent, backend, review',
                   hintStyle: const TextStyle(color: AxisColors.textDim),
                   filled: true,
                   fillColor: AxisColors.surfaceHigh,
@@ -68,7 +72,7 @@ class TaskTagsSection extends StatelessWidget {
                     borderSide: const BorderSide(color: AxisColors.borderSubtle),
                   ),
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
               ),
             ],
@@ -77,8 +81,8 @@ class TaskTagsSection extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: AxisColors.textDim)),
+            child: Text(isArabic ? 'إلغاء' : 'Cancel',
+                style: const TextStyle(color: AxisColors.textDim)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -91,8 +95,8 @@ class TaskTagsSection extends StatelessWidget {
                 onAddTag(tagName);
               }
             },
-            child: const Text('Create Tag',
-                style: TextStyle(color: Colors.white)),
+            child: Text(isArabic ? 'إنشاء الوسم' : 'Create Tag',
+                style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -100,6 +104,7 @@ class TaskTagsSection extends StatelessWidget {
   }
 
   void _confirmDeleteTag(BuildContext context, String tagName) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -109,17 +114,19 @@ class TaskTagsSection extends StatelessWidget {
           side: const BorderSide(color: AxisColors.borderPrimary),
         ),
         title: Text(
-          'Delete tag "@$tagName"?',
+          isArabic ? 'حذف الوسم "@$tagName"؟' : 'Delete tag "@$tagName"?',
           style: const TextStyle(color: AxisColors.textHigh),
         ),
         content: Text(
-          'Are you sure you want to delete the tag "@$tagName"? Existing tasks with this tag will retain their history.',
+          isArabic
+              ? 'هل أنت متأكد من رغبتك في حذف الوسم "@$tagName"؟ ستحتفظ المهام الحالية التي تحمله بسجلها.'
+              : 'Are you sure you want to delete the tag "@$tagName"? Existing tasks with this tag will retain their history.',
           style: const TextStyle(color: AxisColors.textMuted, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: AxisColors.textDim)),
+            child: Text(isArabic ? 'إلغاء' : 'Cancel', style: const TextStyle(color: AxisColors.textDim)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
@@ -127,7 +134,7 @@ class TaskTagsSection extends StatelessWidget {
               Navigator.pop(dialogCtx);
               onDeleteTag(tagName);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(isArabic ? 'حذف' : 'Delete', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -136,6 +143,8 @@ class TaskTagsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -144,10 +153,11 @@ class TaskTagsSection extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'TASK TAGS',
+                isArabic ? 'وسوم المهام' : 'TASK TAGS',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: AxisColors.textMuted,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: isArabic ? 0.0 : 0.8,
                     ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -168,14 +178,14 @@ class TaskTagsSection extends StatelessWidget {
                       color: AxisColors.primary.withValues(alpha: 0.35),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, size: 14, color: AxisColors.primarySoft),
-                      SizedBox(width: 4),
+                      const Icon(Icons.add, size: 14, color: AxisColors.primarySoft),
+                      const SizedBox(width: 4),
                       Text(
-                        'New Tag',
-                        style: TextStyle(
+                        isArabic ? 'وسم جديد' : 'New Tag',
+                        style: const TextStyle(
                           fontSize: 11,
                           color: AxisColors.primarySoft,
                           fontWeight: FontWeight.bold,
@@ -197,10 +207,10 @@ class TaskTagsSection extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AxisColors.borderSubtle),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'No custom tags found',
-                style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+                isArabic ? 'لم يتم العثور على وسوم مخصصة' : 'No custom tags found',
+                style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
               ),
             ),
           )

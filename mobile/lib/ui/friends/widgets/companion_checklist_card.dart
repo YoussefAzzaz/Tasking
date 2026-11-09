@@ -77,7 +77,7 @@ class CompanionChecklistCard extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              'LVL ${status.level}',
+                              '${isArabic ? "المستوى" : "LVL"} ${status.level}',
                               style: GoogleFonts.spaceGrotesk(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
@@ -95,7 +95,11 @@ class CompanionChecklistCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: AxisColors.textDim),
+                Icon(
+                  isArabic ? Icons.arrow_back_ios_rounded : Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: AxisColors.textDim,
+                ),
               ],
             ),
           ),

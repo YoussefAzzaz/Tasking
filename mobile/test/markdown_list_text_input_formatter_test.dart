@@ -442,14 +442,14 @@ void main() {
 
     test('continues unordered list in journal template with content below', () {
       const templateBefore = '### 📅 What Happened Today\n- Met with team\n\n### 🏆 Key Wins & Accomplishments\n1. \n';
-      final offset = '### 📅 What Happened Today\n- Met with team'.length;
-      final oldValue = TextEditingValue(
+      const offset = '### 📅 What Happened Today\n- Met with team'.length;
+      const oldValue = TextEditingValue(
         text: templateBefore,
         selection: TextSelection.collapsed(offset: offset),
       );
       final newValue = TextEditingValue(
         text: templateBefore.replaceRange(offset, offset, '\n'),
-        selection: TextSelection.collapsed(offset: offset + 1),
+        selection: const TextSelection.collapsed(offset: offset + 1),
       );
 
       final result = formatter.formatEditUpdate(oldValue, newValue);
@@ -458,14 +458,14 @@ void main() {
 
     test('continues ordered list in journal template with content below', () {
       const templateBefore = '### 🏆 Key Wins & Accomplishments\n1. Shipped release\n\n### 💭 Thoughts\n';
-      final offset = '### 🏆 Key Wins & Accomplishments\n1. Shipped release'.length;
-      final oldValue = TextEditingValue(
+      const offset = '### 🏆 Key Wins & Accomplishments\n1. Shipped release'.length;
+      const oldValue = TextEditingValue(
         text: templateBefore,
         selection: TextSelection.collapsed(offset: offset),
       );
       final newValue = TextEditingValue(
         text: templateBefore.replaceRange(offset, offset, '\n'),
-        selection: TextSelection.collapsed(offset: offset + 1),
+        selection: const TextSelection.collapsed(offset: offset + 1),
       );
 
       final result = formatter.formatEditUpdate(oldValue, newValue);
@@ -474,14 +474,14 @@ void main() {
 
     test('continues checklist in journal template with content below', () {
       const templateBefore = '### 📅 What Happened Today\n- [ ] Review PR\n\n### 🏆 Key Wins\n';
-      final offset = '### 📅 What Happened Today\n- [ ] Review PR'.length;
-      final oldValue = TextEditingValue(
+      const offset = '### 📅 What Happened Today\n- [ ] Review PR'.length;
+      const oldValue = TextEditingValue(
         text: templateBefore,
         selection: TextSelection.collapsed(offset: offset),
       );
       final newValue = TextEditingValue(
         text: templateBefore.replaceRange(offset, offset, '\n'),
-        selection: TextSelection.collapsed(offset: offset + 1),
+        selection: const TextSelection.collapsed(offset: offset + 1),
       );
 
       final result = formatter.formatEditUpdate(oldValue, newValue);
@@ -490,14 +490,14 @@ void main() {
 
     test('stops list in journal template on empty item when pressing Enter', () {
       const templateBefore = '### 📅 What Happened Today\n- \n\n### 🏆 Key Wins\n';
-      final offset = '### 📅 What Happened Today\n- '.length;
-      final oldValue = TextEditingValue(
+      const offset = '### 📅 What Happened Today\n- '.length;
+      const oldValue = TextEditingValue(
         text: templateBefore,
         selection: TextSelection.collapsed(offset: offset),
       );
       final newValue = TextEditingValue(
         text: templateBefore.replaceRange(offset, offset, '\n'),
-        selection: TextSelection.collapsed(offset: offset + 1),
+        selection: const TextSelection.collapsed(offset: offset + 1),
       );
 
       final result = formatter.formatEditUpdate(oldValue, newValue);
@@ -507,13 +507,13 @@ void main() {
 
     test('stops list in journal template on empty item when backspacing', () {
       const templateBefore = '### 📅 What Happened Today\n- \n\n### 🏆 Key Wins\n';
-      final offset = '### 📅 What Happened Today\n- '.length;
-      final oldValue = TextEditingValue(
+      const offset = '### 📅 What Happened Today\n- '.length;
+      const oldValue = TextEditingValue(
         text: templateBefore,
         selection: TextSelection.collapsed(offset: offset),
       );
       // Backspace deletes space from "- "
-      final newValue = TextEditingValue(
+      const newValue = TextEditingValue(
         text: '### 📅 What Happened Today\n-\n\n### 🏆 Key Wins\n',
         selection: TextSelection.collapsed(offset: offset - 1),
       );

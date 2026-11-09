@@ -1,278 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/ui/common/cyber_color_picker.dart';
 
-class HabitCategory {
-  final String id;
-  final String name;
-  final String icon;
-  final String color;
-
-  const HabitCategory({
-    required this.id,
-    required this.name,
-    this.icon = 'fitness',
-    this.color = '#10B981',
-  });
-}
-
-/// Category autocomplete / dropdown selector field for habit routines
-class CategorySelectorField extends StatelessWidget {
-  const CategorySelectorField({
-    super.key,
-    required this.controller,
-    required this.focusNode,
-    required this.categories,
-    required this.isOpen,
-    required this.onOpenChanged,
-    required this.onSelectCategory,
-    required this.onClear,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final List<HabitCategory> categories;
-  final bool isOpen;
-  final ValueChanged<bool> onOpenChanged;
-  final void Function(String name, String icon, String color) onSelectCategory;
-  final VoidCallback onClear;
-
-  Color _parseHex(String hex) {
-    try {
-      final clean = hex.replaceAll('#', '');
-      return Color(int.parse('FF$clean', radix: 16));
-    } catch (_) {
-      return AxisColors.success;
-    }
-  }
-
-  List<Widget> _buildDropdownItems() {
-    final rawText = controller.text.trim();
-    final query = rawText.toLowerCase();
-    final items = <Widget>[];
-
-    final availableCategories = categories.where((c) {
-      final idLower = c.id.toLowerCase();
-      return idLower != 'cat_workout' &&
-          idLower != 'cat_reading' &&
-          idLower != 'cat_mindful' &&
-          idLower != 'cat_hydrate' &&
-          idLower != 'cat_code' &&
-          idLower != 'cat_rest' &&
-          idLower != 'cat_prayers' &&
-          c.name.toLowerCase() != 'prayers';
-    }).toList();
-
-    final exactMatch = availableCategories.any(
-      (c) => c.name.toLowerCase() == query,
-    );
-    final isGeneral = query == 'general routines';
-
-    // Show all available categories if no filter is typed, or if current text is already a selected category/general,
-    // so the user can easily see their categories and pick one when opening the dropdown.
-    // Filter by query substring only when actively searching.
-    final filtered = (query.isEmpty || exactMatch || isGeneral)
-        ? availableCategories
-        : availableCategories
-            .where((c) => c.name.toLowerCase().contains(query))
-            .toList();
-
-    if (filtered.isEmpty && query.isEmpty) {
-      items.add(
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Text(
-            'No custom categories yet. Type above to create one.',
-            style: TextStyle(color: AxisColors.textDim, fontSize: 12),
-          ),
-        ),
-      );
-    }
-
-    for (final cat in filtered) {
-      final isSel = query == cat.name.toLowerCase();
-      final color = _parseHex(cat.color);
-
-      items.add(
-        InkWell(
-          onTap: () {
-            onSelectCategory(cat.name, cat.icon, cat.color);
-            onOpenChanged(false);
-            focusNode.unfocus();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isSel
-                  ? AxisColors.surfaceHigh.withValues(alpha: 0.6)
-                  : Colors.transparent,
-              border: const Border(
-                bottom: BorderSide(color: AxisColors.borderSubtle, width: 0.5),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.5),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    cat.name,
-                    style: TextStyle(
-                      color: isSel ? AxisColors.textHigh : AxisColors.textMuted,
-                      fontSize: 13,
-                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                ),
-                if (isSel)
-                  const Icon(Icons.check_rounded,
-                      size: 16, color: AxisColors.success),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (query.isNotEmpty && !exactMatch && !isGeneral) {
-      items.add(
-        InkWell(
-          onTap: () {
-            onSelectCategory(rawText, 'fitness', '#10B981');
-            onOpenChanged(false);
-            focusNode.unfocus();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: [
-                const Icon(Icons.add_rounded,
-                    size: 16, color: AxisColors.success),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Create category "$rawText"',
-                    style: const TextStyle(
-                      color: AxisColors.success,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return items;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isOpen ? AxisColors.success : AxisColors.borderSubtle,
-              width: isOpen ? 1.5 : 1.0,
-            ),
-          ),
-          child: TextField(
-            controller: controller,
-            focusNode: focusNode,
-            autofocus: false,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AxisColors.textHigh,
-                ),
-            cursorColor: AxisColors.success,
-            decoration: InputDecoration(
-              hintText: 'Select or write category name...',
-              hintStyle:
-                  const TextStyle(color: AxisColors.textDim, fontSize: 13),
-              border: InputBorder.none,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              prefixIcon: const Icon(Icons.category_rounded,
-                  size: 18, color: AxisColors.success),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (controller.text.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          size: 16, color: AxisColors.textDim),
-                      onPressed: onClear,
-                    ),
-                  IconButton(
-                    icon: Icon(
-                      isOpen
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: AxisColors.textDim,
-                      size: 20,
-                    ),
-                    onPressed: () => onOpenChanged(!isOpen),
-                  ),
-                ],
-              ),
-            ),
-            onTap: () => onOpenChanged(true),
-            onChanged: (text) {
-              if (!isOpen) onOpenChanged(true);
-            },
-          ),
-        ),
-        if (isOpen) ...[
-          const SizedBox(height: 6),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 180),
-            decoration: BoxDecoration(
-              color: AxisColors.surfaceLow,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AxisColors.success.withValues(alpha: 0.35),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                children: _buildDropdownItems(),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
+export 'package:axis/data/habit_category_repository.dart' show HabitCategory;
+export 'package:axis/ui/habits/widgets/habit_category_selector_field.dart';
 
 /// Color Accent circular dot selector row
 class ColorAccentSelector extends StatelessWidget {
@@ -414,7 +146,9 @@ class XpRewardSelector extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    '+$xp XP',
+                    AppLocalizations.of(context).isArabic
+                        ? '+$xp نقطة'
+                        : '+$xp XP',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -427,6 +161,172 @@ class XpRewardSelector extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+/// Header row for habit bottom sheet and dialog
+class HabitSheetHeader extends StatelessWidget {
+  const HabitSheetHeader({
+    super.key,
+    required this.isEdit,
+    required this.onClose,
+  });
+
+  final bool isEdit;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AxisColors.success.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.local_fire_department_rounded,
+                  color: AxisColors.success,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    isEdit
+                        ? (AppLocalizations.of(context).isArabic ? 'تعديل العادة' : 'EDIT HABIT ROUTINE')
+                        : (AppLocalizations.of(context).isArabic ? 'عادة جديدة' : 'NEW HABIT ROUTINE'),
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AxisColors.textHigh,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close_rounded,
+              color: AxisColors.textMuted, size: 22),
+          onPressed: onClose,
+        ),
+      ],
+    );
+  }
+}
+
+/// Primary activate/update button and optional delete action for habits
+class HabitActionButtons extends StatelessWidget {
+  const HabitActionButtons({
+    super.key,
+    required this.isEdit,
+    required this.isSaving,
+    required this.onSave,
+    this.onDelete,
+  });
+
+  final bool isEdit;
+  final bool isSaving;
+  final VoidCallback? onSave;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onSave,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: double.infinity,
+            height: 50,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  AxisColors.success,
+                  Color(0xFF059669),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AxisColors.success.withValues(alpha: 0.4),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Center(
+              child: isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add_task_rounded,
+                            color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          isEdit
+                              ? (AppLocalizations.of(context).isArabic ? 'تحديث العادة' : 'UPDATE HABIT')
+                              : (AppLocalizations.of(context).isArabic ? 'تفعيل العادة' : 'ACTIVATE HABIT'),
+                          style:
+                              Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                  ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+        if (isEdit && onDelete != null) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: isSaving ? null : onDelete,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AxisColors.error,
+              side: const BorderSide(
+                color: AxisColors.error,
+                width: 1.2,
+              ),
+              minimumSize: const Size(double.infinity, 46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: Text(
+              AppLocalizations.of(context).isArabic ? 'حذف العادة' : 'DELETE HABIT',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

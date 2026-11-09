@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/badges/badge_models.dart';
+import 'package:axis/data/badges/badge_localization.dart';
 
 /// Next Milestones in Reach spotlight card for Today screen.
 /// Displays up to 2 badges closest to unlocking with live progress bars,
@@ -58,11 +60,11 @@ class NextMilestonesCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Flexible(
+                    Flexible(
                       child: Text(
-                        'NEXT MILESTONES IN REACH',
+                        context.isArabic ? 'المعالم القادمة قيد التحقيق' : 'NEXT MILESTONES IN REACH',
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: AxisColors.secondary,
@@ -74,21 +76,21 @@ class NextMilestonesCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Row(
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'ROADMAP',
-                    style: TextStyle(
+                    context.isArabic ? 'خارطة الطريق' : 'ROADMAP',
+                    style: const TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w600,
                       color: AxisColors.textDim,
                       letterSpacing: 0.6,
                     ),
                   ),
-                  SizedBox(width: 2),
+                  const SizedBox(width: 2),
                   Icon(
-                    Icons.arrow_forward_ios_rounded,
+                    context.isArabic ? Icons.arrow_back_ios_rounded : Icons.arrow_forward_ios_rounded,
                     size: 9,
                     color: AxisColors.textDim,
                   ),
@@ -130,7 +132,7 @@ class NextMilestonesCard extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Text(
-                                  badge.title,
+                                  badge.localizedTitle(context.isArabic),
                                   style: const TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
@@ -163,7 +165,7 @@ class NextMilestonesCard extends StatelessWidget {
                           if (badge.progressLabel.isNotEmpty) ...[
                             const SizedBox(height: 3),
                             Text(
-                              badge.progressLabel,
+                              badge.localizedProgressLabel(context.isArabic),
                               style: const TextStyle(
                                 fontSize: 9.5,
                                 color: AxisColors.textDim,
@@ -175,8 +177,8 @@ class NextMilestonesCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Icon(
-                      Icons.chevron_right_rounded,
+                    Icon(
+                      context.isArabic ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
                       size: 16,
                       color: AxisColors.textDim,
                     ),

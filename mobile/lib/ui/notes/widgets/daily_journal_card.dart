@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/data/note_repository.dart';
 
@@ -19,8 +19,9 @@ class DailyJournalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = AppLocalizations.of(context).isArabic;
     final now = DateTime.now();
-    final dateStr = DateFormat('EEEE, MMM d').format(now);
+    final dateStr = context.formatDate(now, 'EEEE, MMM d');
     final hasEntry = todayJournal != null;
 
     return AxisCard(
@@ -53,7 +54,9 @@ class DailyJournalCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        hasEntry ? "TODAY'S JOURNAL LOGGED" : 'DAILY JOURNAL',
+                        hasEntry
+                            ? (isArabic ? 'تم تسجيل يومية اليوم' : "TODAY'S JOURNAL LOGGED")
+                            : (isArabic ? 'اليوميات اليومية' : 'DAILY JOURNAL'),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -100,7 +103,7 @@ class DailyJournalCard extends StatelessWidget {
             AutoDirectionText(
               todayJournal!.bodyMd.isNotEmpty
                   ? todayJournal!.bodyMd.replaceAll(RegExp(r'#+\s*'), '').trim()
-                  : 'Events recorded for today.',
+                  : (isArabic ? 'تم تسجيل أحداث اليوم.' : 'Events recorded for today.'),
               style: const TextStyle(
                 color: AxisColors.textMuted,
                 fontSize: 12,
@@ -144,7 +147,10 @@ class DailyJournalCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () => onOpenTodayJournal(todayJournal!),
                   icon: const Icon(Icons.add_circle_outline_rounded, size: 14),
-                  label: const Text('Log More Events', style: TextStyle(fontSize: 11)),
+                  label: Text(
+                    isArabic ? 'تسجيل أحداث إضافية' : 'Log More Events',
+                    style: const TextStyle(fontSize: 11),
+                  ),
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     foregroundColor: AxisColors.secondary,
@@ -158,18 +164,22 @@ class DailyJournalCard extends StatelessWidget {
             ),
           ] else ...[
             // Prompt to start today's journal
-            const Text(
-              'Log things that happened in your day',
-              style: TextStyle(
+            Text(
+              isArabic
+                  ? 'دوّن الأحداث التي وقعت خلال يومك'
+                  : 'Log things that happened in your day',
+              style: const TextStyle(
                 color: AxisColors.textHigh,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Capture timeline milestones, key wins, blockers, and reflections.',
-              style: TextStyle(color: AxisColors.textDim, fontSize: 11),
+            Text(
+              isArabic
+                  ? 'التقط المحطات الرئيسية، الإنجازات، التحديات، والتأملات الشخصية.'
+                  : 'Capture timeline milestones, key wins, blockers, and reflections.',
+              style: const TextStyle(color: AxisColors.textDim, fontSize: 11),
             ),
             const SizedBox(height: 12),
             InkWell(
@@ -191,20 +201,20 @@ class DailyJournalCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: Row(
                         children: [
-                          Icon(Icons.edit_note_rounded, size: 16, color: Colors.white),
-                          SizedBox(width: 8),
+                          const Icon(Icons.edit_note_rounded, size: 16, color: Colors.white),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Start Today\'s Journal Entry',
+                              isArabic ? 'بدء تدوينة يوميات اليوم' : 'Start Today\'s Journal Entry',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -214,8 +224,12 @@ class DailyJournalCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Icon(
+                      isArabic ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                   ],
                 ),
               ),

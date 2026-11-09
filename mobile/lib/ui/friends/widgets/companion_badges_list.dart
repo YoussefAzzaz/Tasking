@@ -112,7 +112,11 @@ class CompanionBadgesList extends StatelessWidget {
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final b = badges[index];
-              final tierName = b.currentTier?.name ?? 'Initiate';
+              final tierName = b.currentTier != null
+                  ? b.currentTier!.localizedName(l10n.isArabic, badgeId: b.id)
+                  : (l10n.isArabic ? 'مبتدئ' : 'Initiate');
+              final badgeTitle = b.localizedTitle(l10n.isArabic);
+              final badgeSubtitle = b.localizedSubtitle(l10n.isArabic);
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
@@ -141,7 +145,7 @@ class CompanionBadgesList extends StatelessWidget {
                             children: [
                               Flexible(
                                 child: Text(
-                                  b.title,
+                                  badgeTitle,
                                   style: GoogleFonts.spaceGrotesk(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
@@ -170,7 +174,7 @@ class CompanionBadgesList extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            b.subtitle,
+                            badgeSubtitle,
                             style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted),
                           ),
                         ],

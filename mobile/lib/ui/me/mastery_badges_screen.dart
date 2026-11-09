@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/mastery_badge_repository.dart';
 import 'package:axis/ui/me/widgets/me_sections.dart';
 
@@ -71,12 +72,15 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
       if (_unlockedOnly && !badge.isUnlocked) {
         return false;
       }
-      // 3. Search filter
+      // 3. Search filter (supports both English and Arabic search)
       if (_searchQuery.isNotEmpty) {
-        final titleMatches = badge.title.toLowerCase().contains(_searchQuery);
+        final titleMatches = badge.title.toLowerCase().contains(_searchQuery) ||
+            badge.localizedTitle(true).toLowerCase().contains(_searchQuery);
         final subtitleMatches =
-            badge.subtitle.toLowerCase().contains(_searchQuery);
-        final catMatches = badge.category.toLowerCase().contains(_searchQuery);
+            badge.subtitle.toLowerCase().contains(_searchQuery) ||
+            badge.localizedSubtitle(true).toLowerCase().contains(_searchQuery);
+        final catMatches = badge.category.toLowerCase().contains(_searchQuery) ||
+            badge.categoryEnum.localizedLabel(true).toLowerCase().contains(_searchQuery);
         if (!titleMatches && !subtitleMatches && !catMatches) {
           return false;
         }
@@ -87,6 +91,7 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = AppLocalizations.of(context).isArabic;
     final unlockedCount = _allBadges.where((b) => b.isUnlocked).length;
     final totalBadges = _allBadges.length;
     final overallProgress =
@@ -101,14 +106,19 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AxisColors.textHigh, size: 18),
-          tooltip: 'Back',
+          icon: Icon(
+            isArabic
+                ? Icons.arrow_forward_ios_rounded
+                : Icons.arrow_back_ios_new_rounded,
+            color: AxisColors.textHigh,
+            size: 18,
+          ),
+          tooltip: isArabic ? 'رجوع' : 'Back',
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Mastery Badges',
-          style: TextStyle(
+        title: Text(
+          isArabic ? 'شارات الإتقان' : 'Mastery Badges',
+          style: const TextStyle(
             color: AxisColors.textHigh,
             fontWeight: FontWeight.bold,
             fontSize: 18,
@@ -118,7 +128,7 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
         actions: [
           // Filter by Unlocked Only toggle button
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsetsDirectional.only(end: 12),
             child: InkWell(
               onTap: () {
                 HapticFeedback.selectionClick();
@@ -156,7 +166,9 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _unlockedOnly ? 'Unlocked' : 'All State',
+                      _unlockedOnly
+                          ? (isArabic ? 'المفتوحة' : 'Unlocked')
+                          : (isArabic ? 'كل الحالات' : 'All State'),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -203,9 +215,9 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'TROPHY SHOWROOM',
-                                    style: TextStyle(
+                                  Text(
+                                    isArabic ? 'معرض الجوائز' : 'TROPHY SHOWROOM',
+                                    style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: AxisColors.textMuted,
@@ -225,7 +237,7 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                                       ),
                                       Flexible(
                                         child: Text(
-                                          ' / $totalBadges Unlocked',
+                                          isArabic ? ' / $totalBadges مفتوحة' : ' / $totalBadges Unlocked',
                                           style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
@@ -251,7 +263,7 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                                 ),
                               ),
                               child: Text(
-                                '${(overallProgress * 100).toInt()}% Done',
+                                isArabic ? '${(overallProgress * 100).toInt()}% مكتمل' : '${(overallProgress * 100).toInt()}% Done',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -281,6 +293,7 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                   // 2. Search Input Field
                   Container(
                     height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
@@ -290,7 +303,9 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                       controller: _searchCtrl,
                       style: const TextStyle(color: AxisColors.textHigh, fontSize: 13),
                       decoration: InputDecoration(
-                        hintText: 'Search 50 badges by name or category...',
+                        hintText: isArabic
+                            ? 'البحث في 50 شارة بالاسم أو التصنيف...'
+                            : 'Search 50 badges by name or category...',
                         hintStyle: const TextStyle(
                             color: AxisColors.textDim, fontSize: 12.5),
                         prefixIcon: const Icon(Icons.search_rounded,
@@ -304,7 +319,7 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                             : null,
                         border: InputBorder.none,
                         contentPadding:
-                            const EdgeInsets.symmetric(vertical: 11),
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
                       ),
                     ),
                   ),
@@ -325,7 +340,7 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                                 .length;
 
                         return Padding(
-                          padding: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsetsDirectional.only(end: 6),
                           child: InkWell(
                             onTap: () {
                               HapticFeedback.selectionClick();
@@ -361,7 +376,7 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                                   ),
                                   const SizedBox(width: 5),
                                   Text(
-                                    '${category.label} ($count)',
+                                    '${category.localizedLabel(isArabic)} ($count)',
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: isSelected
@@ -398,9 +413,9 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                           const Icon(Icons.search_off_rounded,
                               size: 40, color: AxisColors.textDim),
                           const SizedBox(height: 12),
-                          const Text(
-                            'No matching badges found',
-                            style: TextStyle(
+                          Text(
+                            isArabic ? 'لم يتم العثور على شارات مطابقة' : 'No matching badges found',
+                            style: const TextStyle(
                               color: AxisColors.textHigh,
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
@@ -409,8 +424,12 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                           const SizedBox(height: 4),
                           Text(
                             _unlockedOnly
-                                ? 'No unlocked badges match this filter. Try viewing all badges.'
-                                : 'Try searching with a different keyword or category.',
+                                ? (isArabic
+                                    ? 'لا توجد شارات مفتوحة تطابق هذا البحث. جرب عرض كافة الشارات.'
+                                    : 'No unlocked badges match this filter. Try viewing all badges.')
+                                : (isArabic
+                                    ? 'جرب البحث بكلمة مفتاحية أو تصنيف مختلف.'
+                                    : 'Try searching with a different keyword or category.'),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: AxisColors.textDim,

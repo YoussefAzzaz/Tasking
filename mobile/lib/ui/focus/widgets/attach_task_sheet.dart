@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
 
 /// Modal bottom sheet to select and attach an active task to the focus timer
@@ -28,6 +29,7 @@ class _AttachTaskSheetState extends State<AttachTaskSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = context.isArabic;
     return Container(
       height: 380,
       decoration: BoxDecoration(
@@ -50,9 +52,9 @@ class _AttachTaskSheetState extends State<AttachTaskSheet> {
               ),
             ),
           ),
-          const Text(
-            'ATTACH TARGET TASK',
-            style: TextStyle(
+          Text(
+            isArabic ? 'ربط مهمة الهدف' : 'ATTACH TARGET TASK',
+            style: const TextStyle(
               color: AxisColors.secondary,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.2,
@@ -68,10 +70,10 @@ class _AttachTaskSheetState extends State<AttachTaskSheet> {
                     .toList();
 
                 if (tasks.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Text(
-                      'No active tasks found',
-                      style: TextStyle(color: AxisColors.textDim),
+                      isArabic ? 'لا توجد مهام نشطة' : 'No active tasks found',
+                      style: const TextStyle(color: AxisColors.textDim),
                     ),
                   );
                 }
@@ -112,7 +114,9 @@ class _AttachTaskSheetState extends State<AttachTaskSheet> {
                                     if (t.dueDate != null) ...[
                                       const SizedBox(height: 3),
                                       Text(
-                                        'Due: ${t.dueDate}',
+                                        isArabic
+                                            ? 'الاستحقاق: ${t.dueDate}'
+                                            : 'Due: ${t.dueDate}',
                                         style: const TextStyle(
                                           color: AxisColors.textMuted,
                                           fontSize: 12,
@@ -123,8 +127,10 @@ class _AttachTaskSheetState extends State<AttachTaskSheet> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(
-                                Icons.arrow_forward_ios_rounded,
+                              Icon(
+                                isArabic
+                                    ? Icons.arrow_back_ios_rounded
+                                    : Icons.arrow_forward_ios_rounded,
                                 size: 14,
                                 color: AxisColors.secondary,
                               ),

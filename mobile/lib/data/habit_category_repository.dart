@@ -5,9 +5,21 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/domain/id_generator.dart';
-import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
 
-export 'package:axis/ui/habits/widgets/habit_form_widgets.dart' show HabitCategory;
+/// Represents a user habit category
+class HabitCategory {
+  final String id;
+  final String name;
+  final String icon;
+  final String color;
+
+  const HabitCategory({
+    required this.id,
+    required this.name,
+    this.icon = 'fitness',
+    this.color = '#10B981',
+  });
+}
 
 /// Repository managing habit categories with caching, reactive streams, and decoupled queries.
 class HabitCategoryRepository {
@@ -205,20 +217,36 @@ class HabitCategoryRepository {
     try {
       final uid = currentUserId;
       final rawId = id.replaceFirst('discovered_', '');
-      final catName = (name ?? '').trim();
+      String catName = (name ?? '').trim();
+      if (catName.isEmpty) {
+        final existing = await db.getOptional('SELECT name FROM habit_categories WHERE id = ? OR id = ?', [id, rawId]);
+        catName = (existing?['name'] as String? ?? '').trim();
+      }
 
       // 1. Delete from PowerSync habit_categories (automatically queued and synced)
-      final deleteQuery = uid.isNotEmpty
-          ? "DELETE FROM habit_categories WHERE (id = ? OR id = ? OR LOWER(name) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-          : 'DELETE FROM habit_categories WHERE id = ? OR id = ? OR LOWER(name) = LOWER(?)';
-      final deleteParams = uid.isNotEmpty ? [id, rawId, catName, uid] : [id, rawId, catName];
+      final deleteQuery = catName.isNotEmpty
+          ? (uid.isNotEmpty
+              ? "DELETE FROM habit_categories WHERE (id = ? OR id = ? OR LOWER(name) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+              : 'DELETE FROM habit_categories WHERE id = ? OR id = ? OR LOWER(name) = LOWER(?)')
+          : (uid.isNotEmpty
+              ? "DELETE FROM habit_categories WHERE (id = ? OR id = ?) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+              : 'DELETE FROM habit_categories WHERE id = ? OR id = ?');
+      final deleteParams = catName.isNotEmpty
+          ? (uid.isNotEmpty ? [id, rawId, catName, uid] : [id, rawId, catName])
+          : (uid.isNotEmpty ? [id, rawId, uid] : [id, rawId]);
       await db.execute(deleteQuery, deleteParams);
 
       // 2. Unset category from habits table so habits move cleanly to General Routines
-      final updateQuery = uid.isNotEmpty
-          ? "UPDATE habits SET kind = NULL WHERE (LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-          : "UPDATE habits SET kind = NULL WHERE LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)";
-      final updateParams = uid.isNotEmpty ? [catName, id, rawId, uid] : [catName, id, rawId];
+      final updateQuery = catName.isNotEmpty
+          ? (uid.isNotEmpty
+              ? "UPDATE habits SET kind = NULL WHERE (LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+              : "UPDATE habits SET kind = NULL WHERE LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)")
+          : (uid.isNotEmpty
+              ? "UPDATE habits SET kind = NULL WHERE (LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+              : "UPDATE habits SET kind = NULL WHERE LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)");
+      final updateParams = catName.isNotEmpty
+          ? (uid.isNotEmpty ? [catName, id, rawId, uid] : [catName, id, rawId])
+          : (uid.isNotEmpty ? [id, rawId, uid] : [id, rawId]);
       await db.execute(updateQuery, updateParams);
     } catch (e) {
       debugPrint('[HabitCategoryRepository] Error deleting category: $e');

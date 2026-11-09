@@ -17,6 +17,7 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
         super(const TasksInitial()) {
     on<LoadTasksRequested>(_onLoadTasksRequested);
     on<TaskUpdatedEvent>(_onTaskUpdatedEvent);
+    on<TaskLoadFailedEvent>((event, emit) => emit(TasksError(event.error)));
     on<CreateTaskRequested>(_onCreateTaskRequested);
     on<ToggleTaskStatusRequested>(_onToggleTaskStatusRequested);
     on<DeleteTaskRequested>(_onDeleteTaskRequested);
@@ -32,8 +33,16 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
     emit(const TasksLoading());
     await _tasksSubscription?.cancel();
     _tasksSubscription = _taskRepository.watchTasks().listen(
-      (tasks) => add(TaskUpdatedEvent(tasks)),
-      onError: (err) => emit(TasksError(err.toString())),
+      (tasks) {
+        if (!isClosed) {
+          add(TaskUpdatedEvent(tasks));
+        }
+      },
+      onError: (err) {
+        if (!isClosed) {
+          add(TaskLoadFailedEvent(err.toString()));
+        }
+      },
     );
   }
 
@@ -54,7 +63,11 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
     try {
       await _taskRepository.addTask(event.task);
     } catch (e) {
-      emit(TasksError(e.toString()));
+      if (state is TasksLoaded) {
+        emit((state as TasksLoaded).copyWith(mutationError: e.toString()));
+      } else {
+        emit(TasksError(e.toString()));
+      }
     }
   }
 
@@ -65,7 +78,11 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
     try {
       await _taskRepository.toggleTaskStatus(event.task, event.isDone);
     } catch (e) {
-      emit(TasksError(e.toString()));
+      if (state is TasksLoaded) {
+        emit((state as TasksLoaded).copyWith(mutationError: e.toString()));
+      } else {
+        emit(TasksError(e.toString()));
+      }
     }
   }
 
@@ -76,7 +93,11 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
     try {
       await _taskRepository.deleteTask(event.taskId);
     } catch (e) {
-      emit(TasksError(e.toString()));
+      if (state is TasksLoaded) {
+        emit((state as TasksLoaded).copyWith(mutationError: e.toString()));
+      } else {
+        emit(TasksError(e.toString()));
+      }
     }
   }
 

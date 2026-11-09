@@ -10,26 +10,9 @@ import '../../../data/project_repository.dart';
 import '../../../data/task_repository.dart';
 import '../widgets/section_header.dart';
 import '../widgets/telemetry_chip.dart';
+import 'widgets/omnibar_widgets.dart';
 
-class _OmnibarItem {
-  final String category;
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final String? badge;
-  final Color? badgeColor;
-  final VoidCallback onTap;
-
-  const _OmnibarItem({
-    required this.category,
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.badge,
-    this.badgeColor,
-    required this.onTap,
-  });
-}
+export 'widgets/omnibar_widgets.dart';
 
 /// Top-anchored command palette / omnibar dialog with live grouped search
 /// and full arrow-key and Enter keyboard navigation.
@@ -107,15 +90,15 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
     });
   }
 
-  List<_OmnibarItem> _buildItemList(String q) {
-    final items = <_OmnibarItem>[];
+  List<OmnibarItem> _buildItemList(String q) {
+    final items = <OmnibarItem>[];
 
     // Tasks
     final matchingTasks = q.isEmpty
         ? _tasks.take(4).toList()
         : _tasks.where((t) => t.title.toLowerCase().contains(q)).take(5).toList();
     for (final t in matchingTasks) {
-      items.add(_OmnibarItem(
+      items.add(OmnibarItem(
         category: 'TASKS',
         icon: Icons.check_circle_outline_rounded,
         title: t.title,
@@ -133,7 +116,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
         ? _projects.take(2).toList()
         : _projects.where((p) => p.name.toLowerCase().contains(q)).take(3).toList();
     for (final p in matchingProjects) {
-      items.add(_OmnibarItem(
+      items.add(OmnibarItem(
         category: 'PROJECTS',
         icon: Icons.folder_outlined,
         title: p.name,
@@ -150,7 +133,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
         ? _habits.take(3).toList()
         : _habits.where((h) => h.name.toLowerCase().contains(q)).take(4).toList();
     for (final h in matchingHabits) {
-      items.add(_OmnibarItem(
+      items.add(OmnibarItem(
         category: 'HABITS',
         icon: Icons.track_changes_rounded,
         title: h.name,
@@ -167,7 +150,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
         ? _notes.take(3).toList()
         : _notes.where((n) => n.title.toLowerCase().contains(q) || n.bodyMd.toLowerCase().contains(q)).take(4).toList();
     for (final n in matchingNotes) {
-      items.add(_OmnibarItem(
+      items.add(OmnibarItem(
         category: 'NOTES & VAULT',
         icon: Icons.description_outlined,
         title: n.title.isEmpty ? 'Untitled Note' : n.title,
@@ -342,7 +325,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                                         bottom: 6,
                                       ),
                                     ),
-                                  _SearchItemRow(
+                                  SearchItemRow(
                                     icon: item.icon,
                                     title: item.title,
                                     subtitle: item.subtitle,
@@ -371,161 +354,9 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                   ),
 
                   // Keyboard Navigation Footer
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        top: BorderSide(
-                          color: AxisColors.borderSubtle,
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Navigate',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            color: AxisColors.textDim,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const TelemetryChip(
-                          label: '↑ ↓',
-                          color: AxisColors.textDim,
-                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Open',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            color: AxisColors.textDim,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const TelemetryChip(
-                          label: '↵',
-                          color: AxisColors.textDim,
-                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Close',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            color: AxisColors.textDim,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const TelemetryChip(
-                          label: 'ESC',
-                          color: AxisColors.textDim,
-                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const OmnibarFooter(),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SearchItemRow extends StatefulWidget {
-  const _SearchItemRow({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.badge,
-    this.badgeColor,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final String? badge;
-  final Color? badgeColor;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  State<_SearchItemRow> createState() => _SearchItemRowState();
-}
-
-class _SearchItemRowState extends State<_SearchItemRow> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final active = widget.isSelected || _isHovered;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: active ? AxisColors.surfaceHigh.withValues(alpha: 0.6) : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: widget.isSelected ? AxisColors.secondary.withValues(alpha: 0.4) : Colors.transparent,
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  widget.icon,
-                  size: 16,
-                  color: active ? AxisColors.secondary : AxisColors.textMuted,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.getFont(
-                      'Geist',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: active ? AxisColors.textHigh : AxisColors.textMuted,
-                    ),
-                  ),
-                ),
-                if (widget.subtitle != null) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.subtitle!,
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 11,
-                      color: AxisColors.textDim,
-                    ),
-                  ),
-                ],
-                if (widget.badge != null) ...[
-                  const SizedBox(width: 8),
-                  TelemetryChip(
-                    label: widget.badge!,
-                    color: widget.badgeColor ?? AxisColors.secondary,
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  ),
-                ],
-              ],
             ),
           ),
         ),

@@ -16,15 +16,25 @@ class StreakEngine {
     int streak = 0;
     DateTime pointer = currentDate;
 
-    String format(DateTime d) => d.toIso8601String().substring(0, 10);
+    String format(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
     if (logDict.containsKey(format(pointer))) {
-      if (logDict[format(pointer)] == 'done') streak++;
+      final currentStatus = logDict[format(pointer)];
+      if (currentStatus == 'done') {
+        streak++;
+      } else if (currentStatus == 'failed' || currentStatus == 'missed') {
+        return 0; // Explicit failure today breaks active streak
+      }
     }
 
-    pointer = pointer.subtract(const Duration(days: 1));
+    // DST-safe calendar day subtraction
+    pointer = DateTime(pointer.year, pointer.month, pointer.day - 1);
 
-    while (true) {
+    int safetyIteration = 0;
+    final maxIterations = logs.length * 7 + 366;
+
+    while (safetyIteration++ < maxIterations) {
       String dateKey = format(pointer);
       
       bool isScheduled = true;
@@ -47,7 +57,8 @@ class StreakEngine {
         }
       }
 
-      pointer = pointer.subtract(const Duration(days: 1));
+      // DST-safe calendar day subtraction
+      pointer = DateTime(pointer.year, pointer.month, pointer.day - 1);
     }
 
     return streak;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
 
 /// Full-height task card per DESIGN.md §Task Cards:
@@ -73,7 +74,11 @@ class TaskCard extends StatelessWidget {
                           PriorityChip(priority: task.priority!),
                         if (task.dueDate != null)
                           AxisChip(
-                            label: task.dueDate!,
+                            label: task.dueDate == 'today'
+                                ? (context.isArabic ? 'اليوم' : 'today')
+                                : (task.dueDate == 'tmr'
+                                    ? (context.isArabic ? 'غداً' : 'tmr')
+                                    : task.dueDate!),
                             dotColor: _dueDateColor(task.dueDate!),
                             backgroundColor: _dueDateColor(task.dueDate!)
                                 .withValues(alpha: 0.10),
@@ -99,7 +104,7 @@ class TaskCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    _formatEstimate(task.estimateMin!),
+                    _formatEstimate(task.estimateMin!, context.isArabic),
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: AxisColors.secondary,
                     ),
@@ -116,13 +121,15 @@ class TaskCard extends StatelessWidget {
   bool _hasMeta(Task t) =>
       t.priority != null || t.dueDate != null || (t.tags?.isNotEmpty ?? false);
 
-  String _formatEstimate(int minutes) {
+  String _formatEstimate(int minutes, bool isArabic) {
     if (minutes >= 60) {
       final h = minutes ~/ 60;
       final m = minutes % 60;
-      return m > 0 ? '${h}h${m}m' : '${h}h';
+      return m > 0
+          ? '$h${isArabic ? "س " : "h "}$m${isArabic ? "د" : "m"}'
+          : '$h${isArabic ? "س" : "h"}';
     }
-    return '${minutes}m';
+    return '$minutes${isArabic ? "د" : "m"}';
   }
 
   Color _dueDateColor(String date) {

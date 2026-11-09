@@ -56,25 +56,25 @@ class UserMetricsService {
     // Single-pass consolidated SQL query to avoid N+1 queries and table scans
     final sql = '''
       SELECT
-        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND $whereUser) as completed_tasks,
-        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND priority >= 2 AND $whereUser) as high_priority_tasks,
-        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND estimate_min > 0 AND $whereUser) as estimated_tasks,
-        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND recurrence_rule IS NOT NULL AND recurrence_rule != '' AND $whereUser) as recurring_tasks,
-        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND due_date IS NOT NULL AND due_date != '' AND $whereUser) as scheduled_tasks,
+        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as completed_tasks,
+        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND priority >= 2 AND (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as high_priority_tasks,
+        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND estimate_min > 0 AND (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as estimated_tasks,
+        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND recurrence_rule IS NOT NULL AND recurrence_rule != '' AND (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as recurring_tasks,
+        (SELECT COUNT(*) FROM tasks WHERE status = 'done' AND due_date IS NOT NULL AND due_date != '' AND (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as scheduled_tasks,
         
         (SELECT COALESCE(SUM(actual_min), 0) FROM focus_sessions WHERE completed = 1 AND $whereUser) as total_focus_minutes,
         (SELECT COUNT(*) FROM focus_sessions WHERE completed = 1 AND $whereUser) as total_focus_sessions,
         (SELECT COUNT(*) FROM focus_sessions WHERE completed = 1 AND actual_min >= 25 AND $whereUser) as pomodoro_sessions,
         (SELECT COUNT(*) FROM focus_sessions WHERE completed = 1 AND actual_min >= 45 AND $whereUser) as marathon_sessions,
         
-        (SELECT COUNT(*) FROM notes WHERE $whereUser) as notes_count,
-        (SELECT COUNT(*) FROM notes WHERE pinned = 1 AND $whereUser) as pinned_notes_count,
+        (SELECT COUNT(*) FROM notes WHERE (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as notes_count,
+        (SELECT COUNT(*) FROM notes WHERE pinned = 1 AND (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as pinned_notes_count,
         
-        (SELECT COUNT(*) FROM habit_logs WHERE (status = 'completed' OR value > 0) AND $whereUser) as habit_logs_count,
+        (SELECT COUNT(*) FROM habit_logs WHERE (status = 'done' OR status = 'completed' OR value > 0) AND $whereUser) as habit_logs_count,
         (SELECT COUNT(*) FROM habits WHERE $whereUser) as habits_count,
         (SELECT COUNT(*) FROM habit_categories WHERE $whereUser) as habit_categories_count,
         
-        (SELECT COUNT(*) FROM projects WHERE $whereUser) as projects_count,
+        (SELECT COUNT(*) FROM projects WHERE (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as projects_count,
         (SELECT COUNT(*) FROM tags WHERE $whereUser) as tags_count,
         
         (SELECT COUNT(*) FROM prayers WHERE is_done = 1 AND $whereUser) as prayers_count

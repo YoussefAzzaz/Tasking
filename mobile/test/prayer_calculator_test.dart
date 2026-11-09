@@ -22,7 +22,7 @@ void main() {
     });
 
     test('calculatePrayers generates exactly 5 distinct chronological prayers', () {
-      final coords = Coordinates(35.7065, -0.6292); // Oran
+      const coords = Coordinates(35.7065, -0.6292); // Oran
       final testDate = DateTime(2026, 11, 4, 10, 0, 0);
 
       final prayers = calculator.calculatePrayers(

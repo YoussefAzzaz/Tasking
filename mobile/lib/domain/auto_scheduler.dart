@@ -32,7 +32,10 @@ class SchedulerResult {
 class AutoScheduler {
   static Duration _parseTime(String time) {
     var parts = time.split(':');
-    return Duration(hours: int.parse(parts[0]), minutes: int.parse(parts[1]));
+    if (parts.length < 2) return Duration.zero;
+    int h = int.tryParse(parts[0]) ?? 0;
+    int m = int.tryParse(parts[1]) ?? 0;
+    return Duration(hours: h.clamp(0, 23), minutes: m.clamp(0, 59));
   }
 
   static String _formatTime(Duration d) {
@@ -56,31 +59,51 @@ class AutoScheduler {
     var end = _parseTime(workEnd);
     var now = _parseTime(nowTime);
 
-    // DateTime logic to check if 'date' is today
-    var today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
-    if (date == today && now > start) {
+    // Support both local and UTC date checks to prevent past proposals across timezones
+    final localNow = DateTime.now();
+    final localToday = '${localNow.year.toString().padLeft(4, '0')}-${localNow.month.toString().padLeft(2, '0')}-${localNow.day.toString().padLeft(2, '0')}';
+    final utcToday = localNow.toUtc().toIso8601String().substring(0, 10);
+    if ((date == localToday || date == utcToday) && now > start) {
       start = now;
     }
 
-    var sortedBusy = List<BusyBlock>.from(busy)..sort((a, b) => a.start.compareTo(b.start));
+    // Merge overlapping busy blocks to prevent double-counting available minutes
+    var sortedRawBusy = List<BusyBlock>.from(busy)..sort((a, b) => a.start.compareTo(b.start));
+    var sortedBusy = <BusyBlock>[];
+    for (var b in sortedRawBusy) {
+      var bStart = b.start < start ? start : b.start;
+      var bEnd = b.end > end ? end : b.end;
+      if (bEnd <= bStart) continue;
+
+      if (sortedBusy.isEmpty) {
+        sortedBusy.add(BusyBlock(bStart, bEnd));
+      } else {
+        var last = sortedBusy.last;
+        if (bStart <= last.end) {
+          sortedBusy[sortedBusy.length - 1] = BusyBlock(
+            last.start,
+            bEnd > last.end ? bEnd : last.end,
+          );
+        } else {
+          sortedBusy.add(BusyBlock(bStart, bEnd));
+        }
+      }
+    }
 
     int totalBusy = 0;
     for (var b in sortedBusy) {
-      var bStart = b.start < start ? start : b.start;
-      var bEnd = b.end > end ? end : b.end;
-      if (bEnd > bStart) {
-        totalBusy += (bEnd - bStart).inMinutes;
-      }
+      totalBusy += (b.end - b.start).inMinutes;
     }
 
     int totalWindow = (end > start) ? (end - start).inMinutes : 0;
     result.availableMin = totalWindow - totalBusy;
+    if (result.availableMin < 0) result.availableMin = 0;
 
     var currentPointer = start;
     int busyIndex = 0;
 
     for (var task in tasks) {
-      int duration = task.estimateMin ?? defaultEstimateMin;
+      int duration = (task.estimateMin ?? defaultEstimateMin).clamp(1, 1440);
       bool placed = false;
 
       while (currentPointer + Duration(minutes: duration) <= end) {

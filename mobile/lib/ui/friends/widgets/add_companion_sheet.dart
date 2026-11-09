@@ -329,7 +329,10 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                       decoration: BoxDecoration(color: AxisColors.surfaceHigh, borderRadius: BorderRadius.circular(4)),
-                                      child: Text('Lv. ${_foundCandidate!.level}', style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.warning)),
+                                      child: Text(
+                                        '${l10n.isArabic ? "المستوى" : "Lv."} ${_foundCandidate!.level}',
+                                        style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.warning),
+                                      ),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(_foundCandidate!.title, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim)),

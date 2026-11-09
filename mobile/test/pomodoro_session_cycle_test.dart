@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/ui/focus/focus_screen.dart';
-import 'package:axis/ui/focus/focus_settings_sheet.dart';
 
 void main() {
   setUp(() {

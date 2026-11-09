@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/ui/common/cyber_color_picker.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Section managing custom habit categories with add and delete capabilities
 class HabitCategoriesSection extends StatelessWidget {
@@ -19,14 +20,17 @@ class HabitCategoriesSection extends StatelessWidget {
   Color _parseHex(String? hex) {
     if (hex == null || hex.isEmpty) return AxisColors.primary;
     try {
-      final clean = hex.replaceAll('#', '');
-      return Color(int.parse('FF$clean', radix: 16));
+      final clean = hex.replaceAll('#', '').replaceAll('0x', '').trim();
+      if (clean.length == 6) return Color(int.parse('FF$clean', radix: 16));
+      if (clean.length == 8) return Color(int.parse(clean, radix: 16));
+      return AxisColors.primary;
     } catch (_) {
       return AxisColors.primary;
     }
   }
 
   void _showAddCategoryDialog(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final catCtrl = TextEditingController();
     String selectedColor = '#10B981';
 
@@ -39,9 +43,9 @@ class HabitCategoriesSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: AxisColors.borderPrimary),
           ),
-          title: const Text(
-            'New Habit Category',
-            style: TextStyle(
+          title: Text(
+            isArabic ? 'فئة عادات جديدة' : 'New Habit Category',
+            style: const TextStyle(
               color: AxisColors.textHigh,
               fontWeight: FontWeight.bold,
             ),
@@ -54,12 +58,13 @@ class HabitCategoriesSection extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'CATEGORY NAME',
+                Text(
+                  isArabic ? 'اسم الفئة' : 'CATEGORY NAME',
                   style: TextStyle(
                     color: AxisColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: isArabic ? 0.0 : 0.8,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -68,7 +73,9 @@ class HabitCategoriesSection extends StatelessWidget {
                   autofocus: false,
                   style: const TextStyle(color: AxisColors.textHigh),
                   decoration: InputDecoration(
-                    hintText: 'e.g. Fitness, Meditation, Study',
+                    hintText: isArabic
+                        ? 'مثال: لياقة بدنية، تأمل، دراسة'
+                        : 'e.g. Fitness, Meditation, Study',
                     hintStyle: const TextStyle(color: AxisColors.textDim),
                     filled: true,
                     fillColor: AxisColors.surfaceHigh,
@@ -78,16 +85,17 @@ class HabitCategoriesSection extends StatelessWidget {
                           const BorderSide(color: AxisColors.borderSubtle),
                     ),
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'COLOR ACCENT',
+                Text(
+                  isArabic ? 'لون التمييز' : 'COLOR ACCENT',
                   style: TextStyle(
                     color: AxisColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: isArabic ? 0.0 : 0.8,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -165,8 +173,8 @@ class HabitCategoriesSection extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AxisColors.textDim)),
+              child: Text(isArabic ? 'إلغاء' : 'Cancel',
+                  style: const TextStyle(color: AxisColors.textDim)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -179,8 +187,8 @@ class HabitCategoriesSection extends StatelessWidget {
                   onAddCategory(catName, selectedColor);
                 }
               },
-              child: const Text('Create Category',
-                  style: TextStyle(color: Colors.white)),
+              child: Text(isArabic ? 'إنشاء الفئة' : 'Create Category',
+                  style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -189,6 +197,7 @@ class HabitCategoriesSection extends StatelessWidget {
   }
 
   void _confirmDeleteCategory(BuildContext context, String id, String name) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -198,17 +207,19 @@ class HabitCategoriesSection extends StatelessWidget {
           side: const BorderSide(color: AxisColors.borderPrimary),
         ),
         title: Text(
-          'Delete "$name"?',
+          isArabic ? 'حذف "$name"؟' : 'Delete "$name"?',
           style: const TextStyle(color: AxisColors.textHigh),
         ),
         content: Text(
-          'Are you sure you want to delete the "$name" habit category? Habits in this category will move to General Routines.',
+          isArabic
+              ? 'هل أنت متأكد من رغبتك في حذف فئة العادات "$name"؟ ستُنقل العادات التابعة لها إلى الفئة العامة.'
+              : 'Are you sure you want to delete the "$name" habit category? Habits in this category will move to General Routines.',
           style: const TextStyle(color: AxisColors.textMuted, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: AxisColors.textDim)),
+            child: Text(isArabic ? 'إلغاء' : 'Cancel', style: const TextStyle(color: AxisColors.textDim)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
@@ -216,7 +227,7 @@ class HabitCategoriesSection extends StatelessWidget {
               Navigator.pop(dialogCtx);
               onDeleteCategory(id, name);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(isArabic ? 'حذف' : 'Delete', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -225,6 +236,9 @@ class HabitCategoriesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -233,10 +247,11 @@ class HabitCategoriesSection extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'HABIT CATEGORIES',
+                isArabic ? 'فئات العادات' : 'HABIT CATEGORIES',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: AxisColors.textMuted,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: isArabic ? 0.0 : 0.8,
                     ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -257,14 +272,14 @@ class HabitCategoriesSection extends StatelessWidget {
                       color: AxisColors.success.withValues(alpha: 0.35),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, size: 14, color: AxisColors.success),
-                      SizedBox(width: 4),
+                      const Icon(Icons.add, size: 14, color: AxisColors.success),
+                      const SizedBox(width: 4),
                       Text(
-                        'New Category',
-                        style: TextStyle(
+                        isArabic ? 'فئة جديدة' : 'New Category',
+                        style: const TextStyle(
                           fontSize: 11,
                           color: AxisColors.success,
                           fontWeight: FontWeight.bold,
@@ -286,10 +301,10 @@ class HabitCategoriesSection extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AxisColors.borderSubtle),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'No custom categories created yet',
-                style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+                isArabic ? 'لا توجد فئات مخصصة بعد' : 'No custom categories created yet',
+                style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
               ),
             ),
           )
@@ -325,7 +340,7 @@ class HabitCategoriesSection extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            (categories[i]['name'] as String?) ?? 'Category',
+                            l10n.localizedHabitCategory((categories[i]['name'] as String?) ?? 'Category'),
                             style: const TextStyle(
                               color: AxisColors.textHigh,
                               fontWeight: FontWeight.w600,
@@ -336,7 +351,7 @@ class HabitCategoriesSection extends StatelessWidget {
                         IconButton(
                           icon: const Icon(Icons.delete_outline_rounded,
                               size: 18, color: AxisColors.textDim),
-                          tooltip: 'Delete Category',
+                          tooltip: isArabic ? 'حذف الفئة' : 'Delete Category',
                           onPressed: () => _confirmDeleteCategory(
                             context,
                             (categories[i]['id'] as String?) ?? '',

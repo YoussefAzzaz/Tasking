@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/reading_preferences_service.dart';
 
 /// Cyber-minimalist font size control widget for viewing task descriptions, notes, and journals.
@@ -11,6 +12,7 @@ class ReadingFontSizeControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = ReadingPreferencesService();
+    final isArabic = AppLocalizations.of(context).isArabic;
 
     return ValueListenableBuilder<double>(
       valueListenable: service.fontScaleNotifier,
@@ -37,7 +39,7 @@ class ReadingFontSizeControl extends StatelessWidget {
             children: [
               // Decrease button (A-)
               Tooltip(
-                message: 'Decrease font size',
+                message: isArabic ? 'تصغير حجم الخط' : 'Decrease font size',
                 child: InkWell(
                   onTap: canDecrease
                       ? () {
@@ -66,8 +68,8 @@ class ReadingFontSizeControl extends StatelessWidget {
               // Percentage indicator (tap to reset to 100%)
               Tooltip(
                 message: isDefault
-                    ? 'Default font size (100%)'
-                    : 'Tap to reset to 100%',
+                    ? (isArabic ? 'حجم الخط الافتراضي (100%)' : 'Default font size (100%)')
+                    : (isArabic ? 'انقر لإعادة التعيين إلى 100%' : 'Tap to reset to 100%'),
                 child: InkWell(
                   onTap: isDefault
                       ? null
@@ -101,7 +103,7 @@ class ReadingFontSizeControl extends StatelessWidget {
 
               // Increase button (A+)
               Tooltip(
-                message: 'Increase font size',
+                message: isArabic ? 'تكبير حجم الخط' : 'Increase font size',
                 child: InkWell(
                   onTap: canIncrease
                       ? () {

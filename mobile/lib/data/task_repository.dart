@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
@@ -56,21 +57,30 @@ class Task {
     int? estimateMin,
     String? recurrenceRule,
     String? recurrenceMode,
+    bool clearDueDate = false,
+    bool clearDueTime = false,
+    bool clearNotes = false,
+    bool clearProjectId = false,
+    bool clearTags = false,
+    bool clearEstimateMin = false,
+    bool clearRecurrenceRule = false,
+    bool clearRecurrenceMode = false,
+    bool clearPriority = false,
   }) {
     return Task(
       id: id ?? this.id,
       userId: userId ?? this.userId,
       title: title ?? this.title,
-      notes: notes ?? this.notes,
+      notes: clearNotes ? null : (notes ?? this.notes),
       status: status ?? this.status,
-      priority: priority ?? this.priority,
-      projectId: projectId ?? this.projectId,
-      tags: tags ?? this.tags,
-      dueDate: dueDate ?? this.dueDate,
-      dueTime: dueTime ?? this.dueTime,
-      estimateMin: estimateMin ?? this.estimateMin,
-      recurrenceRule: recurrenceRule ?? this.recurrenceRule,
-      recurrenceMode: recurrenceMode ?? this.recurrenceMode,
+      priority: clearPriority ? null : (priority ?? this.priority),
+      projectId: clearProjectId ? null : (projectId ?? this.projectId),
+      tags: clearTags ? null : (tags ?? this.tags),
+      dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
+      dueTime: clearDueTime ? null : (dueTime ?? this.dueTime),
+      estimateMin: clearEstimateMin ? null : (estimateMin ?? this.estimateMin),
+      recurrenceRule: clearRecurrenceRule ? null : (recurrenceRule ?? this.recurrenceRule),
+      recurrenceMode: clearRecurrenceMode ? null : (recurrenceMode ?? this.recurrenceMode),
     );
   }
 
@@ -208,10 +218,27 @@ class TaskRepository {
     });
   }
 
+  /// Fetches a single task by ID from SQLite if available.
+  Future<Task?> getTaskById(String id) async {
+    if (!isDatabaseInitialized) return null;
+    try {
+      final row = await db.getOptional(
+        "SELECT * FROM tasks WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '') LIMIT 1",
+        [id],
+      );
+      if (row == null) return null;
+      return Task.fromRow(row);
+    } catch (e) {
+      debugPrint('[TaskRepository] Error fetching task by id: $e');
+      return null;
+    }
+  }
+
   Future<void> addTask(Task task) async {
     if (!isDatabaseInitialized) return;
     final uid = task.userId ?? currentUserId;
     try {
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
       await db.execute('''
         INSERT INTO tasks (
           id, user_id, title, notes, status, priority, project_id, tags, due_date, due_time, estimate_min, recurrence_rule, recurrence_mode, created_at, updated_at
@@ -232,8 +259,8 @@ class TaskRepository {
         task.estimateMin,
         task.recurrenceRule,
         task.recurrenceMode,
-        DateTime.now().toUtc().toIso8601String(),
-        DateTime.now().toUtc().toIso8601String(),
+        nowUtc,
+        nowUtc,
       ]);
 
       if (task.tags != null && task.tags!.isNotEmpty) {
@@ -279,23 +306,30 @@ class TaskRepository {
       final now = DateTime.now().toUtc().toIso8601String();
       if (task.status == 'done' && oldStatus != 'done') {
         int xp = 5;
-        if (task.priority == 3) {
-          xp = 20;
+        if (task.priority == 1) {
+          xp = 20; // P1 High
         } else if (task.priority == 2) {
-          xp = 10;
+          xp = 10; // P2 Medium
         }
-        final today = now.substring(0, 10);
+        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
         if (task.dueDate != null && task.dueDate!.isNotEmpty) {
           if (today.compareTo(task.dueDate!) <= 0) {
             xp += 5; // +5 bonus if completed on or before due date (SPEC §6.6)
           }
         }
         final logId = IdGenerator.generateDeterministicId('xp_task_${task.id}_$today');
-        await db.execute('''
-          INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp, created_at, updated_at)
-          VALUES (?, ?, ?, 'task_completed', ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET xp_earned = excluded.xp_earned, updated_at = excluded.updated_at, deleted_at = NULL
-        ''', [logId, uid, task.id, xp, now, now, now]);
+        final existingLog = await db.getOptional('SELECT id FROM logs WHERE id = ?', [logId]);
+        if (existingLog != null) {
+          await db.execute(
+            'UPDATE logs SET xp_earned = ?, updated_at = ?, deleted_at = NULL WHERE id = ?',
+            [xp, now, logId],
+          );
+        } else {
+          await db.execute('''
+            INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp, created_at, updated_at)
+            VALUES (?, ?, ?, 'task_completed', ?, ?, ?, ?)
+          ''', [logId, uid, task.id, xp, now, now, now]);
+        }
         DomainEvents.emit(TaskCompletedEvent(task.id, xp));
       } else if (task.status != 'done' && oldStatus == 'done') {
         final deleteQuery = uid.isNotEmpty

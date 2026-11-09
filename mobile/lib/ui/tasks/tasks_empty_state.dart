@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 class TasksEmptyState extends StatelessWidget {
   const TasksEmptyState({
@@ -13,6 +14,7 @@ class TasksEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = context.isArabic;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -24,7 +26,9 @@ class TasksEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            isFiltered ? 'No tasks match active filters' : 'No tasks found',
+            isFiltered
+                ? (isArabic ? 'لا توجد مهام تطابق عوامل التصفية' : 'No tasks match active filters')
+                : (isArabic ? 'لا توجد مهام' : 'No tasks found'),
             style: const TextStyle(
               color: AxisColors.textMuted,
               fontSize: 15,
@@ -34,8 +38,12 @@ class TasksEmptyState extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             isFiltered
-                ? 'Try adjusting or resetting your filter studio selections'
-                : 'Tap "+ New Task" to create your first objective',
+                ? (isArabic
+                    ? 'حاول تعديل خيارات التصفية أو إعادة تعيينها'
+                    : 'Try adjusting or resetting your filter studio selections')
+                : (isArabic
+                    ? 'انقر على "+ مهمة جديدة" لإنشاء هدفك الأول'
+                    : 'Tap "+ New Task" to create your first objective'),
             style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
           ),
           if (isFiltered && onReset != null) ...[
@@ -43,7 +51,7 @@ class TasksEmptyState extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onReset,
               icon: const Icon(Icons.restart_alt_rounded, size: 16),
-              label: const Text('Reset Filters'),
+              label: Text(isArabic ? 'إعادة تعيين الفلاتر' : 'Reset Filters'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AxisColors.primary,
                 side: const BorderSide(color: AxisColors.primary),

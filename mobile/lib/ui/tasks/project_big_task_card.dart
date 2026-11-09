@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
@@ -127,7 +128,9 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '$done of $total subtasks finished',
+                                    context.isArabic
+                                        ? 'اكتملت $done من أصل $total مهام فرعية'
+                                        : '$done of $total subtasks finished',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -155,11 +158,14 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                 border: Border.all(
                                     color: AxisColors.success.withValues(alpha: 0.5)),
                               ),
-                              child: const Text('DONE',
-                                  style: TextStyle(
-                                      color: AxisColors.success,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold)),
+                              child: Text(
+                                context.isArabic ? 'مكتمل' : 'DONE',
+                                style: const TextStyle(
+                                  color: AxisColors.success,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             )
                           else
                             Text(
@@ -175,7 +181,7 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                             IconButton(
                               icon: const Icon(Icons.delete_outline_rounded,
                                   size: 20, color: AxisColors.textDim),
-                              tooltip: 'Delete project',
+                              tooltip: context.isArabic ? 'حذف المشروع' : 'Delete project',
                               constraints: const BoxConstraints(
                                   minWidth: 48, minHeight: 48),
                               onPressed: () {
@@ -188,20 +194,26 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                       side: const BorderSide(
                                           color: AxisColors.borderPrimary),
                                     ),
-                                    title: const Text('Delete Project?',
-                                        style: TextStyle(
-                                            color: AxisColors.textHigh)),
+                                    title: Text(
+                                      context.isArabic ? 'حذف المشروع؟' : 'Delete Project?',
+                                      style: const TextStyle(
+                                          color: AxisColors.textHigh),
+                                    ),
                                     content: Text(
-                                      'Are you sure you want to delete "${widget.project.name}"? Subtasks will be unassigned but not deleted.',
+                                      context.isArabic
+                                          ? 'هل أنت متأكد من حذف "${widget.project.name}"؟ ستبقى المهام الفرعية بدون تعيين لمشروع ولكن لن تُحذف.'
+                                          : 'Are you sure you want to delete "${widget.project.name}"? Subtasks will be unassigned but not deleted.',
                                       style: const TextStyle(
                                           color: AxisColors.textMuted),
                                     ),
                                     actions: [
                                       TextButton(
                                         onPressed: () => Navigator.pop(ctx),
-                                        child: const Text('Cancel',
-                                            style: TextStyle(
-                                                color: AxisColors.textDim)),
+                                        child: Text(
+                                          context.isArabic ? 'إلغاء' : 'Cancel',
+                                          style: const TextStyle(
+                                              color: AxisColors.textDim),
+                                        ),
                                       ),
                                       ElevatedButton(
                                         style: ElevatedButton.styleFrom(
@@ -218,13 +230,14 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                             AxisSnackBar.showDeleted(
                                               context,
                                               itemTitle: widget.project.name,
-                                              itemType: 'Project',
+                                              itemType: context.isArabic ? 'مشروع' : 'Project',
                                             );
                                           }
                                         },
-                                        child: const Text('Delete',
-                                            style:
-                                                TextStyle(color: Colors.white)),
+                                        child: Text(
+                                          context.isArabic ? 'حذف' : 'Delete',
+                                          style: const TextStyle(color: Colors.white),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -305,12 +318,14 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                         children: [
                         const Divider(color: AxisColors.borderSubtle, height: 1),
             if (sortedSubtasks.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Center(
                   child: Text(
-                    'No subtasks created for this project yet.',
-                    style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+                    context.isArabic
+                        ? 'لا توجد مهام فرعية لهذا المشروع بعد.'
+                        : 'No subtasks created for this project yet.',
+                    style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
                   ),
                 ),
               )
@@ -382,7 +397,7 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                 if (task.dueDate != null) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Due: ${task.dueDate}',
+                                    context.isArabic ? 'الاستحقاق: ${task.dueDate}' : 'Due: ${task.dueDate}',
                                     style: const TextStyle(
                                       fontSize: 11,
                                       color: AxisColors.textMuted,
@@ -438,7 +453,9 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                       Icon(Icons.add, size: 14, color: widget.color),
                       const SizedBox(width: 6),
                       Text(
-                        'Add Subtask to ${widget.project.name}',
+                        context.isArabic
+                            ? 'إضافة مهمة فرعية إلى ${widget.project.name}'
+                            : 'Add Subtask to ${widget.project.name}',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

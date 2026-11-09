@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/data/note_repository.dart';
 import 'package:axis/data/reading_preferences_service.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
 import 'package:axis/ui/common/reading_font_size_control.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Modal bottom sheet displaying detailed note view, markdown content, mood badge and edit/delete actions
 class NoteDetailSheet extends StatefulWidget {
@@ -45,6 +45,8 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
     final isJournal = _note.category == 'journal';
 
     return ModalSheetScaffold(
@@ -92,12 +94,12 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              _note.category.toUpperCase(),
-                              style: const TextStyle(
+                              l10n.localizedNoteCategory(_note.category).toUpperCase(),
+                              style: TextStyle(
                                 color: AxisColors.secondary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
-                                letterSpacing: 1.2,
+                                letterSpacing: isArabic ? 0.0 : 1.2,
                               ),
                             ),
                           ],
@@ -108,7 +110,7 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
                             IconButton(
                               icon: const Icon(Icons.edit_outlined,
                                   color: AxisColors.secondary, size: 20),
-                              tooltip: 'Edit Entry',
+                              tooltip: isArabic ? 'تعديل التدوينة' : 'Edit Entry',
                               onPressed: () {
                                 Navigator.pop(context);
                                 widget.onEdit();
@@ -117,7 +119,7 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
                             IconButton(
                               icon: const Icon(Icons.delete_outline_rounded,
                                   color: AxisColors.error, size: 20),
-                              tooltip: 'Delete Entry',
+                              tooltip: isArabic ? 'حذف التدوينة' : 'Delete Entry',
                               onPressed: () {
                                 Navigator.pop(context);
                                 widget.onDelete();
@@ -140,7 +142,7 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
             ),
             const SizedBox(height: 4),
             Text(
-              DateFormat('EEEE, d MMM yyyy • HH:mm').format(_note.createdAt),
+              context.formatDate(_note.createdAt, 'EEEE, d MMM yyyy • HH:mm'),
               style: Theme.of(context)
                   .textTheme
                   .labelSmall
@@ -164,7 +166,7 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
                       size: 14, color: AxisColors.warning),
                     const SizedBox(width: 4),
                     Text(
-                      _note.mood!,
+                      l10n.localizedMood(_note.mood!),
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
@@ -180,12 +182,14 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  isJournal ? 'JOURNAL ENTRY' : 'NOTE CONTENT',
-                  style: const TextStyle(
+                  isJournal
+                      ? (isArabic ? 'تدوينة اليوميات' : 'JOURNAL ENTRY')
+                      : (isArabic ? 'محتوى الملاحظة' : 'NOTE CONTENT'),
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: AxisColors.textDim,
-                    letterSpacing: 1.2,
+                    letterSpacing: isArabic ? 0.0 : 1.2,
                   ),
                 ),
                 const ReadingFontSizeControl(),
@@ -227,7 +231,7 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
                           widget.onEdit();
                         },
                         icon: const Icon(Icons.edit_outlined, size: 16),
-                        label: const Text('Edit Entry'),
+                        label: Text(isArabic ? 'تعديل التدوينة' : 'Edit Entry'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AxisColors.secondary,
                           side: const BorderSide(color: AxisColors.secondary),

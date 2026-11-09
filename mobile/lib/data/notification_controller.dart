@@ -3,7 +3,7 @@ import 'dart:isolate';
 import 'dart:ui';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/core/router.dart';
-import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized;
+import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized, currentUserId;
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
@@ -93,6 +93,7 @@ class NotificationController {
             final habitId = payload['habit_id'];
             if (habitId != null) {
               await HabitRepository().toggleHabit(habitId, true);
+              await HabitNotificationService().onHabitCompletedToday(habitId);
             }
           }
         }
@@ -108,13 +109,37 @@ class NotificationController {
   static Future<void> onNotificationDisplayedMethod(
       ReceivedNotification receivedNotification) async {
     if (receivedNotification.channelKey == 'habit_reminder_channel') {
+      final notifUserId = receivedNotification.payload?['user_id'];
+      final activeUid = currentUserId;
+      // If notification belongs to a different user, dismiss and cancel schedule immediately
+      if (notifUserId != null &&
+          notifUserId.isNotEmpty &&
+          activeUid.isNotEmpty &&
+          activeUid != notifUserId) {
+        if (receivedNotification.id != null) {
+          await AwesomeNotifications().dismiss(receivedNotification.id!);
+          await AwesomeNotifications().cancelSchedule(receivedNotification.id!);
+        }
+        return;
+      }
+
       final habitId = receivedNotification.payload?['habit_id'];
       if (habitId != null) {
         final isDone =
             await HabitNotificationService().isHabitCompletedToday(habitId);
         if (isDone && receivedNotification.id != null) {
           await AwesomeNotifications().dismiss(receivedNotification.id!);
+          await AwesomeNotifications().cancelSchedule(receivedNotification.id!);
+          return;
         }
+      }
+
+      // Daisy-chain checkpoint refill: if this queued occurrence was flagged as a checkpoint
+      // (every 10th item or queue tail), trigger background refill to replenish the sliding window.
+      final isCheckpoint =
+          receivedNotification.payload?['is_checkpoint'] == 'true';
+      if (isCheckpoint) {
+        unawaited(HabitNotificationService().refillQueue());
       }
     }
   }

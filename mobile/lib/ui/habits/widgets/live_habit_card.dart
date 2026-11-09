@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/habit_repository.dart';
 
 /// Interactive habit card featuring XP rewards, custom habit icons, options sheet and check toggle
@@ -50,6 +51,7 @@ class LiveHabitCard extends StatelessWidget {
   }
 
   void _showOptions(BuildContext context) {
+    final isArabic = context.isArabic;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -83,16 +85,16 @@ class LiveHabitCard extends StatelessWidget {
                 Navigator.pop(ctx);
                 onEdit();
               },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 child: Row(
                   children: [
-                    Icon(Icons.edit_outlined,
+                    const Icon(Icons.edit_outlined,
                         color: AxisColors.secondary, size: 20),
-                    SizedBox(width: 14),
+                    const SizedBox(width: 14),
                     Text(
-                      'Edit Habit',
-                      style: TextStyle(
+                      isArabic ? 'تعديل العادة' : 'Edit Habit',
+                      style: const TextStyle(
                         color: AxisColors.textHigh,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -111,29 +113,56 @@ class LiveHabitCard extends StatelessWidget {
                   context: context,
                   builder: (dialogCtx) => AlertDialog(
                     backgroundColor: AxisColors.surfaceHigh,
-                    title: Text('Delete "${habit.name}"?',
-                        style: const TextStyle(color: AxisColors.textHigh)),
-                    content: const Text(
-                        'This will delete the habit and its streak history.',
-                        style: TextStyle(color: AxisColors.textMuted)),
+                    title: Text(
+                      isArabic ? 'حذف "${habit.name}"؟' : 'Delete "${habit.name}"?',
+                      style: const TextStyle(color: AxisColors.textHigh),
+                    ),
+                    content: Text(
+                      isArabic
+                          ? 'سيؤدي هذا إلى حذف العادة وتاريخ تتابعها.'
+                          : 'This will delete the habit and its streak history.',
+                      style: const TextStyle(color: AxisColors.textMuted),
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(dialogCtx),
-                        child: const Text('Cancel',
-                            style: TextStyle(color: AxisColors.textMuted)),
+                        child: Text(
+                          isArabic ? 'إلغاء' : 'Cancel',
+                          style: const TextStyle(color: AxisColors.textMuted),
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
                           Navigator.pop(dialogCtx);
                           onDelete();
                         },
-                        child: const Text('Delete',
-                            style: TextStyle(color: AxisColors.error)),
+                        child: Text(
+                          isArabic ? 'حذف' : 'Delete',
+                          style: const TextStyle(color: AxisColors.error),
+                        ),
                       ),
                     ],
                   ),
                 );
               },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete_outline_rounded,
+                        color: AxisColors.error, size: 20),
+                    const SizedBox(width: 14),
+                    Text(
+                      isArabic ? 'حذف العادة' : 'Delete Habit',
+                      style: const TextStyle(
+                        color: AxisColors.error,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -233,7 +262,9 @@ class LiveHabitCard extends StatelessWidget {
                                       size: 12, color: AxisColors.warning),
                                   const SizedBox(width: 2),
                                   Text(
-                                    '${habit.streakDays}d streak',
+                                    context.isArabic
+                                        ? '${habit.streakDays} ${habit.streakDays == 1 ? 'يوم' : 'أيام'} تتابع'
+                                        : '${habit.streakDays}d streak',
                                     style: const TextStyle(
                                       fontSize: 11,
                                       color: AxisColors.warning,
@@ -269,7 +300,11 @@ class LiveHabitCard extends StatelessWidget {
                   const SizedBox(width: 4),
                 ],
                 Text(
-                  isDone ? 'DONE' : '+${habit.targetValue} XP',
+                  isDone
+                      ? (context.isArabic ? 'مكتمل' : 'DONE')
+                      : (context.isArabic
+                          ? '+${habit.targetValue} نقطة'
+                          : '+${habit.targetValue} XP'),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color:
                             isDone ? AxisColors.textDim : AxisColors.success,

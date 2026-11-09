@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Priority Matrix task card with glowing priority badge, estimate pill, and XP label
 class PriorityTaskCard extends StatelessWidget {
@@ -141,7 +142,7 @@ class PriorityTaskCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsetsDirectional.only(start: 8),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -149,7 +150,7 @@ class PriorityTaskCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '+$xp XP',
+                  '+$xp ${context.isArabic ? "نقطة" : "XP"}',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: AxisColors.primarySoft,
                         fontWeight: FontWeight.bold,

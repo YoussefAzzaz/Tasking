@@ -1,33 +1,51 @@
 import 'dart:async';
 
-abstract class DomainEvent {}
+sealed class DomainEvent {
+  final DateTime occurredAt;
+  DomainEvent({DateTime? occurredAt}) : occurredAt = occurredAt ?? DateTime.now();
+}
 
-class TaskCreatedEvent extends DomainEvent {
+final class TaskCreatedEvent extends DomainEvent {
   final String taskId;
   TaskCreatedEvent(this.taskId);
 }
 
-class TaskCompletedEvent extends DomainEvent {
+final class TaskCompletedEvent extends DomainEvent {
   final String taskId;
   final int xpEarned;
   TaskCompletedEvent(this.taskId, this.xpEarned);
 }
 
-class LevelUpEvent extends DomainEvent {
+final class LevelUpEvent extends DomainEvent {
   final int newLevel;
   LevelUpEvent(this.newLevel);
 }
 
 class DomainEvents {
-  static final StreamController<DomainEvent> _controller = StreamController<DomainEvent>.broadcast();
+  static StreamController<DomainEvent> _controller = StreamController<DomainEvent>.broadcast();
 
-  static Stream<DomainEvent> get stream => _controller.stream;
+  static Stream<DomainEvent> get stream {
+    if (_controller.isClosed) {
+      _controller = StreamController<DomainEvent>.broadcast();
+    }
+    return _controller.stream;
+  }
 
   static void emit(DomainEvent event) {
+    if (_controller.isClosed) {
+      _controller = StreamController<DomainEvent>.broadcast();
+    }
     _controller.add(event);
   }
 
+  static void reset() {
+    if (!_controller.isClosed) {
+      _controller.close();
+    }
+    _controller = StreamController<DomainEvent>.broadcast();
+  }
+
   static void dispose() {
-    _controller.close();
+    reset();
   }
 }

@@ -154,6 +154,9 @@ class NetworkService with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       checkSupabaseConnectivity();
+      if (AuthService().hasActiveSession) {
+        unawaited(ensurePowerSyncConnected());
+      }
     }
   }
 

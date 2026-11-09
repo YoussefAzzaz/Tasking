@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:window_manager/window_manager.dart';
 
 import '../../../core/theme.dart';
@@ -285,20 +285,24 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: DesktopLayout.titlebarHeight,
-      decoration: const BoxDecoration(
-        color: AxisColors.canvasBase,
-        border: Border(
-          bottom: BorderSide(
-            color: AxisColors.borderSubtle,
-            width: 1.0,
+    // Desktop top bar remains strictly in LTR layout so brand logo/clock stay on the left
+    // and native window controls stay pinned to the top right even in Arabic RTL mode.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Container(
+        width: double.infinity,
+        height: DesktopLayout.titlebarHeight,
+        decoration: const BoxDecoration(
+          color: AxisColors.canvasBase,
+          border: Border(
+            bottom: BorderSide(
+              color: AxisColors.borderSubtle,
+              width: 1.0,
+            ),
           ),
         ),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
+        child: LayoutBuilder(
+          builder: (context, constraints) {
           final totalWidth = constraints.maxWidth;
           final canCenterGlobally = totalWidth >= 1150;
 
@@ -489,6 +493,7 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
           );
         },
       ),
+    ),
     );
   }
 }

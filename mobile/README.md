@@ -1,17 +1,42 @@
-# axis
+# Axis (Flutter App)
 
-A new Flutter project.
+The unified Flutter application powering **Axis Mobile** (Android & iOS) and **Axis Desktop Command Center** (Windows, macOS, Linux).
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🚀 Running the App
 
-A few resources to get you started if this is your first Flutter project:
+### Mobile
+```bash
+flutter run
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### Desktop (Windows)
+```bash
+flutter run -d windows
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Build Windows MSIX
+```bash
+flutter pub run msix:create
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+flutter test
+flutter analyze
+```
+
+---
+
+## 📁 Architecture Overview
+
+* **`lib/core/`**: Obsidian Kinetic design tokens, global themes, audio/cache services, and atomic UI widgets.
+* **`lib/data/`**: Repositories, models, PowerSync SQLite database definitions, and Supabase client integration.
+* **`lib/domain/`**: Pure algorithmic engines (AutoScheduler, QuickAddParser, Gamification, Badges).
+* **`lib/ui/shell/`**: Responsive application shell routing between mobile bottom-navigation and desktop sidebar.
+* **`lib/ui/desktop/`**: High-density desktop command center layout, screens, omnibar, and widgets.
+* **`lib/ui/`**: Feature-specific mobile screens (Today, Tasks, Habits, Focus, Notes).

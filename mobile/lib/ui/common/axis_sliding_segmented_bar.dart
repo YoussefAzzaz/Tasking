@@ -42,10 +42,10 @@ class AxisSlidingSegmentedBar extends StatelessWidget {
           return Stack(
             children: [
               // Single animated sliding indicator pill
-              AnimatedPositioned(
+              AnimatedPositionedDirectional(
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeOutCubic,
-                left: clampedIndex * itemWidth,
+                start: clampedIndex * itemWidth,
                 top: 0,
                 bottom: 0,
                 width: itemWidth,
@@ -94,7 +94,7 @@ class AxisSlidingSegmentedBar extends StatelessWidget {
                                 ? FontWeight.bold
                                 : FontWeight.w500,
                             fontSize: count > 3 ? 11.5 : 12,
-                            letterSpacing: count > 3 ? 0.1 : 0.3,
+                            letterSpacing: Directionality.of(context) == TextDirection.rtl ? 0.0 : (count > 3 ? 0.1 : 0.3),
                           ),
                           child: Text(
                             segments[i],

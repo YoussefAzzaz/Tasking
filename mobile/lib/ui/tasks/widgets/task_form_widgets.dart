@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Styled uppercase field label for dark theme forms
 class FieldLabel extends StatelessWidget {
@@ -11,7 +12,7 @@ class FieldLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
-        label,
+        label.tr(context),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: AxisColors.textMuted,
               fontWeight: FontWeight.bold,
@@ -209,6 +210,150 @@ class DropdownOption extends StatelessWidget {
                 color: AxisColors.primary,
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Header bar with pill grabber, title, and close action for task sheets
+class TaskSheetHeader extends StatelessWidget {
+  const TaskSheetHeader({
+    super.key,
+    required this.isEdit,
+    required this.onClose,
+  });
+
+  final bool isEdit;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
+      child: Column(
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AxisColors.borderGlass2,
+                borderRadius: BorderRadius.circular(9999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AxisColors.primary.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.add_task_rounded,
+                        color: AxisColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isEdit
+                        ? (AppLocalizations.of(context).isArabic ? 'تعديل المهمة' : 'EDIT TASK')
+                        : (AppLocalizations.of(context).isArabic ? 'مهمة جديدة' : 'NEW TASK'),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AxisColors.textHigh,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded,
+                    color: AxisColors.textMuted, size: 22),
+                onPressed: onClose,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Gradient submit button for task creation and editing
+class TaskSubmitButton extends StatelessWidget {
+  const TaskSubmitButton({
+    super.key,
+    required this.isEdit,
+    required this.isSaving,
+    required this.onPressed,
+  });
+
+  final bool isEdit;
+  final bool isSaving;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        height: 50,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              AxisColors.primary,
+              Color(0xFF6366F1),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: AxisColors.primary.withValues(alpha: 0.4),
+              blurRadius: 16,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Center(
+          child: isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isEdit
+                          ? (AppLocalizations.of(context).isArabic ? 'حفظ التغييرات' : 'SAVE CHANGES')
+                          : (AppLocalizations.of(context).isArabic ? 'إنشاء مهمة' : 'CREATE TASK'),
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

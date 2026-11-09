@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/habit_category_repository.dart';
-import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
+import 'package:axis/ui/habits/widgets/habit_schedule_reminder_picker.dart';
+import 'package:axis/ui/habits/services/habit_form_service.dart';
 
 export 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
+export 'package:axis/ui/habits/widgets/habit_schedule_reminder_picker.dart';
+export 'package:axis/ui/habits/services/habit_form_service.dart';
 
 class CreateHabitSheet extends StatefulWidget {
   const CreateHabitSheet({
@@ -159,165 +163,51 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
   }
 
   Future<void> _save() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      setState(() => _errorText = 'Please enter a habit name');
-      return;
-    }
-
     setState(() {
       _saving = true;
       _errorText = null;
     });
 
-    final categoryName = _categoryController.text.trim();
-    if (categoryName.isNotEmpty) {
-      final exists = _categories.any(
-        (c) => c.name.toLowerCase() == categoryName.toLowerCase(),
-      );
-      if (!exists) {
-        await HabitCategoryRepository().addCategory(
-          name: categoryName,
-          icon: _selectedIcon,
-          color: _selectedColor,
-        );
-      }
-    }
-
-    final timeStr = _reminderTime != null
-        ? '${_reminderTime!.hourOfPeriod == 0 ? 12 : _reminderTime!.hourOfPeriod}:${_reminderTime!.minute.toString().padLeft(2, '0')} ${_reminderTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
-        : null;
-
-    final category = categoryName.isNotEmpty ? categoryName : 'General Routines';
-
-    if (widget.habitToEdit != null) {
-      final updatedHabit = Habit(
-        id: widget.habitToEdit!.id,
-        name: name,
-        category: category,
-        icon: _selectedIcon,
-        color: _selectedColor,
+    try {
+      await HabitFormService().saveHabit(
+        habitToEdit: widget.habitToEdit,
+        rawName: _nameController.text,
+        categoryInput: _categoryController.text,
+        selectedIcon: _selectedIcon,
+        selectedColor: _selectedColor,
         scheduleType: _scheduleType,
-        remindTime: timeStr,
-        targetValue: _targetXp,
-        isDoneToday: widget.habitToEdit!.isDoneToday,
-        streakDays: widget.habitToEdit!.streakDays,
+        reminderTime: _reminderTime,
+        targetXp: _targetXp,
+        existingCategories: _categories,
       );
-      await HabitRepository().updateHabit(updatedHabit);
+
       if (mounted) {
         Navigator.pop(context);
         widget.onHabitCreated();
       }
-      return;
-    }
-
-    final habit = Habit(
-      id: IdGenerator.generateDeterministicId(
-          'habit_${DateTime.now().microsecondsSinceEpoch}_$name'),
-      name: name,
-      category: category,
-      icon: _selectedIcon,
-      color: _selectedColor,
-      scheduleType: _scheduleType,
-      remindTime: timeStr,
-      targetValue: _targetXp,
-    );
-
-    await HabitRepository().addHabit(habit);
-
-    if (mounted) {
-      Navigator.pop(context);
-      widget.onHabitCreated();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _errorText = e.toString().replaceFirst('Exception: ', '').replaceFirst('ArgumentError: ', '');
+        });
+      }
     }
   }
 
   void _confirmDelete() {
     if (widget.habitToEdit == null) return;
-    showDialog(
+    HabitFormService.showConfirmDeleteDialog(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: AxisColors.surfaceHigh,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AxisColors.borderPrimary),
-        ),
-        title: Text(
-          'Delete "${widget.habitToEdit!.name}"?',
-          style: const TextStyle(color: AxisColors.textHigh),
-        ),
-        content: const Text(
-          'Are you sure you want to delete this habit? All progress and logs will be removed.',
-          style: TextStyle(color: AxisColors.textMuted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel',
-                style: TextStyle(color: AxisColors.textDim)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
-            onPressed: () async {
-              Navigator.pop(dialogCtx);
-              setState(() => _saving = true);
-              await HabitRepository().deleteHabit(widget.habitToEdit!.id);
-              if (mounted) {
-                Navigator.pop(context);
-                widget.onHabitCreated();
-              }
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderRow(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AxisColors.success.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.local_fire_department_rounded,
-                  color: AxisColors.success,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    widget.habitToEdit != null
-                        ? 'EDIT HABIT ROUTINE'
-                        : 'NEW HABIT ROUTINE',
-                    maxLines: 1,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AxisColors.textHigh,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.close_rounded,
-              color: AxisColors.textMuted, size: 22),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ],
+      habit: widget.habitToEdit!,
+      onConfirm: () async {
+        setState(() => _saving = true);
+        await HabitFormService().deleteHabit(widget.habitToEdit!.id);
+        if (mounted) {
+          Navigator.pop(context);
+          widget.onHabitCreated();
+        }
+      },
     );
   }
 
@@ -366,7 +256,10 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildHeaderRow(context),
+                    HabitSheetHeader(
+                      isEdit: widget.habitToEdit != null,
+                      onClose: () => Navigator.pop(context),
+                    ),
                   ],
                 ),
               ),
@@ -374,7 +267,10 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
           else
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 16, 12),
-              child: _buildHeaderRow(context),
+              child: HabitSheetHeader(
+                isEdit: widget.habitToEdit != null,
+                onClose: () => Navigator.pop(context),
+              ),
             ),
           const Divider(color: AxisColors.borderSubtle, height: 1),
 
@@ -386,7 +282,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Name
-                        const FieldLabel(label: 'HABIT NAME *'),
+                        FieldLabel(label: context.isArabic ? 'اسم العادة *' : 'HABIT NAME *'),
                         AutoDirectionScope(
                           controller: _nameController,
                           child: TextField(
@@ -399,8 +295,10 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                                     ),
                             cursorColor: AxisColors.success,
                             decoration: InputDecoration(
-                              hintText: 'e.g. Read 20 Pages, Morning Run',
-                              hintStyle: TextStyle(color: AxisColors.textDim),
+                              hintText: context.isArabic
+                                  ? 'مثال: قراءة 20 صفحة، الجري صباحاً'
+                                  : 'e.g. Read 20 Pages, Morning Run',
+                              hintStyle: const TextStyle(color: AxisColors.textDim),
                               errorText: _errorText,
                               filled: true,
                               fillColor:
@@ -428,7 +326,7 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                         const SizedBox(height: 18),
 
                         // Category Dropdown Selector
-                        const FieldLabel(label: 'CATEGORY'),
+                        FieldLabel(label: context.isArabic ? 'التصنيف' : 'CATEGORY'),
                         CategorySelectorField(
                           controller: _categoryController,
                           focusNode: _categoryFocusNode,
@@ -451,219 +349,27 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                         const SizedBox(height: 18),
 
                         // Frequency & Reminder
-                        Row(
-                          children: [
-                            // Frequency
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const FieldLabel(label: 'FREQUENCY'),
-                                  DropdownButtonFormField<String>(
-                                    initialValue: _scheduleType,
-                                    isExpanded: true,
-                                    decoration: InputDecoration(
-                                      filled: true,
-                                      fillColor: AxisColors.surfaceHigh
-                                          .withValues(alpha: 0.5),
-                                      border: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                        borderSide: const BorderSide(
-                                            color: AxisColors.borderSubtle),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                        borderSide: const BorderSide(
-                                            color: AxisColors.borderSubtle),
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 12),
-                                    ),
-                                    dropdownColor: AxisColors.surfaceHigh,
-                                    style: const TextStyle(
-                                        color: AxisColors.textHigh,
-                                        fontSize: 13),
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: 'daily',
-                                        child: Text(
-                                          'Daily (00:00)',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'weekly',
-                                        child: Text(
-                                          'Weekly (Fri)',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'every_3_days',
-                                        child: Text(
-                                          'Every 3 Days',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'weekdays',
-                                        child: Text(
-                                          'Weekdays',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                    onChanged: (v) {
-                                      final newType = v ?? 'daily';
-                                      setState(() {
-                                        _scheduleType = newType;
-                                        if (_scheduleType != 'daily' && widget.habitToEdit == null) {
-                                          _reminderTime = null;
-                                        }
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-
-                            // Time of Day (Optional for non-daily habits)
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  FieldLabel(
-                                    label: _scheduleType == 'daily'
-                                        ? 'TIME *'
-                                        : 'TIME (OPTIONAL)',
-                                  ),
-                                  InkWell(
-                                    onTap: _pickTime,
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Container(
-                                      height: 48,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10),
-                                      decoration: BoxDecoration(
-                                        color: AxisColors.surfaceHigh
-                                            .withValues(alpha: 0.5),
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: _reminderTime != null
-                                              ? AxisColors.success.withValues(alpha: 0.5)
-                                              : AxisColors.borderSubtle,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.alarm_rounded,
-                                            size: 18,
-                                            color: _reminderTime != null
-                                                ? AxisColors.success
-                                                : AxisColors.textDim,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              _reminderTime != null
-                                                  ? '${_reminderTime!.hourOfPeriod == 0 ? 12 : _reminderTime!.hourOfPeriod}:${_reminderTime!.minute.toString().padLeft(2, '0')} ${_reminderTime!.period == DayPeriod.am ? 'AM' : 'PM'}'
-                                                  : (_scheduleType == 'daily' ? 'Set Time' : 'Anytime'),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: _reminderTime != null
-                                                    ? AxisColors.textHigh
-                                                    : AxisColors.textDim,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                          if (_reminderTime != null)
-                                            GestureDetector(
-                                              onTap: () => setState(() => _reminderTime = null),
-                                              child: const Padding(
-                                                padding: EdgeInsets.all(4),
-                                                child: Icon(Icons.close_rounded,
-                                                    size: 16,
-                                                    color: AxisColors.textDim),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        HabitScheduleReminderPicker(
+                          scheduleType: _scheduleType,
+                          reminderTime: _reminderTime,
+                          onPickTime: _pickTime,
+                          onClearTime: () =>
+                              setState(() => _reminderTime = null),
+                          onScheduleTypeChanged: (newType) {
+                            setState(() {
+                              _scheduleType = newType;
+                              if (_scheduleType != 'daily' &&
+                                  widget.habitToEdit == null) {
+                                _reminderTime = null;
+                              }
+                            });
+                          },
+                          isEdit: widget.habitToEdit != null,
                         ),
-                      if (_reminderTime != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AxisColors.success.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: AxisColors.success.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.notifications_active_rounded,
-                                    size: 13, color: AxisColors.success),
-                                SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Reminders: 10m & 5m before habit time',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: AxisColors.success,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      if (_scheduleType != 'daily')
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            children: const [
-                              Icon(Icons.info_outline_rounded,
-                                  size: 13, color: AxisColors.textDim),
-                              SizedBox(width: 5),
-                              Expanded(
-                                child: Text(
-                                  'Non-daily habits do not require an exact time of day.',
-                                  style: TextStyle(
-                                      fontSize: 11, color: AxisColors.textDim),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      const SizedBox(height: 18),
+                        const SizedBox(height: 18),
 
                       // Color Accent
-                      const FieldLabel(label: 'COLOR ACCENT'),
+                      FieldLabel(label: context.isArabic ? 'لون التمييز' : 'COLOR ACCENT'),
                       ColorAccentSelector(
                         selectedColor: _selectedColor,
                         onSelectColor: (col) =>
@@ -672,100 +378,20 @@ class _CreateHabitSheetState extends State<CreateHabitSheet> {
                       const SizedBox(height: 18),
 
                       // XP Reward
-                      const FieldLabel(label: 'XP REWARD'),
+                      FieldLabel(label: context.isArabic ? 'مكافأة نقاط الخبرة' : 'XP REWARD'),
                       XpRewardSelector(
                         targetXp: _targetXp,
                         onSelectXp: (xp) => setState(() => _targetXp = xp),
                       ),
                       const SizedBox(height: 28),
 
-                      // Submit
-                      InkWell(
-                        onTap: _saving ? null : _save,
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          width: double.infinity,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                AxisColors.success,
-                                Color(0xFF059669),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    AxisColors.success.withValues(alpha: 0.4),
-                                blurRadius: 16,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: _saving
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.add_task_rounded,
-                                          color: Colors.white, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        widget.habitToEdit != null
-                                            ? 'UPDATE HABIT'
-                                            : 'ACTIVATE HABIT',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelLarge
-                                            ?.copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1.2,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        ),
+                      // Action Buttons
+                      HabitActionButtons(
+                        isEdit: widget.habitToEdit != null,
+                        isSaving: _saving,
+                        onSave: _saving ? null : _save,
+                        onDelete: _saving ? null : _confirmDelete,
                       ),
-                      if (widget.habitToEdit != null) ...[
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: _saving ? null : _confirmDelete,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AxisColors.error,
-                            side: const BorderSide(
-                              color: AxisColors.error,
-                              width: 1.2,
-                            ),
-                            minimumSize: const Size(double.infinity, 46),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          icon: const Icon(Icons.delete_outline_rounded,
-                              size: 18),
-                          label: const Text(
-                            'DELETE HABIT',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),

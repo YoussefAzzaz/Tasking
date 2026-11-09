@@ -195,9 +195,9 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                     onPressed: _showNotificationsSheet,
                   ),
                   if (unreadCount > 0)
-                    Positioned(
+                    PositionedDirectional(
                       top: 10,
-                      right: 10,
+                      end: 10,
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(color: AxisColors.primary, shape: BoxShape.circle),

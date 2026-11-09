@@ -22,7 +22,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   void _syncAuthState() {
-    add(const AuthCheckRequested());
+    if (!isClosed) {
+      add(const AuthCheckRequested());
+    }
   }
 
   Future<void> _onAuthCheckRequested(

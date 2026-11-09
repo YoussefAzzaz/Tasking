@@ -72,7 +72,7 @@ void main() {
     test('WAV header generator produces valid PCM stereo/mono specification', () {
       const sampleRate = 22050;
       const totalSamples = sampleRate * 1;
-      final fileLength = 44 + totalSamples * 2;
+      const fileLength = 44 + totalSamples * 2;
 
       expect(fileLength, greaterThan(44));
       expect(totalSamples * 2, fileLength - 44);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/note_category_repository.dart';
 import 'package:axis/ui/common/category_filter_slider.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Autocomplete / dropdown selector field for note categories.
 class NoteCategorySelectorField extends StatelessWidget {
@@ -33,7 +34,9 @@ class NoteCategorySelectorField extends StatelessWidget {
     }
   }
 
-  List<Widget> _buildDropdownItems() {
+  List<Widget> _buildDropdownItems(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
     final rawText = controller.text.trim();
     final query = rawText.toLowerCase();
     final items = <Widget>[];
@@ -60,11 +63,13 @@ class NoteCategorySelectorField extends StatelessWidget {
 
     if (filtered.isEmpty && query.isEmpty) {
       items.add(
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Text(
-            'No custom categories yet. Type above to create one.',
-            style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+            isArabic
+                ? 'لا توجد فئات مخصصة حتى الآن. اكتب أعلاه لإنشاء فئة.'
+                : 'No custom categories yet. Type above to create one.',
+            style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
           ),
         ),
       );
@@ -74,6 +79,7 @@ class NoteCategorySelectorField extends StatelessWidget {
       final isSel = query == cat.name.toLowerCase();
       final color = _parseHex(cat.color);
       final iconData = CategorySliderItem.resolveIcon(cat.icon, Icons.article_rounded);
+      final displayName = l10n.localizedNoteCategory(cat.name);
 
       items.add(
         InkWell(
@@ -113,7 +119,7 @@ class NoteCategorySelectorField extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    cat.name,
+                    displayName,
                     style: TextStyle(
                       color: isSel ? AxisColors.textHigh : AxisColors.textMuted,
                       fontSize: 13,
@@ -149,7 +155,9 @@ class NoteCategorySelectorField extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Create new category "$rawText"',
+                    isArabic
+                        ? 'إنشاء فئة جديدة "$rawText"'
+                        : 'Create new category "$rawText"',
                     style: const TextStyle(
                       color: AxisColors.secondary,
                       fontSize: 13,
@@ -169,6 +177,8 @@ class NoteCategorySelectorField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -190,7 +200,9 @@ class NoteCategorySelectorField extends StatelessWidget {
                 ),
             cursorColor: AxisColors.secondary,
             decoration: InputDecoration(
-              hintText: 'Select or write category name...',
+              hintText: isArabic
+                  ? 'اختر أو اكتب اسم الفئة...'
+                  : 'Select or write category name...',
               hintStyle:
                   const TextStyle(color: AxisColors.textDim, fontSize: 13),
               border: InputBorder.none,
@@ -249,7 +261,7 @@ class NoteCategorySelectorField extends StatelessWidget {
               child: ListView(
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                children: _buildDropdownItems(),
+                children: _buildDropdownItems(context),
               ),
             ),
           ),

@@ -68,8 +68,6 @@ class DesktopFileService {
           dialogTitle: 'Export Markdown File',
           fileName: defaultFileName,
           bytes: bytes,
-          type: FileType.custom,
-          allowedExtensions: ['md', 'txt'],
         );
         if (uri != null) {
           savePath = uri.toFilePath();
@@ -122,8 +120,6 @@ class DesktopFileService {
           dialogTitle: 'Save Database JSON Backup',
           fileName: defaultFileName,
           bytes: bytes,
-          type: FileType.custom,
-          allowedExtensions: ['json'],
         );
         if (uri != null) {
           savePath = uri.toFilePath();

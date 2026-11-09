@@ -37,4 +37,25 @@ void main() {
     expect(parsed.dueTime, '05:00');
     expect(parsed.title, 'Call mom');
   });
+
+  test('QuickAddParser handles weekly, monthly recurrence and tomorrow keyword', () {
+    final p1 = QuickAddParser.parse('Team sync every week');
+    expect(p1.recurrence, 'RRULE:FREQ=WEEKLY');
+    expect(p1.title, 'Team sync');
+
+    final p2 = QuickAddParser.parse('Sprint planning every 2 weeks');
+    expect(p2.recurrence, 'RRULE:FREQ=WEEKLY;INTERVAL=2');
+    expect(p2.title, 'Sprint planning');
+
+    final p3 = QuickAddParser.parse('Budget review every month');
+    expect(p3.recurrence, 'RRULE:FREQ=MONTHLY');
+    expect(p3.title, 'Budget review');
+
+    final p4 = QuickAddParser.parse('Doctor appointment tomorrow at 10am');
+    expect(p4.dueDate, 'tomorrow');
+    expect(p4.dueTime, '10:00');
+    expect(p4.title, 'Doctor appointment');
+    final iso = p4.resolveIsoDueDate(DateTime(2026, 11, 8));
+    expect(iso, '2026-11-09');
+  });
 }

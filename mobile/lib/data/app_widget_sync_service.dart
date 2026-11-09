@@ -88,16 +88,12 @@ class AppWidgetSyncService {
           DateFormat('EEEE, MMM d').format(now).toUpperCase();
 
       final uid = currentUserId;
+      final todayPattern = '$todayStr%';
       final taskQuery = uid.isNotEmpty
-          ? "SELECT title, status, due_date, priority FROM tasks WHERE (user_id = ? OR user_id IS NULL OR user_id = '') ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC"
-          : "SELECT title, status, due_date, priority FROM tasks ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC";
-      final taskParams = uid.isNotEmpty ? [uid] : <dynamic>[];
-      final rows = await db.getAll(taskQuery, taskParams);
-
-      final todayTasks = rows.where((r) {
-        final due = r['due_date'] as String?;
-        return due != null && (due == todayStr || due.startsWith(todayStr));
-      }).toList();
+          ? "SELECT title, status, due_date, priority FROM tasks WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND (deleted_at IS NULL OR deleted_at = '') AND (due_date = ? OR due_date LIKE ?) ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC"
+          : "SELECT title, status, due_date, priority FROM tasks WHERE (deleted_at IS NULL OR deleted_at = '') AND (due_date = ? OR due_date LIKE ?) ORDER BY CASE WHEN status = 'done' THEN 1 ELSE 0 END, CASE WHEN priority IS NULL THEN 4 ELSE priority END ASC, created_at DESC";
+      final taskParams = uid.isNotEmpty ? [uid, todayStr, todayPattern] : [todayStr, todayPattern];
+      final todayTasks = await db.getAll(taskQuery, taskParams);
 
       final total = todayTasks.length;
       final done = todayTasks.where((r) => r['status'] == 'done').length;
@@ -180,9 +176,9 @@ class AppWidgetSyncService {
       final habitRows = await db.getAll(habitQuery, habitParams);
 
       final habitLogQuery = uid.isNotEmpty
-          ? "SELECT log_date, status, habit_id FROM habit_logs WHERE (user_id = ? OR user_id IS NULL OR user_id = '')"
-          : "SELECT log_date, status, habit_id FROM habit_logs";
-      final habitLogParams = uid.isNotEmpty ? [uid] : <dynamic>[];
+          ? "SELECT habit_id FROM habit_logs WHERE log_date = ? AND status = 'done' AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+          : "SELECT habit_id FROM habit_logs WHERE log_date = ? AND status = 'done'";
+      final habitLogParams = uid.isNotEmpty ? [todayStr, uid] : [todayStr];
       final habitLogRows = await db.getAll(habitLogQuery, habitLogParams);
 
       final streakLogs = await HabitRepository().getDailyStreakLogs();
@@ -190,7 +186,6 @@ class AppWidgetSyncService {
           StreakEngine.calculateStreak('daily', streakLogs, todayStr);
 
       final todayDoneHabitIds = habitLogRows
-          .where((r) => r['log_date'] == todayStr && r['status'] == 'done')
           .map((r) => r['habit_id'] as String)
           .toSet();
 

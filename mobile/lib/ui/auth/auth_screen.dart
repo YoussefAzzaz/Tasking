@@ -2,12 +2,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:axis/core/bloc/blocs.dart';
-import 'package:axis/core/theme.dart';
 import 'package:axis/data/auth_service.dart';
-import '../desktop/shell/desktop_titlebar.dart';
+import 'package:axis/ui/auth/widgets/desktop_auth_view.dart';
+import 'package:axis/ui/auth/widgets/mobile_auth_view.dart';
+
+export 'package:axis/ui/auth/widgets/auth_text_field.dart';
+export 'package:axis/ui/auth/widgets/auth_form_components.dart';
+export 'package:axis/ui/auth/widgets/auth_ambient_glows.dart';
+export 'package:axis/ui/auth/widgets/desktop_auth_view.dart';
+export 'package:axis/ui/auth/widgets/mobile_auth_view.dart';
+export 'package:axis/ui/auth/widgets/auth_language_switcher.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -66,30 +72,32 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     try {
       if (bloc != null) {
         final completer = Completer<void>();
-        late final StreamSubscription<AuthState> sub;
-        sub = bloc.stream.listen((state) {
-          if (state is Authenticated) {
-            sub.cancel();
-            if (!completer.isCompleted) completer.complete();
-          } else if (state is AuthFailure) {
-            sub.cancel();
-            if (!completer.isCompleted) completer.completeError(state.message);
-          }
-        });
+        StreamSubscription<AuthState>? sub;
+        try {
+          sub = bloc.stream.listen((state) {
+            if (state is Authenticated) {
+              if (!completer.isCompleted) completer.complete();
+            } else if (state is AuthFailure) {
+              if (!completer.isCompleted) completer.completeError(state.message);
+            }
+          });
 
-        if (_isSignUp) {
-          bloc.add(AuthSignUpRequested(
-            email: _emailCtrl.text,
-            password: _passwordCtrl.text,
-            displayName: _nameCtrl.text,
-          ));
-        } else {
-          bloc.add(AuthSignInRequested(
-            email: _emailCtrl.text,
-            password: _passwordCtrl.text,
-          ));
+          if (_isSignUp) {
+            bloc.add(AuthSignUpRequested(
+              email: _emailCtrl.text,
+              password: _passwordCtrl.text,
+              displayName: _nameCtrl.text,
+            ));
+          } else {
+            bloc.add(AuthSignInRequested(
+              email: _emailCtrl.text,
+              password: _passwordCtrl.text,
+            ));
+          }
+          await completer.future.timeout(const Duration(seconds: 15));
+        } finally {
+          await sub?.cancel();
         }
-        await completer.future;
       } else {
         if (_isSignUp) {
           await AuthService().signUp(
@@ -111,8 +119,9 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       context.go('/today');
     } catch (e) {
       if (!mounted) return;
+      final isAr = Localizations.localeOf(context).languageCode == 'ar';
       setState(() {
-        _errorMessage = _cleanErrorMessage(e.toString());
+        _errorMessage = _cleanErrorMessage(e.toString(), isAr);
       });
     } finally {
       if (mounted) {
@@ -123,21 +132,31 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     }
   }
 
-  String _cleanErrorMessage(String err) {
+  String _cleanErrorMessage(String err, bool isArabic) {
     if (err.contains('Invalid login credentials')) {
-      return 'Invalid email or password. Please verify your credentials.';
+      return isArabic
+          ? 'بيانات الاعتماد غير صحيحة. يرجى التحقق من البريد الإلكتروني وكلمة المرور.'
+          : 'Invalid email or password. Please verify your credentials.';
     }
     if (err.contains('User already registered')) {
-      return 'An account with this email already exists. Please sign in instead.';
+      return isArabic
+          ? 'يوجد حساب مسجل بهذا البريد الإلكتروني مسبقاً. يرجى تسجيل الدخول بدلاً من ذلك.'
+          : 'An account with this email already exists. Please sign in instead.';
     }
     if (err.contains('Password should be at least')) {
-      return 'Password must contain at least 6 characters.';
+      return isArabic
+          ? 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.'
+          : 'Password must contain at least 6 characters.';
     }
     if (err.contains('SocketException') || err.contains('Failed host lookup')) {
-      return 'Network connection unavailable. Tap "Continue in Offline Mode" below to proceed offline.';
+      return isArabic
+          ? 'الاتصال بالإنترنت غير متاح. اضغط على "المتابعة في وضع عدم الاتصال" للمتابعة.'
+          : 'Network connection unavailable. Tap "Continue in Offline Mode" below to proceed offline.';
     }
     if (err.contains('over_email_send_rate_limit') || err.contains('rate limit exceeded')) {
-      return 'Supabase email send limit reached. In Supabase Dashboard -> Auth -> Providers -> Email, turn off "Confirm email" to enable instant signup.';
+      return isArabic
+          ? 'تم تجاوز حد إرسال رسائل البريد الإلكتروني في Supabase. في لوحة تحكم Supabase -> Auth -> Providers -> Email، قم بإيقاف "Confirm email" لتفعيل التسجيل الفوري.'
+          : 'Supabase email send limit reached. In Supabase Dashboard -> Auth -> Providers -> Email, turn off "Confirm email" to enable instant signup.';
     }
     return err.replaceAll('Exception:', '').replaceAll('AuthException:', '').trim();
   }
@@ -182,945 +201,55 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     final isDesktop = isDesktopPlatform || MediaQuery.sizeOf(context).width >= 1024;
 
     if (isDesktop) {
-      return _buildDesktopAuth(context);
+      return DesktopAuthView(
+        formKey: _formKey,
+        fadeAnim: _fadeAnim,
+        isSignUp: _isSignUp,
+        obscurePassword: _obscurePassword,
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        nameCtrl: _nameCtrl,
+        emailCtrl: _emailCtrl,
+        passwordCtrl: _passwordCtrl,
+        onModeChanged: (val) {
+          setState(() {
+            _isSignUp = val;
+            _errorMessage = null;
+          });
+        },
+        onTogglePasswordVisibility: () {
+          setState(() {
+            _obscurePassword = !_obscurePassword;
+          });
+        },
+        onSubmit: _submit,
+        onContinueOffline: _continueOffline,
+      );
     }
 
-    return _buildMobileAuth(context);
-  }
-
-  Widget _buildDesktopAuth(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AxisColors.canvasBase,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Desktop Titlebar with full window management pinned to max right
-          const DesktopTitlebar(onOpenOmnibar: null),
-
-          // Main desktop terminal center
-          Expanded(
-            child: Stack(
-              children: [
-                // Cyber Ambient Glow Orbs
-                Positioned(
-                  top: -60,
-                  right: -60,
-                  child: Container(
-                    width: 380,
-                    height: 380,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AxisColors.primary.withValues(alpha: 0.10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AxisColors.primary.withValues(alpha: 0.20),
-                          blurRadius: 140,
-                          spreadRadius: 30,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: -80,
-                  left: -80,
-                  child: Container(
-                    width: 400,
-                    height: 400,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AxisColors.secondary.withValues(alpha: 0.08),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AxisColors.secondary.withValues(alpha: 0.16),
-                          blurRadius: 150,
-                          spreadRadius: 30,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Center Card
-                Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                    child: FadeTransition(
-                      opacity: _fadeAnim,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 460),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AxisColors.surfaceLowest,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AxisColors.borderGlass2,
-                              width: 1.2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.7),
-                                blurRadius: 36,
-                                offset: const Offset(0, 14),
-                              ),
-                              BoxShadow(
-                                color: AxisColors.primary.withValues(alpha: 0.08),
-                                blurRadius: 40,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (AuthService().isGuest) ...[
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: TextButton.icon(
-                                      onPressed: () => context.go('/today'),
-                                      icon: const Icon(Icons.arrow_back_rounded, size: 14, color: AxisColors.textMuted),
-                                      label: Text(
-                                        'RETURN TO GUEST MODE',
-                                        style: GoogleFonts.spaceGrotesk(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: AxisColors.textMuted,
-                                          letterSpacing: 0.8,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                ],
-
-                                // Station Logo & Branding
-                                Center(
-                                  child: Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(14),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AxisColors.primary.withValues(alpha: 0.4),
-                                          blurRadius: 18,
-                                          spreadRadius: 2,
-                                        ),
-                                      ],
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: Image.asset(
-                                        'assets/logo.png',
-                                        fit: BoxFit.cover,
-                                        cacheWidth: 128,
-                                        cacheHeight: 128,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-
-                                Center(
-                                  child: Text(
-                                    'AXIS COMMAND STATION',
-                                    style: GoogleFonts.spaceGrotesk(
-                                      color: AxisColors.textHigh,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 2.4,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-
-                                Center(
-                                  child: Text(
-                                    'OFFLINE-FIRST CLOUD SYNC & AUTHENTICATION',
-                                    style: GoogleFonts.spaceGrotesk(
-                                      color: AxisColors.secondary,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 1.2,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-
-                                // Tab Switcher: Sign In vs Sign Up
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AxisColors.surfaceLow,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: AxisColors.borderSubtle),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _isSignUp = false;
-                                              _errorMessage = null;
-                                            });
-                                          },
-                                          child: AnimatedContainer(
-                                            duration: const Duration(milliseconds: 200),
-                                            padding: const EdgeInsets.symmetric(vertical: 9),
-                                            decoration: BoxDecoration(
-                                              color: !_isSignUp
-                                                  ? AxisColors.primary.withValues(alpha: 0.22)
-                                                  : Colors.transparent,
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: !_isSignUp
-                                                  ? Border.all(color: AxisColors.primary.withValues(alpha: 0.6))
-                                                  : null,
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              'SIGN IN',
-                                              style: GoogleFonts.spaceGrotesk(
-                                                color: !_isSignUp ? AxisColors.primarySoft : AxisColors.textDim,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 1.2,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _isSignUp = true;
-                                              _errorMessage = null;
-                                            });
-                                          },
-                                          child: AnimatedContainer(
-                                            duration: const Duration(milliseconds: 200),
-                                            padding: const EdgeInsets.symmetric(vertical: 9),
-                                            decoration: BoxDecoration(
-                                              color: _isSignUp
-                                                  ? AxisColors.primary.withValues(alpha: 0.22)
-                                                  : Colors.transparent,
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: _isSignUp
-                                                  ? Border.all(color: AxisColors.primary.withValues(alpha: 0.6))
-                                                  : null,
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              'CREATE ACCOUNT',
-                                              style: GoogleFonts.spaceGrotesk(
-                                                color: _isSignUp ? AxisColors.primarySoft : AxisColors.textDim,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 1.2,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Error Banner if present
-                                if (_errorMessage != null) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: AxisColors.error.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: AxisColors.error.withValues(alpha: 0.5)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.error_outline_rounded,
-                                            color: AxisColors.error, size: 18),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            _errorMessage!,
-                                            style: GoogleFonts.getFont(
-                                              'Geist',
-                                              color: AxisColors.textHigh,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
-
-                                // Display Name Field (SignUp only)
-                                if (_isSignUp) ...[
-                                  _buildTextField(
-                                    controller: _nameCtrl,
-                                    hint: 'Full Name or Call-Sign',
-                                    label: 'OPERATOR CALL-SIGN',
-                                    icon: Icons.person_outline_rounded,
-                                    validator: (val) {
-                                      if (_isSignUp && (val == null || val.trim().isEmpty)) {
-                                        return 'Enter your name or operator call-sign';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 14),
-                                ],
-
-                                // Email Field
-                                _buildTextField(
-                                  controller: _emailCtrl,
-                                  hint: 'operator@axis.station',
-                                  label: 'SYSTEM EMAIL',
-                                  icon: Icons.alternate_email_rounded,
-                                  keyboardType: TextInputType.emailAddress,
-                                  validator: (val) {
-                                    if (val == null || val.trim().isEmpty) {
-                                      return 'Email is required';
-                                    }
-                                    if (!val.contains('@') || !val.contains('.')) {
-                                      return 'Enter a valid email address';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 14),
-
-                                // Password Field
-                                _buildTextField(
-                                  controller: _passwordCtrl,
-                                  hint: '••••••••',
-                                  label: 'ACCESS PASSCODE',
-                                  icon: Icons.lock_outline_rounded,
-                                  obscureText: _obscurePassword,
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                      color: AxisColors.textDim,
-                                      size: 18,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
-                                  ),
-                                  validator: (val) {
-                                    if (val == null || val.isEmpty) {
-                                      return 'Password is required';
-                                    }
-                                    if (val.length < 6) {
-                                      return 'Password must be at least 6 characters';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 22),
-
-                                // Submit Button
-                                MouseRegion(
-                                  cursor: _isLoading ? SystemMouseCursors.basic : SystemMouseCursors.click,
-                                  child: GestureDetector(
-                                    onTap: _isLoading ? null : _submit,
-                                    child: Container(
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [AxisColors.primary, AxisColors.secondary],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AxisColors.primary.withValues(alpha: 0.35),
-                                            blurRadius: 14,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ],
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: _isLoading
-                                          ? const SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            )
-                                          : Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  _isSignUp ? Icons.person_add_rounded : Icons.login_rounded,
-                                                  color: Colors.white,
-                                                  size: 17,
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  _isSignUp ? 'INITIALIZE ACCOUNT' : 'ENTER COMMAND STATION',
-                                                  style: GoogleFonts.spaceGrotesk(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.w700,
-                                                    letterSpacing: 1.0,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Offline Mode Entrance
-                                SizedBox(
-                                  height: 40,
-                                  child: OutlinedButton.icon(
-                                    onPressed: _isLoading ? null : _continueOffline,
-                                    icon: const Icon(Icons.cloud_off_rounded,
-                                        size: 15, color: AxisColors.textMuted),
-                                    label: Text(
-                                      'CONTINUE IN OFFLINE MODE',
-                                      style: GoogleFonts.spaceGrotesk(
-                                        color: AxisColors.textMuted,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 1.0,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(color: AxisColors.borderSubtle),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Security Note
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.shield_outlined,
-                                        color: AxisColors.tertiary, size: 13),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        'PowerSync user_id isolation active • Local AES SQLite database',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.spaceGrotesk(
-                                          color: AxisColors.textDim,
-                                          fontSize: 10,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileAuth(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Scaffold(
-      backgroundColor: AxisColors.canvasBase,
-      body: Stack(
-        children: [
-          // Ambient Background Glows
-          Positioned(
-            top: -60,
-            right: -60,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AxisColors.primary.withValues(alpha: 0.15),
-                boxShadow: [
-                  BoxShadow(
-                    color: AxisColors.primary.withValues(alpha: 0.25),
-                    blurRadius: 90,
-                    spreadRadius: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -80,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AxisColors.secondary.withValues(alpha: 0.12),
-                boxShadow: [
-                  BoxShadow(
-                    color: AxisColors.secondary.withValues(alpha: 0.2),
-                    blurRadius: 100,
-                    spreadRadius: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Main Interactive Scroll Canvas
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.only(
-                  left: 24,
-                  right: 24,
-                  top: 20,
-                  bottom: bottomInset > 0 ? bottomInset + 20 : 32,
-                ),
-                child: FadeTransition(
-                  opacity: _fadeAnim,
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (AuthService().isGuest) ...[
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: () => context.go('/today'),
-                              icon: const Icon(Icons.arrow_back_rounded, size: 16, color: AxisColors.textMuted),
-                              label: const Text(
-                                'RETURN TO GUEST MODE',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AxisColors.textMuted,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // App Brand & Logo Badge
-                        Center(
-                          child: Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AxisColors.primary.withValues(alpha: 0.4),
-                                  blurRadius: 20,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
-                              child: Image.asset(
-                                'assets/logo.png',
-                                fit: BoxFit.cover,
-                                cacheWidth: 128,
-                                cacheHeight: 128,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        Center(
-                          child: Text(
-                            'AXIS',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  color: AxisColors.textHigh,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 3.5,
-                                ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-
-                        Center(
-                          child: Text(
-                            'OFFLINE-FIRST CLOUD SYNC & AUTH',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: AxisColors.primarySoft,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.6,
-                                ),
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-
-                        // Tab Switcher: Sign In vs Sign Up
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: AxisColors.surfaceLow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AxisColors.borderSubtle),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _isSignUp = false;
-                                      _errorMessage = null;
-                                    });
-                                  },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 220),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: !_isSignUp
-                                          ? AxisColors.primary.withValues(alpha: 0.22)
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: !_isSignUp
-                                          ? Border.all(color: AxisColors.primary.withValues(alpha: 0.6))
-                                          : null,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'SIGN IN',
-                                      style: TextStyle(
-                                        color: !_isSignUp ? AxisColors.primarySoft : AxisColors.textDim,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.2,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _isSignUp = true;
-                                      _errorMessage = null;
-                                    });
-                                  },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 220),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: _isSignUp
-                                          ? AxisColors.primary.withValues(alpha: 0.22)
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: _isSignUp
-                                          ? Border.all(color: AxisColors.primary.withValues(alpha: 0.6))
-                                          : null,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'CREATE ACCOUNT',
-                                      style: TextStyle(
-                                        color: _isSignUp ? AxisColors.primarySoft : AxisColors.textDim,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.2,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Error Banner if present
-                        if (_errorMessage != null) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: AxisColors.error.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AxisColors.error.withValues(alpha: 0.5)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline_rounded,
-                                    color: AxisColors.error, size: 18),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: const TextStyle(
-                                      color: AxisColors.textHigh,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Display Name Field (SignUp only)
-                        if (_isSignUp) ...[
-                          _buildTextField(
-                            controller: _nameCtrl,
-                            hint: 'Full Name or Call-Sign',
-                            label: 'OPERATOR NAME',
-                            icon: Icons.person_outline_rounded,
-                            validator: (val) {
-                              if (_isSignUp && (val == null || val.trim().isEmpty)) {
-                                return 'Enter your name or operator call-sign';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                        ],
-
-                        // Email Field
-                        _buildTextField(
-                          controller: _emailCtrl,
-                          hint: 'name@example.com',
-                          label: 'SYSTEM EMAIL',
-                          icon: Icons.alternate_email_rounded,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!val.contains('@') || !val.contains('.')) {
-                              return 'Enter a valid email address';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Password Field
-                        _buildTextField(
-                          controller: _passwordCtrl,
-                          hint: '••••••••',
-                          label: 'ACCESS PASSCODE',
-                          icon: Icons.lock_outline_rounded,
-                          obscureText: _obscurePassword,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                              color: AxisColors.textDim,
-                              size: 18,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                          validator: (val) {
-                            if (val == null || val.isEmpty) {
-                              return 'Password is required';
-                            }
-                            if (val.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Submit Button
-                        GestureDetector(
-                          onTap: _isLoading ? null : _submit,
-                          child: Container(
-                            height: 52,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [AxisColors.primary, AxisColors.secondary],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AxisColors.primary.withValues(alpha: 0.4),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    ),
-                                  )
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        _isSignUp ? Icons.person_add_rounded : Icons.login_rounded,
-                                        color: Colors.white,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _isSignUp ? 'REGISTER ACCOUNT' : 'ENTER SYSTEM',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.4,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Offline Mode fallback entrance
-                        SizedBox(
-                          height: 44,
-                          child: OutlinedButton.icon(
-                            onPressed: _isLoading ? null : _continueOffline,
-                            icon: const Icon(Icons.cloud_off_rounded,
-                                size: 16, color: AxisColors.textMuted),
-                            label: const Text(
-                              'CONTINUE IN OFFLINE MODE',
-                              style: TextStyle(
-                                color: AxisColors.textMuted,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AxisColors.borderSubtle),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Isolation & PowerSync Architecture notice
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.shield_outlined,
-                                color: AxisColors.tertiary, size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              'PowerSync user_id isolation active',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AxisColors.textDim,
-                                    fontSize: 11,
-                                    letterSpacing: 0.8,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required String label,
-    required IconData icon,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AxisColors.textMuted,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AxisColors.surfaceLow,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AxisColors.borderSubtle),
-          ),
-          child: TextFormField(
-            controller: controller,
-            obscureText: obscureText,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: const TextStyle(
-              color: AxisColors.textHigh,
-              fontSize: 14,
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(color: AxisColors.textDim, fontSize: 13),
-              prefixIcon: Icon(icon, color: AxisColors.primarySoft, size: 18),
-              suffixIcon: suffixIcon,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            ),
-          ),
-        ),
-      ],
+    return MobileAuthView(
+      formKey: _formKey,
+      fadeAnim: _fadeAnim,
+      isSignUp: _isSignUp,
+      obscurePassword: _obscurePassword,
+      isLoading: _isLoading,
+      errorMessage: _errorMessage,
+      nameCtrl: _nameCtrl,
+      emailCtrl: _emailCtrl,
+      passwordCtrl: _passwordCtrl,
+      onModeChanged: (val) {
+        setState(() {
+          _isSignUp = val;
+          _errorMessage = null;
+        });
+      },
+      onTogglePasswordVisibility: () {
+        setState(() {
+          _obscurePassword = !_obscurePassword;
+        });
+      },
+      onSubmit: _submit,
+      onContinueOffline: _continueOffline,
     );
   }
 }

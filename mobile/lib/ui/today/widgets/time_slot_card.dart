@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Time slot row with left-accent rail for micro slots and scheduled gaps
 class TimeSlotCard extends StatelessWidget {
@@ -40,9 +41,9 @@ class TimeSlotCard extends StatelessWidget {
                 color: isDone
                     ? AxisColors.tertiary.withValues(alpha: 0.5)
                     : railColor,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  bottomLeft: Radius.circular(8),
+                borderRadius: const BorderRadiusDirectional.only(
+                  topStart: Radius.circular(8),
+                  bottomStart: Radius.circular(8),
                 ),
               ),
             ),
@@ -86,7 +87,7 @@ class TimeSlotCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    'FITTED 15M',
+                                    context.isArabic ? 'ملائم 15 د' : 'FITTED 15M',
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall
@@ -123,7 +124,7 @@ class TimeSlotCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '+$xp XP',
+                      '+$xp ${context.isArabic ? "نقطة" : "XP"}',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: AxisColors.secondary,
                             fontWeight: FontWeight.bold,

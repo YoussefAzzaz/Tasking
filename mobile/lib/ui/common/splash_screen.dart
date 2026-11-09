@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +7,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:axis/core/theme.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/ui/common/splash/splash_technical_grid.dart';
+import 'package:axis/ui/common/splash/kinetic_orbital_nexus.dart';
+import 'package:axis/ui/common/splash/vault_sync_telemetry_card.dart';
+
+export 'package:axis/ui/common/splash/splash_technical_grid.dart';
+export 'package:axis/ui/common/splash/kinetic_orbital_nexus.dart';
+export 'package:axis/ui/common/splash/vault_sync_telemetry_card.dart';
 
 /// Kinetic Cyber-Minimalism Splash Screen for Axis OS
 /// Generated & architected using Stitch MCP design system specification.
@@ -82,7 +88,9 @@ class _SplashScreenState extends State<SplashScreen>
     _navigated = true;
 
     try {
-      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS)) {
         HapticFeedback.lightImpact();
       }
       if (AuthService().hasActiveSession) {
@@ -115,132 +123,69 @@ class _SplashScreenState extends State<SplashScreen>
     return ExcludeSemantics(
       excluding: isDesktop,
       child: Scaffold(
-      backgroundColor: AxisColors.canvasBase,
-      body: Stack(
-        children: [
-          // 1. Ambient Background Layer with Technical Coordinate Grid
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _TechnicalGridPainter(),
-            ),
-          ),
+        backgroundColor: AxisColors.canvasBase,
+        body: Stack(
+          children: [
+            // 1. Ambient Background Layer with Technical Coordinate Grid & Fog
+            const SplashTechnicalGrid(),
 
-          // 2. Atmospheric Chromatic Fog Radials
-          Positioned(
-            top: -100,
-            right: -80,
-            child: Container(
-              width: 320,
-              height: 320,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF38BDF8).withValues(alpha: 0.12),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.18),
-                    blurRadius: 110,
-                    spreadRadius: 40,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.32,
-            left: MediaQuery.of(context).size.width * 0.5 - 140,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF6366F1).withValues(alpha: 0.14),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF6366F1).withValues(alpha: 0.16),
-                    blurRadius: 120,
-                    spreadRadius: 30,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -60,
-            left: -60,
-            child: Container(
-              width: 260,
-              height: 260,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF38BDF8).withValues(alpha: 0.08),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.10),
-                    blurRadius: 90,
-                    spreadRadius: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
+            // 2. Main Content Architecture
+            SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: ScaleTransition(
+                  scale: _scaleAnim,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 6),
 
-          // 3. Main Content Architecture
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: ScaleTransition(
-                scale: _scaleAnim,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 6),
+                        // Top App Header Telemetry Bar
+                        _buildTopTelemetryBar(),
 
-                      // Top App Header Telemetry Bar
-                      _buildTopTelemetryBar(),
+                        const SizedBox(height: 10),
 
-                      const SizedBox(height: 10),
+                        // System Diagnostics Tri-Pill Row
+                        _buildDiagnosticsPills(),
 
-                      // System Diagnostics Tri-Pill Row
-                      _buildDiagnosticsPills(),
+                        const Spacer(flex: 2),
 
-                      const Spacer(flex: 2),
+                        // Central Kinetic Orbital Enclosure
+                        KineticOrbitalNexus(orbitalCtrl: _orbitalCtrl),
 
-                      // Central Kinetic Orbital Enclosure
-                      _buildKineticNexus(),
+                        const SizedBox(height: 24),
 
-                      const SizedBox(height: 24),
+                        // Typographic Identity Anchor
+                        _buildIdentityLockup(),
 
-                      // Typographic Identity Anchor
-                      _buildIdentityLockup(),
+                        const Spacer(flex: 3),
 
-                      const Spacer(flex: 3),
+                        // Vault Synchronization Telemetry Card
+                        VaultSyncTelemetryCard(progressAnim: _progressAnim),
 
-                      // Vault Synchronization Telemetry Card
-                      _buildVaultSyncCard(),
+                        const SizedBox(height: 14),
 
-                      const SizedBox(height: 14),
+                        // Primary Cyber Action Button
+                        _buildFlowStateButton(),
 
-                      // Primary Cyber Action Button
-                      _buildFlowStateButton(),
+                        const SizedBox(height: 12),
 
-                      const SizedBox(height: 12),
+                        // Security Micro-Footer
+                        _buildSecurityFooter(),
 
-                      // Security Micro-Footer
-                      _buildSecurityFooter(),
-
-                      SizedBox(height: bottomPadding > 0 ? 4 : 12),
-                    ],
+                        SizedBox(height: bottomPadding > 0 ? 4 : 12),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // MARK: - Top Telemetry Bar
   Widget _buildTopTelemetryBar() {
@@ -406,207 +351,6 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // MARK: - Hero Kinetic Orbital Core
-  Widget _buildKineticNexus() {
-    return ExcludeSemantics(
-      child: Center(
-        child: SizedBox(
-          width: 220,
-          height: 220,
-          child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Technical Corner Reticles
-            Positioned(
-              top: 0,
-              left: 0,
-              child: Text(
-                '⎡',
-                style: GoogleFonts.jetBrainsMono(
-                  color: const Color(0xFF3E484F),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-            ),
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Text(
-                '⎤',
-                style: GoogleFonts.jetBrainsMono(
-                  color: const Color(0xFF3E484F),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              child: Text(
-                '⎣',
-                style: GoogleFonts.jetBrainsMono(
-                  color: const Color(0xFF3E484F),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Text(
-                '⎦',
-                style: GoogleFonts.jetBrainsMono(
-                  color: const Color(0xFF3E484F),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-            ),
-
-            // Outer Dashed Orbital Ring (Rotating Clockwise)
-            RotationTransition(
-              turns: _orbitalCtrl,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.16),
-                    width: 1.2,
-                  ),
-                ),
-              ),
-            ),
-
-            // Inner Gradient Orbit Arc (Counter-Rotating)
-            AnimatedBuilder(
-              animation: _orbitalCtrl,
-              builder: (context, child) {
-                return Transform.rotate(
-                  angle: -_orbitalCtrl.value * 2 * math.pi * 1.5,
-                  child: CustomPaint(
-                    size: const Size(168, 168),
-                    painter: _OrbitArcPainter(),
-                  ),
-                );
-              },
-            ),
-
-            // Outer Glass Diamond Housing (Rotated 45 degrees)
-            Transform.rotate(
-              angle: math.pi / 4,
-              child: Container(
-                width: 114,
-                height: 114,
-                decoration: BoxDecoration(
-                  color: AxisColors.surfaceHigh.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.18),
-                      blurRadius: 24,
-                      spreadRadius: -2,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Nested Diamond Layer with Reverse Tilt (Rotated 12 degrees)
-            Transform.rotate(
-              angle: math.pi / 15,
-              child: Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  color: AxisColors.surfaceLowest.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF818CF8).withValues(alpha: 0.30),
-                    width: 1,
-                  ),
-                ),
-              ),
-            ),
-
-            // Central Glowing Nexus with Axis Infinity Emblem
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF273647),
-                    Color(0xFF122131),
-                  ],
-                ),
-                border: Border.all(
-                  color: const Color(0xFF38BDF8).withValues(alpha: 0.65),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
-                    blurRadius: 18,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Center(
-                child: ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Color(0xFF8ED5FF), Color(0xFF38BDF8)],
-                  ).createShader(bounds),
-                  child: const Icon(
-                    Icons.all_inclusive_rounded,
-                    size: 32,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-
-            // Micro Coordinates Badge
-            Positioned(
-              bottom: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                decoration: BoxDecoration(
-                  color: AxisColors.surfaceLowest.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.10),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  'AX // 00.98',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
-                    color: const Color(0xFF38BDF8),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ));
-  }
-
   // MARK: - Typographic Identity Lockup
   Widget _buildIdentityLockup() {
     return Column(
@@ -678,191 +422,6 @@ class _SplashScreenState extends State<SplashScreen>
             fontWeight: FontWeight.w400,
             height: 1.45,
             color: AxisColors.textMuted,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // MARK: - Vault Synchronization Telemetry Card
-  Widget _buildVaultSyncCard() {
-    return AnimatedBuilder(
-      animation: _progressAnim,
-      builder: (context, child) {
-        final pct = (_progressAnim.value * 100).toInt();
-        return Semantics(
-          label: 'Vault synchronization progress: $pct percent',
-          value: '$pct%',
-          child: Container(
-            padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AxisColors.surfaceLow.withValues(alpha: 0.70),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Header Row with robust flexible text
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.lock_clock_outlined,
-                          size: 14,
-                          color: Color(0xFF38BDF8),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'SYNCHRONIZING SECURE OFFLINE VAULT',
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 0.6,
-                              color: AxisColors.textMuted,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    pct >= 100 ? '100% READY' : '$pct%',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                      color: const Color(0xFF8ED5FF),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              // Luminous Progress Bar
-              Container(
-                height: 4.5,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AxisColors.surfaceHighest,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        width: constraints.maxWidth * _progressAnim.value,
-                        height: 4.5,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF6366F1),
-                              Color(0xFF38BDF8),
-                            ],
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0xFF38BDF8),
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Telemetry Grid: 3 columns
-              Container(
-                padding: const EdgeInsets.only(top: 8),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildTelemetryColumn(
-                      label: 'LATENCY',
-                      value: '0.8ms',
-                      valueColor: AxisColors.textHigh,
-                      align: CrossAxisAlignment.start,
-                    ),
-                    _buildTelemetryColumn(
-                      label: 'STATE',
-                      value: 'ENCRYPTED',
-                      valueColor: const Color(0xFF38BDF8),
-                      align: CrossAxisAlignment.center,
-                    ),
-                    _buildTelemetryColumn(
-                      label: 'NODES',
-                      value: '64 ACTIVE',
-                      valueColor: const Color(0xFF818CF8),
-                      align: CrossAxisAlignment.end,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ));
-      },
-    );
-  }
-
-  Widget _buildTelemetryColumn({
-    required String label,
-    required String value,
-    required Color valueColor,
-    required CrossAxisAlignment align,
-  }) {
-    return Column(
-      crossAxisAlignment: align,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 9,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 1.2,
-            color: AxisColors.textDim,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
-            color: valueColor,
           ),
         ),
       ],
@@ -957,51 +516,4 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
-}
-
-/// Custom painter for subtle 24px technical coordinate grid
-class _TechnicalGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.035)
-      ..strokeWidth = 1.0;
-
-    const step = 28.0;
-
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Custom painter for animated orbital gradient arc
-class _OrbitArcPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..shader = const SweepGradient(
-        colors: [
-          Colors.transparent,
-          Color(0xFF6366F1),
-          Color(0xFF38BDF8),
-          Colors.transparent,
-        ],
-        stops: [0.0, 0.45, 0.85, 1.0],
-      ).createShader(rect);
-
-    canvas.drawArc(rect, 0, math.pi * 1.4, false, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -6,7 +6,6 @@ import '../../data/stats_repository.dart';
 import '../../data/user_profile_repository.dart';
 import 'core/desktop_shortcuts.dart';
 import 'dialogs/omnibar_dialog.dart';
-import 'dialogs/quick_task_dialog.dart';
 import 'screens/command_deck_screen.dart';
 import 'screens/focus_timers_screen.dart';
 import 'screens/friends_accountability_screen.dart';
@@ -45,10 +44,6 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
     }
   }
 
-  void _openQuickTask() {
-    QuickTaskDialog.show(context);
-  }
-
   void _openOmnibar() {
     OmnibarDialog.show(
       context,
@@ -64,7 +59,6 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
         case 0:
           return CommandDeckScreen(
             onNavigateToTab: _navigateToTab,
-            onOpenNewTaskDialog: _openQuickTask,
           );
         case 1:
           return ProjectsTasksScreen(
@@ -103,7 +97,6 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
   Widget build(BuildContext context) {
     return CallbackShortcuts(
       bindings: {
-        DesktopShortcuts.newTask: _openQuickTask,
         DesktopShortcuts.omnibar: _openOmnibar,
         DesktopShortcuts.tab1: () => _navigateToTab(0),
         DesktopShortcuts.tab2: () => _navigateToTab(1),
@@ -133,7 +126,6 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
                     DesktopSidebar(
                       selectedTab: _selectedTab,
                       onSelectTab: _navigateToTab,
-                      onNewTask: _openQuickTask,
                     ),
 
                     // Main Content Area

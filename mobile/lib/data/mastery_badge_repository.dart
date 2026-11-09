@@ -6,6 +6,7 @@ import 'package:axis/data/badges/user_metrics_service.dart';
 export 'package:axis/data/badges/badge_models.dart';
 export 'package:axis/data/badges/badge_registry.dart';
 export 'package:axis/data/badges/user_metrics_service.dart';
+export 'package:axis/data/badges/badge_localization.dart';
 
 /// Clean orchestrator repository providing dynamic mastery badges evaluated against
 /// optimized SQLite metrics.

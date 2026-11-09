@@ -81,28 +81,35 @@ class FriendSearchRepository {
 
     if (candidateRow == null && _supabaseClient != null) {
       try {
-        final orFilters = <String>[
-          'friend_code.ilike.$cleanInput',
-          'friend_code.ilike.$formattedCode',
-          'name.ilike.$cleanInput',
-        ];
-        if (rawCode.isNotEmpty) {
-          orFilters.add('friend_code.ilike.%$rawCode%');
+        final sanitizedInput = cleanInput.replaceAll(RegExp(r'[^a-zA-Z0-9_\-\s]'), '').trim();
+        final sanitizedRaw = rawCode.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+        final sanitizedFormatted = 'AX-$sanitizedRaw';
+
+        final orFilters = <String>[];
+        if (sanitizedInput.isNotEmpty) {
+          orFilters.add('friend_code.ilike.$sanitizedInput');
+          orFilters.add('name.ilike.$sanitizedInput');
         }
-        if (rawCode.length >= 4) {
-          orFilters.add('user_id.ilike.${rawCode.toLowerCase()}%');
+        if (sanitizedRaw.isNotEmpty) {
+          orFilters.add('friend_code.ilike.$sanitizedFormatted');
+          orFilters.add('friend_code.ilike.%$sanitizedRaw%');
+        }
+        if (sanitizedRaw.length >= 4) {
+          orFilters.add('user_id.ilike.${sanitizedRaw.toLowerCase()}%');
         }
 
-        final res = await _supabaseClient!
-            .from('user_profiles')
-            .select('id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code')
-            .or(orFilters.join(','))
-            .neq('user_id', uid)
-            .limit(1)
-            .maybeSingle();
+        if (orFilters.isNotEmpty) {
+          final res = await _supabaseClient!
+              .from('user_profiles')
+              .select('id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code')
+              .or(orFilters.join(','))
+              .neq('user_id', uid)
+              .limit(1)
+              .maybeSingle();
 
-        if (res != null) {
-          candidateRow = Map<String, dynamic>.from(res);
+          if (res != null) {
+            candidateRow = Map<String, dynamic>.from(res);
+          }
         }
       } catch (e) {
         debugPrint('[FriendSearchRepository] Direct user_profiles query notice: $e');

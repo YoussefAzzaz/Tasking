@@ -254,20 +254,36 @@ class NoteCategoryRepository {
     try {
       final uid = currentUserId;
       final rawId = id.replaceFirst('discovered_', '');
-      final catName = (name ?? '').trim();
+      String catName = (name ?? '').trim();
+      if (catName.isEmpty) {
+        final existing = await db.getOptional('SELECT name FROM note_categories WHERE id = ? OR id = ?', [id, rawId]);
+        catName = (existing?['name'] as String? ?? '').trim();
+      }
 
       // 1. Delete from note_categories (PowerSync records and syncs automatically)
-      final deleteQuery = uid.isNotEmpty
-          ? "DELETE FROM note_categories WHERE (id = ? OR id = ? OR LOWER(name) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-          : 'DELETE FROM note_categories WHERE id = ? OR id = ? OR LOWER(name) = LOWER(?)';
-      final deleteParams = uid.isNotEmpty ? [id, rawId, catName, uid] : [id, rawId, catName];
+      final deleteQuery = catName.isNotEmpty
+          ? (uid.isNotEmpty
+              ? "DELETE FROM note_categories WHERE (id = ? OR id = ? OR LOWER(name) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+              : 'DELETE FROM note_categories WHERE id = ? OR id = ? OR LOWER(name) = LOWER(?)')
+          : (uid.isNotEmpty
+              ? "DELETE FROM note_categories WHERE (id = ? OR id = ?) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+              : 'DELETE FROM note_categories WHERE id = ? OR id = ?');
+      final deleteParams = catName.isNotEmpty
+          ? (uid.isNotEmpty ? [id, rawId, catName, uid] : [id, rawId, catName])
+          : (uid.isNotEmpty ? [id, rawId, uid] : [id, rawId]);
       await db.execute(deleteQuery, deleteParams);
 
       // 2. Disassociate notes (set category to 'note' so they remain safe in General Notes)
-      final updateQuery = uid.isNotEmpty
-          ? "UPDATE notes SET category = 'note' WHERE (LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-          : "UPDATE notes SET category = 'note' WHERE LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?)";
-      final updateParams = uid.isNotEmpty ? [catName, id, rawId, uid] : [catName, id, rawId];
+      final updateQuery = catName.isNotEmpty
+          ? (uid.isNotEmpty
+              ? "UPDATE notes SET category = 'note' WHERE (LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+              : "UPDATE notes SET category = 'note' WHERE LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?)")
+          : (uid.isNotEmpty
+              ? "UPDATE notes SET category = 'note' WHERE (LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+              : "UPDATE notes SET category = 'note' WHERE LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?)");
+      final updateParams = catName.isNotEmpty
+          ? (uid.isNotEmpty ? [catName, id, rawId, uid] : [catName, id, rawId])
+          : (uid.isNotEmpty ? [id, rawId, uid] : [id, rawId]);
       await db.execute(updateQuery, updateParams);
     } catch (e) {
       debugPrint('[NoteCategoryRepository] Error deleting category: $e');

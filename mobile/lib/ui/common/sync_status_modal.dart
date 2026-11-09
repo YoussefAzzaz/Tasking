@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/network_service.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/powersync_db.dart';
@@ -42,7 +43,9 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
       if (!online) {
         if (mounted) {
           setState(() {
-            _syncMessage = 'Network unreachable. Please check Wi-Fi or cellular data.';
+            _syncMessage = context.isArabic
+                ? 'الشبكة غير متوفرة. يُرجى التحقق من شبكة Wi-Fi أو بيانات الهاتف.'
+                : 'Network unreachable. Please check Wi-Fi or cellular data.';
             _isSyncing = false;
           });
         }
@@ -55,14 +58,18 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
 
       if (mounted) {
         setState(() {
-          _syncMessage = 'Sync successful! All local records and cloud streams updated.';
+          _syncMessage = context.isArabic
+              ? 'تمت المزامنة بنجاح! تم تحديث جميع السجلات المحلية والتدفقات السحابية.'
+              : 'Sync successful! All local records and cloud streams updated.';
           _isSyncing = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _syncMessage = 'Sync notice: $e';
+          _syncMessage = context.isArabic
+              ? 'إشعار المزامنة: $e'
+              : 'Sync notice: $e';
           _isSyncing = false;
         });
       }
@@ -75,7 +82,8 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
     final isOnline = NetworkService().isOnline;
     final isDbConnected = db.connected;
     final isGuest = auth.isGuest;
-    final email = auth.userEmail ?? (isGuest ? 'Local Offline Guest' : 'Not signed in');
+    final isArabic = context.isArabic;
+    final email = auth.userEmail ?? (isGuest ? (isArabic ? 'ضيف محلي غير متصل' : 'Local Offline Guest') : (isArabic ? 'لم يتم تسجيل الدخول' : 'Not signed in'));
 
     return Container(
       decoration: const BoxDecoration(
@@ -119,7 +127,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'CLOUD SYNCHRONIZATION',
+                      isArabic ? 'المزامنة السحابية' : 'CLOUD SYNCHRONIZATION',
                       style: GoogleFonts.spaceGrotesk(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
@@ -149,22 +157,26 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
             child: Column(
               children: [
                 _buildDiagnosticRow(
-                  label: 'Internet Connectivity',
-                  status: isOnline ? 'ONLINE' : 'OFFLINE',
+                  label: isArabic ? 'الاتصال بالإنترنت' : 'Internet Connectivity',
+                  status: isOnline ? (isArabic ? 'متصل' : 'ONLINE') : (isArabic ? 'غير متصل' : 'OFFLINE'),
                   isGood: isOnline,
                   icon: isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
                 ),
                 const Divider(height: 18, color: AxisColors.borderSubtle),
                 _buildDiagnosticRow(
-                  label: 'PowerSync Engine',
-                  status: isDbConnected ? 'ACTIVE' : (isOnline ? 'CONNECTING' : 'SUSPENDED'),
+                  label: isArabic ? 'محرك PowerSync' : 'PowerSync Engine',
+                  status: isDbConnected
+                      ? (isArabic ? 'نشط' : 'ACTIVE')
+                      : (isOnline ? (isArabic ? 'جارٍ الاتصال' : 'CONNECTING') : (isArabic ? 'معلّق' : 'SUSPENDED')),
                   isGood: isDbConnected,
                   icon: Icons.sync_alt_rounded,
                 ),
                 const Divider(height: 18, color: AxisColors.borderSubtle),
                 _buildDiagnosticRow(
-                  label: 'Supabase Authentication',
-                  status: auth.isAuthenticated ? 'AUTHENTICATED' : (isGuest ? 'GUEST (OFFLINE)' : 'UNAUTHENTICATED'),
+                  label: isArabic ? 'مصادقة Supabase' : 'Supabase Authentication',
+                  status: auth.isAuthenticated
+                      ? (isArabic ? 'تمت المصادقة' : 'AUTHENTICATED')
+                      : (isGuest ? (isArabic ? 'ضيف (غير متصل)' : 'GUEST (OFFLINE)') : (isArabic ? 'غير مصادق' : 'UNAUTHENTICATED')),
                   isGood: auth.isAuthenticated,
                   icon: Icons.shield_outlined,
                 ),
@@ -179,7 +191,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                 color: AxisColors.surfaceLowest,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: _syncMessage!.contains('successful')
+                  color: _syncMessage!.contains('successful') || _syncMessage!.contains('بنجاح')
                       ? AxisColors.success.withValues(alpha: 0.5)
                       : AxisColors.warning.withValues(alpha: 0.5),
                 ),
@@ -189,7 +201,9 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                 style: GoogleFonts.getFont(
                   'Geist',
                   fontSize: 12,
-                  color: _syncMessage!.contains('successful') ? AxisColors.success : AxisColors.warning,
+                  color: _syncMessage!.contains('successful') || _syncMessage!.contains('بنجاح')
+                      ? AxisColors.success
+                      : AxisColors.warning,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -204,7 +218,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
               },
               icon: const Icon(Icons.login_rounded, size: 16),
               label: Text(
-                'SIGN IN TO SYNC WITH DESKTOP',
+                isArabic ? 'تسجيل الدخول للمزامنة مع سطح المكتب' : 'SIGN IN TO SYNC WITH DESKTOP',
                 style: GoogleFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -226,7 +240,9 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                   )
                 : const Icon(Icons.refresh_rounded, size: 16),
             label: Text(
-              _isSyncing ? 'SYNCING...' : 'SYNC & RECONNECT NOW',
+              _isSyncing
+                  ? (isArabic ? 'جارٍ المزامنة...' : 'SYNCING...')
+                  : (isArabic ? 'مزامنة وإعادة الاتصال الآن' : 'SYNC & RECONNECT NOW'),
               style: GoogleFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(

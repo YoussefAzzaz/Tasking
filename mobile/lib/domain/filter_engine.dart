@@ -25,15 +25,27 @@ class FilterEngine {
 
     if (query.tags != null && query.tags!.isNotEmpty) {
       if (task.tags == null) return false;
-      if (!query.tags!.any((t) => task.tags!.contains(t))) {
-        return false;
-      }
+      final taskTagSet = task.tags!
+          .map((t) => t.trim().replaceAll('@', '').toLowerCase())
+          .where((t) => t.isNotEmpty)
+          .toSet();
+      final hasMatch = query.tags!.any((t) {
+        final cleanQueryTag = t.trim().replaceAll('@', '').toLowerCase();
+        return taskTagSet.contains(cleanQueryTag) || task.tags!.contains(t);
+      });
+      if (!hasMatch) return false;
     }
 
     if (query.dueBefore != null && query.dueBefore!.trim().isNotEmpty) {
       if (task.dueDate == null || task.dueDate!.trim().isEmpty) return false;
-      if (task.dueDate!.compareTo(query.dueBefore!) >= 0) {
-        return false;
+      final taskDt = DateTime.tryParse(task.dueDate!.trim());
+      final beforeDt = DateTime.tryParse(query.dueBefore!.trim());
+      if (taskDt != null && beforeDt != null) {
+        if (!taskDt.isBefore(beforeDt)) return false;
+      } else {
+        if (task.dueDate!.trim().compareTo(query.dueBefore!.trim()) >= 0) {
+          return false;
+        }
       }
     }
 

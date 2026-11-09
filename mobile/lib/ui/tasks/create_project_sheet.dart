@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/ui/common/cyber_color_picker.dart';
@@ -45,14 +46,16 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
   }
 
   Color _parseHex(String hex) {
-    final clean = hex.replaceAll('#', '');
-    return Color(int.parse('FF$clean', radix: 16));
+    final clean = hex.replaceAll('#', '').replaceAll('0x', '').trim();
+    if (clean.length == 6) return Color(int.parse('FF$clean', radix: 16));
+    if (clean.length == 8) return Color(int.parse(clean, radix: 16));
+    return AxisColors.primary;
   }
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _errorText = 'Project name cannot be empty');
+      setState(() => _errorText = context.isArabic ? 'لا يمكن أن يكون اسم المشروع فارغاً' : 'Project name cannot be empty');
       return;
     }
 
@@ -140,11 +143,11 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                                         color: _parseHex(_selectedColor), size: 20),
                                   ),
                                   const SizedBox(width: 10),
-                                  const Expanded(
+                                  Expanded(
                                     child: Text(
-                                      'CREATE NEW PROJECT',
+                                      context.isArabic ? 'إنشاء مشروع جديد' : 'CREATE NEW PROJECT',
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: AxisColors.textHigh,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
@@ -176,9 +179,9 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'PROJECT NAME *',
-                          style: TextStyle(
+                        Text(
+                          context.isArabic ? 'اسم المشروع *' : 'PROJECT NAME *',
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: AxisColors.textMuted,
@@ -198,7 +201,7 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                             ),
                             cursorColor: _parseHex(_selectedColor),
                             decoration: InputDecoration(
-                              hintText: 'e.g., Mobile App Redesign, Q4 Goals',
+                              hintText: context.isArabic ? 'مثال: إعادة تصميم تطبيق الجوال، أهداف الربع الرابع' : 'e.g., Mobile App Redesign, Q4 Goals',
                               hintStyle: const TextStyle(color: AxisColors.textDim),
                               errorText: _errorText,
                               filled: true,
@@ -222,9 +225,9 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                         const SizedBox(height: 18),
 
                         // Color Picker Palette
-                        const Text(
-                          'THEME COLOR',
-                          style: TextStyle(
+                        Text(
+                          context.isArabic ? 'لون السمة' : 'THEME COLOR',
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: AxisColors.textMuted,
@@ -243,7 +246,7 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                                 final isSelected = _selectedColor.toUpperCase() == hex.toUpperCase();
 
                                 return Padding(
-                                  padding: const EdgeInsets.only(right: 12),
+                                  padding: const EdgeInsetsDirectional.only(end: 12),
                                   child: InkWell(
                                     onTap: () => setState(() => _selectedColor = hex),
                                     borderRadius: BorderRadius.circular(20),
@@ -278,7 +281,7 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                               // If user picked a custom color not in presets, display it as selected
                               if (!_palette.any((p) => (p['hex'] as String).toUpperCase() == _selectedColor.toUpperCase())) ...[
                                 Padding(
-                                  padding: const EdgeInsets.only(right: 12),
+                                  padding: const EdgeInsetsDirectional.only(end: 12),
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 180),
                                     width: 42,
@@ -304,7 +307,7 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                               ],
                               // Rainbow custom color picker button
                               Padding(
-                                padding: const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsetsDirectional.only(end: 8),
                                 child: RainbowColorPickerButton(
                                   selectedColor: _selectedColor,
                                   size: 42,
@@ -351,15 +354,15 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2, color: Colors.white),
                                     )
-                                  : const Row(
+                                  : Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.add_rounded,
+                                        const Icon(Icons.add_rounded,
                                             color: Colors.white, size: 20),
-                                        SizedBox(width: 6),
+                                        const SizedBox(width: 6),
                                         Text(
-                                          'CREATE PROJECT',
-                                          style: TextStyle(
+                                          context.isArabic ? 'إنشاء مشروع' : 'CREATE PROJECT',
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 13,

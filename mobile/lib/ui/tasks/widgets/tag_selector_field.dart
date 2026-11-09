@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 
 /// Autocomplete/searchable Tag selector field with chip preview and dynamic dropdown
@@ -25,7 +26,7 @@ class TagSelectorField extends StatelessWidget {
   final ValueChanged<String> onToggleTag;
   final VoidCallback onAddCurrentTag;
 
-  List<Widget> _buildDropdownItems() {
+  List<Widget> _buildDropdownItems(BuildContext context) {
     final query =
         controller.text.trim().toLowerCase().replaceAll('@', '');
     final List<Widget> items = [];
@@ -37,11 +38,11 @@ class TagSelectorField extends StatelessWidget {
 
     if (filtered.isEmpty && query.isEmpty) {
       items.add(
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Text(
-            'Type to create a new tag...',
-            style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+            context.isArabic ? 'اكتب لإنشاء وسم جديد...' : 'Type to create a new tag...',
+            style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
           ),
         ),
       );
@@ -75,7 +76,7 @@ class TagSelectorField extends StatelessWidget {
         DropdownOption(
           icon: Icons.add_rounded,
           iconColor: AxisColors.primary,
-          title: 'Add tag "@$rawTyped"',
+          title: context.isArabic ? 'إضافة وسم "@$rawTyped"' : 'Add tag "@$rawTyped"',
           isAction: true,
           onTap: () {
             onAddCurrentTag();
@@ -94,7 +95,7 @@ class TagSelectorField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const FieldLabel(label: 'TAGS'),
+        FieldLabel(label: context.isArabic ? 'الوسوم' : 'TAGS'),
         if (selectedTags.isNotEmpty) ...[
           Wrap(
             spacing: 6,
@@ -155,7 +156,7 @@ class TagSelectorField extends StatelessWidget {
                 ),
             cursorColor: AxisColors.primary,
             decoration: InputDecoration(
-              hintText: 'Select or write tag name...',
+              hintText: AppLocalizations.of(context).isArabic ? 'اختر أو اكتب اسم الوسم...' : 'Select or write tag name...',
               hintStyle:
                   const TextStyle(color: AxisColors.textDim, fontSize: 13),
               border: InputBorder.none,
@@ -170,7 +171,7 @@ class TagSelectorField extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.add_rounded,
                           size: 20, color: AxisColors.primary),
-                      tooltip: 'Add tag',
+                      tooltip: context.isArabic ? 'إضافة وسم' : 'Add tag',
                       onPressed: onAddCurrentTag,
                     ),
                   IconButton(
@@ -216,7 +217,7 @@ class TagSelectorField extends StatelessWidget {
               child: ListView(
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                children: _buildDropdownItems(),
+                children: _buildDropdownItems(context),
               ),
             ),
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/ui/common/cyber_color_picker.dart';
 import 'package:axis/ui/common/category_filter_slider.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Section managing custom note categories with add and delete capabilities.
 class NoteCategoriesSection extends StatelessWidget {
@@ -19,27 +20,30 @@ class NoteCategoriesSection extends StatelessWidget {
   Color _parseHex(String? hex) {
     if (hex == null || hex.isEmpty) return AxisColors.secondary;
     try {
-      final clean = hex.replaceAll('#', '').trim();
-      return Color(int.parse('FF$clean', radix: 16));
+      final clean = hex.replaceAll('#', '').replaceAll('0x', '').trim();
+      if (clean.length == 6) return Color(int.parse('FF$clean', radix: 16));
+      if (clean.length == 8) return Color(int.parse(clean, radix: 16));
+      return AxisColors.secondary;
     } catch (_) {
       return AxisColors.secondary;
     }
   }
 
   void _showAddCategoryDialog(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final catCtrl = TextEditingController();
     String selectedColor = '#38BDF8';
     String selectedIcon = 'article';
 
     final icons = [
-      {'name': 'article', 'icon': Icons.article_rounded, 'label': 'Article'},
-      {'name': 'work', 'icon': Icons.work_rounded, 'label': 'Work'},
-      {'name': 'idea', 'icon': Icons.lightbulb_rounded, 'label': 'Idea'},
-      {'name': 'study', 'icon': Icons.school_rounded, 'label': 'Study'},
-      {'name': 'star', 'icon': Icons.star_rounded, 'label': 'Star'},
-      {'name': 'bookmark', 'icon': Icons.bookmark_rounded, 'label': 'Bookmark'},
-      {'name': 'code', 'icon': Icons.terminal_rounded, 'label': 'Code'},
-      {'name': 'fitness', 'icon': Icons.fitness_center_rounded, 'label': 'Fitness'},
+      {'name': 'article', 'icon': Icons.article_rounded, 'label': isArabic ? 'مقال' : 'Article'},
+      {'name': 'work', 'icon': Icons.work_rounded, 'label': isArabic ? 'عمل' : 'Work'},
+      {'name': 'idea', 'icon': Icons.lightbulb_rounded, 'label': isArabic ? 'فكرة' : 'Idea'},
+      {'name': 'study', 'icon': Icons.school_rounded, 'label': isArabic ? 'دراسة' : 'Study'},
+      {'name': 'star', 'icon': Icons.star_rounded, 'label': isArabic ? 'نجمة' : 'Star'},
+      {'name': 'bookmark', 'icon': Icons.bookmark_rounded, 'label': isArabic ? 'إشارة' : 'Bookmark'},
+      {'name': 'code', 'icon': Icons.terminal_rounded, 'label': isArabic ? 'كود' : 'Code'},
+      {'name': 'fitness', 'icon': Icons.fitness_center_rounded, 'label': isArabic ? 'رياضة' : 'Fitness'},
     ];
 
     showDialog(
@@ -51,9 +55,9 @@ class NoteCategoriesSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: AxisColors.borderPrimary),
           ),
-          title: const Text(
-            'New Note Category',
-            style: TextStyle(
+          title: Text(
+            isArabic ? 'فئة ملاحظات جديدة' : 'New Note Category',
+            style: const TextStyle(
               color: AxisColors.textHigh,
               fontWeight: FontWeight.bold,
             ),
@@ -66,12 +70,13 @@ class NoteCategoriesSection extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'CATEGORY NAME',
+                Text(
+                  isArabic ? 'اسم الفئة' : 'CATEGORY NAME',
                   style: TextStyle(
                     color: AxisColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: isArabic ? 0.0 : 0.8,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -80,7 +85,9 @@ class NoteCategoriesSection extends StatelessWidget {
                   autofocus: false,
                   style: const TextStyle(color: AxisColors.textHigh),
                   decoration: InputDecoration(
-                    hintText: 'e.g. Work, Ideas, Architecture, Personal',
+                    hintText: isArabic
+                        ? 'مثال: عمل، أفكار، هندسة وتصميم، شخصي'
+                        : 'e.g. Work, Ideas, Architecture, Personal',
                     hintStyle: const TextStyle(color: AxisColors.textDim),
                     filled: true,
                     fillColor: AxisColors.surfaceHigh,
@@ -88,16 +95,17 @@ class NoteCategoriesSection extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: AxisColors.borderSubtle),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'ICON',
+                Text(
+                  isArabic ? 'الأيقونة' : 'ICON',
                   style: TextStyle(
                     color: AxisColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: isArabic ? 0.0 : 0.8,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -128,12 +136,13 @@ class NoteCategoriesSection extends StatelessWidget {
                   }).toList(),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'COLOR ACCENT',
+                Text(
+                  isArabic ? 'لون التمييز' : 'COLOR ACCENT',
                   style: TextStyle(
                     color: AxisColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: isArabic ? 0.0 : 0.8,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -191,7 +200,7 @@ class NoteCategoriesSection extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: AxisColors.textDim)),
+              child: Text(isArabic ? 'إلغاء' : 'Cancel', style: const TextStyle(color: AxisColors.textDim)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -205,7 +214,7 @@ class NoteCategoriesSection extends StatelessWidget {
                 }
                 Navigator.pop(ctx);
               },
-              child: const Text('Add Category', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(isArabic ? 'إضافة الفئة' : 'Add Category', style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -214,6 +223,7 @@ class NoteCategoriesSection extends StatelessWidget {
   }
 
   void _confirmDeleteCategory(BuildContext context, String id, String name) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -223,17 +233,19 @@ class NoteCategoriesSection extends StatelessWidget {
           side: const BorderSide(color: AxisColors.borderPrimary),
         ),
         title: Text(
-          'Delete "$name"?',
+          isArabic ? 'حذف "$name"؟' : 'Delete "$name"?',
           style: const TextStyle(color: AxisColors.textHigh),
         ),
         content: Text(
-          'Are you sure you want to delete the "$name" note category? Notes in this category will remain safe in General Notes.',
+          isArabic
+              ? 'هل أنت متأكد من رغبتك في حذف فئة الملاحظات "$name"؟ ستظل الملاحظات في هذه الفئة آمنة في الملاحظات العامة.'
+              : 'Are you sure you want to delete the "$name" note category? Notes in this category will remain safe in General Notes.',
           style: const TextStyle(color: AxisColors.textMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: AxisColors.textDim)),
+            child: Text(isArabic ? 'إلغاء' : 'Cancel', style: const TextStyle(color: AxisColors.textDim)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
@@ -241,7 +253,7 @@ class NoteCategoriesSection extends StatelessWidget {
               Navigator.pop(dialogCtx);
               onDeleteCategory(id, name);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: Text(isArabic ? 'حذف' : 'Delete', style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -250,6 +262,9 @@ class NoteCategoriesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final l10n = AppLocalizations.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -258,10 +273,11 @@ class NoteCategoriesSection extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'NOTE CATEGORIES',
+                isArabic ? 'فئات الملاحظات' : 'NOTE CATEGORIES',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: AxisColors.textMuted,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: isArabic ? 0.0 : 0.8,
                     ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -281,14 +297,14 @@ class NoteCategoriesSection extends StatelessWidget {
                       color: AxisColors.secondary.withValues(alpha: 0.35),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, size: 14, color: AxisColors.secondary),
-                      SizedBox(width: 4),
+                      const Icon(Icons.add, size: 14, color: AxisColors.secondary),
+                      const SizedBox(width: 4),
                       Text(
-                        'New Category',
-                        style: TextStyle(
+                        isArabic ? 'فئة جديدة' : 'New Category',
+                        style: const TextStyle(
                           fontSize: 11,
                           color: AxisColors.secondary,
                           fontWeight: FontWeight.bold,
@@ -306,7 +322,9 @@ class NoteCategoriesSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'No custom note categories yet. Tap "New Category" to create one.',
+              isArabic
+                  ? 'لا توجد فئات ملاحظات مخصصة بعد. انقر على "فئة جديدة" لإنشاء واحدة.'
+                  : 'No custom note categories yet. Tap "New Category" to create one.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AxisColors.textDim),
             ),
           )
@@ -320,6 +338,7 @@ class NoteCategoriesSection extends StatelessWidget {
               final icon = cat['icon'] as String? ?? 'article';
               final color = _parseHex(cat['color'] as String?);
               final iconData = CategorySliderItem.resolveIcon(icon, Icons.article_rounded);
+              final displayName = l10n.localizedNoteCategory(name);
 
               return Container(
                 padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
@@ -343,7 +362,7 @@ class NoteCategoriesSection extends StatelessWidget {
                     Icon(iconData, size: 14, color: color),
                     const SizedBox(width: 6),
                     Text(
-                      name,
+                      displayName,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,

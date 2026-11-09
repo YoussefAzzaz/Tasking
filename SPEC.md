@@ -10,11 +10,11 @@ Axis is a **personal, offline-first productivity app** for one user (no collabor
 
 **Capture → Plan the day → Do (focus) → Review → Reflect**
 
-It runs as:
-- a **Flutter mobile app** (Android first, iOS later)
-- a **C# WPF desktop app** (Windows)
+It runs as a **unified cross-platform Flutter application**:
+- **Mobile** (Android & iOS)
+- **Desktop Command Center** (Windows, macOS, Linux)
 
-Both apps keep a local SQLite database and sync automatically through **PowerSync** to a **Supabase (Postgres)** backend. Everything must work with no internet.
+Both platforms share the same core domain engine and local SQLite database, syncing automatically through **PowerSync** to a **Supabase (Postgres)** backend. Everything works completely offline.
 
 ### Feature modules
 | # | Module | Summary |
@@ -38,9 +38,8 @@ Collaboration/sharing, Kanban, Gantt, task dependencies, goal/OKR hierarchy, AI 
 
 | Layer | Choice |
 |---|---|
-| Mobile | Flutter (stable), Dart, `flutter_riverpod`, `go_router`, `powersync` (Flutter SDK), `supabase_flutter`, `flutter_local_notifications` + `timezone`, `rrule`, `record`, `just_audio`, `home_widget`, `flutter_markdown`, `uuid` |
-| Desktop | .NET 8, WPF, `CommunityToolkit.Mvvm`, `WPF-UI` (Fluent look), `PowerSync.Common` (beta), `supabase-csharp`, `Ical.Net` (RRULE), `Microsoft.Toolkit.Uwp.Notifications` (toasts), `H.NotifyIcon.Wpf` (tray), `NHotkey.Wpf` (global hotkey), `Markdig`, `NAudio` (playback), `Microsoft.Extensions.DependencyInjection`, `xUnit` |
-| Local DB | **SQLite**, managed by the PowerSync SDK on both clients (no other local DB layer) |
+| Client (Unified) | Flutter (stable), Dart, `go_router`, `powersync` (Flutter SDK), `supabase_flutter`, `flutter_local_notifications` + `timezone`, `rrule`, `record`, `just_audio`, `home_widget`, `flutter_markdown`, `uuid`, `msix` |
+| Local DB | **SQLite**, managed by the PowerSync Flutter SDK (no other local DB layer) |
 | Sync | **PowerSync** (client SQLite ⇄ Postgres) |
 | Backend | **Supabase**: Postgres, Auth (email + password), Storage, Edge Functions (Deno/TypeScript), `pg_cron`, Vault |
 | External | Google Calendar API (via Edge Functions only), a speech-to-text API for voice notes (via Edge Function only) |
@@ -54,14 +53,13 @@ Rule: before adding any package, verify its current name, version, and API in it
 ## 3. Architecture
 
 ```
-Flutter app (phone)            WPF app (desktop)
-  SQLite (PowerSync)             SQLite (PowerSync)
-        \                          /
-         └──────  PowerSync  ─────┘
-                     │
-        Supabase Postgres (RLS on every table)
-                     │
-   Edge Functions: gcal-*, transcribe     Storage: voice-notes
+Flutter (Mobile: Android / iOS)      Flutter (Desktop: Windows / macOS / Linux)
+      \                                        /
+       └────────────── PowerSync ─────────────┘
+                         │
+           Supabase Postgres (RLS on every table)
+                         │
+      Edge Functions: gcal-*, transcribe       Storage: voice-notes
 ```
 
 - **Local-first:** all reads and writes go to local SQLite. UI never waits on network.
@@ -90,7 +88,7 @@ Flutter app (phone)            WPF app (desktop)
 
 ## 4. Data model (schema is law)
 
-Column names are snake_case and **identical** in Postgres, the Dart schema, and the C# schema. `+common` means the five common columns from §3.1.
+Column names are snake_case and **identical** in Postgres, the Dart schema, and the SQLite schema. `+common` means the five common columns from §3.1.
 
 ### 4.1 Core tables
 | Table | Columns (besides +common) |
@@ -316,16 +314,15 @@ axis/
   docs/        SPEC.md  SPRINTS.md  QUESTIONS.md  CHANGELOG.md  DEPENDENCIES.md  IDEAS.md
   contract/    ids.json quickadd.json recurrence.json filters.json streaks.json scheduler.json xp.json  (+ README.md)
   backend/     supabase/{migrations,functions,config.toml}   powersync/sync-rules.yaml
-  mobile/      Flutter app  (lib/core, lib/data, lib/domain, lib/features/<module>, lib/shared)
-  desktop/     Axis.sln → Axis.Core (pure logic, models, repo interfaces), Axis.Desktop (WPF), Axis.Core.Tests
+  mobile/      Unified Flutter app (lib/core, lib/data, lib/domain, lib/ui/{desktop, shell, ...})
 ```
 
 **Rules for every agent session**
 1. Work on **exactly one sprint**. Do not start the next one.
 2. Do not build anything not in the sprint. Good ideas go to `docs/IDEAS.md`.
-3. The schema in §4 is law. Never rename or add columns without stopping and asking; schema changes need a new migration and updates to both client schemas in the same commit.
+3. The schema in §4 is law. Never rename or add columns without stopping and asking; schema changes need a new migration and updates to the client schema in the same commit.
 4. UI never touches the database or network directly: Views → ViewModels/Notifiers → Repositories/Services.
-5. Pure logic (parser, recurrence, filters, streaks, scheduler, XP, IDs) has **no UI, DB, or clock dependencies** (clock is injected) and lives in `lib/domain` (Dart) / `Axis.Core` (C#).
+5. Pure logic (parser, recurrence, filters, streaks, scheduler, XP, IDs) has **no UI, DB, or clock dependencies** (clock is injected) and lives in `lib/domain` (Dart).
 6. **Contract vectors** (`/contract/*.json`) are written from this spec by the first platform that implements the logic, then reviewed by the human and frozen. Never edit a vector to make a test pass without human approval. The second platform must pass the same files unchanged.
 7. Soft delete only; always filter `deleted_at IS NULL`.
 8. No silent `catch`. Show a user-facing message and write to the local log file.

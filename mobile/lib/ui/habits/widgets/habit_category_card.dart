@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
-import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/habit_repository.dart';
-import 'package:axis/ui/common/axis_snackbar.dart';
-import 'package:axis/ui/habits/widgets/habit_form_widgets.dart';
+import 'package:axis/data/habit_category_repository.dart';
+import 'habit_dialogs.dart';
+import 'habit_item_tile.dart';
+
+export 'habit_dialogs.dart';
+export 'habit_item_tile.dart';
 
 /// EXPANDABLE HABIT CATEGORY CARD
 /// Displays habits grouped by category with live progress bar, completion status,
@@ -84,77 +88,18 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
 
 
   void _confirmDeleteHabit(BuildContext context, Habit habit) {
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: AxisColors.surfaceHigh,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AxisColors.borderPrimary),
-        ),
-        title: Text(
-          'Delete "${habit.name}"?',
-          style: const TextStyle(color: AxisColors.textHigh),
-        ),
-        content: const Text(
-          'This will permanently delete this habit and all its streak logs.',
-          style: TextStyle(color: AxisColors.textMuted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel',
-                style: TextStyle(color: AxisColors.textDim)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
-            onPressed: () {
-              Navigator.pop(dialogCtx);
-              widget.onDeleteHabit(habit);
-              AxisSnackBar.showDeleted(context, itemTitle: habit.name, itemType: 'Habit');
-            },
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    showConfirmDeleteHabitDialog(
+      context,
+      habit: habit,
+      onDeleteHabit: widget.onDeleteHabit,
     );
   }
 
   void _confirmDeleteCategory(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: AxisColors.surfaceLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AxisColors.borderPrimary),
-        ),
-        title: Text(
-          'Delete "${widget.category.name}"?',
-          style: const TextStyle(color: AxisColors.textHigh),
-        ),
-        content: Text(
-          'Are you sure you want to delete the "${widget.category.name}" category? Habits in this category will remain safe in General Routines.',
-          style: const TextStyle(color: AxisColors.textMuted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel',
-                style: TextStyle(color: AxisColors.textDim)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AxisColors.error),
-            onPressed: () {
-              Navigator.pop(dialogCtx);
-              widget.onDeleteCategory?.call();
-            },
-            child:
-                const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    showConfirmDeleteCategoryDialog(
+      context,
+      category: widget.category,
+      onDeleteCategory: widget.onDeleteCategory,
     );
   }
 
@@ -229,7 +174,7 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    widget.category.name,
+                                    context.l10n.localizedHabitCategory(widget.category.name),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -240,7 +185,9 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '$done of $total habits finished today',
+                                    context.isArabic
+                                        ? 'أُنجزت $done من أصل $total عادات اليوم'
+                                        : '$done of $total habits finished today',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -273,9 +220,9 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                                       .withValues(alpha: 0.5),
                                 ),
                               ),
-                              child: const Text(
-                                'DONE',
-                                style: TextStyle(
+                              child: Text(
+                                context.isArabic ? 'مكتمل' : 'DONE',
+                                style: const TextStyle(
                                   color: AxisColors.success,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -297,7 +244,9 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                             IconButton(
                               icon: const Icon(Icons.delete_outline_rounded,
                                   size: 20, color: AxisColors.textDim),
-                              tooltip: 'Delete category',
+                              tooltip: context.isArabic
+                                  ? 'حذف الفئة'
+                                  : 'Delete category',
                               constraints: const BoxConstraints(
                                   minWidth: 48, minHeight: 48),
                               onPressed: () => _confirmDeleteCategory(context),
@@ -384,7 +333,9 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Center(
                   child: Text(
-                    'No habits created for ${widget.category.name} yet.',
+                    context.isArabic
+                        ? 'لا توجد عادات لـ ${context.l10n.localizedHabitCategory(widget.category.name)} بعد.'
+                        : 'No habits created for ${widget.category.name} yet.',
                     style:
                         const TextStyle(color: AxisColors.textDim, fontSize: 12),
                   ),
@@ -412,311 +363,28 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                         ? _optimisticEnabled[habit.id]!
                         : habit.isEnabled;
 
-                  return Opacity(
-                    opacity: isEnabled ? 1.0 : 0.6,
-                    child: InkWell(
-                      onTap: () => widget.onEditHabit(habit),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            AxisCheckbox(
-                              checked: isDone,
-                              enabled: isEnabled,
-                              onChanged: (checked) {
-                                if (!isEnabled) return;
-                                setState(() {
-                                  _optimisticDone[habit.id] = checked;
-                                });
-                                widget.onToggleHabit(habit, checked);
-                              },
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  AutoDirectionText(
-                                    habit.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: !isEnabled
-                                          ? AxisColors.textDim
-                                          : isDone
-                                              ? AxisColors.textDim
-                                              : AxisColors.textHigh,
-                                      decoration: isDone
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                    ),
-                                  ),
-                                  if ((habit.remindTime != null &&
-                                          habit.remindTime!.isNotEmpty) ||
-                                      habit.streakDays > 0) ...[
-                                    const SizedBox(height: 3),
-                                    LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        return Wrap(
-                                          spacing: 8,
-                                          runSpacing: 2,
-                                          crossAxisAlignment:
-                                              WrapCrossAlignment.center,
-                                          children: [
-                                            if (habit.remindTime != null &&
-                                                habit.remindTime!.isNotEmpty)
-                                              ConstrainedBox(
-                                                constraints: BoxConstraints(
-                                                    maxWidth:
-                                                        constraints.maxWidth),
-                                                child: Text(
-                                                  habit.remindTime!,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                      fontSize: 11,
-                                                      color:
-                                                          AxisColors.textMuted),
-                                                ),
-                                              ),
-                                            if (habit.streakDays > 0 && isEnabled)
-                                              ConstrainedBox(
-                                                constraints: BoxConstraints(
-                                                    maxWidth:
-                                                        constraints.maxWidth),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    const Icon(
-                                                        Icons
-                                                            .local_fire_department_rounded,
-                                                        size: 12,
-                                                        color:
-                                                            AxisColors.warning),
-                                                    const SizedBox(width: 2),
-                                                    Flexible(
-                                                      child: Text(
-                                                        '${habit.streakDays}d streak',
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        style: const TextStyle(
-                                                          fontSize: 11,
-                                                          color:
-                                                              AxisColors.warning,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (!isEnabled)
-                                  GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () {
-                                      setState(() {
-                                        _optimisticEnabled[habit.id] = true;
-                                      });
-                                      HabitRepository().toggleHabitEnabled(habit.id, true);
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: AxisColors.surfaceHigh
-                                            .withValues(alpha: 0.6),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                            color: AxisColors.borderSubtle),
-                                      ),
-                                      child: const Text(
-                                        'PAUSED',
-                                        style: TextStyle(
-                                          color: AxisColors.textDim,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 7, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: isDone
-                                          ? AxisColors.surfaceLow
-                                          : AxisColors.success
-                                              .withValues(alpha: 0.18),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: isDone
-                                            ? AxisColors.borderSubtle
-                                            : AxisColors.success
-                                                .withValues(alpha: 0.35),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (isDone) ...[
-                                          const Icon(Icons.check_rounded,
-                                              size: 11,
-                                              color: AxisColors.success),
-                                          const SizedBox(width: 3),
-                                        ],
-                                        Text(
-                                          isDone
-                                              ? 'DONE'
-                                              : '+${habit.targetValue} XP',
-                                          style: TextStyle(
-                                            color: isDone
-                                                ? AxisColors.textDim
-                                                : AxisColors.success,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                const SizedBox(width: 4),
-                                PopupMenuButton<String>(
-                                  icon: const Icon(
-                                    Icons.more_vert_rounded,
-                                    size: 18,
-                                    color: AxisColors.textDim,
-                                  ),
-                                  tooltip: 'Habit options',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 26,
-                                    minHeight: 26,
-                                  ),
-                                  color: AxisColors.surfaceHigh,
-                                  elevation: 10,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    side: const BorderSide(
-                                      color: AxisColors.borderPrimary,
-                                      width: 1.2,
-                                    ),
-                                  ),
-                                  onSelected: (action) {
-                                    if (action == 'edit') {
-                                      widget.onEditHabit(habit);
-                                    } else if (action == 'delete') {
-                                      _confirmDeleteHabit(context, habit);
-                                    } else if (action == 'toggle_enabled') {
-                                      final nextVal = !isEnabled;
-                                      setState(() {
-                                        _optimisticEnabled[habit.id] = nextVal;
-                                      });
-                                      HabitRepository().toggleHabitEnabled(
-                                          habit.id, nextVal);
-                                    }
-                                  },
-                                  itemBuilder: (ctx) => [
-                                    PopupMenuItem<String>(
-                                      value: 'toggle_enabled',
-                                      height: 38,
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            isEnabled
-                                                ? Icons.pause_circle_outline_rounded
-                                                : Icons.play_circle_outline_rounded,
-                                            size: 16,
-                                            color: isEnabled
-                                                ? AxisColors.warning
-                                                : AxisColors.success,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Text(
-                                            isEnabled
-                                                ? 'Pause Habit'
-                                                : 'Resume Habit',
-                                            style: const TextStyle(
-                                              color: AxisColors.textHigh,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const PopupMenuItem<String>(
-                                    value: 'edit',
-                                    height: 38,
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit_outlined,
-                                            size: 16,
-                                            color: AxisColors.primary),
-                                        SizedBox(width: 10),
-                                        Text(
-                                          'Edit Habit',
-                                          style: TextStyle(
-                                            color: AxisColors.textHigh,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const PopupMenuItem<String>(
-                                    value: 'delete',
-                                    height: 38,
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete_outline_rounded,
-                                            size: 16, color: AxisColors.error),
-                                        SizedBox(width: 10),
-                                        Text(
-                                          'Delete Habit',
-                                          style: TextStyle(
-                                            color: AxisColors.error,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                    return HabitItemTile(
+                      habit: habit,
+                      isDone: isDone,
+                      isEnabled: isEnabled,
+                      onToggle: (checked) {
+                        setState(() {
+                          _optimisticDone[habit.id] = checked;
+                        });
+                        widget.onToggleHabit(habit, checked);
+                      },
+                      onEdit: () => widget.onEditHabit(habit),
+                      onDelete: () => _confirmDeleteHabit(context, habit),
+                      onToggleEnabled: (nextVal) {
+                        setState(() {
+                          _optimisticEnabled[habit.id] = nextVal;
+                        });
+                        HabitRepository().toggleHabitEnabled(habit.id, nextVal);
+                      },
+                    );
+                  },
                 );
-              },
-              );
-            }),
+              }),
           ],
 
             // Bottom Add Habit button
@@ -740,7 +408,9 @@ class _HabitCategoryCardState extends State<HabitCategoryCard> {
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
-                          'Add Habit to ${widget.category.name}',
+                          context.isArabic
+                              ? 'إضافة عادة إلى ${context.l10n.localizedHabitCategory(widget.category.name)}'
+                              : 'Add Habit to ${widget.category.name}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

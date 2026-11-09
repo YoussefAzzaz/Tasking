@@ -1,6 +1,6 @@
 # Contract Vectors
 
-This directory contains **shared JSON test vectors** that must be passed identically by both the Flutter/Dart and WPF/C# implementations.
+This directory contains **canonical JSON test vectors** that validate core domain logic in the Flutter/Dart implementation.
 
 ## Files
 
@@ -19,7 +19,7 @@ This directory contains **shared JSON test vectors** that must be passed identic
 1. Vectors are **authored by the first platform** that implements the logic.
 2. Vectors are **reviewed by the human** and then **frozen**.
 3. **Never edit a vector to make a test pass** without explicit human approval.
-4. The second platform must pass the same files **unchanged**.
+4. Any domain logic changes must continue to pass all vector test suites.
 
 ## Format (all files)
 

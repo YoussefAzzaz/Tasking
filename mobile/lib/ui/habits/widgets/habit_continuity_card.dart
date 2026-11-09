@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Weekly Day Pill showing completed, current day, missed, or upcoming state
 class DayPill extends StatelessWidget {
@@ -151,7 +152,7 @@ class HabitContinuityCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
-                          'MULTIPLIER $multiplierStr',
+                          context.isArabic ? 'المضاعف $multiplierStr' : 'MULTIPLIER $multiplierStr',
                           overflow: TextOverflow.ellipsis,
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -191,7 +192,7 @@ class HabitContinuityCard extends StatelessWidget {
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
-                          '$monthlyRate% MONTHLY RATE',
+                          context.isArabic ? 'المعدل الشهري $monthlyRate%' : '$monthlyRate% MONTHLY RATE',
                           overflow: TextOverflow.ellipsis,
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -248,7 +249,7 @@ class HabitContinuityCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'CONTINUITY PULSE',
+                                context.isArabic ? 'نبض الاستمرارية' : 'CONTINUITY PULSE',
                                 style: Theme.of(context)
                                     .textTheme
                                     .labelSmall
@@ -274,7 +275,9 @@ class HabitContinuityCard extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      currentStreak == 1 ? 'Day' : 'Days',
+                                      currentStreak == 1
+                                          ? (context.isArabic ? 'يوم' : 'Day')
+                                          : (context.isArabic ? 'أيام' : 'Days'),
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleLarge
@@ -296,8 +299,10 @@ class HabitContinuityCard extends StatelessWidget {
                               ),
                               Text(
                                 currentStreak == 0
-                                    ? 'Start your streak today'
-                                    : 'Current Best: $bestStreak ${bestStreak == 1 ? 'Day' : 'Days'} Unbroken',
+                                    ? (context.isArabic ? 'ابدأ سلسلة عاداتك اليوم' : 'Start your streak today')
+                                    : (context.isArabic
+                                        ? 'أفضل إنجاز: $bestStreak ${bestStreak == 1 ? 'يوم' : 'أيام'} متواصلة'
+                                        : 'Current Best: $bestStreak ${bestStreak == 1 ? 'Day' : 'Days'} Unbroken'),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context)
@@ -322,15 +327,15 @@ class HabitContinuityCard extends StatelessWidget {
                               border:
                                   Border.all(color: AxisColors.borderSubtle),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.restart_alt_rounded,
+                                const Icon(Icons.restart_alt_rounded,
                                     color: AxisColors.warning, size: 14),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
-                                  'Reset',
-                                  style: TextStyle(
+                                  context.isArabic ? 'إعادة تعيين' : 'Reset',
+                                  style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                     color: AxisColors.warning,

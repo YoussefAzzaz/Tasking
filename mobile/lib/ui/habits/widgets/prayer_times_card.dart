@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
-import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/prayer_time_service.dart';
-import 'package:axis/ui/habits/widgets/qibla_compass_sheet.dart';
-import 'package:axis/ui/habits/widgets/prayer_settings_sheet.dart';
+import 'prayer/habit_prayer_tile.dart';
+import 'prayer/prayer_quick_actions_bar.dart';
+
+export 'prayer/habit_prayer_tile.dart';
+export 'prayer/prayer_quick_actions_bar.dart';
 
 /// DEDICATED PRAYER TIMES CARD
 /// Displays the strictly 5 daily Islamic prayers from the dedicated `prayers` database table.
@@ -35,53 +36,8 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
   bool _expanded = true;
   bool _isResetting = false;
 
-  IconData _prayerIcon(String icon) {
-    switch (icon.toLowerCase()) {
-      case 'fajr':
-        return Icons.wb_twilight_rounded;
-      case 'dhuhr':
-        return Icons.wb_sunny_rounded;
-      case 'asr':
-        return Icons.brightness_medium_rounded;
-      case 'maghrib':
-        return Icons.wb_twilight_rounded;
-      case 'isha':
-        return Icons.dark_mode_rounded;
-      default:
-        return Icons.mosque_rounded;
-    }
-  }
-
-  Future<void> _confirmResetPrayers() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AxisColors.surfaceLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AxisColors.borderPrimary),
-        ),
-        title: const Text(
-          "Reset Today's Prayers?",
-          style: TextStyle(color: AxisColors.textHigh),
-        ),
-        content: const Text(
-          "This will reset all 5 daily prayers back to undone for today. Your accumulated EXP and streak progress will be safely preserved.",
-          style: TextStyle(color: AxisColors.textMuted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AxisColors.textDim)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reset to Undone', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
+  Future<void> _handleConfirmReset() async {
+    final confirmed = await showConfirmResetPrayersDialog(context);
 
     if (confirmed == true) {
       setState(() => _isResetting = true);
@@ -90,7 +46,9 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
         setState(() => _isResetting = false);
         AxisSnackBar.show(
           context,
-          message: "Today's prayers have been reset to undone",
+          message: context.isArabic
+              ? 'تمت إعادة تعيين صلوات اليوم'
+              : "Today's prayers have been reset to undone",
           icon: Icons.refresh_rounded,
         );
       }
@@ -101,54 +59,56 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isArabic = l10n.isArabic;
-    const prayerColor = Color(0xFF10B981);
-    final total = widget.prayers.length;
     final done = widget.prayers.where((p) => p.isDone).length;
+    final total = widget.prayers.length;
+    final percent = total > 0 ? ((done / total) * 100).toInt() : 0;
     final progress = total > 0 ? (done / total) : 0.0;
-    final percent = (progress * 100).toInt();
     final isComplete = total > 0 && done == total;
 
+    const prayerColor = AxisColors.success;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AxisColors.surfaceLow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isComplete
-              ? AxisColors.success.withValues(alpha: 0.6)
-              : prayerColor.withValues(alpha: 0.35),
+          color: prayerColor.withValues(alpha: isComplete ? 0.6 : 0.25),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: prayerColor.withValues(alpha: 0.08),
+            color: prayerColor.withValues(alpha: isComplete ? 0.15 : 0.05),
             blurRadius: 16,
-            spreadRadius: 2,
+            spreadRadius: 1,
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header (Expandable)
+          // Header: Icon, Title, Progress, Reset & Expand
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(9),
                               decoration: BoxDecoration(
-                                color: prayerColor.withValues(alpha: 0.2),
+                                color: prayerColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: prayerColor.withValues(alpha: 0.3),
+                                ),
                               ),
                               child: const Icon(
                                 Icons.mosque_rounded,
@@ -156,7 +116,7 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                                 size: 20,
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,46 +125,16 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                                     children: [
                                       Flexible(
                                         child: Text(
-                                          isArabic ? 'الصلوات المفروضة' : 'Prayers',
+                                          isArabic
+                                              ? 'الصلوات المفروضة'
+                                              : 'Prayers',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
                                             color: AxisColors.textHigh,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: prayerColor.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(
-                                                color: prayerColor.withValues(alpha: 0.3)),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.location_on_rounded,
-                                                  size: 10, color: prayerColor),
-                                              const SizedBox(width: 2),
-                                              Flexible(
-                                                child: Text(
-                                                  PrayerTimeService().currentCity,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    color: prayerColor,
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.8,
                                           ),
                                         ),
                                       ),
@@ -239,15 +169,17 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: AxisColors.success.withValues(alpha: 0.2),
+                                color:
+                                    AxisColors.success.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: AxisColors.success.withValues(alpha: 0.5),
+                                  color: AxisColors.success
+                                      .withValues(alpha: 0.5),
                                 ),
                               ),
-                              child: const Text(
-                                'DONE',
-                                style: TextStyle(
+                              child: Text(
+                                isArabic ? 'مكتمل' : 'DONE',
+                                style: const TextStyle(
                                   color: AxisColors.success,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -277,18 +209,23 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                                   )
                                 : const Icon(Icons.restart_alt_rounded,
                                     size: 18, color: AxisColors.textDim),
-                            tooltip: "Reset Today's Prayers",
+                            tooltip: isArabic
+                                ? "إعادة ضبط صلوات اليوم"
+                                : "Reset Today's Prayers",
                             visualDensity: VisualDensity.compact,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(
                                 minWidth: 26, minHeight: 26),
-                            onPressed: _isResetting ? null : _confirmResetPrayers,
+                            onPressed:
+                                _isResetting ? null : _handleConfirmReset,
                           ),
                           // Refresh location & times button
                           IconButton(
                             icon: const Icon(Icons.sync_rounded,
                                 size: 18, color: AxisColors.textDim),
-                            tooltip: 'Refresh Prayer Times & Location',
+                            tooltip: isArabic
+                                ? 'تحديث أوقات الصلاة والموقع'
+                                : 'Refresh Prayer Times & Location',
                             visualDensity: VisualDensity.compact,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(
@@ -298,7 +235,9 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                               if (context.mounted) {
                                 AxisSnackBar.show(
                                   context,
-                                  message: 'Prayer times refreshed for ${PrayerTimeService().currentCity}',
+                                  message: isArabic
+                                      ? 'تم تحديث أوقات الصلاة لمدينة ${PrayerTimeService().currentCity}'
+                                      : 'Prayer times refreshed for ${PrayerTimeService().currentCity}',
                                   icon: Icons.location_on_outlined,
                                 );
                               }
@@ -349,7 +288,9 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                               borderRadius: BorderRadius.circular(3),
                               boxShadow: [
                                 BoxShadow(
-                                  color: (isComplete ? AxisColors.success : prayerColor)
+                                  color: (isComplete
+                                          ? AxisColors.success
+                                          : prayerColor)
                                       .withValues(alpha: 0.4),
                                   blurRadius: 6,
                                 ),
@@ -377,271 +318,45 @@ class _PrayerTimesCardState extends State<PrayerTimesCard> {
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                        const Divider(color: AxisColors.borderSubtle, height: 1),
+                          const Divider(
+                              color: AxisColors.borderSubtle, height: 1),
 
-            // Qibla Direction Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
-              child: InkWell(
-                onTap: () => QiblaCompassSheet.show(context),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: prayerColor.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: prayerColor.withValues(alpha: 0.25),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.explore_rounded, size: 16, color: prayerColor),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          isArabic
-                              ? 'اتجاه القبلة (بوصلة وGPS مباشر)'
-                              : 'Qibla Direction (Live GPS & Compass)',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: prayerColor,
+                          // Qibla Direction Button
+                          PrayerQiblaActionButton(
+                            prayerColor: prayerColor,
+                            isArabic: isArabic,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 11,
-                        color: Color(0xB310B981),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
 
-            // Adhan Alerts & Fajr Alarm Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
-              child: InkWell(
-                onTap: () => PrayerSettingsSheet.show(context),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.alarm_on_rounded,
-                          size: 16, color: Color(0xFFEF4444)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    isArabic
-                                        ? 'تنبيهات الأذان ومنبه صلاة الفجر'
-                                        : 'Adhan Alerts & Fajr Alarm',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFFEF4444),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEF4444)
-                                        .withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    '+1 MIN',
-                                    style: TextStyle(
-                                      fontSize: 8.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFEF4444),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 1),
-                            const Text(
-                              'Anti-snooze mental verification enabled',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: AxisColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(
-                        Icons.tune_rounded,
-                        size: 14,
-                        color: Color(0xFFEF4444),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // List of the 5 prayers
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              itemCount: widget.prayers.length,
-              separatorBuilder: (_, _) =>
-                  const Divider(color: AxisColors.borderGlass2, height: 1),
-              itemBuilder: (context, i) {
-                final prayer = widget.prayers[i];
-                final isDone = prayer.isDone;
-
-                return Padding(
-                  key: ValueKey('habit_prayer_${prayer.id}'),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      AxisCheckbox(
-                        checked: isDone,
-                        onChanged: (checked) {
-                          HapticFeedback.lightImpact();
-                          widget.onTogglePrayer(prayer, checked);
-                        },
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(5),
-                                  decoration: BoxDecoration(
-                                    color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Icon(
-                                    _prayerIcon(prayer.icon),
-                                    size: 14,
-                                    color: isDone ? AxisColors.textDim : prayerColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    l10n.prayerName(prayer.name),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDone ? AxisColors.textDim : AxisColors.textHigh,
-                                      decoration: isDone ? TextDecoration.lineThrough : null,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 3),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 27),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.access_time_filled_rounded,
-                                      size: 11, color: AxisColors.success),
-                                  const SizedBox(width: 3),
-                                  Flexible(
-                                    child: Text(
-                                      isArabic ? 'الأذان ${prayer.time}' : 'Adan ${prayer.time}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AxisColors.success,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isDone
-                              ? AxisColors.surfaceLow
-                              : AxisColors.success.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isDone
-                                ? AxisColors.borderSubtle
-                                : AxisColors.success.withValues(alpha: 0.35),
+                          // Adhan Alerts & Fajr Alarm Button
+                          PrayerAdhanAlertsActionButton(
+                            isArabic: isArabic,
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isDone) ...[
-                              const Icon(Icons.check_rounded,
-                                  size: 11, color: AxisColors.success),
-                              const SizedBox(width: 3),
-                            ],
-                            Text(
-                              isDone ? 'DONE' : '+25 XP',
-                              style: TextStyle(
-                                color: isDone ? AxisColors.textDim : AxisColors.success,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 6),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
+
+                          // List of the 5 prayers
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                            itemCount: widget.prayers.length,
+                            separatorBuilder: (_, _) => const Divider(
+                                color: AxisColors.borderGlass2, height: 1),
+                            itemBuilder: (context, i) {
+                              final prayer = widget.prayers[i];
+                              return HabitPrayerTile(
+                                key: ValueKey('habit_prayer_${prayer.id}'),
+                                prayer: prayer,
+                                prayerColor: prayerColor,
+                                isArabic: isArabic,
+                                onToggle: (checked) =>
+                                    widget.onTogglePrayer(prayer, checked),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
               ),
             ),
           ),

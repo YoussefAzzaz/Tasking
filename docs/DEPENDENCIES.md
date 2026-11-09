@@ -12,6 +12,8 @@ All external packages are recorded here before use. Pin exact versions.
 
 _(populated in Sprint 7)_
 
-## Desktop (.NET / WPF)
+## Desktop (Flutter / Windows MSIX)
 
-_(populated in Sprint 11)_
+| Package | Version | Purpose |
+|---------|---------|---------|
+| msix | ^3.16.8 | Windows MSIX packaging & manifest configuration |

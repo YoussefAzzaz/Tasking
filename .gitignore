@@ -1,4 +1,50 @@
+# IDEs and Editors
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.iml
+*.ipr
+*.iws
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Logs, Diagnostics & Temp
 *.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# Python cache (used in helper scripts & skills)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Agent Workspace & Cache
 .agents/
+
+# Flutter / Dart / Build Artifacts
+.dart_tool/
+.pub-cache/
+.pub/
+/build/
+**/build/
+/coverage/

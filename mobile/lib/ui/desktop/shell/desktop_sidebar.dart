@@ -284,6 +284,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
 
   Widget _buildLogoutFooter() {
     final isGuest = AuthService().isGuest;
+    final isAr = context.isArabic;
 
     return Container(
       padding: const EdgeInsets.all(12.0),
@@ -300,7 +301,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 AccentButton(
-                  label: 'Sign In to Sync',
+                  label: isAr ? 'تسجيل الدخول للمزامنة' : 'Sign In to Sync',
                   icon: Icons.cloud_upload_rounded,
                   color: const Color(0xFFF59E0B),
                   isFullWidth: true,
@@ -308,7 +309,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                 ),
                 const SizedBox(height: 8),
                 GhostButton(
-                  label: 'Exit Guest',
+                  label: isAr ? 'الخروج من وضع الضيف' : 'Exit Guest',
                   icon: Icons.logout_rounded,
                   color: AxisColors.textMuted,
                   borderColor: AxisColors.borderSubtle,
@@ -324,7 +325,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
               ],
             )
           : GhostButton(
-              label: 'Log Out',
+              label: isAr ? 'تسجيل الخروج' : 'Log Out',
               icon: Icons.logout_rounded,
               color: AxisColors.priorityHigh,
               borderColor: AxisColors.priorityHigh.withValues(alpha: 0.3),
@@ -340,7 +341,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                       side: const BorderSide(color: AxisColors.borderSubtle),
                     ),
                     title: Text(
-                      'Log Out',
+                      isAr ? 'تسجيل الخروج' : 'Log Out',
                       style: GoogleFonts.spaceGrotesk(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -348,16 +349,21 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                       ),
                     ),
                     content: Text(
-                      'Are you sure you want to end your current session?',
+                      isAr
+                          ? 'هل أنت متأكد من رغبتك في إنهاء الجلسة الحالية؟'
+                          : 'Are you sure you want to end your current session?',
                       style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('Cancel', style: TextStyle(color: AxisColors.textMuted)),
+                        child: Text(
+                          isAr ? 'إلغاء' : 'Cancel',
+                          style: const TextStyle(color: AxisColors.textMuted),
+                        ),
                       ),
                       AccentButton(
-                        label: 'Log Out',
+                        label: isAr ? 'تسجيل الخروج' : 'Log Out',
                         color: AxisColors.priorityHigh,
                         onPressed: () => Navigator.of(ctx).pop(true),
                       ),

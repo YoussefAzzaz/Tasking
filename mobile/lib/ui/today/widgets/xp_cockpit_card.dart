@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Top XP Cockpit card featuring user level, rank, daily progress, and glow decoration
 class XpCockpitCard extends StatelessWidget {
@@ -97,7 +98,7 @@ class XpCockpitCard extends StatelessWidget {
                             Row(
                               children: [
                                 Text(
-                                  'Lv $level',
+                                  context.isArabic ? 'مستوى $level' : 'Lv $level',
                                   style:
                                       Theme.of(context).textTheme.displaySmall,
                                 ),
@@ -131,7 +132,7 @@ class XpCockpitCard extends StatelessWidget {
                             Row(
                               children: [
                                 Text(
-                                  '+$todayXp XP',
+                                  '+$todayXp ${context.isArabic ? "نقطة" : "XP"}',
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelMedium
@@ -143,7 +144,7 @@ class XpCockpitCard extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
-                                    'earned today',
+                                    context.isArabic ? 'مكتسبة اليوم' : 'earned today',
                                     overflow: TextOverflow.ellipsis,
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
@@ -166,7 +167,7 @@ class XpCockpitCard extends StatelessWidget {
                                 ),
                           ),
                           Text(
-                            'to Lv ${level + 1}',
+                            context.isArabic ? 'إلى مستوى ${level + 1}' : 'to Lv ${level + 1}',
                             style: Theme.of(context)
                                 .textTheme
                                 .labelSmall
@@ -193,7 +194,7 @@ class XpCockpitCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 3),
                               Text(
-                                '$totalXp / $nextLevelXp XP',
+                                '$totalXp / $nextLevelXp ${context.isArabic ? "نقطة" : "XP"}',
                                 style: Theme.of(context)
                                     .textTheme
                                     .labelSmall

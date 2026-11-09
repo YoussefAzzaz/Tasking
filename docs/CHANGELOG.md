@@ -1,5 +1,11 @@
 # AXIS: Changelog
 
+## S12: Unified Flutter Desktop Command Center & C# Deprecation
+- Implemented high-density Desktop Command Center natively in Flutter (`mobile/lib/ui/desktop/`).
+- Added Command Deck, Projects & Tasks Matrix, 3-Column Notes Vault, Focus Timers Cockpit, Prayer & Habits Telemetry, and Omnibar (`Ctrl+K`).
+- Configured native Windows MSIX packaging (`msix: ^3.16.8`) and custom desktop window frame sizing.
+- Deprecated and removed legacy C# desktop solution (`desktop/`), establishing Flutter as the single unified cross-platform client.
+
 ## S10: Mobile UI — Habits, Notes & Gamification
 - Added `HabitsScreen` displaying top streak status (Streak Hero Cockpit Card) and Habit Lists.
 - Added `NotesScreen` with Journaling component and Recent Notes listing.

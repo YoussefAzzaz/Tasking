@@ -1,123 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
+import 'color_picker/color_presets_wrap.dart';
+import 'color_picker/color_track_slider.dart';
 
-/// Custom painter to guarantee mathematical 100% centering of the plus sign
-/// with no font metric baseline/descent offsets.
-class _CenteredPlusPainter extends CustomPainter {
-  final Color color;
-  final double length;
-  final double strokeWidth;
-
-  const _CenteredPlusPainter({
-    required this.color,
-    required this.length,
-    this.strokeWidth = 1.3,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final half = length / 2;
-
-    // Horizontal bar
-    canvas.drawLine(Offset(cx - half, cy), Offset(cx + half, cy), paint);
-    // Vertical bar
-    canvas.drawLine(Offset(cx, cy - half), Offset(cx, cy + half), paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CenteredPlusPainter oldDelegate) =>
-      oldDelegate.color != color ||
-      oldDelegate.length != length ||
-      oldDelegate.strokeWidth != strokeWidth;
-}
-
-/// Reusable empty round button with rainbow border and centered plus icon.
-/// Tapping opens the [CyberColorPickerDialog].
-class RainbowColorPickerButton extends StatelessWidget {
-  const RainbowColorPickerButton({
-    super.key,
-    required this.selectedColor,
-    required this.onColorSelected,
-    this.size = 36.0,
-    this.borderWidth = 2.5,
-  });
-
-  final String selectedColor;
-  final ValueChanged<String> onColorSelected;
-  final double size;
-  final double borderWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    final effectiveBorder = (size <= 26) ? 1.5 : borderWidth;
-    final plusLength = (size <= 26) ? 7.0 : (size <= 32 ? 9.0 : 12.0);
-    final plusStroke = (size <= 26) ? 1.3 : 1.6;
-
-    return InkWell(
-      onTap: () async {
-        final picked = await showDialog<String>(
-          context: context,
-          builder: (ctx) => CyberColorPickerDialog(
-            initialColorHex: selectedColor,
-          ),
-        );
-        if (picked != null && picked.isNotEmpty) {
-          onColorSelected(picked);
-        }
-      },
-      borderRadius: BorderRadius.circular(size / 2),
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: SweepGradient(
-              colors: [
-                Colors.red,
-                Colors.orange,
-                Colors.yellow,
-                Colors.green,
-                Colors.cyan,
-                Colors.blue,
-                Colors.purple,
-                Colors.pink,
-                Colors.red,
-              ],
-            ),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(effectiveBorder),
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: AxisColors.surfaceLow,
-              ),
-              child: Center(
-                child: CustomPaint(
-                  size: Size(plusLength, plusLength),
-                  painter: _CenteredPlusPainter(
-                    color: AxisColors.textHigh,
-                    length: plusLength,
-                    strokeWidth: plusStroke,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+export 'color_picker/color_presets_wrap.dart';
+export 'color_picker/color_track_slider.dart';
+export 'color_picker/rainbow_color_picker_button.dart';
 
 /// Cyberpunk-styled modern Color Picker dialog with HSV sliders,
 /// Hex input, live preview, and curated vibrant palette presets.
@@ -159,7 +48,7 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
   @override
   void initState() {
     super.initState();
-    final initialColor = _parseColor(widget.initialColorHex);
+    final initialColor = parseHexColor(widget.initialColorHex);
     _hsv = HSVColor.fromColor(initialColor);
     _hexController = TextEditingController(text: _colorToHex(initialColor));
   }
@@ -168,18 +57,6 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
   void dispose() {
     _hexController.dispose();
     super.dispose();
-  }
-
-  Color _parseColor(String hex) {
-    try {
-      final clean = hex.replaceAll('#', '').trim();
-      if (clean.length == 6) {
-        return Color(int.parse('FF$clean', radix: 16));
-      } else if (clean.length == 8) {
-        return Color(int.parse(clean, radix: 16));
-      }
-    } catch (_) {}
-    return const Color(0xFF6366F1);
   }
 
   String _colorToHex(Color color) {
@@ -212,6 +89,7 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isAr = AppLocalizations.of(context).isArabic;
     final activeColor = _hsv.toColor();
     final currentHex = _colorToHex(activeColor);
 
@@ -236,10 +114,10 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
             child: Icon(Icons.palette_rounded, color: activeColor, size: 20),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Pick Accent Color',
-              style: TextStyle(
+              isAr ? 'اختر لون التمييز' : 'Pick Accent Color',
+              style: const TextStyle(
                 color: AxisColors.textHigh,
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
@@ -256,60 +134,9 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Live Color Preview Banner
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AxisColors.surfaceHigh.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AxisColors.borderSubtle),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: activeColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: activeColor.withValues(alpha: 0.5),
-                            blurRadius: 14,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'SELECTED COLOR',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AxisColors.textMuted,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            currentHex,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AxisColors.textHigh,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              ColorPreviewBanner(
+                activeColor: activeColor,
+                currentHex: currentHex,
               ),
               const SizedBox(height: 18),
 
@@ -317,9 +144,9 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'HUE',
-                    style: TextStyle(
+                  Text(
+                    isAr ? 'درجة اللون' : 'HUE',
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: AxisColors.textMuted,
@@ -337,7 +164,7 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
                 ],
               ),
               const SizedBox(height: 6),
-              _ColorTrackSlider(
+              ColorTrackSlider(
                 value: _hsv.hue / 360.0,
                 onChanged: (ratio) {
                   _onColorUpdated(_hsv.withHue(ratio * 360.0));
@@ -360,9 +187,9 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'SATURATION',
-                    style: TextStyle(
+                  Text(
+                    isAr ? 'التشبع' : 'SATURATION',
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: AxisColors.textMuted,
@@ -380,7 +207,7 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
                 ],
               ),
               const SizedBox(height: 6),
-              _ColorTrackSlider(
+              ColorTrackSlider(
                 value: _hsv.saturation,
                 onChanged: (ratio) {
                   _onColorUpdated(_hsv.withSaturation(ratio));
@@ -398,9 +225,9 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'BRIGHTNESS',
-                    style: TextStyle(
+                  Text(
+                    isAr ? 'السطوع' : 'BRIGHTNESS',
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: AxisColors.textMuted,
@@ -418,7 +245,7 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
                 ],
               ),
               const SizedBox(height: 6),
-              _ColorTrackSlider(
+              ColorTrackSlider(
                 value: _hsv.value,
                 onChanged: (ratio) {
                   _onColorUpdated(_hsv.withValue(ratio.clamp(0.05, 1.0)));
@@ -426,16 +253,17 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
                 gradient: LinearGradient(
                   colors: [
                     Colors.black,
-                    HSVColor.fromAHSV(1.0, _hsv.hue, _hsv.saturation, 1.0).toColor(),
+                    HSVColor.fromAHSV(1.0, _hsv.hue, _hsv.saturation, 1.0)
+                        .toColor(),
                   ],
                 ),
               ),
               const SizedBox(height: 18),
 
               // Hex Input
-              const Text(
-                'HEX CODE',
-                style: TextStyle(
+              Text(
+                isAr ? 'رمز اللون HEX' : 'HEX CODE',
+                style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                   color: AxisColors.textMuted,
@@ -443,84 +271,48 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
                 ),
               ),
               const SizedBox(height: 6),
-              TextField(
-                controller: _hexController,
-                style: const TextStyle(
-                  color: AxisColors.textHigh,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: TextField(
+                  controller: _hexController,
+                  style: const TextStyle(
+                    color: AxisColors.textHigh,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.tag_rounded,
+                        size: 18, color: AxisColors.textDim),
+                    filled: true,
+                    fillColor: AxisColors.surfaceHigh,
+                    hintText: '#6366F1',
+                    hintStyle: const TextStyle(color: AxisColors.textDim),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: activeColor, width: 1.5),
+                    ),
+                  ),
+                  onChanged: _onHexChanged,
                 ),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.tag_rounded, size: 18, color: AxisColors.textDim),
-                  filled: true,
-                  fillColor: AxisColors.surfaceHigh,
-                  hintText: '#6366F1',
-                  hintStyle: const TextStyle(color: AxisColors.textDim),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: activeColor, width: 1.5),
-                  ),
-                ),
-                onChanged: _onHexChanged,
               ),
               const SizedBox(height: 18),
 
               // Quick Vibrant Presets
-              const Text(
-                'POPULAR PRESETS',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: AxisColors.textMuted,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _quickPresets.map((hex) {
-                  final col = _parseColor(hex);
-                  final isSelected = currentHex.toUpperCase() == hex.toUpperCase();
-                  return InkWell(
-                    onTap: () {
-                      _onColorUpdated(HSVColor.fromColor(col));
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: col,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          width: 2,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: col.withValues(alpha: 0.6),
-                                  blurRadius: 8,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: isSelected
-                          ? const Icon(Icons.check, size: 16, color: Colors.white)
-                          : null,
-                    ),
-                  );
-                }).toList(),
+              ColorPresetsWrap(
+                presets: _quickPresets,
+                currentHex: currentHex,
+                onColorSelected: (col) =>
+                    _onColorUpdated(HSVColor.fromColor(col)),
               ),
             ],
           ),
@@ -529,9 +321,9 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: AxisColors.textDim),
+          child: Text(
+            isAr ? 'إلغاء' : 'Cancel',
+            style: const TextStyle(color: AxisColors.textDim),
           ),
         ),
         ElevatedButton(
@@ -546,86 +338,12 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
           onPressed: () {
             Navigator.pop(context, currentHex);
           },
-          child: const Text(
-            'Select Color',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          child: Text(
+            isAr ? 'اختيار اللون' : 'Select Color',
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Custom lightweight drag slider for spectrum gradients.
-/// Avoids Material [Slider] internal [OverlayPortal] semantics issues on desktop platforms.
-class _ColorTrackSlider extends StatelessWidget {
-  const _ColorTrackSlider({
-    required this.value,
-    required this.onChanged,
-    required this.gradient,
-  });
-
-  final double value; // 0.0 to 1.0
-  final ValueChanged<double> onChanged;
-  final Gradient gradient;
-
-  void _handleDrag(Offset localPosition, double totalWidth) {
-    const thumbDiameter = 22.0;
-    final availableWidth = totalWidth - thumbDiameter;
-    if (availableWidth <= 0) return;
-    final clampedX = (localPosition.dx - (thumbDiameter / 2)).clamp(0.0, availableWidth);
-    final ratio = clampedX / availableWidth;
-    onChanged(ratio.clamp(0.0, 1.0));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final totalWidth = constraints.maxWidth;
-        const thumbDiameter = 22.0;
-        final availableWidth = (totalWidth - thumbDiameter).clamp(1.0, double.infinity);
-        final leftOffset = (value.clamp(0.0, 1.0) * availableWidth);
-
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onPanDown: (details) => _handleDrag(details.localPosition, totalWidth),
-          onPanUpdate: (details) => _handleDrag(details.localPosition, totalWidth),
-          child: Container(
-            height: 24,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: gradient,
-              border: Border.all(color: AxisColors.borderSubtle, width: 1),
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.centerLeft,
-              children: [
-                Positioned(
-                  left: leftOffset,
-                  child: Container(
-                    width: thumbDiameter,
-                    height: thumbDiameter,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      border: Border.all(color: Colors.black38, width: 1.5),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black45,
-                          blurRadius: 4,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

@@ -3,7 +3,7 @@ import '../../../core/theme.dart';
 import '../../../data/task_repository.dart';
 import '../../tasks/create_task_sheet.dart';
 
-/// Modal dialog providing rapid task creation on the desktop workspace.
+/// Modal dialog providing task creation and editing on the desktop workspace.
 abstract final class QuickTaskDialog {
   static Future<void> show(
     BuildContext context, {
@@ -56,3 +56,4 @@ abstract final class QuickTaskDialog {
     );
   }
 }
+

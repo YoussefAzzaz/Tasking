@@ -113,7 +113,7 @@ class AdhanAlarmService {
     }
 
     // 2. Schedule persistent Fajr Wake-Up Alarm (+1 minute after Fajr)
-    if (_fajrAlarmEnabled) {
+    if (_fajrAlarmEnabled && prayers.isNotEmpty) {
       final fajr = prayers.firstWhere(
         (p) => p.sortOrder == 1,
         orElse: () => prayers.first,
@@ -324,31 +324,33 @@ class AdhanAlarmService {
   /// Triggers the non-dismissible Fajr Wake-Up Modal with cognitive challenge
   void triggerFajrWakeUpModal({BuildContext? context}) {
     if (_isModalShowing) return;
-    _isModalShowing = true;
-
-    startAlarmSound();
 
     final targetContext = context ?? rootNavigatorKey.currentContext;
-    if (targetContext != null) {
-      showDialog(
-        context: targetContext,
-        barrierDismissible: false,
-        builder: (_) => PopScope(
-          canPop: false,
-          child: FajrAlarmDialog(
-            onAlarmDismissed: () async {
-              await stopAlarmSound();
-              _isModalShowing = false;
-              // Mark Fajr prayer as completed in the dedicated prayers table
-              await PrayerTimeService().togglePrayer('fajr', true);
-            },
-          ),
-        ),
-      ).then((_) {
-        _isModalShowing = false;
-        stopAlarmSound();
-      });
+    if (targetContext == null) {
+      return;
     }
+
+    _isModalShowing = true;
+    startAlarmSound();
+
+    showDialog(
+      context: targetContext,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: FajrAlarmDialog(
+          onAlarmDismissed: () async {
+            await stopAlarmSound();
+            _isModalShowing = false;
+            // Mark Fajr prayer as completed in the dedicated prayers table
+            await PrayerTimeService().togglePrayer('fajr', true);
+          },
+        ),
+      ),
+    ).then((_) {
+      _isModalShowing = false;
+      stopAlarmSound();
+    });
   }
 
   /// Handles incoming alarm notification tap or action

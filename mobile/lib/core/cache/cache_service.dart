@@ -100,10 +100,12 @@ class CacheService {
     }
 
     final future = () async {
+      bool didTimeout = false;
       try {
         final result = await fetcher().timeout(
           timeout,
           onTimeout: () {
+            didTimeout = true;
             debugPrint('[CacheService] Fetch for "$key" timed out after $timeout. Falling back.');
             if (fallback != null) return fallback;
             final stale = getStale<T>(key);
@@ -112,7 +114,10 @@ class CacheService {
           },
         );
 
-        set<T>(key, result, ttl: ttl);
+        // Do not poison the cache with fallback values on timeouts
+        if (!didTimeout) {
+          set<T>(key, result, ttl: ttl);
+        }
         return result;
       } finally {
         _inFlightFetches.remove(key);
@@ -134,8 +139,10 @@ class CacheService {
 
     _fetchWithDeduplication<T>(key, fetcher, ttl, timeout).catchError((err) {
       debugPrint('[CacheService] Background refresh failed for "$key": $err');
-      return getStale<T>(key) as T;
-    });
+      final stale = getStale<T>(key);
+      if (stale != null) return stale;
+      return null as dynamic;
+    }).ignore();
   }
 
   /// Invalidates a specific cache key.

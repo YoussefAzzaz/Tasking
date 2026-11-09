@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Formatting toolbar providing one-tap insertion of comprehensive markdown & markup tools:
 /// Bold, Italic, Strikethrough, Headings (H1, H2, H3), Ordered lists, Bullet points, Checklists,
@@ -184,6 +185,8 @@ class NoteFormatToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAr = AppLocalizations.of(context).isArabic;
+
     return Container(
       height: 42,
       margin: const EdgeInsets.only(bottom: 8),
@@ -209,7 +212,7 @@ class NoteFormatToolbar extends StatelessWidget {
             children: [
             // Bold
             _ToolbarItem(
-              tooltip: 'Bold (**text**)',
+              tooltip: isAr ? 'عريض (**نص**)' : 'Bold (**text**)',
               label: 'B',
               isBold: true,
               onTap: () => _applyFormat('**', '**'),
@@ -217,7 +220,7 @@ class NoteFormatToolbar extends StatelessWidget {
 
             // Italic
             _ToolbarItem(
-              tooltip: 'Italic (*text*)',
+              tooltip: isAr ? 'مائل (*نص*)' : 'Italic (*text*)',
               label: 'I',
               isItalic: true,
               onTap: () => _applyFormat('*', '*'),
@@ -225,7 +228,7 @@ class NoteFormatToolbar extends StatelessWidget {
 
             // Strikethrough
             _ToolbarItem(
-              tooltip: 'Strikethrough (~~text~~)',
+              tooltip: isAr ? 'يتوسطه خط (~~نص~~)' : 'Strikethrough (~~text~~)',
               icon: Icons.format_strikethrough_rounded,
               onTap: () => _applyFormat('~~', '~~'),
             ),
@@ -234,7 +237,7 @@ class NoteFormatToolbar extends StatelessWidget {
 
             // Heading 1
             _ToolbarItem(
-              tooltip: 'Heading 1 (# Title)',
+              tooltip: isAr ? 'عنوان رئيسي 1 (# عنوان)' : 'Heading 1 (# Title)',
               label: 'H1',
               isBold: true,
               onTap: () => _insertLinePrefix('# '),
@@ -242,7 +245,7 @@ class NoteFormatToolbar extends StatelessWidget {
 
             // Heading 2
             _ToolbarItem(
-              tooltip: 'Heading 2 (## Section)',
+              tooltip: isAr ? 'عنوان 2 (## قسم)' : 'Heading 2 (## Section)',
               label: 'H2',
               isBold: true,
               onTap: () => _insertLinePrefix('## '),
@@ -250,7 +253,7 @@ class NoteFormatToolbar extends StatelessWidget {
 
             // Heading 3
             _ToolbarItem(
-              tooltip: 'Heading 3 (### Subtitle)',
+              tooltip: isAr ? 'عنوان 3 (### عنوان فرعي)' : 'Heading 3 (### Subtitle)',
               label: 'H3',
               onTap: () => _insertLinePrefix('### '),
             ),
@@ -259,21 +262,21 @@ class NoteFormatToolbar extends StatelessWidget {
 
             // Ordered list (1., 2.)
             _ToolbarItem(
-              tooltip: 'Numbered List (1. Item)',
+              tooltip: isAr ? 'قائمة مرقمة (1. عنصر)' : 'Numbered List (1. Item)',
               icon: Icons.format_list_numbered_rounded,
               onTap: () => _insertLinePrefix('1. '),
             ),
 
             // Bullet points / unordered list (•)
             _ToolbarItem(
-              tooltip: 'Bullet Points (- Item)',
+              tooltip: isAr ? 'قائمة نقطية (- عنصر)' : 'Bullet Points (- Item)',
               icon: Icons.format_list_bulleted_rounded,
               onTap: () => _insertLinePrefix('- '),
             ),
 
             // Checklist
             _ToolbarItem(
-              tooltip: 'Checklist (- [ ] Task)',
+              tooltip: isAr ? 'قائمة مهام (- [ ] مهمة)' : 'Checklist (- [ ] Task)',
               icon: Icons.check_box_outlined,
               onTap: () => _insertLinePrefix('- [ ] '),
             ),
@@ -282,42 +285,42 @@ class NoteFormatToolbar extends StatelessWidget {
 
             // Quote
             _ToolbarItem(
-              tooltip: 'Quote (> Note)',
+              tooltip: isAr ? 'اقتباس (> ملاحظة)' : 'Quote (> Note)',
               icon: Icons.format_quote_rounded,
               onTap: () => _insertLinePrefix('> '),
             ),
 
             // Inline Code
             _ToolbarItem(
-              tooltip: 'Inline Code (`code`)',
+              tooltip: isAr ? 'كود مضمن (`كود`)' : 'Inline Code (`code`)',
               icon: Icons.code_rounded,
               onTap: () => _applyFormat('`', '`'),
             ),
 
             // Code Block
             _ToolbarItem(
-              tooltip: 'Code Block (```)',
+              tooltip: isAr ? 'كتلة برمجية (```)' : 'Code Block (```)',
               icon: Icons.data_object_rounded,
               onTap: _insertCodeBlock,
             ),
 
             // Link
             _ToolbarItem(
-              tooltip: 'Link ([text](url))',
+              tooltip: isAr ? 'رابط ([نص](رابط))' : 'Link ([text](url))',
               icon: Icons.link_rounded,
               onTap: _insertLink,
             ),
 
             // Horizontal Rule / Divider
             _ToolbarItem(
-              tooltip: 'Divider Line (---)',
+              tooltip: isAr ? 'خط فاصل (---)' : 'Divider Line (---)',
               icon: Icons.horizontal_rule_rounded,
               onTap: _insertHorizontalRule,
             ),
 
             // Table
             _ToolbarItem(
-              tooltip: 'Markdown Table',
+              tooltip: isAr ? 'جدول ماركداون' : 'Markdown Table',
               icon: Icons.table_chart_outlined,
               onTap: _insertTable,
             ),
@@ -326,7 +329,7 @@ class NoteFormatToolbar extends StatelessWidget {
 
             // Timestamp Event Log (Great for Daily Journal)
             _ToolbarItem(
-              tooltip: 'Log Event Time (**HH:mm** - )',
+              tooltip: isAr ? 'تسجيل وقت الحدث (**HH:mm** - )' : 'Log Event Time (**HH:mm** - )',
               icon: Icons.schedule_rounded,
               accentColor: AxisColors.secondary,
               onTap: _insertTimeLog,

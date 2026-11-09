@@ -22,12 +22,18 @@ class SupabaseConnector extends PowerSyncBackendConnector {
         session = res.session;
       } catch (e) {
         debugPrint('[PowerSync SupabaseConnector] fetchCredentials session refresh error: $e');
+        // Transient network reconnection retry upon waking from idle
+        try {
+          await Future.delayed(const Duration(milliseconds: 600));
+          final resRetry = await client.auth.refreshSession();
+          session = resRetry.session;
+        } catch (_) {}
       }
     }
 
-    // 1. Guard against unauthenticated session on startup
-    if (session == null || (session.isExpired && (session.refreshToken == null || session.refreshToken!.isEmpty))) {
-      debugPrint('[PowerSync SupabaseConnector] fetchCredentials: No authenticated session. Pausing sync until auth is active.');
+    // 1. Guard against unauthenticated session or expired session
+    if (session == null || session.isExpired) {
+      debugPrint('[PowerSync SupabaseConnector] fetchCredentials: No active/valid authenticated session. Pausing sync.');
       return null;
     }
 
@@ -105,7 +111,8 @@ class SupabaseConnector extends PowerSyncBackendConnector {
             try {
               final local = await database.getOptional('SELECT * FROM daily_prayer_status WHERE id = ?', [recordId]);
               if (local != null) {
-                for (final key in ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'streak_days', 'habits_done', 'habits_total', 'user_id', 'date']) {
+                // For PATCH updates, preserve remote prayer flags by only backfilling user_id and date if missing.
+                for (final key in ['user_id', 'date']) {
                   if (!data.containsKey(key) && local.containsKey(key) && local[key] != null) {
                     data[key] = local[key];
                   }
@@ -362,14 +369,10 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 
   @override
   Future<void> uploadData(PowerSyncDatabase database) async {
-    final transaction = await database.getNextCrudTransaction();
-    if (transaction == null) {
-      return;
-    }
-
     final client = Supabase.instance.client;
 
-    // 1. Ensure authenticated session
+    // 1. Ensure authenticated session BEFORE taking any transaction from the CRUD queue.
+    // If unauthenticated or expired, defer without popping so transactions remain cleanly queued.
     var session = client.auth.currentSession;
     if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
       try {
@@ -383,9 +386,13 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     final user = client.auth.currentUser;
     final uid = user?.id ?? (getCurrentUserId != null ? getCurrentUserId!() : '');
 
-    // If still not authenticated, defer upload without completing transaction
-    if (session == null || user == null || uid.isEmpty) {
-      debugPrint('[PowerSync SupabaseConnector] No authenticated user; deferring upload transaction.');
+    if (session == null || user == null || uid.isEmpty || session.isExpired) {
+      debugPrint('[PowerSync SupabaseConnector] No authenticated user or session expired; deferring upload.');
+      throw CredentialsException('Not logged in or session expired');
+    }
+
+    final transaction = await database.getNextCrudTransaction();
+    if (transaction == null) {
       return;
     }
 

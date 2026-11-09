@@ -2,8 +2,8 @@ import 'package:powersync/powersync.dart';
 
 /// PowerSync Schema defining multi-tenant isolated tables
 /// based on SPEC.md §4 Core Data Entities.
-final appSchema = Schema([
-  const Table(
+const appSchema = Schema([
+  Table(
     'tasks',
     [
       Column.text('user_id'),
@@ -37,7 +37,7 @@ final appSchema = Schema([
       ]),
     ],
   ),
-  const Table(
+  Table(
     'projects',
     [
       Column.text('user_id'),
@@ -51,7 +51,7 @@ final appSchema = Schema([
       Index('user_id', [IndexedColumn.ascending('user_id')]),
     ],
   ),
-  const Table(
+  Table(
     'tags',
     [
       Column.text('user_id'),
@@ -65,7 +65,7 @@ final appSchema = Schema([
       Index('user_id', [IndexedColumn.ascending('user_id')]),
     ],
   ),
-  const Table(
+  Table(
     'logs',
     [
       Column.text('user_id'),
@@ -83,7 +83,7 @@ final appSchema = Schema([
       Index('task_event', [IndexedColumn.ascending('task_id'), IndexedColumn.ascending('event_type')]),
     ],
   ),
-  const Table(
+  Table(
     'habits',
     [
       Column.text('user_id'),
@@ -107,7 +107,7 @@ final appSchema = Schema([
       Index('kind', [IndexedColumn.ascending('kind')]),
     ],
   ),
-  const Table(
+  Table(
     'habit_logs',
     [
       Column.text('user_id'),
@@ -127,7 +127,7 @@ final appSchema = Schema([
       Index('user_status', [IndexedColumn.ascending('user_id'), IndexedColumn.ascending('status')]),
     ],
   ),
-  const Table(
+  Table(
     'notes',
     [
       Column.text('user_id'),
@@ -148,7 +148,7 @@ final appSchema = Schema([
       Index('user_pinned', [IndexedColumn.ascending('user_id'), IndexedColumn.ascending('pinned')]),
     ],
   ),
-  const Table(
+  Table(
     'focus_sessions',
     [
       Column.text('user_id'),
@@ -174,7 +174,7 @@ final appSchema = Schema([
       ]),
     ],
   ),
-  const Table(
+  Table(
     'habit_categories',
     [
       Column.text('user_id'),
@@ -189,7 +189,7 @@ final appSchema = Schema([
       Index('user_id', [IndexedColumn.ascending('user_id')]),
     ],
   ),
-  const Table(
+  Table(
     'note_categories',
     [
       Column.text('user_id'),
@@ -204,7 +204,7 @@ final appSchema = Schema([
       Index('user_id', [IndexedColumn.ascending('user_id')]),
     ],
   ),
-  const Table(
+  Table(
     'prayers',
     [
       Column.text('user_id'),
@@ -223,7 +223,7 @@ final appSchema = Schema([
       Index('user_done', [IndexedColumn.ascending('user_id'), IndexedColumn.ascending('is_done')]),
     ],
   ),
-  const Table(
+  Table(
     'user_profiles',
     [
       Column.text('user_id'),
@@ -242,7 +242,7 @@ final appSchema = Schema([
       Index('friend_code', [IndexedColumn.ascending('friend_code')]),
     ],
   ),
-  const Table(
+  Table(
     'friendships',
     [
       Column.text('requester_id'),
@@ -257,7 +257,7 @@ final appSchema = Schema([
       Index('status', [IndexedColumn.ascending('status')]),
     ],
   ),
-  const Table(
+  Table(
     'daily_prayer_status',
     [
       Column.text('user_id'),
@@ -279,7 +279,7 @@ final appSchema = Schema([
       Index('user_date', [IndexedColumn.ascending('user_id'), IndexedColumn.ascending('date')]),
     ],
   ),
-  const Table(
+  Table(
     'friend_activity_logs',
     [
       Column.text('user_id'),

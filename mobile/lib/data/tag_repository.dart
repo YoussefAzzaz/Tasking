@@ -12,6 +12,20 @@ class TagRepository {
 
   static const String _cacheKey = 'task_tags_list';
 
+  /// Predefined system tag identifiers excluded from custom user tag lists.
+  static const List<String> systemTags = [
+    'urgent',
+    'deepwork',
+    'meeting',
+    'review',
+    'errand',
+    'backend',
+    'frontend',
+  ];
+
+  static final String _systemTagsSql =
+      systemTags.map((t) => "'$t'").join(', ');
+
   /// Watches tags stream for real-time reactive UI.
   Stream<List<String>> watchTags() {
     if (!isDatabaseInitialized) {
@@ -19,8 +33,8 @@ class TagRepository {
     }
     final uid = currentUserId;
     final tagQuery = uid.isNotEmpty
-        ? "SELECT name FROM tags WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) NOT IN ('urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend') ORDER BY name ASC"
-        : "SELECT name FROM tags WHERE LOWER(name) NOT IN ('urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend') ORDER BY name ASC";
+        ? "SELECT name FROM tags WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) NOT IN ($_systemTagsSql) ORDER BY name ASC"
+        : "SELECT name FROM tags WHERE LOWER(name) NOT IN ($_systemTagsSql) ORDER BY name ASC";
     final tagParams = uid.isNotEmpty ? [uid] : <dynamic>[];
 
     return db.watch(tagQuery, parameters: tagParams).map((rows) {
@@ -59,8 +73,8 @@ class TagRepository {
 
     try {
       final tagQuery = uid.isNotEmpty
-          ? "SELECT name FROM tags WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) NOT IN ('urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend') ORDER BY name ASC"
-          : "SELECT name FROM tags WHERE LOWER(name) NOT IN ('urgent', 'deepwork', 'meeting', 'review', 'errand', 'backend', 'frontend') ORDER BY name ASC";
+          ? "SELECT name FROM tags WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND LOWER(name) NOT IN ($_systemTagsSql) ORDER BY name ASC"
+          : "SELECT name FROM tags WHERE LOWER(name) NOT IN ($_systemTagsSql) ORDER BY name ASC";
       final tagParams = uid.isNotEmpty ? [uid] : <dynamic>[];
       final tagRows = await db.getAll(tagQuery, tagParams);
 
@@ -112,31 +126,33 @@ class TagRepository {
     if (!isDatabaseInitialized) return;
 
     try {
-      // 1. Delete from tags table
-      await db.execute('DELETE FROM tags WHERE LOWER(name) = LOWER(?)', [clean]);
+      await db.writeTransaction((tx) async {
+        // 1. Delete from tags table
+        await tx.execute('DELETE FROM tags WHERE LOWER(name) = LOWER(?)', [clean]);
 
-      // 2. Disassociate this tag from any tasks that currently have it
-      final uid = currentUserId;
-      final taskQuery = uid.isNotEmpty
-          ? "SELECT id, tags FROM tasks WHERE tags IS NOT NULL AND tags != '' AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-          : "SELECT id, tags FROM tasks WHERE tags IS NOT NULL AND tags != ''";
-      final taskParams = uid.isNotEmpty ? [uid] : <dynamic>[];
-      final taskRows = await db.getAll(taskQuery, taskParams);
+        // 2. Disassociate this tag from any tasks that currently have it
+        final uid = currentUserId;
+        final taskQuery = uid.isNotEmpty
+            ? "SELECT id, tags FROM tasks WHERE tags LIKE ? AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+            : "SELECT id, tags FROM tasks WHERE tags LIKE ?";
+        final taskParams = uid.isNotEmpty ? ['%$clean%', uid] : <dynamic>['%$clean%'];
+        final taskRows = await tx.getAll(taskQuery, taskParams);
 
-      for (final row in taskRows) {
-        final id = row['id'] as String;
-        final tagsStr = row['tags'] as String? ?? '';
-        final tagsList = tagsStr
-            .split(',')
-            .map((t) => t.trim().replaceAll('@', ''))
-            .where((t) => t.isNotEmpty)
-            .toList();
-        if (tagsList.any((t) => t.toLowerCase() == clean.toLowerCase())) {
-          tagsList.removeWhere((t) => t.toLowerCase() == clean.toLowerCase());
-          final newTags = tagsList.isEmpty ? null : tagsList.join(',');
-          await db.execute('UPDATE tasks SET tags = ? WHERE id = ?', [newTags, id]);
+        for (final row in taskRows) {
+          final id = row['id'] as String;
+          final tagsStr = row['tags'] as String? ?? '';
+          final tagsList = tagsStr
+              .split(',')
+              .map((t) => t.trim().replaceAll('@', ''))
+              .where((t) => t.isNotEmpty)
+              .toList();
+          if (tagsList.any((t) => t.toLowerCase() == clean.toLowerCase())) {
+            tagsList.removeWhere((t) => t.toLowerCase() == clean.toLowerCase());
+            final newTags = tagsList.isEmpty ? null : tagsList.join(',');
+            await tx.execute('UPDATE tasks SET tags = ? WHERE id = ?', [newTags, id]);
+          }
         }
-      }
+      });
     } catch (e) {
       debugPrint('[TagRepository] Error deleting tag: $e');
     }

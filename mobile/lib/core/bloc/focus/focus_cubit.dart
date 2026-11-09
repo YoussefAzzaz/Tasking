@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/task_repository.dart';
-import 'package:axis/ui/focus/focus_settings_sheet.dart';
 import 'focus_state.dart';
 
 export 'focus_state.dart';
@@ -39,6 +38,7 @@ class FocusSessionCubit extends Cubit<FocusSessionState> {
   }
 
   void _onServiceSync() {
+    if (isClosed) return;
     final running = _service.isRunning;
     final remaining = _service.remainingSeconds;
     final total = _service.totalSeconds;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Clean, high-contrast floating toast / snackbar notification for AXIS
 /// designed according to the Obsidian Kinetic design system.
@@ -89,15 +90,18 @@ class AxisSnackBar {
     String? itemType,
     VoidCallback? onUndo,
   }) {
-    final typeStr = itemType != null ? '$itemType ' : '';
+    final isArabic = AppLocalizations.of(context).isArabic;
+    final message = isArabic
+        ? 'تم حذف "$itemTitle"'
+        : '${itemType != null ? '$itemType ' : ''}"$itemTitle" deleted';
     show(
       context,
-      message: '$typeStr"$itemTitle" deleted',
+      message: message,
       icon: Icons.delete_outline_rounded,
       iconColor: AxisColors.priorityHigh,
       action: onUndo != null
           ? SnackBarAction(
-              label: 'UNDO',
+              label: isArabic ? 'تراجع' : 'UNDO',
               textColor: AxisColors.primarySoft,
               onPressed: onUndo,
             )

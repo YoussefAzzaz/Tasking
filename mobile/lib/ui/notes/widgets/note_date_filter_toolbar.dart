@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Date Filter Toolbar with custom date picker trigger, Today, and Yesterday chips
 class NoteDateFilterToolbar extends StatelessWidget {
@@ -23,6 +23,7 @@ class NoteDateFilterToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
@@ -65,8 +66,8 @@ class NoteDateFilterToolbar extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   filterDate != null
-                      ? DateFormat('d MMM yyyy').format(filterDate!)
-                      : 'Filter by Date',
+                      ? context.formatDate(filterDate!, 'd MMM yyyy')
+                      : (isArabic ? 'تصفية بالتاريخ' : 'Filter by Date'),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: filterDate != null
@@ -103,7 +104,7 @@ class NoteDateFilterToolbar extends StatelessWidget {
 
         // Quick Today Chip
         _FilterChip(
-          label: 'Today',
+          label: isArabic ? 'اليوم' : 'Today',
           isSelected: isTodaySelected,
           onTap: () {
             if (isTodaySelected) {
@@ -117,7 +118,7 @@ class NoteDateFilterToolbar extends StatelessWidget {
 
         // Quick Yesterday Chip
         _FilterChip(
-          label: 'Yesterday',
+          label: isArabic ? 'أمس' : 'Yesterday',
           isSelected: isYesterdaySelected,
           onTap: () {
             if (isYesterdaySelected) {
@@ -136,9 +137,9 @@ class NoteDateFilterToolbar extends StatelessWidget {
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text(
-              'Show All',
-              style: TextStyle(color: AxisColors.secondary, fontSize: 11),
+            child: Text(
+              isArabic ? 'عرض الكل' : 'Show All',
+              style: const TextStyle(color: AxisColors.secondary, fontSize: 11),
             ),
           ),
         ],

@@ -76,6 +76,7 @@ class _InboxTabState extends State<InboxTab> {
               itemBuilder: (context, i) {
                 final task = filteredTasks[i];
                 return TaskCard(
+                  key: ValueKey(task.id),
                   task: task,
                   onToggle: (checked) async {
                     try {

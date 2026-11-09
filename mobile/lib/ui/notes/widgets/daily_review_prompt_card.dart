@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Inspiring daily review card encouraging mindful reflections & journaling
 class DailyReviewPromptCard extends StatelessWidget {
@@ -10,6 +10,8 @@ class DailyReviewPromptCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAr = AppLocalizations.of(context).isArabic;
+
     return AxisCard(
       tier: GlassTier.two,
       padding: const EdgeInsets.all(16),
@@ -27,7 +29,7 @@ class DailyReviewPromptCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        'DAILY REVIEW PROMPT',
+                        isAr ? 'سؤال المراجعة اليومية' : 'DAILY REVIEW PROMPT',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -42,7 +44,7 @@ class DailyReviewPromptCard extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                DateFormat('d MMM').format(DateTime.now()),
+                context.formatDate(DateTime.now(), 'd MMM'),
                 style: const TextStyle(
                   fontSize: 11,
                   color: AxisColors.textMuted,
@@ -51,9 +53,11 @@ class DailyReviewPromptCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
-            '"What single accomplishment will make today feel like a victory?"',
-            style: TextStyle(
+          Text(
+            isAr
+                ? '"ما هو الإنجاز الوحيد الذي سيجعل اليوم يبدو كانتصار حقيقي؟"'
+                : '"What single accomplishment will make today feel like a victory?"',
+            style: const TextStyle(
               fontStyle: FontStyle.italic,
               color: AxisColors.textHigh,
               fontSize: 13,
@@ -70,19 +74,24 @@ class DailyReviewPromptCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AxisColors.borderSubtle),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Expanded(
                     child: Text(
-                      'Tap to record your energy & thoughts...',
+                      isAr
+                          ? 'انقر لتسجيل طاقتك وأفكارك...'
+                          : 'Tap to record your energy & thoughts...',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+                      style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.arrow_forward_rounded,
-                      size: 14, color: AxisColors.secondary),
+                  const SizedBox(width: 8),
+                  Icon(
+                    isAr ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
+                    size: 14,
+                    color: AxisColors.secondary,
+                  ),
                 ],
               ),
             ),

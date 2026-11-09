@@ -1,251 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
-import 'package:axis/domain/filter_engine.dart';
+import 'package:axis/domain/models/task_filter_criteria.dart';
+import 'package:axis/ui/tasks/widgets/task_filter_widgets.dart';
+import 'package:axis/ui/tasks/widgets/filter_studio_rows.dart';
+import 'package:axis/ui/tasks/widgets/filter_studio_tag_selector.dart';
 
-// ---------------------------------------------------------------------------
-// TASK FILTER CRITERIA MODEL
-// ---------------------------------------------------------------------------
-class TaskFilterCriteria {
-  final int? priority;
-  final String? dueDateOption;
-  final DateTime? customDate;
-  final Set<String> tags;
-
-  const TaskFilterCriteria({
-    this.priority,
-    this.dueDateOption,
-    this.customDate,
-    this.tags = const {},
-  });
-
-  bool get isActive =>
-      priority != null ||
-      dueDateOption != null ||
-      customDate != null ||
-      tags.isNotEmpty;
-
-  int get activeCount {
-    int count = 0;
-    if (priority != null) count++;
-    if (dueDateOption != null || customDate != null) count++;
-    if (tags.isNotEmpty) count += tags.length;
-    return count;
-  }
-
-  bool matches(Task t) {
-    // 1. Domain FilterEngine evaluation
-    final filterTask = FilterTask(
-      t.id,
-      t.priority,
-      t.tags?.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
-      t.dueDate,
-    );
-    final now = DateTime.now();
-    final todayStr = DateFormat('yyyy-MM-dd').format(now);
-    final isOverdue = dueDateOption == 'overdue';
-
-    if (!FilterEngine.matches(
-      filterTask,
-      FilterQuery(
-        priority != null ? [priority!] : null,
-        null,
-        isOverdue ? todayStr : null,
-      ),
-    )) {
-      return false;
-    }
-
-    // 2. Due Date filter
-    if (dueDateOption != null) {
-      if (t.dueDate == null) return false;
-      final now = DateTime.now();
-      final todayStr = DateFormat('yyyy-MM-dd').format(now);
-      final tomorrowStr = DateFormat('yyyy-MM-dd')
-          .format(now.add(const Duration(days: 1)));
-
-      switch (dueDateOption) {
-        case 'today':
-          if (t.dueDate != todayStr) return false;
-          break;
-        case 'tomorrow':
-          if (t.dueDate != tomorrowStr) return false;
-          break;
-        case 'overdue':
-          if (t.dueDate!.compareTo(todayStr) >= 0) return false;
-          break;
-        case 'upcoming':
-          if (t.dueDate!.compareTo(todayStr) <= 0) return false;
-          break;
-        case 'custom':
-          if (customDate != null) {
-            final customStr =
-                DateFormat('yyyy-MM-dd').format(customDate!);
-            if (t.dueDate != customStr) return false;
-          }
-          break;
-      }
-    }
-
-    // 3. Tag filter: every selected tag must be in task's tags
-    if (tags.isNotEmpty) {
-      if (t.tags == null || t.tags!.isEmpty) return false;
-      final taskTags = t.tags!
-          .toLowerCase()
-          .split(',')
-          .map((e) => e.trim().replaceAll('@', ''))
-          .where((e) => e.isNotEmpty)
-          .toSet();
-      for (final requiredTag in tags) {
-        if (!taskTags.contains(requiredTag.toLowerCase().replaceAll('@', ''))) {
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// FILTER DROPDOWN OPTION WIDGET
-// ---------------------------------------------------------------------------
-class FilterDropdownOption extends StatelessWidget {
-  const FilterDropdownOption({
-    super.key,
-    this.icon,
-    this.iconColor,
-    required this.title,
-    this.isSelected = false,
-    this.isAction = false,
-    required this.onTap,
-  });
-
-  final IconData? icon;
-  final Color? iconColor;
-  final String title;
-  final bool isSelected;
-  final bool isAction;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AxisColors.surfaceHigh.withValues(alpha: 0.6)
-              : Colors.transparent,
-          border: const Border(
-            bottom: BorderSide(color: AxisColors.borderSubtle, width: 0.5),
-          ),
-        ),
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 16, color: iconColor ?? AxisColors.textMuted),
-              const SizedBox(width: 10),
-            ],
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: isAction
-                      ? (iconColor ?? AxisColors.secondary)
-                      : (isSelected ? AxisColors.textHigh : AxisColors.textMuted),
-                  fontSize: 13,
-                  fontWeight:
-                      isSelected || isAction ? FontWeight.w600 : FontWeight.normal,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (isSelected)
-              const Icon(
-                Icons.check_rounded,
-                size: 16,
-                color: AxisColors.primary,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// FILTER STUDIO CHIP WIDGET
-// ---------------------------------------------------------------------------
-class FilterStudioChip extends StatelessWidget {
-  const FilterStudioChip({
-    super.key,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    this.color,
-    this.icon,
-  });
-
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final Color? color;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final activeColor = color ?? AxisColors.primary;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? activeColor.withValues(alpha: 0.22)
-              : AxisColors.surfaceHigh.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? activeColor : AxisColors.borderSubtle,
-            width: isSelected ? 1.5 : 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: activeColor.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 12, color: isSelected ? activeColor : AxisColors.textDim),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Colors.white : AxisColors.textDim,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+export 'package:axis/domain/models/task_filter_criteria.dart';
+export 'package:axis/ui/tasks/widgets/task_filter_widgets.dart';
+export 'package:axis/ui/tasks/widgets/filter_studio_rows.dart';
+export 'package:axis/ui/tasks/widgets/filter_studio_tag_selector.dart';
 
 // ---------------------------------------------------------------------------
 // TASK FILTER SHEET (Modal with the Filter Card and Reset Filter inside)
@@ -318,7 +83,7 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
     }
   }
 
-  List<Widget> _buildTagDropdownItems() {
+  List<Widget> _buildTagDropdownItems(BuildContext context) {
     final query =
         _tagInputController.text.trim().toLowerCase().replaceAll('@', '');
     final List<Widget> items = [];
@@ -329,7 +94,7 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
         FilterDropdownOption(
           icon: Icons.label_off_rounded,
           iconColor: AxisColors.textMuted,
-          title: 'All Tags (Clear filter)',
+          title: context.isArabic ? 'جميع الوسوم (مسح الفلتر)' : 'All Tags (Clear filter)',
           isAction: true,
           onTap: () {
             setState(() {
@@ -350,11 +115,11 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
 
     if (filtered.isEmpty && query.isEmpty && _selectedTags.isEmpty) {
       items.add(
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Text(
-            'Type to search or add tag...',
-            style: TextStyle(color: AxisColors.textDim, fontSize: 12),
+            context.isArabic ? 'اكتب للبحث أو إضافة وسم...' : 'Type to search or add tag...',
+            style: const TextStyle(color: AxisColors.textDim, fontSize: 12),
           ),
         ),
       );
@@ -392,7 +157,7 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
         FilterDropdownOption(
           icon: Icons.add_rounded,
           iconColor: AxisColors.primary,
-          title: 'Add tag "@$rawTyped"',
+          title: context.isArabic ? 'إضافة وسم "@$rawTyped"' : 'Add tag "@$rawTyped"',
           isAction: true,
           onTap: () {
             _addCurrentTag();
@@ -551,13 +316,13 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
-                              children: const [
-                                Icon(Icons.tune_rounded,
+                              children: [
+                                const Icon(Icons.tune_rounded,
                                     color: AxisColors.primary, size: 18),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Text(
-                                  'FILTER STUDIO',
-                                  style: TextStyle(
+                                  context.isArabic ? 'استوديو الفلاتر' : 'FILTER STUDIO',
+                                  style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                     color: AxisColors.primarySoft,
@@ -578,260 +343,49 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
                         const Divider(color: AxisColors.borderSubtle, height: 20),
 
                         // 1. Priority Filter Row
-                        const Text('PRIORITY',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AxisColors.textMuted,
-                                letterSpacing: 1.1)),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            FilterStudioChip(
-                              label: 'All',
-                              isSelected: _selectedPriority == null,
-                              onTap: () => setState(() => _selectedPriority = null),
-                            ),
-                            const SizedBox(width: 6),
-                            FilterStudioChip(
-                              label: 'P1 High',
-                              color: AxisColors.priorityHigh,
-                              isSelected: _selectedPriority == 1,
-                              onTap: () => setState(() => _selectedPriority = 1),
-                            ),
-                            const SizedBox(width: 6),
-                            FilterStudioChip(
-                              label: 'P2 Medium',
-                              color: AxisColors.priorityMed,
-                              isSelected: _selectedPriority == 2,
-                              onTap: () => setState(() => _selectedPriority = 2),
-                            ),
-                            const SizedBox(width: 6),
-                            FilterStudioChip(
-                              label: 'P3 Low',
-                              color: AxisColors.priorityLow,
-                              isSelected: _selectedPriority == 3,
-                              onTap: () => setState(() => _selectedPriority = 3),
-                            ),
-                          ],
+                        FilterPriorityRow(
+                          selectedPriority: _selectedPriority,
+                          onSelectPriority: (p) =>
+                              setState(() => _selectedPriority = p),
                         ),
                         const SizedBox(height: 16),
 
                         // 2. Due Date Filter Row
-                        const Text('DUE DATE',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AxisColors.textMuted,
-                                letterSpacing: 1.1)),
-                        const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              FilterStudioChip(
-                                label: 'All Dates',
-                                isSelected: _selectedDueDateOption == null,
-                                onTap: () => setState(() {
-                                  _selectedDueDateOption = null;
-                                  _pickedCustomDate = null;
-                                }),
-                              ),
-                              const SizedBox(width: 6),
-                              FilterStudioChip(
-                                label: 'Today',
-                                color: AxisColors.primary,
-                                isSelected: _selectedDueDateOption == 'today',
-                                onTap: () => setState(
-                                    () => _selectedDueDateOption = 'today'),
-                              ),
-                              const SizedBox(width: 6),
-                              FilterStudioChip(
-                                label: 'Tomorrow',
-                                color: AxisColors.secondary,
-                                isSelected: _selectedDueDateOption == 'tomorrow',
-                                onTap: () => setState(
-                                    () => _selectedDueDateOption = 'tomorrow'),
-                              ),
-                              const SizedBox(width: 6),
-                              FilterStudioChip(
-                                label: 'Upcoming',
-                                color: AxisColors.tertiary,
-                                isSelected: _selectedDueDateOption == 'upcoming',
-                                onTap: () => setState(
-                                    () => _selectedDueDateOption = 'upcoming'),
-                              ),
-                              const SizedBox(width: 6),
-                              FilterStudioChip(
-                                label: 'Overdue',
-                                color: AxisColors.error,
-                                isSelected: _selectedDueDateOption == 'overdue',
-                                onTap: () => setState(
-                                    () => _selectedDueDateOption = 'overdue'),
-                              ),
-                              const SizedBox(width: 6),
-                              FilterStudioChip(
-                                label: _pickedCustomDate != null
-                                    ? DateFormat('d MMM').format(_pickedCustomDate!)
-                                    : 'Pick Date...',
-                                icon: Icons.calendar_today_rounded,
-                                color: AxisColors.secondarySoft,
-                                isSelected: _selectedDueDateOption == 'custom',
-                                onTap: _pickDate,
-                              ),
-                            ],
-                          ),
+                        FilterDueDateRow(
+                          selectedDueDateOption: _selectedDueDateOption,
+                          pickedCustomDate: _pickedCustomDate,
+                          onSelectOption: (opt) => setState(() {
+                            _selectedDueDateOption = opt;
+                            if (opt == null) _pickedCustomDate = null;
+                          }),
+                          onPickCustomDate: _pickDate,
                         ),
                         const SizedBox(height: 16),
 
-                        // 3. Tag Filter (Searchable Dropdown + Chip Wrap matching Create Task Sheet)
-                        const Text('TAG',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AxisColors.textMuted,
-                                letterSpacing: 1.1)),
-                        const SizedBox(height: 8),
-
-                        if (_selectedTags.isNotEmpty) ...[
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: _selectedTags.map((tag) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AxisColors.primary.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: AxisColors.primary.withValues(alpha: 0.4)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '@$tag',
-                                      style: const TextStyle(
-                                        color: AxisColors.primarySoft,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    InkWell(
-                                      onTap: () => setState(
-                                          () => _selectedTags.remove(tag)),
-                                      child: const Icon(Icons.close_rounded,
-                                          size: 14, color: AxisColors.textDim),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AxisColors.surfaceHigh.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _showTagDropdown
-                                  ? AxisColors.primary
-                                  : AxisColors.borderSubtle,
-                              width: _showTagDropdown ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: TextField(
-                            controller: _tagInputController,
-                            focusNode: _tagFocusNode,
-                            autofocus: false,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AxisColors.textHigh,
-                                ),
-                            cursorColor: AxisColors.primary,
-                            decoration: InputDecoration(
-                              hintText: 'Select or write tag name...',
-                              hintStyle: const TextStyle(
-                                  color: AxisColors.textDim, fontSize: 13),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
-                              prefixIcon: const Icon(Icons.label_outline_rounded,
-                                  size: 18, color: AxisColors.primary),
-                              suffixIcon: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_tagInputController.text.isNotEmpty)
-                                    IconButton(
-                                      icon: const Icon(Icons.add_rounded,
-                                          size: 20, color: AxisColors.primary),
-                                      tooltip: 'Add tag',
-                                      onPressed: _addCurrentTag,
-                                    ),
-                                  IconButton(
-                                    icon: Icon(
-                                      _showTagDropdown
-                                          ? Icons.keyboard_arrow_up_rounded
-                                          : Icons.keyboard_arrow_down_rounded,
-                                      color: AxisColors.textDim,
-                                      size: 20,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _showTagDropdown = !_showTagDropdown;
-                                        if (_showTagDropdown) {
-                                          _tagFocusNode.requestFocus();
-                                        }
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            onTap: () {
-                              setState(() {
-                                _showTagDropdown = true;
-                              });
-                            },
-                            onSubmitted: (_) => _addCurrentTag(),
-                            onChanged: (_) {
-                              setState(() {
-                                _showTagDropdown = true;
-                              });
-                            },
-                          ),
+                        // 3. Tag Filter
+                        FilterStudioTagSelector(
+                          selectedTags: _selectedTags,
+                          controller: _tagInputController,
+                          focusNode: _tagFocusNode,
+                          showDropdown: _showTagDropdown,
+                          dropdownItems: _buildTagDropdownItems(context),
+                          onToggleDropdown: () {
+                            setState(() {
+                              _showTagDropdown = !_showTagDropdown;
+                              if (_showTagDropdown) {
+                                _tagFocusNode.requestFocus();
+                              }
+                            });
+                          },
+                          onTapField: () =>
+                              setState(() => _showTagDropdown = true),
+                          onSubmit: (_) => _addCurrentTag(),
+                          onChanged: (_) =>
+                              setState(() => _showTagDropdown = true),
+                          onRemoveTag: (tag) =>
+                              setState(() => _selectedTags.remove(tag)),
+                          onAddTag: _addCurrentTag,
                         ),
-                        if (_showTagDropdown) ...[
-                          const SizedBox(height: 6),
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 180),
-                            decoration: BoxDecoration(
-                              color: AxisColors.surfaceLow,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AxisColors.primary.withValues(alpha: 0.35),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: ListView(
-                                shrinkWrap: true,
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                children: _buildTagDropdownItems(),
-                              ),
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: 16),
 
                         // Results preview count
@@ -839,7 +393,9 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              '$matchCount ${matchCount == 1 ? 'task matches' : 'tasks match'}',
+                              context.isArabic
+                                  ? '$matchCount ${matchCount == 1 ? 'مهمة مطابقة' : 'مهام مطابقة'}'
+                                  : '$matchCount ${matchCount == 1 ? 'task matches' : 'tasks match'}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -847,9 +403,9 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
                               ),
                             ),
                             if (hasActiveFilter)
-                              const Text(
-                                'Filters Configured',
-                                style: TextStyle(
+                              Text(
+                                context.isArabic ? 'تم ضبط الفلاتر' : 'Filters Configured',
+                                style: const TextStyle(
                                   fontSize: 11,
                                   color: AxisColors.primarySoft,
                                   fontWeight: FontWeight.bold,
@@ -868,7 +424,7 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
                               child: OutlinedButton.icon(
                                 onPressed: hasActiveFilter ? _clearAllFilters : null,
                                 icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                                label: const Text('Reset Filters'),
+                                label: Text(context.isArabic ? 'إعادة ضبط الفلاتر' : 'Reset Filters'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AxisColors.secondary,
                                   disabledForegroundColor:
@@ -894,7 +450,7 @@ class _TaskFilterSheetState extends State<TaskFilterSheet> {
                                   Navigator.pop(context);
                                 },
                                 icon: const Icon(Icons.check_rounded, size: 16),
-                                label: const Text('Apply Filters'),
+                                label: Text(context.isArabic ? 'تطبيق الفلاتر' : 'Apply Filters'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AxisColors.primary,
                                   foregroundColor: Colors.white,

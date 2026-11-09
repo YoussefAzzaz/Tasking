@@ -45,6 +45,8 @@ class ProfileAvatarPickerSheet extends StatelessWidget {
     Color iconColor = AxisColors.primary,
     Color titleColor = AxisColors.textHigh,
   }) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -94,8 +96,8 @@ class ProfileAvatarPickerSheet extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
+              Icon(
+                isArabic ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
                 color: AxisColors.textDim,
                 size: 20,
               ),
@@ -108,6 +110,8 @@ class ProfileAvatarPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+
     return Container(
       decoration: BoxDecoration(
         color: AxisColors.surfaceLow,
@@ -153,20 +157,20 @@ class ProfileAvatarPickerSheet extends StatelessWidget {
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Profile Picture',
+                    Text(
+                      isArabic ? 'صورة الملف الشخصي' : 'Profile Picture',
                       style: TextStyle(
                         color: AxisColors.textHigh,
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 0.2,
+                        letterSpacing: isArabic ? 0.0 : 0.2,
                       ),
                     ),
                     const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.close_rounded, color: AxisColors.textDim, size: 20),
                       onPressed: () => Navigator.pop(context),
-                      tooltip: 'Close',
+                      tooltip: isArabic ? 'إغلاق' : 'Close',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -182,8 +186,10 @@ class ProfileAvatarPickerSheet extends StatelessWidget {
               _buildOption(
                 context: context,
                 icon: Icons.camera_alt_rounded,
-                title: 'Take Photo',
-                subtitle: 'Use your camera to capture a new picture',
+                title: isArabic ? 'التقاط صورة' : 'Take Photo',
+                subtitle: isArabic
+                    ? 'استخدم الكاميرا لالتقاط صورة جديدة'
+                    : 'Use your camera to capture a new picture',
                 onTap: () => onSourceSelected(ImageSource.camera),
               ),
 
@@ -191,8 +197,10 @@ class ProfileAvatarPickerSheet extends StatelessWidget {
               _buildOption(
                 context: context,
                 icon: Icons.photo_library_rounded,
-                title: 'Choose from Gallery',
-                subtitle: 'Select an existing image from your device',
+                title: isArabic ? 'اختيار من المعرض' : 'Choose from Gallery',
+                subtitle: isArabic
+                    ? 'حدد صورة موجودة من جهازك'
+                    : 'Select an existing image from your device',
                 onTap: () => onSourceSelected(ImageSource.gallery),
               ),
 
@@ -202,8 +210,10 @@ class ProfileAvatarPickerSheet extends StatelessWidget {
                 _buildOption(
                   context: context,
                   icon: Icons.delete_outline_rounded,
-                  title: 'Remove Photo',
-                  subtitle: 'Revert to default initials avatar',
+                  title: isArabic ? 'إزالة الصورة' : 'Remove Photo',
+                  subtitle: isArabic
+                      ? 'الرجوع إلى الصورة الرمزية الافتراضية'
+                      : 'Revert to default initials avatar',
                   iconColor: AxisColors.error,
                   titleColor: AxisColors.error,
                   onTap: onRemoveSelected,

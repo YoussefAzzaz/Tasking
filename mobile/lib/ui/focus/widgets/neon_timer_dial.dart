@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Custom painter for glowing multi-color gradient circular timer arc
 class NeonProgressPainter extends CustomPainter {
@@ -111,7 +112,17 @@ class NeonTimerDial extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    isBreak ? 'REST & RECOVER' : (isRunning ? 'FLOW STATE ACTIVE' : 'DEEP WAVE BETA'),
+                    isBreak
+                        ? (context.isArabic
+                            ? 'راحة واستعادة نشاط'
+                            : 'REST & RECOVER')
+                        : (isRunning
+                            ? (context.isArabic
+                                ? 'حالة التدفق نشطة'
+                                : 'FLOW STATE ACTIVE')
+                            : (context.isArabic
+                                ? 'موجة التركيز العميق'
+                                : 'DEEP WAVE BETA')),
                     style: TextStyle(
                       fontSize: size > 260 ? 12 : 11,
                       color: isBreak ? AxisColors.warning : AxisColors.secondary,
@@ -139,7 +150,9 @@ class NeonTimerDial extends StatelessWidget {
                       border: Border.all(color: AxisColors.borderSubtle),
                     ),
                     child: Text(
-                      isBreak ? 'REBOOT BREAK' : 'QUANTUM FOCUS',
+                      isBreak
+                          ? (context.isArabic ? 'استراحة' : 'REBOOT BREAK')
+                          : (context.isArabic ? 'تركيز كمي' : 'QUANTUM FOCUS'),
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,

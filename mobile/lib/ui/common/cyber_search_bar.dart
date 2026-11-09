@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/text_direction.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Cyber-minimalist search bar matching Axis Obsidian Kinetic design system.
 /// Features glassmorphism background, smooth focus borders, and an animated clear button.
@@ -101,7 +102,7 @@ class _CyberSearchBarState extends State<CyberSearchBar> {
                 ? IconButton(
                     icon: const Icon(Icons.close_rounded, size: 16),
                     color: AxisColors.textDim,
-                    tooltip: 'Clear search',
+                    tooltip: AppLocalizations.of(context).isArabic ? 'مسح البحث' : 'Clear search',
                     onPressed: () {
                       widget.controller.clear();
                       widget.onChanged?.call('');
@@ -111,7 +112,7 @@ class _CyberSearchBarState extends State<CyberSearchBar> {
                   )
                 : null,
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           ),
           onChanged: (val) {
             setState(() {});

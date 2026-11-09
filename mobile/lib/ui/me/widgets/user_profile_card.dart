@@ -28,7 +28,7 @@ class UserProfileCard extends StatelessWidget {
   final int level;
   final int totalXp;
   final String? friendCode;
-  final dynamic onSaveProfile;
+  final Function onSaveProfile;
   final String? avatarUrl;
   final String? avatarColor;
   final bool isUploadingAvatar;
@@ -39,7 +39,7 @@ class UserProfileCard extends StatelessWidget {
       (onSaveProfile as void Function(String, String, String?))(name, title, color);
     } else if (onSaveProfile is void Function(String, String)) {
       (onSaveProfile as void Function(String, String))(name, title);
-    } else if (onSaveProfile is Function) {
+    } else {
       try {
         (onSaveProfile as dynamic)(name, title, color);
       } catch (_) {
@@ -52,13 +52,19 @@ class UserProfileCard extends StatelessWidget {
     if (hex == null || hex.isEmpty) return AxisColors.primary;
     try {
       final clean = hex.replaceAll('#', '').trim();
-      return Color(int.parse('FF$clean', radix: 16));
+      if (clean.length == 6) {
+        return Color(int.parse('FF$clean', radix: 16));
+      } else if (clean.length == 8) {
+        return Color(int.parse(clean, radix: 16));
+      }
+      return AxisColors.primary;
     } catch (_) {
       return AxisColors.primary;
     }
   }
 
   void _showEditProfileDialog(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final nameCtrl = TextEditingController(text: userName);
     final titleCtrl = TextEditingController(text: userTitle);
     String selectedColor = avatarColor ?? '#6366F1';
@@ -81,9 +87,9 @@ class UserProfileCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: AxisColors.borderPrimary),
           ),
-          title: const Text(
-            'Edit Profile',
-            style: TextStyle(
+          title: Text(
+            isArabic ? 'تعديل الملف الشخصي' : 'Edit Profile',
+            style: const TextStyle(
               color: AxisColors.textHigh,
               fontWeight: FontWeight.bold,
             ),
@@ -93,13 +99,13 @@ class UserProfileCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'DISPLAY NAME',
+                Text(
+                  isArabic ? 'الاسم الظاهر' : 'DISPLAY NAME',
                   style: TextStyle(
                     color: AxisColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                    letterSpacing: isArabic ? 0.0 : 0.5,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -108,7 +114,7 @@ class UserProfileCard extends StatelessWidget {
                   autofocus: false,
                   style: const TextStyle(color: AxisColors.textHigh),
                   decoration: InputDecoration(
-                    hintText: 'e.g. Alex Vance',
+                    hintText: isArabic ? 'مثال: أليكس فانس' : 'e.g. Alex Vance',
                     hintStyle: const TextStyle(color: AxisColors.textDim),
                     filled: true,
                     fillColor: AxisColors.surfaceHigh,
@@ -117,17 +123,17 @@ class UserProfileCard extends StatelessWidget {
                       borderSide: const BorderSide(color: AxisColors.borderSubtle),
                     ),
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'TITLE / BIO',
+                Text(
+                  isArabic ? 'اللقب / الوصف' : 'TITLE / BIO',
                   style: TextStyle(
                     color: AxisColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                    letterSpacing: isArabic ? 0.0 : 0.5,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -135,7 +141,9 @@ class UserProfileCard extends StatelessWidget {
                   controller: titleCtrl,
                   style: const TextStyle(color: AxisColors.textHigh),
                   decoration: InputDecoration(
-                    hintText: 'e.g. Lead Architect, System Operative',
+                    hintText: isArabic
+                        ? 'مثال: مهندس رئيسي، مشغل نظام'
+                        : 'e.g. Lead Architect, System Operative',
                     hintStyle: const TextStyle(color: AxisColors.textDim),
                     filled: true,
                     fillColor: AxisColors.surfaceHigh,
@@ -144,17 +152,17 @@ class UserProfileCard extends StatelessWidget {
                       borderSide: const BorderSide(color: AxisColors.borderSubtle),
                     ),
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'AVATAR ACCENT COLOR',
+                Text(
+                  isArabic ? 'لون تمييز الصورة الرمزية' : 'AVATAR ACCENT COLOR',
                   style: TextStyle(
                     color: AxisColors.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                    letterSpacing: isArabic ? 0.0 : 0.5,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -200,8 +208,8 @@ class UserProfileCard extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AxisColors.textDim)),
+              child: Text(isArabic ? 'إلغاء' : 'Cancel',
+                  style: const TextStyle(color: AxisColors.textDim)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -222,8 +230,8 @@ class UserProfileCard extends StatelessWidget {
                   );
                 }
               },
-              child: const Text('Save Changes',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(isArabic ? 'حفظ التغييرات' : 'Save Changes',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -233,6 +241,7 @@ class UserProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final currentLevelXp = GamificationEngine.xpToReachLevel(level);
     final nextLevelXp = GamificationEngine.xpToReachLevel(level + 1);
     final xpDiff = nextLevelXp - currentLevelXp;
@@ -278,7 +287,7 @@ class UserProfileCard extends StatelessWidget {
                         IconButton(
                           icon: const Icon(Icons.edit_note_rounded,
                               color: AxisColors.primarySoft, size: 22),
-                          tooltip: 'Edit Profile',
+                          tooltip: isArabic ? 'تعديل الملف الشخصي' : 'Edit Profile',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: () => _showEditProfileDialog(context),
@@ -287,7 +296,11 @@ class UserProfileCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      userTitle,
+                      isArabic && userTitle.toLowerCase() == 'specialist'
+                          ? 'أخصائي'
+                          : (isArabic && userTitle.toLowerCase() == 'system operative'
+                              ? 'مشغل نظام'
+                              : userTitle),
                       style: Theme.of(context)
                           .textTheme
                           .labelSmall
@@ -305,7 +318,11 @@ class UserProfileCard extends StatelessWidget {
                             HapticFeedback.selectionClick();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Friend Code "${friendCode!.trim()}" copied to clipboard!'),
+                                content: Text(
+                                  isArabic
+                                      ? 'تم نسخ رمز الصديق "${friendCode!.trim()}" إلى الحافظة!'
+                                      : 'Friend Code "${friendCode!.trim()}" copied to clipboard!',
+                                ),
                                 duration: const Duration(seconds: 2),
                                 backgroundColor: AxisColors.surfaceHigh,
                               ),
@@ -325,13 +342,13 @@ class UserProfileCard extends StatelessWidget {
                                 const Icon(Icons.qr_code_rounded, size: 12, color: AxisColors.secondarySoft),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'CODE: ${friendCode!.trim()}',
-                                  style: const TextStyle(
+                                  '${isArabic ? "الرمز:" : "CODE:"} ${friendCode!.trim()}',
+                                  style: TextStyle(
                                     fontFamily: 'monospace',
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.bold,
                                     color: AxisColors.secondarySoft,
-                                    letterSpacing: 0.6,
+                                    letterSpacing: isArabic ? 0.0 : 0.6,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
@@ -364,7 +381,9 @@ class UserProfileCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        'Level $level • $totalXp XP',
+                        isArabic
+                            ? 'المستوى $level • $totalXp نقطة'
+                            : 'Level $level • $totalXp XP',
                         style: const TextStyle(
                           color: AxisColors.secondary,
                           fontWeight: FontWeight.bold,
@@ -380,7 +399,9 @@ class UserProfileCard extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '$remainingXp XP to LVL ${level + 1}',
+                  isArabic
+                      ? 'باقي $remainingXp نقطة للوصول للمستوى ${level + 1}'
+                      : '$remainingXp XP to LVL ${level + 1}',
                   style: const TextStyle(
                     color: AxisColors.textDim,
                     fontSize: 11,
@@ -403,7 +424,7 @@ class UserProfileCard extends StatelessWidget {
               height: 6,
               color: AxisColors.surfaceLowest,
               child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 widthFactor: xpProgress.clamp(0.02, 1.0),
                 child: Container(
                   decoration: const BoxDecoration(

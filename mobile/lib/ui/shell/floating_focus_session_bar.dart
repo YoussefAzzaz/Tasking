@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/core/bloc/blocs.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/task_repository.dart' show Task;
@@ -131,7 +132,9 @@ class FloatingFocusSessionBar extends StatelessWidget {
                   child: Row(
                     children: [
                       Text(
-                        isBreak ? 'REBOOT BREAK' : 'FOCUS ACTIVE',
+                        isBreak
+                            ? (context.isArabic ? 'استراحة إعادة الشحن' : 'REBOOT BREAK')
+                            : (context.isArabic ? 'التركيز نشط' : 'FOCUS ACTIVE'),
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
@@ -183,21 +186,23 @@ class FloatingFocusSessionBar extends StatelessWidget {
                       color: AxisColors.secondary.withValues(alpha: 0.4),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'RESUME',
-                        style: TextStyle(
+                        context.isArabic ? 'متابعة' : 'RESUME',
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: AxisColors.secondary,
                           letterSpacing: 0.8,
                         ),
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Icon(
-                        Icons.arrow_forward_rounded,
+                        context.isArabic
+                            ? Icons.arrow_back_rounded
+                            : Icons.arrow_forward_rounded,
                         size: 12,
                         color: AxisColors.secondary,
                       ),

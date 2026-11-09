@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
 
@@ -130,9 +131,9 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'PRAYER & ADHAN ALERTS',
-                      style: TextStyle(
+                    Text(
+                      context.isArabic ? 'تنبيهات الصلوات والأذان' : 'PRAYER & ADHAN ALERTS',
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: AxisColors.textHigh,
@@ -141,8 +142,10 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Daily reminders & cognitive wake-up alarm',
-                      style: TextStyle(
+                      context.isArabic
+                          ? 'تذكيرات يومية ومنبه إدراكي للاستيقاظ'
+                          : 'Daily reminders & cognitive wake-up alarm',
+                      style: const TextStyle(
                         fontSize: 12,
                         color: AxisColors.textMuted,
                       ),
@@ -167,9 +170,10 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
           _buildSettingCard(
             icon: Icons.notifications_active_rounded,
             iconColor: const Color(0xFF38BDF8),
-            title: 'Daily Adhan Notifications',
-            subtitle:
-                'Receive high-priority notifications at exact prayer times (Fajr, Dhuhr, Asr, Maghrib, Isha).',
+            title: context.isArabic ? 'إشعارات الأذان اليومية' : 'Daily Adhan Notifications',
+            subtitle: context.isArabic
+                ? 'استلام إشعارات ذات أولوية عالية في مواقيت الصلاة المحددة (الفجر، الظهر، العصر، المغرب، العشاء).'
+                : 'Receive high-priority notifications at exact prayer times (Fajr, Dhuhr, Asr, Maghrib, Isha).',
             value: _adhanEnabled,
             onChanged: _toggleAdhan,
           ),
@@ -179,12 +183,13 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
           _buildSettingCard(
             icon: Icons.access_alarms_rounded,
             iconColor: const Color(0xFFEF4444),
-            title: 'Fajr Anti-Snooze Wake-Up Alarm',
-            subtitle:
-                'Rings exactly 1 minute after Fajr Adhan with an unskippable arithmetic puzzle to ensure you wake up.',
+            title: context.isArabic ? 'منبه صلاة الفجر لمنع الغفوة' : 'Fajr Anti-Snooze Wake-Up Alarm',
+            subtitle: context.isArabic
+                ? 'يرن بعد دقيقة واحدة بالضبط من أذان الفجر مع لغز حسابي غير قابل للتخطي لضمان استيقاظك.'
+                : 'Rings exactly 1 minute after Fajr Adhan with an unskippable arithmetic puzzle to ensure you wake up.',
             value: _fajrAlarmEnabled,
             onChanged: _toggleFajrAlarm,
-            badgeText: '+1 MIN FAJR',
+            badgeText: context.isArabic ? '+1 د فجر' : '+1 MIN FAJR',
             badgeColor: const Color(0xFFEF4444),
           ),
           const SizedBox(height: 16),
@@ -206,16 +211,16 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(
+                  children: [
+                    const Icon(
                       Icons.play_circle_outline_rounded,
                       size: 18,
                       color: Color(0xFFEF4444),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
-                      'Test Fajr Wake-Up Alarm Now',
-                      style: TextStyle(
+                      context.isArabic ? 'تجربة منبه الفجر الآن' : 'Test Fajr Wake-Up Alarm Now',
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFFEF4444),
@@ -246,7 +251,9 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Synced to ${_prayerService.currentCity}${_prayerService.currentCountry.isNotEmpty ? ', ${_prayerService.currentCountry}' : ''}. Prayer times auto-recalculate based on your local timezone.',
+                    context.isArabic
+                        ? 'تمت المزامنة مع ${_prayerService.currentCity}${_prayerService.currentCountry.isNotEmpty ? '، ${_prayerService.currentCountry}' : ''}. يُعاد حساب مواقيت الصلاة تلقائياً وفق منطقتك الزمنية.'
+                        : 'Synced to ${_prayerService.currentCity}${_prayerService.currentCountry.isNotEmpty ? ', ${_prayerService.currentCountry}' : ''}. Prayer times auto-recalculate based on your local timezone.',
                     style: const TextStyle(
                       fontSize: 11,
                       color: AxisColors.textMuted,

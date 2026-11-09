@@ -31,7 +31,7 @@ void main() {
       bool deleteTapped = false;
       Note? selectedNote;
 
-      final testCategory = const NoteCategory(
+      const testCategory = NoteCategory(
         id: 'cat_work',
         name: 'Architecture',
         icon: 'code',

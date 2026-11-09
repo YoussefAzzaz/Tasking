@@ -72,14 +72,14 @@ void main() {
     });
 
     test('Badge progress calculation handles mid-tier and maxed states', () {
-      final badge = MasteryBadgeData(
+      const badge = MasteryBadgeData(
         id: 'closer',
         title: 'The Closer',
         category: 'Execution',
         icon: Icons.task_alt_rounded,
         color: AxisColors.success,
         currentValue: 30,
-        tiers: const [
+        tiers: [
           BadgeTier(tierNumber: 1, name: 'Closer I', targetValue: 10, unit: 'tasks', description: ''),
           BadgeTier(tierNumber: 2, name: 'Closer II', targetValue: 50, unit: 'tasks', description: ''),
           BadgeTier(tierNumber: 3, name: 'Closer III', targetValue: 100, unit: 'tasks', description: ''),

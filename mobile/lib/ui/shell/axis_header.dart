@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/powersync_db.dart' show globalUserLevel;
 import 'package:axis/data/network_service.dart';
@@ -94,18 +95,25 @@ class _AxisHeaderState extends State<AxisHeader> {
                           final String label;
                           final String tooltipMsg;
 
+                          final isArabic = context.isArabic;
                           if (!isOnline) {
                             dotColor = AxisColors.warning;
-                            label = 'OFFLINE';
-                            tooltipMsg = 'Offline • Operating securely with local SQLite';
+                            label = isArabic ? 'غير متصل' : 'OFFLINE';
+                            tooltipMsg = isArabic
+                                ? 'غير متصل • يعمل بأمان عبر SQLite المحلي'
+                                : 'Offline • Operating securely with local SQLite';
                           } else if (isGuest) {
                             dotColor = const Color(0xFFF59E0B);
-                            label = 'GUEST (LOCAL)';
-                            tooltipMsg = 'Operating as local guest. Tap to sign in and sync with Desktop & Supabase.';
+                            label = isArabic ? 'ضيف (محلي)' : 'GUEST (LOCAL)';
+                            tooltipMsg = isArabic
+                                ? 'العمل كضيف محلي. انقر لتسجيل الدخول والمزامنة مع سطح المكتب و Supabase.'
+                                : 'Operating as local guest. Tap to sign in and sync with Desktop & Supabase.';
                           } else {
                             dotColor = AxisColors.tertiary;
-                            label = 'SYNCED';
-                            tooltipMsg = 'Cloud Synced • PowerSync active (${auth.currentUser?.email ?? "Connected"})';
+                            label = isArabic ? 'متزامن' : 'SYNCED';
+                            tooltipMsg = isArabic
+                                ? 'متزامن سحابياً • PowerSync نشط (${auth.currentUser?.email ?? "متصل"})'
+                                : 'Cloud Synced • PowerSync active (${auth.currentUser?.email ?? "Connected"})';
                           }
 
                           return GestureDetector(
@@ -148,10 +156,12 @@ class _AxisHeaderState extends State<AxisHeader> {
                                   ),
                                   if (isGuest) ...[
                                     const SizedBox(width: 2),
-                                    const Icon(
-                                      Icons.arrow_forward_ios_rounded,
+                                    Icon(
+                                      context.isArabic
+                                          ? Icons.arrow_back_ios_rounded
+                                          : Icons.arrow_forward_ios_rounded,
                                       size: 8,
-                                      color: Color(0xFFF59E0B),
+                                      color: const Color(0xFFF59E0B),
                                     ),
                                   ],
                                 ],
@@ -185,7 +195,7 @@ class _AxisHeaderState extends State<AxisHeader> {
                         color: AxisColors.secondary, size: 13),
                     const SizedBox(width: 3),
                     Text(
-                      'LVL $lvl',
+                      context.isArabic ? 'مستوى $lvl' : 'LVL $lvl',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: AxisColors.secondary,
                             fontWeight: FontWeight.bold,
@@ -202,7 +212,7 @@ class _AxisHeaderState extends State<AxisHeader> {
             valueListenable: UserProfileRepository().profileNotifier,
             builder: (context, profile, _) {
               return Tooltip(
-                message: 'Open Profile (Me)',
+                message: context.isArabic ? 'فتح الملف الشخصي (حسابي)' : 'Open Profile (Me)',
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,

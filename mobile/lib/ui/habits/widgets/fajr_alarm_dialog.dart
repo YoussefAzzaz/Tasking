@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/l10n/app_localizations.dart';
 
 /// Non-dismissible cognitive alarm dialog that requires solving
 /// a mental arithmetic challenge before the alarm can be turned off.
@@ -93,7 +94,9 @@ class _FajrAlarmDialogState extends State<FajrAlarmDialog>
     } else {
       HapticFeedback.vibrate();
       setState(() {
-        _errorMessage = 'Incorrect answer. Calculate again to wake up!';
+        _errorMessage = context.isArabic
+            ? 'إجابة غير صحيحة. احسب مجدداً للاستيقاظ!'
+            : 'Incorrect answer. Calculate again to wake up!';
         _userAnswer = '';
       });
     }
@@ -167,7 +170,9 @@ class _FajrAlarmDialogState extends State<FajrAlarmDialog>
 
               // Alarm Title
               Text(
-                _isSuccess ? 'AWAKE AND READY' : 'FAJR WAKE-UP MISSION',
+                _isSuccess
+                    ? (context.isArabic ? 'مستيقظ ومستعد' : 'AWAKE AND READY')
+                    : (context.isArabic ? 'مهمة الاستيقاظ لصلاة الفجر' : 'FAJR WAKE-UP MISSION'),
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -176,17 +181,17 @@ class _FajrAlarmDialogState extends State<FajrAlarmDialog>
                 ),
               ),
               const SizedBox(height: 3),
-              const Text(
-                'As-Salatu Khayrun Minan-Nawm',
-                style: TextStyle(
+              Text(
+                context.isArabic ? 'الصلاة خير من النوم' : 'As-Salatu Khayrun Minan-Nawm',
+                style: const TextStyle(
                   fontSize: 11,
                   fontStyle: FontStyle.italic,
                   color: Color(0xFF38BDF8),
                 ),
               ),
-              const Text(
-                'Prayer is better than sleep',
-                style: TextStyle(
+              Text(
+                context.isArabic ? 'الصلاة خير من النوم' : 'Prayer is better than sleep',
+                style: const TextStyle(
                   fontSize: 10,
                   color: AxisColors.textMuted,
                 ),
@@ -209,8 +214,12 @@ class _FajrAlarmDialogState extends State<FajrAlarmDialog>
                     Expanded(
                       child: Text(
                         _isSuccess
-                            ? 'Verification passed! Alarm stopping.'
-                            : 'Solve arithmetic problem to dismiss alarm:',
+                            ? (context.isArabic
+                                ? 'تم التحقق بنجاح! تم إيقاف المنبه.'
+                                : 'Verification passed! Alarm stopping.')
+                            : (context.isArabic
+                                ? 'قم بحل المسألة الحسابية لإيقاف المنبه:'
+                                : 'Solve arithmetic problem to dismiss alarm:'),
                         style: const TextStyle(
                           fontSize: 10.5,
                           color: AxisColors.textHigh,
@@ -262,7 +271,9 @@ class _FajrAlarmDialogState extends State<FajrAlarmDialog>
                         ),
                       ),
                       child: Text(
-                        _userAnswer.isEmpty ? 'Tap answer' : _userAnswer,
+                        _userAnswer.isEmpty
+                            ? (context.isArabic ? 'اكتب الإجابة' : 'Tap answer')
+                            : _userAnswer,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -321,7 +332,7 @@ class _FajrAlarmDialogState extends State<FajrAlarmDialog>
                         const SizedBox(width: 8),
                         Expanded(
                           child: _buildNumpadButton(
-                            label: 'OK',
+                            label: context.isArabic ? 'موافق' : 'OK',
                             color: AxisColors.success,
                             onTap: _onSubmit,
                           ),

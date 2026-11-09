@@ -126,14 +126,20 @@ class PayloadSanitizer {
             ? created.substring(0, 10)
             : DateTime.now().toUtc().toIso8601String().substring(0, 10);
       }
-      data['fajr'] = data['fajr'] == true || data['fajr'] == 1 || data['fajr'] == '1';
-      data['dhuhr'] = data['dhuhr'] == true || data['dhuhr'] == 1 || data['dhuhr'] == '1';
-      data['asr'] = data['asr'] == true || data['asr'] == 1 || data['asr'] == '1';
-      data['maghrib'] = data['maghrib'] == true || data['maghrib'] == 1 || data['maghrib'] == '1';
-      data['isha'] = data['isha'] == true || data['isha'] == 1 || data['isha'] == '1';
-      data['streak_days'] = (data['streak_days'] is num) ? (data['streak_days'] as num).toInt() : 0;
-      data['habits_done'] = (data['habits_done'] is num) ? (data['habits_done'] as num).toInt() : 0;
-      data['habits_total'] = (data['habits_total'] is num) ? (data['habits_total'] as num).toInt() : 0;
+      for (final p in ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']) {
+        if (data.containsKey(p) && data[p] != null) {
+          data[p] = data[p] == true || data[p] == 1 || data[p] == '1';
+        }
+      }
+      if (data.containsKey('streak_days') && data['streak_days'] is num) {
+        data['streak_days'] = (data['streak_days'] as num).toInt();
+      }
+      if (data.containsKey('habits_done') && data['habits_done'] is num) {
+        data['habits_done'] = (data['habits_done'] as num).toInt();
+      }
+      if (data.containsKey('habits_total') && data['habits_total'] is num) {
+        data['habits_total'] = (data['habits_total'] as num).toInt();
+      }
     }
 
     return data;

@@ -60,7 +60,7 @@ void main() {
     });
 
     test('Every 3 days habits reset every 3 days from creation date at 00:00', () {
-      final createdStr = '2026-10-10T14:20:00Z'; // Created on Oct 10
+      const createdStr = '2026-10-10T14:20:00Z'; // Created on Oct 10
       
       // Day 0 (Oct 10): cycle start is 2026-10-10
       final day0 = DateTime(2026, 10, 10, 18, 0);

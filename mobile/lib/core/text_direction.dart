@@ -141,9 +141,17 @@ class _AutoDirectionScopeState extends State<AutoDirectionScope> {
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_handleTextChange);
       widget.controller.addListener(_handleTextChange);
-      _handleTextChange();
+      final newIsArabic = _resolveIsArabic();
+      if (newIsArabic != _isArabic) {
+        _isArabic = newIsArabic;
+        widget.onDirectionChanged?.call(_isArabic);
+      }
     } else if (oldWidget.hintText != widget.hintText && widget.controller.text.isEmpty) {
-      _handleTextChange();
+      final newIsArabic = _resolveIsArabic();
+      if (newIsArabic != _isArabic) {
+        _isArabic = newIsArabic;
+        widget.onDirectionChanged?.call(_isArabic);
+      }
     }
   }
 

@@ -8,9 +8,13 @@ class IdGenerator {
     return _uuid.v5(axisNamespace, name);
   }
 
+  static String generateId() => _uuid.v4();
+
   static String getUserSettingsId(String userId) => generateDeterministicId('settings_$userId');
-  static String getDailyPlanId(String date) => generateDeterministicId('plan_$date');
-  static String getJournalEntryId(String date) => generateDeterministicId('journal_$date');
+  static String getDailyPlanId(String date, [String? userId]) =>
+      generateDeterministicId(userId != null && userId.isNotEmpty ? 'plan_${userId}_$date' : 'plan_$date');
+  static String getJournalEntryId(String date, [String? userId]) =>
+      generateDeterministicId(userId != null && userId.isNotEmpty ? 'journal_${userId}_$date' : 'journal_$date');
   static String getHabitLogId(String habitId, String date) => generateDeterministicId('habitlog_${habitId}_$date');
   static String getXpEventId(String eventId) => generateDeterministicId('xp_$eventId');
   static String getBadgeUnlockId(String badgeId, String userId) => generateDeterministicId('badge_${badgeId}_$userId');
