@@ -203,19 +203,58 @@ int compareTasksByPriority(Task a, Task b) {
 }
 
 class TaskRepository {
-  Stream<List<Task>> watchTasks() {
+  Stream<List<Task>> watchTasks({int? limit, int? offset}) {
     if (!isDatabaseInitialized) {
       return Stream.value(const <Task>[]);
     }
     final uid = currentUserId;
-    final query = uid.isNotEmpty
+    var query = uid.isNotEmpty
         ? "SELECT * FROM tasks WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = '') ORDER BY created_at DESC"
         : "SELECT * FROM tasks WHERE (deleted_at IS NULL OR deleted_at = '') ORDER BY created_at DESC";
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
 
+    if (limit != null && limit > 0) {
+      query += " LIMIT $limit";
+      if (offset != null && offset > 0) {
+        query += " OFFSET $offset";
+      }
+    }
+
     return db.watch(query, parameters: params).map((rows) {
       return rows.map((row) => Task.fromRow(row)).toList();
     });
+  }
+
+  /// Fetches tasks directly from SQLite with optional limit and offset pagination.
+  Future<List<Task>> getTasks({int? limit, int? offset}) async {
+    if (!isDatabaseInitialized) return const [];
+    final uid = currentUserId;
+    var query = uid.isNotEmpty
+        ? "SELECT * FROM tasks WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = '') ORDER BY created_at DESC"
+        : "SELECT * FROM tasks WHERE (deleted_at IS NULL OR deleted_at = '') ORDER BY created_at DESC";
+    final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+
+    if (limit != null && limit > 0) {
+      query += " LIMIT $limit";
+      if (offset != null && offset > 0) {
+        query += " OFFSET $offset";
+      }
+    }
+
+    final rows = await db.getAll(query, params);
+    return rows.map((row) => Task.fromRow(row)).toList();
+  }
+
+  /// Fetches total count of active tasks for user.
+  Future<int> getTasksCount() async {
+    if (!isDatabaseInitialized) return 0;
+    final uid = currentUserId;
+    final query = uid.isNotEmpty
+        ? "SELECT COUNT(*) as count FROM tasks WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = '')"
+        : "SELECT COUNT(*) as count FROM tasks WHERE (deleted_at IS NULL OR deleted_at = '')";
+    final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+    final row = await db.getOptional(query, params);
+    return (row?['count'] as num?)?.toInt() ?? 0;
   }
 
   /// Fetches a single task by ID from SQLite if available.

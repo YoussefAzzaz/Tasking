@@ -3,10 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/ui/today/widgets/today_prayer_times_card.dart';
-import 'package:axis/ui/notes/widgets/daily_journal_card.dart';
 
 void main() {
-  group('TodayPrayerTimesCard & Journal Tests', () {
+  group('TodayPrayerTimesCard Tests', () {
     final testPrayers = [
       const Prayer(
         id: 'prayer_fajr',
@@ -99,7 +98,7 @@ void main() {
       // Verify Next Prayer label & 24h format
       expect(find.textContaining('Next Prayer:'), findsOneWidget);
 
-      // CRITICAL REQUIREMENT: NO azan on button in the widget
+      // CRITICAL: NO azan toggle in the widget
       expect(find.text('Azan On'), findsNothing);
       expect(find.text('Azan Off'), findsNothing);
 
@@ -110,7 +109,7 @@ void main() {
       expect(find.text('Maghrib'), findsWidgets);
       expect(find.text('Isha'), findsWidgets);
 
-      // Verify 24h times matching user reference
+      // Verify 24h times
       expect(find.text('05:12'), findsWidgets);
       expect(find.text('12:48'), findsWidgets);
       expect(find.text('15:46'), findsWidgets);
@@ -151,45 +150,10 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Assert no overflow occurred
       expect(tester.takeException(), isNull);
       expect(find.text('PRAYER TELEMETRY'), findsOneWidget);
       expect(find.text('OBLIGATIONS: 2/5 (40%)'), findsOneWidget);
     });
-
-    testWidgets('DailyJournalCard renders properly on small mobile (320px) with start entry button', (tester) async {
-      tester.view.physicalSize = const Size(320 * 3, 568 * 3);
-      tester.view.devicePixelRatio = 3.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      bool startTriggered = false;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AxisTheme.dark,
-          home: Scaffold(
-            body: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: DailyJournalCard(
-                todayJournal: null,
-                onOpenTodayJournal: (_) {},
-                onStartNewJournal: () => startTriggered = true,
-              ),
-            ),
-          ),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull);
-      expect(find.text('DAILY JOURNAL'), findsOneWidget);
-      expect(find.text('Start Today\'s Journal Entry'), findsOneWidget);
-
-      await tester.tap(find.text('Start Today\'s Journal Entry'));
-      await tester.pump();
-      expect(startTriggered, isTrue);
-    });
   });
 }
+

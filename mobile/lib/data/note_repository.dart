@@ -65,7 +65,7 @@ class Note {
 }
 
 class NoteRepository {
-  Stream<List<Note>> watchNotes({String? category}) {
+  Stream<List<Note>> watchNotes({String? category, int? limit, int? offset}) {
     if (!isDatabaseInitialized) {
       return Stream.value(const <Note>[]);
     }
@@ -91,9 +91,81 @@ class NoteRepository {
       }
     }
 
+    if (limit != null && limit > 0) {
+      query += ' LIMIT $limit';
+      if (offset != null && offset > 0) {
+        query += ' OFFSET $offset';
+      }
+    }
+
     return db.watch(query, parameters: params).map((rows) {
       return rows.map((r) => Note.fromRow(r)).toList();
     });
+  }
+
+  /// Fetches notes with optional category filter, limit, and offset.
+  Future<List<Note>> getNotes({String? category, int? limit, int? offset}) async {
+    if (!isDatabaseInitialized) return const [];
+    final uid = currentUserId;
+    String query;
+    List<dynamic> params = [];
+
+    if (uid.isNotEmpty) {
+      if (category != null && category != 'all') {
+        query = 'SELECT * FROM notes WHERE category = ? AND user_id = ? AND (deleted_at IS NULL OR deleted_at = \'\') ORDER BY pinned DESC, created_at DESC';
+        params = [category, uid];
+      } else {
+        query = 'SELECT * FROM notes WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = \'\') ORDER BY pinned DESC, created_at DESC';
+        params = [uid];
+      }
+    } else {
+      if (category != null && category != 'all') {
+        query = 'SELECT * FROM notes WHERE category = ? AND (deleted_at IS NULL OR deleted_at = \'\') ORDER BY pinned DESC, created_at DESC';
+        params = [category];
+      } else {
+        query = 'SELECT * FROM notes WHERE (deleted_at IS NULL OR deleted_at = \'\') ORDER BY pinned DESC, created_at DESC';
+        params = [];
+      }
+    }
+
+    if (limit != null && limit > 0) {
+      query += ' LIMIT $limit';
+      if (offset != null && offset > 0) {
+        query += ' OFFSET $offset';
+      }
+    }
+
+    final rows = await db.getAll(query, params);
+    return rows.map((r) => Note.fromRow(r)).toList();
+  }
+
+  /// Fetches total count of active notes/journals for user.
+  Future<int> getNotesCount({String? category}) async {
+    if (!isDatabaseInitialized) return 0;
+    final uid = currentUserId;
+    String query;
+    List<dynamic> params = [];
+
+    if (uid.isNotEmpty) {
+      if (category != null && category != 'all') {
+        query = 'SELECT COUNT(*) as count FROM notes WHERE category = ? AND user_id = ? AND (deleted_at IS NULL OR deleted_at = \'\')';
+        params = [category, uid];
+      } else {
+        query = 'SELECT COUNT(*) as count FROM notes WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = \'\')';
+        params = [uid];
+      }
+    } else {
+      if (category != null && category != 'all') {
+        query = 'SELECT COUNT(*) as count FROM notes WHERE category = ? AND (deleted_at IS NULL OR deleted_at = \'\')';
+        params = [category];
+      } else {
+        query = 'SELECT COUNT(*) as count FROM notes WHERE (deleted_at IS NULL OR deleted_at = \'\')';
+        params = [];
+      }
+    }
+
+    final row = await db.getOptional(query, params);
+    return (row?['count'] as num?)?.toInt() ?? 0;
   }
 
   Future<void> addNote(Note note) async {

@@ -14,8 +14,15 @@ class _FakeTaskRepo extends TaskRepository {
   List<Task> currentTasks = [];
 
   @override
-  Stream<List<Task>> watchTasks() async* {
-    yield currentTasks;
+  Stream<List<Task>> watchTasks({int? limit, int? offset}) async* {
+    var tasks = currentTasks;
+    if (offset != null && offset > 0) {
+      tasks = tasks.skip(offset).toList();
+    }
+    if (limit != null && limit > 0) {
+      tasks = tasks.take(limit).toList();
+    }
+    yield tasks;
     yield* _ctrl.stream;
   }
 

@@ -18,7 +18,7 @@ class _FakeDesktopTaskRepo extends TaskRepository {
   }
 
   @override
-  Stream<List<Task>> watchTasks() => _controller.stream;
+  Stream<List<Task>> watchTasks({int? limit, int? offset}) => _controller.stream;
 
   @override
   Future<void> toggleTaskStatus(Task task, bool isDone) async {

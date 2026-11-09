@@ -54,7 +54,7 @@ class HabitRepository {
         createdAtStr: createdAtStr,
       );
 
-  Stream<List<Habit>> watchHabits() {
+  Stream<List<Habit>> watchHabits({int? limit, int? offset}) {
     if (!isDatabaseInitialized) {
       return Stream.value(const <Habit>[]);
     }
@@ -62,7 +62,7 @@ class HabitRepository {
     final now = DateTime.now();
     final uid = currentUserId;
 
-    final query = uid.isNotEmpty
+    var query = uid.isNotEmpty
         ? 'SELECT * FROM habits '
           'WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') AND (deleted_at IS NULL OR deleted_at = \'\') '
           'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC'
@@ -70,6 +70,13 @@ class HabitRepository {
           'WHERE (deleted_at IS NULL OR deleted_at = \'\') '
           'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC';
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+
+    if (limit != null && limit > 0) {
+      query += ' LIMIT $limit';
+      if (offset != null && offset > 0) {
+        query += ' OFFSET $offset';
+      }
+    }
 
     return db
         .watch(query, parameters: params)

@@ -12,7 +12,7 @@ class FakeTaskRepository extends TaskRepository {
   void emit(List<Task> tasks) => _controller.add(tasks);
 
   @override
-  Stream<List<Task>> watchTasks() => _controller.stream;
+  Stream<List<Task>> watchTasks({int? limit, int? offset}) => _controller.stream;
 
   void dispose() => _controller.close();
 }

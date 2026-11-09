@@ -88,7 +88,7 @@ class FriendRepository {
   }
 
   /// Watches all accepted friends with their profiles and current levels.
-  Stream<List<FriendUser>> watchAcceptedFriends() {
+  Stream<List<FriendUser>> watchAcceptedFriends({int? limit, int? offset}) {
     late StreamController<List<FriendUser>> controller;
     StreamSubscription? dbSub;
     StreamSubscription? triggerSub;
@@ -106,7 +106,7 @@ class FriendRepository {
         return;
       }
 
-      const query = '''
+      var query = '''
         SELECT 
           f.id AS friendship_id,
           f.requester_id,
@@ -126,6 +126,13 @@ class FriendRepository {
         WHERE (f.requester_id = ? OR f.addressee_id = ?) AND f.status = 'accepted'
         ORDER BY p.total_xp DESC
       ''';
+
+      if (limit != null && limit > 0) {
+        query += ' LIMIT $limit';
+        if (offset != null && offset > 0) {
+          query += ' OFFSET $offset';
+        }
+      }
 
       try {
         final rows = await db.getAll(query, [uid, uid, uid]);
