@@ -14,7 +14,7 @@ class PayloadSanitizer {
     final data = Map<String, dynamic>.from(raw);
 
     // 1. Ensure user_id is the active valid UUID (for user-scoped tables)
-    if (table != 'friendships' && uid.isNotEmpty) {
+    if (table != 'friendships' && table != 'companion_shares' && uid.isNotEmpty) {
       final existingUid = data['user_id'];
       if (existingUid == null ||
           existingUid == '' ||
@@ -22,7 +22,7 @@ class PayloadSanitizer {
         data['user_id'] = uid;
       }
     }
-    if (table == 'friendships') {
+    if (table == 'friendships' || table == 'companion_shares') {
       data.remove('user_id');
     }
 

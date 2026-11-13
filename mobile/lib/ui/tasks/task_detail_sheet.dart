@@ -10,6 +10,7 @@ import 'package:axis/ui/common/axis_markdown_viewer.dart';
 import 'package:axis/ui/common/reading_font_size_control.dart';
 import 'package:axis/data/reading_preferences_service.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 /// Task detail bottom sheet — glass tier 2, full DESIGN.md spec
 class TaskDetailSheet extends StatefulWidget {
@@ -136,6 +137,11 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.share_outlined, size: 20, color: AxisColors.primarySoft),
+                                    tooltip: context.isArabic ? 'مشاركة مع صاحب' : 'Share with Companion',
+                                    onPressed: () => ShareTaskSheet.show(context, _task),
+                                  ),
                                   IconButton(
                                     icon: const Icon(Icons.edit_outlined, size: 20, color: AxisColors.secondary),
                                     tooltip: context.isArabic ? 'تعديل المهمة' : 'Edit Task',

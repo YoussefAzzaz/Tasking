@@ -10,10 +10,7 @@ import 'package:axis/data/friends/friend_search_repository.dart';
 import 'package:axis/data/daily_prayer_status_repository.dart';
 
 /// Builder responsible for computing the active user's daily prayer and habit checklist.
-///
-/// Under Method 1 (Direct Supabase Native Realtime Stream), companion prayers are streamed
-/// cloud-natively by [CompanionPrayerService], while the active user's status is computed
-/// authoritatively from their local SQLite machine (100% offline-compatible).
+/// Computed authoritatively from the local SQLite database (100% offline-compatible).
 class DailyPrayerChecklistBuilder {
   const DailyPrayerChecklistBuilder();
 

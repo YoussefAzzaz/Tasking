@@ -4,6 +4,8 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/data/prayers/adhan_sound_service.dart';
+import 'package:axis/ui/prayers/explore_adhan_sounds_sheet.dart';
 
 /// Modal bottom sheet allowing users to configure daily Adhan notifications,
 /// the persistent anti-snooze Fajr wake-up alarm (+1 min), and test alarm verification.
@@ -176,6 +178,94 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
                 : 'Receive high-priority notifications at exact prayer times (Fajr, Dhuhr, Asr, Maghrib, Isha).',
             value: _adhanEnabled,
             onChanged: _toggleAdhan,
+          ),
+          const SizedBox(height: 12),
+
+          // Sound Selector Tile: Adhan Notification Sound
+          ValueListenableBuilder<AdhanSoundOption>(
+            valueListenable: AdhanSoundService().selectedSoundNotifier,
+            builder: (context, activeSound, _) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AxisColors.surfaceLowest,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AxisColors.borderSubtle),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.music_note_rounded,
+                        color: Color(0xFF38BDF8),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            context.isArabic ? 'صوت إشعار الأذان' : 'Adhan Sound',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AxisColors.textHigh,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            context.isArabic ? activeSound.nameAr : activeSound.name,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AxisColors.primarySoft,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            context.isArabic ? activeSound.muadhinAr : activeSound.muadhin,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AxisColors.textMuted,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        ExploreAdhanSoundsSheet.show(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AxisColors.primary.withValues(alpha: 0.16),
+                        foregroundColor: AxisColors.primarySoft,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(color: AxisColors.primarySoft.withValues(alpha: 0.4)),
+                        ),
+                      ),
+                      icon: const Icon(Icons.explore_rounded, size: 14),
+                      label: Text(
+                        context.isArabic ? 'تغيير' : 'Explore',
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
 

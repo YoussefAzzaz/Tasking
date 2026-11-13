@@ -106,14 +106,17 @@ class StatsRepository {
             COALESCE(SUM(xp_earned), 0) AS total_xp,
             COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
           FROM logs
-          WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')
+          WHERE (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest')
+            AND (deleted_at IS NULL OR deleted_at = '')
+            AND (event_type IS NULL OR event_type != 'focus_completed')
           '''
           : '''
           SELECT 
             COALESCE(SUM(xp_earned), 0) AS total_xp,
             COALESCE(SUM(CASE WHEN timestamp LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
           FROM logs
-          WHERE (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')
+          WHERE (deleted_at IS NULL OR deleted_at = '')
+            AND (event_type IS NULL OR event_type != 'focus_completed')
           ''';
       final logParams = uid.isNotEmpty ? [todayPattern, uid] : [todayPattern];
       final logRow = await db.getOptional(logQuery, logParams);
@@ -134,7 +137,7 @@ class StatsRepository {
             COALESCE(SUM(xp_earned), 0) AS total_xp,
             COALESCE(SUM(CASE WHEN started_at LIKE ? THEN xp_earned ELSE 0 END), 0) AS today_xp
           FROM focus_sessions 
-          WHERE completed = 1 AND user_id = ?
+          WHERE completed = 1 AND (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest')
           '''
           : '''
           SELECT 
@@ -152,6 +155,23 @@ class StatsRepository {
       }
     } catch (e) {
       debugPrint('[StatsRepository] Error querying focus session XP: $e');
+    }
+
+    // 3. Monotonic preservation: total XP should never drop below user_profiles.total_xp
+    if (uid.isNotEmpty && uid != 'local_guest') {
+      try {
+        final profileRow = await db.getOptional(
+          'SELECT total_xp FROM user_profiles WHERE user_id = ? LIMIT 1',
+          [uid],
+        );
+        if (profileRow != null) {
+          final profileXp = (profileRow['total_xp'] as num?)?.toInt() ?? 0;
+          if (profileXp > totalXp) {
+            totalXp = profileXp;
+            unawaited(syncGlobalUserLevel());
+          }
+        }
+      } catch (_) {}
     }
 
     // 3. Compute streak days from habit logs (only when all scheduled habits completed)

@@ -598,47 +598,6 @@ void main() {
       expect(updated.updatedAt, equals('2026-11-05T19:50:00Z'));
     });
 
-    test('CompanionPrayerService watchCompanionPrayers emits mock stream when injected', () async {
-      final service = CompanionPrayerService();
-      const mockStatus = DailyPrayerStatus(
-        id: 'prs_friend1_2026-11-05',
-        userId: 'friend1',
-        userName: 'Mizouni',
-        userAvatarColor: '#6366F1',
-        date: '2026-11-05',
-        fajr: true,
-        dhuhr: true,
-        asr: false,
-        maghrib: false,
-        isha: false,
-        streakDays: 13,
-        habitsDone: 3,
-        habitsTotal: 13,
-      );
-
-      service.mockCompanionStream = Stream.value([mockStatus]);
-      final emitted = await service.watchCompanionPrayers().first;
-
-      expect(emitted.length, equals(1));
-      expect(emitted.first.userId, equals('friend1'));
-      expect(emitted.first.completedCount, equals(2));
-      expect(emitted.first.streakDays, equals(13));
-      expect(emitted.first.habitsTotal, equals(13));
-
-      service.mockCompanionStream = null;
-    });
-
-    test('Method 1: Offline isolation ensures companion data is omitted when offline', () async {
-      // In offline mode, CompanionPrayerService emits an empty list so viewer displays offline banner.
-      final service = CompanionPrayerService();
-      service.mockCompanionStream = Stream.value(const <DailyPrayerStatus>[]);
-
-      final emitted = await service.watchCompanionPrayers().first;
-      expect(emitted, isEmpty);
-
-      service.mockCompanionStream = null;
-    });
-
     test('DailyPrayerChecklistBuilder computeMyStatus keeps user checklist operational offline', () async {
       final myStatus = await const DailyPrayerChecklistBuilder().computeMyStatus(
         uid: 'userA',

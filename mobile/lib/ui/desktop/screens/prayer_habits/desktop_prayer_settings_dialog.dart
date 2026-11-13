@@ -5,6 +5,8 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/adhan_alarm_service.dart';
 import '../../../../data/location_service.dart';
 import '../../../../data/prayer_time_service.dart';
+import '../../../../data/prayers/adhan_sound_service.dart';
+import '../../../prayers/explore_adhan_sounds_sheet.dart';
 import '../../widgets/ghost_button.dart';
 import '../../widgets/telemetry_chip.dart';
 
@@ -224,6 +226,56 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 8),
+
+            // Adhan Sound Selector
+            ValueListenableBuilder<AdhanSoundOption>(
+              valueListenable: AdhanSoundService().selectedSoundNotifier,
+              builder: (context, activeSound, _) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AxisColors.surfaceLowest,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AxisColors.borderSubtle),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isArabic ? 'صوت الأذان النشط' : 'Active Adhan Sound',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AxisColors.textHigh,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${isArabic ? activeSound.nameAr : activeSound.name} • ${isArabic ? activeSound.muadhinAr : activeSound.muadhin}',
+                              style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.primarySoft),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GhostButton(
+                        label: isArabic ? 'تصفح الأصوات' : 'Explore Sounds',
+                        icon: Icons.music_note_rounded,
+                        onPressed: () {
+                          ExploreAdhanSoundsSheet.showAsDialog(context);
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 8),
 

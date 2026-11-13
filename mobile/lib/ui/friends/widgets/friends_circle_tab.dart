@@ -9,9 +9,11 @@ import 'package:axis/ui/me/widgets/avatar_widget.dart';
 import 'companion_profile_modal.dart';
 import 'friend_activity_card.dart';
 import 'pending_friend_requests_section.dart';
+import 'pending_shares_section.dart';
 
 export 'friend_activity_card.dart';
 export 'pending_friend_requests_section.dart';
+export 'pending_shares_section.dart';
 
 /// Tab presenting connected companions, pending requests, and friend code sharing.
 class FriendsCircleTab extends StatelessWidget {
@@ -48,6 +50,9 @@ class FriendsCircleTab extends StatelessWidget {
 
           // Pending Requests
           PendingFriendRequestsSection(friendRepo: friendRepo),
+
+          // Pending Companion Shares (Tasks, Habits, etc.)
+          const PendingSharesSection(),
 
           // Friend Activity / Notifications
           FriendActivityNotificationsSection(friendRepo: friendRepo),

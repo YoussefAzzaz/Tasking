@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:axis/data/powersync_db.dart';
-import 'package:axis/domain/id_generator.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/user_profile_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -173,48 +172,6 @@ class FriendActivityRepository {
       }
     } catch (e) {
       debugPrint('[FriendActivityRepository] syncActivityLogsFromRemote notice: $e');
-    }
-  }
-
-  /// Sends a gentle reminder to a friend for an upcoming or pending prayer.
-  Future<void> sendPrayerReminder(String friendUserId, String prayerName) async {
-    final uid = currentUserId;
-    if (uid.isEmpty || friendUserId.isEmpty) return;
-
-    final nowUtc = DateTime.now().toUtc().toIso8601String();
-    final logId = IdGenerator.generateDeterministicId('nudge_${uid}_${friendUserId}_$nowUtc');
-    final myName = currentUserName;
-
-    if (isRemoteAuthenticated) {
-      bool directSuccess = false;
-      try {
-        await _supabaseClient!.from('friend_activity_logs').insert({
-          'id': logId,
-          'user_id': friendUserId,
-          'event_type': 'prayer_reminder',
-          'title': '$myName reminded you to pray $prayerName',
-          'metadata': {
-            'sender_id': uid,
-            'sender_name': myName,
-            'prayer_name': prayerName,
-          },
-          'created_at': nowUtc,
-        });
-        directSuccess = true;
-      } catch (e) {
-        debugPrint('[FriendActivityRepository] Supabase direct sendPrayerReminder notice: $e');
-      }
-
-      if (!directSuccess) {
-        try {
-          await _supabaseClient!.rpc('send_prayer_reminder_rpc', params: {
-            'p_target_user_id': friendUserId,
-            'p_prayer_name': prayerName,
-          });
-        } catch (e) {
-          debugPrint('[FriendActivityRepository] Supabase RPC sendPrayerReminder fallback notice: $e');
-        }
-      }
     }
   }
 }

@@ -225,28 +225,75 @@ class PrayerRepository {
             needsDoneReset;
 
         if (needsUpdate) {
-          await _db.execute('''
-            UPDATE prayers SET
-              id = ?,
-              user_id = ?,
-              name = ?,
-              icon = ?,
-              time = ?,
-              sort_order = ?,
-              is_done = ?,
-              updated_at = ?
-            WHERE id = ?
-          ''', [
-            prayerId,
-            userId,
-            item.name,
-            item.icon,
-            item.formattedTime,
-            item.sortOrder,
-            targetIsDone ? 1 : 0,
-            utcNow,
-            targetId,
-          ]);
+          if (targetId != prayerId) {
+            // PowerSync SQLite constraint: primary key `id` is immutable and cannot be updated via UPDATE SET id = ?.
+            // Insert or update canonical prayerId, then cleanly remove the legacy targetId row.
+            final canonicalExists = await _db.getOptional('SELECT id FROM prayers WHERE id = ?', [prayerId]);
+            if (canonicalExists == null) {
+              await _db.execute('''
+                INSERT INTO prayers (
+                  id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ''', [
+                prayerId,
+                userId,
+                code,
+                item.name,
+                item.icon,
+                item.formattedTime,
+                item.sortOrder,
+                targetIsDone ? 1 : 0,
+                utcNow,
+                utcNow,
+              ]);
+            } else {
+              await _db.execute('''
+                UPDATE prayers SET
+                  user_id = ?,
+                  name = ?,
+                  icon = ?,
+                  time = ?,
+                  sort_order = ?,
+                  is_done = ?,
+                  updated_at = ?
+                WHERE id = ?
+              ''', [
+                userId,
+                item.name,
+                item.icon,
+                item.formattedTime,
+                item.sortOrder,
+                targetIsDone ? 1 : 0,
+                utcNow,
+                prayerId,
+              ]);
+            }
+
+            try {
+              await _db.execute('DELETE FROM prayers WHERE id = ?', [targetId]);
+            } catch (_) {}
+          } else {
+            await _db.execute('''
+              UPDATE prayers SET
+                user_id = ?,
+                name = ?,
+                icon = ?,
+                time = ?,
+                sort_order = ?,
+                is_done = ?,
+                updated_at = ?
+              WHERE id = ?
+            ''', [
+              userId,
+              item.name,
+              item.icon,
+              item.formattedTime,
+              item.sortOrder,
+              targetIsDone ? 1 : 0,
+              utcNow,
+              prayerId,
+            ]);
+          }
         }
       }
     }
@@ -280,23 +327,11 @@ class PrayerRepository {
   Future<void> resetPrayers(String userId) async {
     if (!_ready) return;
     final nowUtc = DateTime.now().toUtc().toIso8601String();
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     final query = userId.isNotEmpty
         ? "UPDATE prayers SET is_done = 0, updated_at = ? WHERE user_id = ?"
         : "UPDATE prayers SET is_done = 0, updated_at = ? WHERE (user_id IS NULL OR user_id = '' OR user_id = 'local_guest')";
     final params = userId.isNotEmpty ? [nowUtc, userId] : [nowUtc];
     await _db.execute(query, params);
-
-    // Clean up today's prayer logs
-    final deleteHabitLogsQuery = userId.isNotEmpty
-        ? "DELETE FROM habit_logs WHERE user_id = ? AND log_date = ? AND (habit_id LIKE 'prayer_%' OR habit_id LIKE 'habit_prayer_%')"
-        : "DELETE FROM habit_logs WHERE log_date = ? AND (habit_id LIKE 'prayer_%' OR habit_id LIKE 'habit_prayer_%')";
-    await _db.execute(deleteHabitLogsQuery, userId.isNotEmpty ? [userId, today] : [today]);
-
-    final deleteLogsQuery = userId.isNotEmpty
-        ? "DELETE FROM logs WHERE user_id = ? AND event_type = 'prayer_completed' AND timestamp >= ?"
-        : "DELETE FROM logs WHERE event_type = 'prayer_completed' AND timestamp >= ?";
-    await _db.execute(deleteLogsQuery, userId.isNotEmpty ? [userId, today] : [today]);
   }
 }

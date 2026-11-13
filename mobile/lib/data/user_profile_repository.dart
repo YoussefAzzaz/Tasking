@@ -93,6 +93,18 @@ class UserProfileRepository {
 
   String get _cacheKey => 'user_profile_data_${currentUserId.isNotEmpty ? currentUserId : "global"}';
 
+  /// Synchronously broadcasts updated XP and Level to profile listeners and clears stale cache.
+  void updateNotifierLevelAndXp(int totalXp, int level) {
+    CacheService().invalidate(_cacheKey);
+    final current = profileNotifier.value;
+    if (current.totalXp != totalXp || current.level != level) {
+      profileNotifier.value = current.copyWith(
+        totalXp: totalXp,
+        level: level > 0 ? level : 1,
+      );
+    }
+  }
+
   /// Retrieves user profile instantly from cache, or fetches from SQLite.
   Future<UserProfile> getProfile({bool forceRefresh = false}) async {
     if (forceRefresh) {

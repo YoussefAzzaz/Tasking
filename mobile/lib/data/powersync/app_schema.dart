@@ -293,4 +293,32 @@ const appSchema = Schema([
       Index('created_at', [IndexedColumn.descending('created_at')]),
     ],
   ),
+  Table(
+    'companion_shares',
+    [
+      Column.text('sender_id'),
+      Column.text('recipient_id'),
+      Column.text('entity_type'), // 'task', 'habit', 'note', 'project'
+      Column.text('entity_id'),
+      Column.text('share_mode'), // 'copy', 'collaborate'
+      Column.text('status'), // 'pending', 'accepted', 'declined', 'cancelled'
+      Column.text('preview_data'), // JSON string
+      Column.text('created_at'),
+      Column.text('updated_at'),
+    ],
+    indexes: [
+      Index('recipient_status', [
+        IndexedColumn.ascending('recipient_id'),
+        IndexedColumn.ascending('status'),
+      ]),
+      Index('sender_status', [
+        IndexedColumn.ascending('sender_id'),
+        IndexedColumn.ascending('status'),
+      ]),
+      Index('entity', [
+        IndexedColumn.ascending('entity_type'),
+        IndexedColumn.ascending('entity_id'),
+      ]),
+    ],
+  ),
 ]);

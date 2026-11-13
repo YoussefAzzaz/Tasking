@@ -11,21 +11,19 @@ import 'daily_prayer_status_repository.dart';
 import 'friends/friend_activity_repository.dart';
 import 'friends/friend_search_repository.dart';
 import 'friends/companion_badge_service.dart';
-import 'friends/companion_prayer_service.dart';
 
 export 'friends/friend_models.dart';
 export 'daily_prayer_status_repository.dart';
 export 'friends/friend_activity_repository.dart';
 export 'friends/friend_search_repository.dart';
 export 'friends/companion_badge_service.dart';
-export 'friends/companion_prayer_service.dart';
 
 /// Centralized facade repository handling friendships, companions, and mutual accountability.
 class FriendRepository {
   static final FriendRepository _instance = FriendRepository._internal();
   factory FriendRepository() => _instance;
   FriendRepository._internal() {
-    _initRealtimeListeners();
+    _initAuthListeners();
   }
 
   SupabaseClient? get _supabaseClient {
@@ -44,47 +42,17 @@ class FriendRepository {
 
   void notifyChecklistChanged() => DailyPrayerStatusRepository().notifyChecklistChanged();
 
-  RealtimeChannel? _realtimeChannel;
+  StreamSubscription? _authSubscription;
 
-  void _initRealtimeListeners() {
+  void _initAuthListeners() {
     final client = _supabaseClient;
-    if (client == null || _realtimeChannel != null) return;
+    if (client == null || _authSubscription != null) return;
 
-    client.auth.onAuthStateChange.listen((data) {
+    _authSubscription = client.auth.onAuthStateChange.listen((data) {
       if (data.session != null && !data.session!.isExpired) {
-        if (_realtimeChannel == null) {
-          _initRealtimeListeners();
-        }
         unawaited(syncAllFriendData());
       }
     });
-
-    if (!isRemoteAuthenticated) {
-      return;
-    }
-
-    try {
-      _realtimeChannel = client.channel('public_friends_sync');
-      _realtimeChannel?.onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'friendships',
-        callback: (_) {
-          debugPrint('[FriendRepository] Realtime: friendships updated');
-          unawaited(syncFriendshipsFromRemote());
-        },
-      ).onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'friend_activity_logs',
-        callback: (_) {
-          debugPrint('[FriendRepository] Realtime: friend_activity_logs updated');
-          unawaited(syncActivityLogsFromRemote());
-        },
-      ).subscribe();
-    } catch (e) {
-      debugPrint('[FriendRepository] Notice setting up Realtime subscription: $e');
-    }
   }
 
   /// Watches all accepted friends with their profiles and current levels.
@@ -530,9 +498,6 @@ class FriendRepository {
     }
   }
 
-  Future<void> sendPrayerReminder(String friendUserId, String prayerName) =>
-      FriendActivityRepository().sendPrayerReminder(friendUserId, prayerName);
-
   Future<void> syncSingleProfileFromRemote(String otherUid) =>
       FriendSearchRepository().syncSingleProfileFromRemote(otherUid);
 
@@ -545,8 +510,22 @@ class FriendRepository {
   Future<void> updateSinglePrayerStatus(String prayerCode, bool isDone) =>
       DailyPrayerStatusRepository().updateSinglePrayerStatus(prayerCode, isDone);
 
-  Future<DailyPrayerStatus> getStatusForCompanion(FriendUser friend) =>
-      CompanionPrayerService().fetchCompanionStatus(friend);
+  /// Synchronously builds companion status from local metadata (0ms network overhead).
+  Future<DailyPrayerStatus> getStatusForCompanion(FriendUser friend) async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    return DailyPrayerStatus(
+      id: 'prs_${friend.userId}_$today',
+      userId: friend.userId,
+      userName: friend.name.isNotEmpty ? friend.name : 'Companion',
+      userAvatarColor: friend.avatarColor,
+      userAvatarUrl: friend.avatarUrl,
+      date: today,
+      level: friend.level,
+      streakDays: 0,
+      habitsDone: 0,
+      habitsTotal: 0,
+    );
+  }
 
   Future<void> syncMyDailyPrayerStatus() =>
       DailyPrayerStatusRepository().syncMyDailyPrayerStatus();

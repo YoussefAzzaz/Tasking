@@ -17,6 +17,7 @@ import 'package:axis/domain/domain_events.dart';
 import 'package:axis/data/powersync/app_schema.dart';
 import 'package:axis/data/powersync/supabase_connector.dart';
 import 'package:axis/data/habit_repository.dart';
+import 'package:axis/data/user_profile_repository.dart';
 
 export 'package:axis/data/powersync/app_schema.dart';
 export 'package:axis/data/powersync/supabase_connector.dart';
@@ -386,9 +387,26 @@ Future<void> initCustomLocalTables() async {
         calculation_method TEXT,
         last_sync_date TEXT,
         adhan_notifications_enabled INTEGER DEFAULT 1,
-        fajr_alarm_enabled INTEGER DEFAULT 1
+        fajr_alarm_enabled INTEGER DEFAULT 1,
+        adhan_sound_id TEXT DEFAULT 'makkah',
+        adhan_sound_title TEXT DEFAULT 'Makkah Al-Mukarramah',
+        adhan_sound_path TEXT DEFAULT 'assets/audio/adhan_makkah.mp3',
+        adhan_sound_type TEXT DEFAULT 'bundled'
       )
     ''');
+
+    // Safe incremental column migration for existing installs
+    final soundCols = [
+      'ALTER TABLE prayer_settings ADD COLUMN adhan_sound_id TEXT DEFAULT "makkah"',
+      'ALTER TABLE prayer_settings ADD COLUMN adhan_sound_title TEXT DEFAULT "Makkah Al-Mukarramah"',
+      'ALTER TABLE prayer_settings ADD COLUMN adhan_sound_path TEXT DEFAULT "assets/audio/adhan_makkah.mp3"',
+      'ALTER TABLE prayer_settings ADD COLUMN adhan_sound_type TEXT DEFAULT "bundled"',
+    ];
+    for (final sql in soundCols) {
+      try {
+        await db.execute(sql);
+      } catch (_) {}
+    }
   } catch (e) {
     debugPrint('[PowerSync] Error in initCustomLocalTables: $e');
   }
@@ -399,10 +417,10 @@ Future<void> syncGlobalUserLevel() async {
   try {
     final uid = currentUserId;
     final logQuery = uid.isNotEmpty
-        ? "SELECT COALESCE(SUM(xp_earned), 0) AS total FROM logs WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')"
+        ? "SELECT COALESCE(SUM(xp_earned), 0) AS total FROM logs WHERE (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest') AND (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')"
         : "SELECT COALESCE(SUM(xp_earned), 0) AS total FROM logs WHERE (deleted_at IS NULL OR deleted_at = '') AND (event_type IS NULL OR event_type != 'focus_completed')";
     final focusQuery = uid.isNotEmpty
-        ? 'SELECT COALESCE(SUM(xp_earned), 0) AS total FROM focus_sessions WHERE completed = 1 AND user_id = ?'
+        ? "SELECT COALESCE(SUM(xp_earned), 0) AS total FROM focus_sessions WHERE completed = 1 AND (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest')"
         : 'SELECT COALESCE(SUM(xp_earned), 0) AS total FROM focus_sessions WHERE completed = 1';
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
 
@@ -410,23 +428,38 @@ Future<void> syncGlobalUserLevel() async {
     final focusRow = await db.getOptional(focusQuery, params);
     final logTotal = (logRow?['total'] as num?)?.toInt() ?? 0;
     final focusTotal = (focusRow?['total'] as num?)?.toInt() ?? 0;
-    final totalXp = logTotal + focusTotal;
+    int totalXp = logTotal + focusTotal;
 
-    int effectiveXp = totalXp;
-    if (uid.isNotEmpty) {
+    // Self-healing: if historical logs were purged or deficit exists compared to user_profiles.total_xp,
+    // heal the deficit by inserting a permanent historical progression anchor row into logs so lifetime XP is preserved!
+    if (uid.isNotEmpty && uid != 'local_guest') {
       final existingProfile = await db.getOptional(
         'SELECT total_xp, level FROM user_profiles WHERE user_id = ?',
         [uid],
       );
       if (existingProfile != null) {
         final profileXp = (existingProfile['total_xp'] as num?)?.toInt() ?? 0;
-        if (profileXp > effectiveXp) {
-          effectiveXp = profileXp;
+        if (profileXp > totalXp) {
+          final deficit = profileXp - totalXp;
+          final anchorId = IdGenerator.generateDeterministicId('historical_xp_anchor_$uid');
+          final anchorExists = await db.getOptional('SELECT id FROM logs WHERE id = ?', [anchorId]);
+          final nowIso = DateTime.now().toUtc().toIso8601String();
+          if (anchorExists == null) {
+            await db.execute('''
+              INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp, created_at, updated_at)
+              VALUES (?, ?, 'historical_base', 'historical_progression', ?, '2026-10-01T00:00:00.000Z', ?, ?)
+            ''', [anchorId, uid, deficit, nowIso, nowIso]);
+          } else {
+            await db.execute('''
+              UPDATE logs SET xp_earned = xp_earned + ?, updated_at = ? WHERE id = ?
+            ''', [deficit, nowIso, anchorId]);
+          }
+          totalXp += deficit;
         }
       }
     }
 
-    final lvl = GamificationEngine.calculateLevel(effectiveXp);
+    final lvl = GamificationEngine.calculateLevel(totalXp);
     final previousLevel = globalUserLevel.value;
     globalUserLevel.value = lvl;
     if (lvl > previousLevel) {
@@ -444,7 +477,7 @@ Future<void> syncGlobalUserLevel() async {
             level = ?,
             updated_at = ?
           WHERE id = ?
-        ''', [effectiveXp, lvl, nowUtc, existingId]);
+        ''', [totalXp, lvl, nowUtc, existingId]);
       } else {
         final profileId = IdGenerator.generateDeterministicId('profile_$uid');
         Map<String, dynamic>? authMeta;
@@ -476,9 +509,13 @@ Future<void> syncGlobalUserLevel() async {
         await db.execute('''
           INSERT INTO user_profiles (id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code, created_at, updated_at)
           VALUES (?, ?, ?, ?, '#6366F1', ?, ?, ?, ?, ?, ?)
-        ''', [profileId, uid, nameToUse, titleToUse, metaAvatar, effectiveXp, lvl, friendCode, nowUtc, nowUtc]);
+        ''', [profileId, uid, nameToUse, titleToUse, metaAvatar, totalXp, lvl, friendCode, nowUtc, nowUtc]);
       }
     }
+
+    try {
+      UserProfileRepository().updateNotifierLevelAndXp(totalXp, lvl);
+    } catch (_) {}
   } catch (e) {
     debugPrint('[PowerSync] Error in syncGlobalUserLevel: $e');
   }

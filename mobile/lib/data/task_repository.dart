@@ -371,10 +371,12 @@ class TaskRepository {
         }
         DomainEvents.emit(TaskCompletedEvent(task.id, xp));
       } else if (task.status != 'done' && oldStatus == 'done') {
+        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        final todayLogId = IdGenerator.generateDeterministicId('xp_task_${task.id}_$today');
         final deleteQuery = uid.isNotEmpty
-            ? "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE task_id = ? AND event_type = 'task_completed' AND (user_id = ? OR user_id IS NULL OR user_id = '')"
-            : "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE task_id = ? AND event_type = 'task_completed'";
-        final deleteParams = uid.isNotEmpty ? [now, now, task.id, uid] : [now, now, task.id];
+            ? "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE (id = ? OR (task_id = ? AND timestamp LIKE ?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
+            : "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE id = ? OR (task_id = ? AND timestamp LIKE ?)";
+        final deleteParams = uid.isNotEmpty ? [now, now, todayLogId, task.id, '$today%', uid] : [now, now, todayLogId, task.id, '$today%'];
         await db.execute(deleteQuery, deleteParams);
       }
 

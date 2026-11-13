@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 /// Full-height task card per DESIGN.md §Task Cards:
 /// Glass Tier 1 | 12px vertical, 14px horizontal padding
@@ -29,6 +31,10 @@ class TaskCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        ShareTaskSheet.show(context, task);
+      },
       child: AxisCard(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         child: Row(

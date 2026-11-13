@@ -47,7 +47,10 @@ void main() {
       expect(find.byType(NoteCategoriesSection), findsOneWidget);
       expect(find.byType(TaskTagsSection), findsOneWidget);
 
-      // 6. Verify Language Selector exists
+      // 6. Verify Adhan Settings Card rendered
+      expect(find.byType(MeAdhanSettingsCard), findsOneWidget);
+
+      // 7. Verify Language Selector exists
       expect(find.text('English'), findsOneWidget);
       expect(find.text('العربية'), findsOneWidget);
 
@@ -146,6 +149,43 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(deletedTag, equals('urgent'));
+    });
+
+    testWidgets('MeAdhanSettingsCard renders switches, current sound and action buttons', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: Locale('en'),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MeAdhanSettingsCard(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Header
+      expect(find.text('ADHAN & PRAYER NOTIFICATIONS'), findsOneWidget);
+
+      // Notification & Alarm switches
+      expect(find.text('Adhan Notifications'), findsOneWidget);
+      expect(find.text('Fajr Wake-Up Alarm'), findsOneWidget);
+      expect(find.byType(Switch), findsNWidgets(2));
+
+      // Active sound preview card
+      expect(find.text('ACTIVE ADHAN SOUND (TAKBEERAT):'), findsOneWidget);
+      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+
+      // Actions
+      expect(find.text('Explore Sounds'), findsOneWidget);
+      expect(find.text('Upload Audio'), findsOneWidget);
     });
   });
 }

@@ -307,8 +307,8 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                   fit: BoxFit.contain,
                   child: Switch(
                     value: isEnabled,
-                    activeThumbColor: AxisColors.primary,
-                    activeTrackColor: AxisColors.primary.withValues(alpha: 0.35),
+                    activeThumbColor: habitColor,
+                    activeTrackColor: habitColor.withValues(alpha: 0.35),
                     inactiveThumbColor: AxisColors.textDim,
                     inactiveTrackColor: AxisColors.surfaceHigh,
                     onChanged: (val) {

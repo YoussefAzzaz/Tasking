@@ -1,16 +1,13 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:math';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:axis/core/router.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/data/prayers/adhan_sound_service.dart';
 import 'package:axis/ui/habits/widgets/fajr_alarm_dialog.dart';
 
 /// Centralized service managing prayer Adhan notifications,
@@ -39,6 +36,7 @@ class AdhanAlarmService {
   /// Initializes alarm preferences from SQLite
   Future<void> init() async {
     try {
+      await AdhanSoundService().init();
       final rows = await db.getAll('SELECT * FROM prayer_settings WHERE id = ?', ['current']);
       if (rows.isNotEmpty) {
         final row = rows.first;
@@ -226,74 +224,16 @@ class AdhanAlarmService {
     }
   }
 
-  /// Generates a synthesized high-frequency alarm beeping WAV buffer
-  Future<File> _getOrGenerateAlarmWav() async {
-    final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/fajr_alarm_beep.wav');
-    if (await file.exists() && (await file.length()) > 500) {
-      return file;
-    }
-
-    const sampleRate = 22050;
-    const durationSeconds = 2;
-    const totalSamples = sampleRate * durationSeconds;
-    final samples = Int16List(totalSamples);
-
-    // Beeping pattern: 250ms tone at 880Hz, 100ms pause, 250ms tone at 1200Hz, 400ms pause
-    for (int i = 0; i < totalSamples; i++) {
-      final t = i / sampleRate;
-      final cycle = t % 1.0;
-      double tone = 0.0;
-
-      if (cycle < 0.25) {
-        tone = sin(2 * pi * 880 * t);
-      } else if (cycle >= 0.35 && cycle < 0.60) {
-        tone = sin(2 * pi * 1200 * t);
-      }
-
-      final val = (tone * 0.75 * 32767).toInt();
-      samples[i] = val.clamp(-32768, 32767);
-    }
-
-    final byteData = ByteData(44 + totalSamples * 2);
-    void writeString(int offset, String str) {
-      for (int i = 0; i < str.length; i++) {
-        byteData.setUint8(offset + i, str.codeUnitAt(i));
-      }
-    }
-
-    writeString(0, 'RIFF');
-    byteData.setUint32(4, 36 + totalSamples * 2, Endian.little);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    byteData.setUint32(16, 16, Endian.little);
-    byteData.setUint16(20, 1, Endian.little);
-    byteData.setUint16(22, 1, Endian.little);
-    byteData.setUint32(24, sampleRate, Endian.little);
-    byteData.setUint32(28, sampleRate * 2, Endian.little);
-    byteData.setUint16(32, 2, Endian.little);
-    byteData.setUint16(34, 16, Endian.little);
-    writeString(36, 'data');
-    byteData.setUint32(40, totalSamples * 2, Endian.little);
-
-    for (int i = 0; i < totalSamples; i++) {
-      byteData.setInt16(44 + i * 2, samples[i], Endian.little);
-    }
-
-    await file.writeAsBytes(byteData.buffer.asUint8List());
-    return file;
-  }
-
-  /// Starts continuous alarm sound and vibration
+  /// Starts Adhan alarm audio playback and vibration
   Future<void> startAlarmSound() async {
     if (_isAlarmRinging) return;
     _isAlarmRinging = true;
 
     try {
-      final wavFile = await _getOrGenerateAlarmWav();
       _alarmPlayer ??= AudioPlayer();
       await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
-      await _alarmPlayer!.play(DeviceFileSource(wavFile.path));
+      final source = AdhanSoundService().getActiveAudioSource();
+      await _alarmPlayer!.play(source);
     } catch (e) {
       debugPrint('[AdhanAlarmService] startAlarmSound error: $e');
     }

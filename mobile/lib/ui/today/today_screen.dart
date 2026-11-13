@@ -170,8 +170,11 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _toggleTaskStatus(Task task, bool isDone) async {
-    // Optimistic UI update
-    final deltaXp = (task.priority == 1 ? 75 : (task.priority == 2 ? 50 : 25)) * (isDone ? 1 : -1);
+    // Optimistic UI update calibrated to GamificationEngine authoritative values
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final isOnTime = task.dueDate == null || task.dueDate!.isEmpty || todayStr.compareTo(task.dueDate!) <= 0;
+    final unitXp = GamificationEngine.taskCompletionXp(priority: task.priority, isOnTime: isOnTime);
+    final deltaXp = unitXp * (isDone ? 1 : -1);
     setState(() {
       _totalXp = (_totalXp + deltaXp).clamp(0, 9999999);
       _todayXp = (_todayXp + deltaXp).clamp(0, 9999999);
