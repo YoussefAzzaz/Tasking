@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
-import 'package:axis/data/task_repository.dart';
-import 'package:axis/data/note_repository.dart';
 
 void main() {
   group('Repository Limit & Offset Pagination Unit Tests', () {

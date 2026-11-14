@@ -7,7 +7,6 @@ import 'package:axis/data/sharing/companion_share_models.dart';
 import 'package:axis/data/task_repository.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
-import 'package:axis/ui/friends/widgets/pending_shares_section.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 void main() {

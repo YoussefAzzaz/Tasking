@@ -30,7 +30,9 @@ import 'dart:async';
 
 Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  }
 
   // Configure desktop window to simulate mobile phone form factor
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
@@ -46,9 +48,13 @@ Future<void> main() async {
       title: 'Axis Command Center',
     );
 
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.show();
-      await windowManager.focus();
+    // Apply window options and show window after the first frame has rendered,
+    // avoiding the Linux GTK OpenGL frame timeout (have 0x0) during startup.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
     });
   }
 

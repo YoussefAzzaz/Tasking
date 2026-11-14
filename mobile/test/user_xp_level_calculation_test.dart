@@ -102,8 +102,8 @@ void main() {
 
     test('Deterministic log ID per day isolates task completion across days', () {
       const taskId = 'task_deploy_prod';
-      final day1 = '2026-11-09';
-      final day2 = '2026-11-10';
+      const day1 = '2026-11-09';
+      const day2 = '2026-11-10';
 
       final logIdDay1 = IdGenerator.generateDeterministicId('xp_task_${taskId}_$day1');
       final logIdDay2 = IdGenerator.generateDeterministicId('xp_task_${taskId}_$day2');

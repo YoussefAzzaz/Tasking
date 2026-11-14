@@ -19,21 +19,26 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "9.1.0" apply false
-    id("com.android.library") version "9.1.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.4.0" apply false
+    id("com.android.application") version "9.3.1" apply false
+    id("com.android.library") version "9.3.1" apply false
+    id("org.jetbrains.kotlin.android") version "2.4.20" apply false
 }
 
 // Automatically suppress legacy KGP warning for home_widget on AGP 9+
 try {
-    val pubCacheDir = File(System.getProperty("user.home"), "AppData/Local/Pub/Cache/hosted/pub.dev")
-    if (pubCacheDir.exists()) {
-        pubCacheDir.listFiles { file -> file.isDirectory && file.name.startsWith("home_widget") }?.forEach { pluginDir ->
-            val buildGradle = File(pluginDir, "android/build.gradle")
-            if (buildGradle.exists()) {
-                val content = buildGradle.readText()
-                if (content.contains("apply plugin: 'kotlin-android'")) {
-                    buildGradle.writeText(content.replace("apply plugin: 'kotlin-android'", "pluginManager.apply('kotlin-android')"))
+    val pubCacheDirs = listOf(
+        File(System.getProperty("user.home"), "AppData/Local/Pub/Cache/hosted/pub.dev"),
+        File(System.getProperty("user.home"), ".pub-cache/hosted/pub.dev")
+    )
+    for (pubCacheDir in pubCacheDirs) {
+        if (pubCacheDir.exists()) {
+            pubCacheDir.listFiles { file -> file.isDirectory && file.name.startsWith("home_widget") }?.forEach { pluginDir ->
+                val buildGradle = File(pluginDir, "android/build.gradle")
+                if (buildGradle.exists()) {
+                    val content = buildGradle.readText()
+                    if (content.contains("apply plugin: 'kotlin-android'")) {
+                        buildGradle.writeText(content.replace("apply plugin: 'kotlin-android'", "pluginManager.apply('kotlin-android')"))
+                    }
                 }
             }
         }

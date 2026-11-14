@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
@@ -171,7 +172,7 @@ void main() {
       sw.reset();
 
       // Run 300 streak calculations with 60 days of logs each
-      final nowStr = '2026-11-09';
+      const nowStr = '2026-11-09';
       int calculatedStreaks = 0;
       for (final habit in habits) {
         final mockLogs = List.generate(60, (d) {
@@ -271,13 +272,14 @@ void main() {
         final currentRssMb = ProcessInfo.currentRss / (1024 * 1024);
 
         print('--- Checkpoint: $target Journals ---');
-        print('  Insertion time (${toAdd} rows): ${insertTime}ms');
+        print('  Insertion time ($toAdd rows): ${insertTime}ms');
         print('  Paged query (LIMIT 50): ${pagedQueryTime}ms (fetched ${pagedRows.length} rows)');
         print('  Unpaged query (SELECT *): ${unpagedQueryTime}ms (fetched ${unpagedRows.length} rows)');
         print('  In-memory Dart deserialization: ${mappingTime}ms');
         print('  Process RSS Memory: ${currentRssMb.toStringAsFixed(1)} MB');
 
         expect(unpagedRows.length, equals(target));
+        expect(mappedCount, equals(target));
         expect(pagedRows.length, equals(50));
       }
 
@@ -371,6 +373,7 @@ void main() {
             final t = Task.fromRow(row);
             if (t.id.isNotEmpty) mapped++;
           }
+          expect(mapped, equals(target));
           mappingTime = sw.elapsedMilliseconds;
         } else {
           // Count only to verify SQLite holds the rows without loading all into memory
@@ -383,7 +386,7 @@ void main() {
         final currentRssMb = ProcessInfo.currentRss / (1024 * 1024);
 
         print('--- Checkpoint: $target Tasks ---');
-        print('  Insertion time (${toAdd} rows): ${insertTime}ms');
+        print('  Insertion time ($toAdd rows): ${insertTime}ms');
         print('  Paged query (LIMIT 50): ${pagedQueryTime}ms (fetched ${pagedRows.length} rows)');
         if (target <= 250000) {
           print('  Unpaged query (SELECT *): ${unpagedQueryTime}ms (fetched $rowCount rows)');
@@ -479,7 +482,7 @@ void main() {
         final currentRssMb = ProcessInfo.currentRss / (1024 * 1024);
 
         print('--- Checkpoint: $target Notes ---');
-        print('  Insertion time (${toAdd} rows): ${insertTime}ms');
+        print('  Insertion time ($toAdd rows): ${insertTime}ms');
         print('  Paged query (LIMIT 50): ${pagedQueryTime}ms (fetched ${pagedRows.length} rows)');
         print('  Verified count / Query time: ${queryTime}ms (total: $rowCount notes)');
         print('  Process RSS Memory: ${currentRssMb.toStringAsFixed(1)} MB');
