@@ -215,19 +215,11 @@ void main() {
         ),
       );
 
-      // Verify timer labels and preset chips exist
-      expect(find.text('TASK DURATION (TIMER)'), findsOneWidget);
-      expect(find.text('Set Timer'), findsOneWidget);
+      // Verify timer labels, required default (15 min), and preset chips exist
+      expect(find.text('TIMER (≤15M MICRO) *'), findsOneWidget);
+      expect(find.text('15 min'), findsOneWidget);
       expect(find.text('15m'), findsOneWidget);
       expect(find.text('30m'), findsOneWidget);
-
-      // Tapping 15m preset sets it and shows micro-slot badge
-      await tester.ensureVisible(find.text('15m'));
-      await tester.tap(find.text('15m'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('15 min'), findsOneWidget);
-      expect(find.text('TIMER (≤15M MICRO)'), findsOneWidget);
       expect(find.byIcon(Icons.bolt_rounded), findsWidgets);
 
       // Tapping 30m preset changes duration to 30 min (non-micro)
@@ -236,7 +228,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('30 min'), findsOneWidget);
-      expect(find.text('TASK DURATION (TIMER)'), findsOneWidget);
+      expect(find.text('TASK DURATION (TIMER) *'), findsOneWidget);
+
+      // Tapping 15m preset sets it back to 15 min micro-slot
+      await tester.ensureVisible(find.text('15m'));
+      await tester.tap(find.text('15m'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('15 min'), findsOneWidget);
+      expect(find.text('TIMER (≤15M MICRO) *'), findsOneWidget);
     });
   });
 }

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/task_repository.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../widgets/desktop_checkbox.dart';
 import '../../widgets/priority_badge.dart';
 import '../../widgets/task_status_rail.dart';
@@ -29,6 +30,10 @@ class ProjectsTaskItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isArabic = AppLocalizations.of(context).isArabic;
     final isDone = task.isCompleted;
+    final cleanSender = (task.senderUsername ?? '')
+        .trim()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
     final railColor = isDone
         ? AxisColors.tertiary
         : switch (task.priority) {
@@ -52,6 +57,8 @@ class ProjectsTaskItem extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      onSecondaryTap: isDone ? null : () => ShareTaskSheet.show(context, task),
+      onLongPress: isDone ? null : () => ShareTaskSheet.show(context, task),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 3.0),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -91,19 +98,77 @@ class ProjectsTaskItem extends StatelessWidget {
                       color: isDone ? AxisColors.textDim : AxisColors.textHigh,
                     ),
                   ),
-                  if (task.dueDate != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      dueDateLabel.trim(),
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 10,
-                        color: isOverdue
-                            ? AxisColors.error
-                            : isDone
-                                ? AxisColors.tertiary
-                                : AxisColors.textDim,
-                        fontWeight: (isOverdue || isDone) ? FontWeight.w600 : FontWeight.normal,
-                      ),
+                  if (task.dueDate != null ||
+                      task.isCollaborative ||
+                      cleanSender.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 3,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (task.isCollaborative)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AxisColors.secondary.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.handshake_rounded,
+                                  size: 10,
+                                  color: AxisColors.secondary,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  isArabic ? 'تعاوني' : 'COLLAB',
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: AxisColors.secondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (cleanSender.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color:
+                                  AxisColors.primarySoft.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '@$cleanSender',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                                color: AxisColors.primarySoft,
+                              ),
+                            ),
+                          ),
+                        if (task.dueDate != null)
+                          Text(
+                            dueDateLabel.trim(),
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 10,
+                              color: isOverdue
+                                  ? AxisColors.error
+                                  : isDone
+                                      ? AxisColors.tertiary
+                                      : AxisColors.textDim,
+                              fontWeight: (isOverdue || isDone)
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ],
@@ -134,6 +199,27 @@ class ProjectsTaskItem extends StatelessWidget {
             ] else if (task.priority != null) ...[
               const SizedBox(width: 8),
               PriorityBadge(priority: task.priority, compact: true),
+            ],
+            if (!isDone) ...[
+              const SizedBox(width: 6),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Tooltip(
+                  message: isArabic ? 'مشاركة المهمة' : 'Share Task',
+                  child: GestureDetector(
+                    key: ValueKey('projects_task_item_share_${task.id}'),
+                    onTap: () => ShareTaskSheet.show(context, task),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4.0),
+                      child: Icon(
+                        Icons.ios_share_rounded,
+                        size: 15,
+                        color: AxisColors.secondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ],
         ),

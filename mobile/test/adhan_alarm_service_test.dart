@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/data/adhan_alarm_service.dart';
 
 void main() {
   group('Adhan & Fajr Alarm Service Tests', () {
@@ -76,6 +77,20 @@ void main() {
 
       expect(fileLength, greaterThan(44));
       expect(totalSamples * 2, fileLength - 44);
+    });
+
+    test('sortOrderForPrayerCode and canonicalPrayerCode resolve all 5 canonical prayers', () {
+      expect(AdhanAlarmService.sortOrderForPrayerCode('fajr'), 1);
+      expect(AdhanAlarmService.sortOrderForPrayerCode('Fajr Prayer'), 1);
+      expect(AdhanAlarmService.sortOrderForPrayerCode('prayer_u1_dhuhr'), 2);
+      expect(AdhanAlarmService.sortOrderForPrayerCode('habit_prayer_asr'), 3);
+      expect(AdhanAlarmService.sortOrderForPrayerCode('MAGHRIB'), 4);
+      expect(AdhanAlarmService.sortOrderForPrayerCode('isha'), 5);
+      expect(AdhanAlarmService.sortOrderForPrayerCode('unknown'), isNull);
+
+      expect(AdhanAlarmService.canonicalPrayerCode('prayer_abc_dhuhr'), 'dhuhr');
+      expect(AdhanAlarmService.canonicalPrayerCode('Asr'), 'asr');
+      expect(AdhanAlarmService.canonicalPrayerCode(''), isNull);
     });
   });
 }

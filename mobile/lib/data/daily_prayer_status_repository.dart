@@ -29,6 +29,12 @@ class DailyPrayerStatusRepository {
     _currentUserPrayerCache[code] = isDone;
   }
 
+  void clearSessionState() {
+    _currentUserPrayerCache.clear();
+    _currentUserPrayerCacheDate = null;
+    notifyChecklistChanged();
+  }
+
   final StreamController<void> _checklistTrigger = StreamController<void>.broadcast();
   Stream<void> get checklistTriggerStream => _checklistTrigger.stream;
 
@@ -53,6 +59,7 @@ class DailyPrayerStatusRepository {
   }
 
   String get currentUserId {
+    if (isSigningOut) return '';
     try {
       final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid != null && uid.isNotEmpty) return uid;
@@ -236,9 +243,9 @@ class DailyPrayerStatusRepository {
   /// Synchronizes user prayers and habit progress into daily_prayer_status.
   /// Preserves completed prayer flags from being accidentally wiped.
   Future<void> syncMyDailyPrayerStatus({bool notify = true}) async {
-    if (!isDatabaseInitialized) return;
+    if (!isDatabaseInitialized || isSigningOut) return;
     final uid = currentUserId;
-    if (uid.isEmpty) return;
+    if (uid.isEmpty || isSigningOut) return;
 
     final now = DateTime.now();
     final today = DateFormat('yyyy-MM-dd').format(now);

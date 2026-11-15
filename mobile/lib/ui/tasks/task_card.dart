@@ -24,17 +24,28 @@ class TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDone = task.status == 'done';
+    final cleanSender = (task.senderUsername ?? '')
+        .trim()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
     final tags = (task.tags ?? '')
         .split(',')
-        .where((t) => t.trim().isNotEmpty)
+        .map((t) => t.trim())
+        .where((t) =>
+            t.isNotEmpty &&
+            (cleanSender.isEmpty ||
+                t.replaceFirst(RegExp(r'^@+'), '').toLowerCase() !=
+                    cleanSender.toLowerCase()))
         .toList();
 
     return GestureDetector(
       onTap: onTap,
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        ShareTaskSheet.show(context, task);
-      },
+      onLongPress: isDone
+          ? null
+          : () {
+              HapticFeedback.mediumImpact();
+              ShareTaskSheet.show(context, task);
+            },
       child: AxisCard(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
         child: Row(
@@ -76,6 +87,21 @@ class TaskCard extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
+                        if (task.isCollaborative)
+                          AxisChip(
+                            label: context.isArabic ? 'تعاوني' : 'COLLAB',
+                            dotColor: AxisColors.secondary,
+                            backgroundColor:
+                                AxisColors.secondary.withValues(alpha: 0.14),
+                            textColor: AxisColors.secondary,
+                          ),
+                        if (cleanSender.isNotEmpty)
+                          AxisChip(
+                            label: '@$cleanSender',
+                            backgroundColor:
+                                AxisColors.primarySoft.withValues(alpha: 0.16),
+                            textColor: AxisColors.primarySoft,
+                          ),
                         if (task.priority != null)
                           PriorityChip(priority: task.priority!),
                         if (task.dueDate != null)
@@ -125,7 +151,11 @@ class TaskCard extends StatelessWidget {
   }
 
   bool _hasMeta(Task t) =>
-      t.priority != null || t.dueDate != null || (t.tags?.isNotEmpty ?? false);
+      t.isCollaborative ||
+      (t.senderUsername != null && t.senderUsername!.trim().isNotEmpty) ||
+      t.priority != null ||
+      t.dueDate != null ||
+      (t.tags?.isNotEmpty ?? false);
 
   String _formatEstimate(int minutes, bool isArabic) {
     if (minutes >= 60) {

@@ -239,7 +239,7 @@ class AdhanSoundService {
       client.close(force: true);
 
       final rawBytes = bytesBuilder.toBytes();
-      final croppedBytes = sliceMp3Bytes(rawBytes, targetDuration: 16.0);
+      final croppedBytes = sliceMp3Bytes(rawBytes, targetDuration: 45.0);
 
       final docsDir = await getApplicationDocumentsDirectory();
       final audioDir = Directory('${docsDir.path}/custom_adhan_sounds');
@@ -258,7 +258,7 @@ class AdhanSoundService {
   }
 
   /// Plays or pauses preview for a given sound option.
-  /// Automatically stops preview after ~16 seconds to keep preview short.
+  /// Automatically stops preview after ~45 seconds to keep preview bounded.
   Future<void> togglePreview(AdhanSoundOption sound) async {
     if (_currentlyPreviewingId == sound.id) {
       await stopPreview();
@@ -286,9 +286,9 @@ class AdhanSoundService {
       await _previewPlayer!.stop();
       await _previewPlayer!.play(source);
 
-      // Auto-stop preview after 16 seconds to guarantee short notification preview
+      // Auto-stop preview after 45 seconds
       _previewTimer?.cancel();
-      _previewTimer = Timer(const Duration(seconds: 16), () {
+      _previewTimer = Timer(const Duration(seconds: 45), () {
         stopPreview();
       });
 
@@ -344,7 +344,7 @@ class AdhanSoundService {
 
       if (fileName.toLowerCase().endsWith('.mp3')) {
         final rawBytes = await File(originalPath).readAsBytes();
-        final croppedBytes = sliceMp3Bytes(rawBytes, targetDuration: 16.0);
+        final croppedBytes = sliceMp3Bytes(rawBytes, targetDuration: 45.0);
         await File(destPath).writeAsBytes(croppedBytes);
       } else {
         await File(originalPath).copy(destPath);

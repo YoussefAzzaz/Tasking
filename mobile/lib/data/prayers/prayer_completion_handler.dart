@@ -5,6 +5,7 @@ import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/stats_repository.dart';
 import 'package:axis/data/daily_prayer_status_repository.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
+import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'prayer_repository.dart';
 
@@ -147,6 +148,9 @@ class PrayerCompletionHandler {
 
       // 5. Directly update daily_prayer_status in DailyPrayerStatusRepository for instant atomic sync
       await DailyPrayerStatusRepository().updateSinglePrayerStatus(code, isDone);
+
+      // 6. Cancel or reschedule today's Adhan/Fajr notification immediately
+      await AdhanAlarmService().onPrayerCompletedToday(code, isDone: isDone);
 
       StatsRepository().invalidateStats();
       await syncGlobalUserLevel();

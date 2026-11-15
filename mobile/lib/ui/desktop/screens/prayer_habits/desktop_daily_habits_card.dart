@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/habit_category_repository.dart';
@@ -225,6 +226,8 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                   children: [
                     Text(
                       habit.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.getFont(
                         'Geist',
                         fontSize: 13,
@@ -235,27 +238,58 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                             : (habit.isDoneToday ? AxisColors.textDim : AxisColors.textHigh),
                       ),
                     ),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
+                      runSpacing: 2,
                       children: [
+                        if ((habit.senderUsername ?? '')
+                            .trim()
+                            .replaceFirst(RegExp(r'^@+'), '')
+                            .trim()
+                            .isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color:
+                                  AxisColors.primarySoft.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '@${(habit.senderUsername ?? '').trim().replaceFirst(RegExp(r'^@+'), '').trim()}',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                                color: AxisColors.primarySoft,
+                              ),
+                            ),
+                          ),
+                        ],
                         Text(
                           '$scheduleLabel  ·  $categoryLabel$pausedLabel',
                           style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                         ),
                         if (habit.remindTime != null && habit.remindTime!.trim().isNotEmpty && isEnabled) ...[
                           Text(
-                            '  ·  ',
+                            '·',
                             style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                           ),
-                          const Icon(Icons.access_time_rounded, size: 11, color: AxisColors.textMuted),
-                          const SizedBox(width: 3),
-                          Text(
-                            habit.remindTime!,
-                            style: GoogleFonts.getFont(
-                              'Geist',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: AxisColors.textMuted,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 11, color: AxisColors.textMuted),
+                              const SizedBox(width: 3),
+                              Text(
+                                habit.remindTime!,
+                                style: GoogleFonts.getFont(
+                                  'Geist',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AxisColors.textMuted,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],
@@ -322,21 +356,34 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
               ),
             ),
             const SizedBox(width: 6),
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () => widget.onShowCreateHabitDialog(habit),
-                child: const Padding(
-                  padding: EdgeInsets.all(4.0),
-                  child: Icon(Icons.edit_outlined, size: 15, color: AxisColors.textDim),
+            PopupMenuButton<String>(
+              key: ValueKey('desktop_habit_more_${habit.id}'),
+              icon: const Icon(
+                Icons.more_vert_rounded,
+                size: 18,
+                color: AxisColors.textDim,
+              ),
+              tooltip: isArabic ? 'خيارات العادة' : 'Habit options',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 28,
+                minHeight: 28,
+              ),
+              color: AxisColors.surfaceHigh,
+              elevation: 10,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(
+                  color: AxisColors.borderPrimary,
+                  width: 1.0,
                 ),
               ),
-            ),
-            const SizedBox(width: 2),
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () async {
+              onSelected: (action) async {
+                if (action == 'share') {
+                  await ShareTaskSheet.showForHabit(context, habit);
+                } else if (action == 'edit') {
+                  widget.onShowCreateHabitDialog(habit);
+                } else if (action == 'delete') {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
@@ -376,12 +423,67 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                       AxisSnackBar.showDeleted(context, itemTitle: hName, itemType: 'Habit');
                     }
                   }
-                },
-                child: const Padding(
-                  padding: EdgeInsets.all(4.0),
-                  child: Icon(Icons.delete_outline_rounded, size: 15, color: AxisColors.textDim),
+                }
+              },
+              itemBuilder: (ctx) => [
+                PopupMenuItem<String>(
+                  value: 'share',
+                  height: 36,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.ios_share_rounded, size: 15, color: AxisColors.secondary),
+                      const SizedBox(width: 8),
+                      Text(
+                        isArabic ? 'مشاركة العادة' : 'Share Habit',
+                        style: GoogleFonts.getFont(
+                          'Geist',
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AxisColors.textHigh,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                PopupMenuItem<String>(
+                  value: 'edit',
+                  height: 36,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.edit_outlined, size: 15, color: AxisColors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        isArabic ? 'تعديل العادة' : 'Edit Habit',
+                        style: GoogleFonts.getFont(
+                          'Geist',
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AxisColors.textHigh,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'delete',
+                  height: 36,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.delete_outline_rounded, size: 15, color: AxisColors.priorityHigh),
+                      const SizedBox(width: 8),
+                      Text(
+                        isArabic ? 'حذف العادة' : 'Delete Habit',
+                        style: GoogleFonts.getFont(
+                          'Geist',
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AxisColors.priorityHigh,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),

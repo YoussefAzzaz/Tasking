@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:axis/core/router.dart';
@@ -9,9 +10,25 @@ import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/data/prayers/adhan_sound_service.dart';
 import 'package:axis/ui/habits/widgets/fajr_alarm_dialog.dart';
+import 'package:axis/ui/prayers/adhan_full_screen_alarm.dart';
+
+/// Arabic prayer name lookup for full-screen alarm display.
+const _prayerNameArabic = <String, String>{
+  'Fajr': 'الفجر',
+  'Dhuhr': 'الظهر',
+  'Asr': 'العصر',
+  'Maghrib': 'المغرب',
+  'Isha': 'العشاء',
+};
 
 /// Centralized service managing prayer Adhan notifications,
-/// scheduling, and the persistent cognitive Fajr Wake-Up Alarm.
+/// scheduling, full-screen alarm overlays, and the persistent
+/// cognitive Fajr Wake-Up Alarm.
+///
+/// Uses the OS alarm audio channel so the Adhan plays at full
+/// alarm volume even when the device is in silent/DND mode,
+/// and fires full-screen intents to wake the screen and show
+/// the adhan overlay even when the app is closed or locked.
 class AdhanAlarmService {
   static final AdhanAlarmService _instance = AdhanAlarmService._();
   factory AdhanAlarmService() => _instance;
@@ -22,31 +39,583 @@ class AdhanAlarmService {
       (defaultTargetPlatform == TargetPlatform.android ||
        defaultTargetPlatform == TargetPlatform.iOS);
 
+  static const MethodChannel _platformChannel = MethodChannel('com.axis.axis/settings');
+
   bool _adhanNotificationsEnabled = true;
   bool _fajrAlarmEnabled = true;
+  bool _adhanPermissionsPrompted = false;
   AudioPlayer? _alarmPlayer;
   Timer? _vibrationTimer;
   bool _isAlarmRinging = false;
   bool _isModalShowing = false;
 
+  /// Guards against duplicate full-screen adhan overlays.
+  bool isFullScreenAlarmShowing = false;
+  bool _platformHandlerRegistered = false;
+
   bool get adhanNotificationsEnabled => _adhanNotificationsEnabled;
   bool get fajrAlarmEnabled => _fajrAlarmEnabled;
   bool get isAlarmRinging => _isAlarmRinging;
+  bool get hasPromptedPermissions => _adhanPermissionsPrompted;
 
-  /// Initializes alarm preferences from SQLite
-  Future<void> init() async {
+  bool _settingsLoaded = false;
+
+  /// Canonical sort order (1..5) for a prayer code, id, or display name.
+  static int? sortOrderForPrayerCode(String raw) {
+    final lower = raw.trim().toLowerCase();
+    if (lower.isEmpty) return null;
+    if (lower.contains('fajr')) return 1;
+    if (lower.contains('dhuhr')) return 2;
+    if (lower.contains('asr')) return 3;
+    if (lower.contains('maghrib')) return 4;
+    if (lower.contains('isha')) return 5;
+    return null;
+  }
+
+  /// Canonical prayer code ('fajr', 'dhuhr', 'asr', 'maghrib', 'isha') from an id or name.
+  static String? canonicalPrayerCode(String raw) {
+    switch (sortOrderForPrayerCode(raw)) {
+      case 1:
+        return 'fajr';
+      case 2:
+        return 'dhuhr';
+      case 3:
+        return 'asr';
+      case 4:
+        return 'maghrib';
+      case 5:
+        return 'isha';
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _loadAlarmSettingsFromDb() async {
+    if (_settingsLoaded || !isDatabaseInitialized) return;
     try {
-      await AdhanSoundService().init();
       final rows = await db.getAll('SELECT * FROM prayer_settings WHERE id = ?', ['current']);
       if (rows.isNotEmpty) {
         final row = rows.first;
         final adhanVal = row['adhan_notifications_enabled'] as num?;
         final fajrVal = row['fajr_alarm_enabled'] as num?;
+        final promptedVal = row['adhan_permissions_prompted'] as num?;
         if (adhanVal != null) _adhanNotificationsEnabled = adhanVal.toInt() == 1;
         if (fajrVal != null) _fajrAlarmEnabled = fajrVal.toInt() == 1;
+        if (promptedVal != null) _adhanPermissionsPrompted = promptedVal.toInt() == 1;
+      }
+      _settingsLoaded = true;
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] _loadAlarmSettingsFromDb notice: $e');
+    }
+  }
+
+  /// Checks whether the given prayer has already been marked completed today in SQLite.
+  Future<bool> isPrayerCompletedToday(String prayerCodeOrId) async {
+    final code = canonicalPrayerCode(prayerCodeOrId);
+    if (code == null || !isDatabaseInitialized) return false;
+    try {
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final uid = currentUserId;
+
+      final logQuery = uid.isNotEmpty
+          ? '''
+            SELECT id FROM habit_logs
+            WHERE log_date = ?
+              AND status = 'done'
+              AND (LOWER(habit_id) = ? OR LOWER(habit_id) LIKE ?)
+              AND (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest')
+            LIMIT 1
+          '''
+          : '''
+            SELECT id FROM habit_logs
+            WHERE log_date = ?
+              AND status = 'done'
+              AND (LOWER(habit_id) = ? OR LOWER(habit_id) LIKE ?)
+            LIMIT 1
+          ''';
+      final logParams = uid.isNotEmpty
+          ? [todayStr, 'prayer_$code', '%_$code', uid]
+          : [todayStr, 'prayer_$code', '%_$code'];
+      final lRow = await db.getOptional(logQuery, logParams);
+      if (lRow != null) return true;
+
+      final prayerQuery = uid.isNotEmpty
+          ? '''
+            SELECT is_done, updated_at FROM prayers
+            WHERE (LOWER(prayer_code) = ? OR LOWER(id) = ? OR LOWER(id) LIKE ?)
+              AND is_done = 1
+              AND (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest')
+            LIMIT 1
+          '''
+          : '''
+            SELECT is_done, updated_at FROM prayers
+            WHERE (LOWER(prayer_code) = ? OR LOWER(id) = ? OR LOWER(id) LIKE ?)
+              AND is_done = 1
+            LIMIT 1
+          ''';
+      final prayerParams = uid.isNotEmpty
+          ? [code, 'prayer_$code', '%_$code', uid]
+          : [code, 'prayer_$code', '%_$code'];
+      final pRow = await db.getOptional(prayerQuery, prayerParams);
+      if (pRow == null) return false;
+
+      final updatedAt = pRow['updated_at']?.toString() ?? '';
+      if (updatedAt.isEmpty) return false;
+      try {
+        final dt = DateTime.parse(updatedAt).toLocal();
+        return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+      } catch (_) {
+        return updatedAt.startsWith(todayStr);
       }
     } catch (e) {
+      debugPrint('[AdhanAlarmService] isPrayerCompletedToday error: $e');
+      return false;
+    }
+  }
+
+  /// Cancels today's scheduled/active notification when a prayer is marked done,
+  /// or re-evaluates scheduling when unchecked back to undone.
+  Future<void> onPrayerCompletedToday(
+    String prayerCodeOrId, {
+    required bool isDone,
+  }) async {
+    if (!isSupportedPlatform) return;
+    final sortOrder = sortOrderForPrayerCode(prayerCodeOrId);
+    if (sortOrder == null) return;
+
+    final notifId = 1000 + sortOrder;
+    final nativeReqCode = 2000 + sortOrder;
+
+    try {
+      await _loadAlarmSettingsFromDb();
+      if (isDone) {
+        await AwesomeNotifications().cancel(notifId);
+        await AwesomeNotifications().cancelSchedule(notifId);
+        await AwesomeNotifications().dismiss(notifId);
+        await cancelNativeAlarm(nativeReqCode);
+        if (sortOrder == 1) {
+          await AwesomeNotifications().cancel(9991);
+          await AwesomeNotifications().cancelSchedule(9991);
+          await AwesomeNotifications().dismiss(9991);
+        }
+        if (_isAlarmRinging || sortOrder == 1) {
+          await stopAlarmSound();
+        }
+        // Roll forward to tomorrow's prayer time for this slot so tomorrow stays scheduled.
+        if (_adhanNotificationsEnabled || (_fajrAlarmEnabled && sortOrder == 1)) {
+          final todayPrayers =
+              await PrayerTimeService().calculatePrayersForDate(DateTime.now());
+          await scheduleAllPrayers(todayPrayers);
+        }
+      } else {
+        final prayers =
+            await PrayerTimeService().calculatePrayersForDate(DateTime.now());
+        await scheduleAllPrayers(prayers);
+      }
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] onPrayerCompletedToday error: $e');
+    }
+  }
+
+  /// Registers native->Dart callback handler and initializes alarm preferences.
+  Future<void> init() async {
+    _registerPlatformHandler();
+    try {
+      await AdhanSoundService().init();
+      await _loadAlarmSettingsFromDb();
+      await _syncKeepAliveServiceState();
+      await checkPendingNativeAdhanLaunch();
+    } catch (e) {
       debugPrint('Error initializing AdhanAlarmService: $e');
+    }
+  }
+
+  void _registerPlatformHandler() {
+    if (_platformHandlerRegistered || !isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+    _platformHandlerRegistered = true;
+    _platformChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onAdhanTrigger') {
+        final args = (call.arguments as Map?)?.cast<dynamic, dynamic>();
+        if (args != null) {
+          final prayerName = (args['prayerName'] as String?) ?? 'Prayer';
+          final prayerId = args['prayerId'] as String?;
+          final prayerTime = args['prayerTime'] as String?;
+          triggerAdhanFullScreen(
+            prayerName: prayerName,
+            prayerId: (prayerId != null && prayerId.isNotEmpty) ? prayerId : null,
+            prayerTime: (prayerTime != null && prayerTime.isNotEmpty) ? prayerTime : null,
+          );
+        }
+      }
+    });
+  }
+
+  /// Checks if Android launched/woke MainActivity directly for an Adhan alarm.
+  Future<void> checkPendingNativeAdhanLaunch() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final payload = await _platformChannel.invokeMapMethod<String, String>('consumePendingAdhanLaunch');
+      if (payload != null) {
+        final prayerName = payload['prayerName'] ?? 'Prayer';
+        final prayerId = payload['prayerId'];
+        final prayerTime = payload['prayerTime'];
+        triggerAdhanFullScreen(
+          prayerName: prayerName,
+          prayerId: (prayerId != null && prayerId.isNotEmpty) ? prayerId : null,
+          prayerTime: (prayerTime != null && prayerTime.isNotEmpty) ? prayerTime : null,
+        );
+      }
+    } catch (_) {}
+  }
+
+  /// Ensures the Android foreground keep-alive guardian service matches active alarm toggles.
+  Future<void> _syncKeepAliveServiceState() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    if (_adhanNotificationsEnabled || _fajrAlarmEnabled) {
+      await startKeepAliveService();
+    } else {
+      await stopKeepAliveService();
+    }
+  }
+
+  Future<void> startKeepAliveService() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _platformChannel.invokeMethod<bool>('startKeepAliveService');
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] startKeepAliveService error: $e');
+    }
+  }
+
+  Future<void> stopKeepAliveService() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _platformChannel.invokeMethod<bool>('stopKeepAliveService');
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] stopKeepAliveService error: $e');
+    }
+  }
+
+  Future<bool> isKeepAliveRunning() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      return (await _platformChannel.invokeMethod<bool>('isKeepAliveRunning')) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> bringToForegroundForAdhan({
+    required String prayerName,
+    String? prayerId,
+    String? prayerTime,
+  }) async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _platformChannel.invokeMethod<bool>('bringToForegroundForAdhan', {
+        'prayerId': prayerId ?? '',
+        'prayerName': prayerName,
+        'prayerNameAr': _prayerNameArabic[prayerName] ?? prayerName,
+        'prayerTime': prayerTime ?? '',
+      });
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] bringToForegroundForAdhan error: $e');
+    }
+  }
+
+  Future<bool> isBatteryOptimizationIgnored() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return true;
+    try {
+      return (await _platformChannel.invokeMethod<bool>('isBatteryOptimizationIgnored')) ?? true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> requestIgnoreBatteryOptimizations() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _platformChannel.invokeMethod<bool>('requestIgnoreBatteryOptimizations');
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] requestIgnoreBatteryOptimizations error: $e');
+    }
+  }
+
+  Future<bool> isOverlayPermissionGranted() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return true;
+    try {
+      return (await _platformChannel.invokeMethod<bool>('isOverlayPermissionGranted')) ?? true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> openOverlaySettings() async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _platformChannel.invokeMethod<bool>('openOverlaySettings');
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] openOverlaySettings error: $e');
+    }
+  }
+
+  /// Schedules an exact native AlarmClock wakeup to bring Axis to the foreground for Adhan.
+  Future<void> scheduleNativeAlarmForTime({
+    required int requestCode,
+    required DateTime triggerTime,
+    required String prayerName,
+    String? prayerId,
+    String? prayerTime,
+  }) async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _platformChannel.invokeMethod<bool>('scheduleNativeAdhanAlarm', {
+        'requestCode': requestCode,
+        'triggerAtMillis': triggerTime.millisecondsSinceEpoch,
+        'prayerId': prayerId ?? '',
+        'prayerName': prayerName,
+        'prayerNameAr': _prayerNameArabic[prayerName] ?? prayerName,
+        'prayerTime': prayerTime ?? '',
+      });
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] scheduleNativeAlarmForTime error: $e');
+    }
+  }
+
+  /// Cancels a previously scheduled native AlarmClock wakeup.
+  Future<void> cancelNativeAlarm(int requestCode) async {
+    if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _platformChannel.invokeMethod<bool>('cancelNativeAdhanAlarm', {
+        'requestCode': requestCode,
+      });
+    } catch (_) {}
+  }
+
+  /// Sets whether the first-time Adhan permissions onboarding has been prompted
+  Future<void> setPermissionsPrompted(bool prompted) async {
+    _adhanPermissionsPrompted = prompted;
+    if (!isDatabaseInitialized) return;
+    try {
+      await db.execute('''
+        INSERT INTO prayer_settings (id, adhan_permissions_prompted) VALUES ('current', ?)
+        ON CONFLICT(id) DO UPDATE SET adhan_permissions_prompted = excluded.adhan_permissions_prompted
+      ''', [prompted ? 1 : 0]);
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] setPermissionsPrompted error: $e');
+    }
+  }
+
+  /// Opens the system Do Not Disturb access page directly
+  Future<void> openDndSettings() async {
+    if (!isSupportedPlatform) return;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final opened = await _platformChannel.invokeMethod<bool>('openDndSettings');
+        if (opened == true) return;
+      } catch (e) {
+        debugPrint('[AdhanAlarmService] Native openDndSettings error: $e');
+      }
+    }
+    try {
+      await AwesomeNotifications().showGlobalDndOverridePage();
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] showGlobalDndOverridePage fallback: $e');
+    }
+  }
+
+  /// Opens the system Exact Alarm settings page
+  Future<void> openExactAlarmSettings() async {
+    if (!isSupportedPlatform) return;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final opened = await _platformChannel.invokeMethod<bool>('openExactAlarmSettings');
+        if (opened == true) return;
+      } catch (e) {
+        debugPrint('[AdhanAlarmService] Native openExactAlarmSettings error: $e');
+      }
+    }
+    try {
+      await AwesomeNotifications().showAlarmPage();
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] showAlarmPage fallback: $e');
+    }
+  }
+
+  /// Opens the App Notification settings page
+  Future<void> openNotificationSettings() async {
+    if (!isSupportedPlatform) return;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        final opened = await _platformChannel.invokeMethod<bool>('openAppNotificationSettings');
+        if (opened == true) return;
+      } catch (e) {
+        debugPrint('[AdhanAlarmService] Native openAppNotificationSettings error: $e');
+      }
+    }
+    try {
+      await AwesomeNotifications().showNotificationConfigPage(channelKey: 'prayer_adhan_channel');
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] showNotificationConfigPage fallback: $e');
+    }
+  }
+
+  /// Queries real-time status of each critical Adhan alarm permission
+  Future<Map<String, bool>> checkDetailedPermissions() async {
+    if (!isSupportedPlatform) {
+      return {
+        'notifications': true,
+        'exact_alarms': true,
+        'full_screen': true,
+        'critical_alerts': true,
+        'override_dnd': true,
+        'battery_unrestricted': true,
+        'display_over_apps': true,
+      };
+    }
+
+    try {
+      bool notifAllowed = await AwesomeNotifications().isNotificationAllowed();
+      final allowedList = await AwesomeNotifications().checkPermissionList(
+        channelKey: 'prayer_adhan_channel',
+        permissions: const [
+          NotificationPermission.Alert,
+          NotificationPermission.Sound,
+          NotificationPermission.PreciseAlarms,
+          NotificationPermission.FullScreenIntent,
+          NotificationPermission.CriticalAlert,
+          NotificationPermission.OverrideDnD,
+        ],
+      );
+
+      bool exactAlarmGranted = allowedList.contains(NotificationPermission.PreciseAlarms);
+      bool dndGranted = allowedList.contains(NotificationPermission.OverrideDnD);
+      bool batteryUnrestricted = true;
+      bool overlayGranted = true;
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        try {
+          final nativeNotif = await _platformChannel.invokeMethod<bool>('isNotificationGranted');
+          if (nativeNotif != null) notifAllowed = nativeNotif;
+        } catch (_) {}
+        try {
+          final nativeExact = await _platformChannel.invokeMethod<bool>('isExactAlarmGranted');
+          if (nativeExact != null) exactAlarmGranted = nativeExact;
+        } catch (_) {}
+        try {
+          final nativeDnd = await _platformChannel.invokeMethod<bool>('isDndOverrideGranted');
+          if (nativeDnd != null) dndGranted = nativeDnd;
+        } catch (_) {}
+        batteryUnrestricted = await isBatteryOptimizationIgnored();
+        overlayGranted = await isOverlayPermissionGranted();
+      }
+
+      return {
+        'notifications': notifAllowed,
+        'exact_alarms': exactAlarmGranted,
+        'full_screen': allowedList.contains(NotificationPermission.FullScreenIntent),
+        'critical_alerts': allowedList.contains(NotificationPermission.CriticalAlert),
+        'override_dnd': dndGranted,
+        'battery_unrestricted': batteryUnrestricted,
+        'display_over_apps': overlayGranted,
+      };
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] checkDetailedPermissions error: $e');
+      return {
+        'notifications': false,
+        'exact_alarms': false,
+        'full_screen': false,
+        'critical_alerts': false,
+        'override_dnd': false,
+        'battery_unrestricted': false,
+        'display_over_apps': false,
+      };
+    }
+  }
+
+  /// Checks if all necessary permissions are granted for full-screen, unmuted adhan alarms
+  Future<bool> areAllPermissionsGranted() async {
+    final status = await checkDetailedPermissions();
+    return (status['notifications'] ?? false) &&
+        (status['exact_alarms'] ?? false) &&
+        (status['full_screen'] ?? false) &&
+        (status['override_dnd'] ?? false);
+  }
+
+  /// Checks and requests necessary permissions for full-screen adhan alarms:
+  /// - Post Notifications (Android 13+)
+  /// - Exact Alarms (Android 12/14+)
+  /// - Full Screen Intents (Android 14+)
+  /// - Critical Alerts / Override DND
+  Future<bool> checkAndRequestPermissions({bool openSettingsIfNeeded = false}) async {
+    if (!isSupportedPlatform) return true;
+
+    try {
+      final isAllowed = await AwesomeNotifications().isNotificationAllowed();
+      if (!isAllowed) {
+        await AwesomeNotifications().requestPermissionToSendNotifications(
+          channelKey: 'prayer_adhan_channel',
+          permissions: const [
+            NotificationPermission.Alert,
+            NotificationPermission.Sound,
+            NotificationPermission.Badge,
+            NotificationPermission.Vibration,
+            NotificationPermission.Light,
+            NotificationPermission.FullScreenIntent,
+            NotificationPermission.PreciseAlarms,
+            NotificationPermission.CriticalAlert,
+            NotificationPermission.OverrideDnD,
+          ],
+        );
+      }
+
+      // Check current status
+      final status = await checkDetailedPermissions();
+
+      // If full screen intent or precise alarms can be requested via awn
+      final missingAwn = <NotificationPermission>[];
+      if (status['full_screen'] != true) {
+        missingAwn.add(NotificationPermission.FullScreenIntent);
+      }
+      if (status['critical_alerts'] != true) {
+        missingAwn.add(NotificationPermission.CriticalAlert);
+      }
+      if (status['exact_alarms'] != true) {
+        missingAwn.add(NotificationPermission.PreciseAlarms);
+      }
+      if (missingAwn.isNotEmpty) {
+        await AwesomeNotifications().requestPermissionToSendNotifications(
+          channelKey: 'prayer_adhan_channel',
+          permissions: missingAwn,
+        );
+      }
+
+      if (openSettingsIfNeeded) {
+        final recheck = await checkDetailedPermissions();
+        if (recheck['notifications'] != true) {
+          await openNotificationSettings();
+          return false;
+        }
+        if (recheck['exact_alarms'] != true) {
+          await openExactAlarmSettings();
+          return false;
+        }
+        if (recheck['override_dnd'] != true) {
+          await openDndSettings();
+          return false;
+        }
+      }
+
+      final finalStatus = await checkDetailedPermissions();
+      return (finalStatus['notifications'] ?? false) &&
+          (finalStatus['exact_alarms'] ?? false) &&
+          (finalStatus['override_dnd'] ?? false);
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] checkAndRequestPermissions error: $e');
+      return false;
     }
   }
 
@@ -55,17 +624,22 @@ class AdhanAlarmService {
     _adhanNotificationsEnabled = enabled;
     try {
       await db.execute('''
-        UPDATE prayer_settings SET adhan_notifications_enabled = ? WHERE id = 'current'
+        INSERT INTO prayer_settings (id, adhan_notifications_enabled) VALUES ('current', ?)
+        ON CONFLICT(id) DO UPDATE SET adhan_notifications_enabled = excluded.adhan_notifications_enabled
       ''', [enabled ? 1 : 0]);
 
       if (!isSupportedPlatform) return;
 
       if (!enabled) {
-        // Cancel all scheduled adhan notifications
+        // Cancel all scheduled adhan notifications & native wakeup alarms
         for (int i = 1; i <= 5; i++) {
           await AwesomeNotifications().cancel(1000 + i);
+          await cancelNativeAlarm(2000 + i);
         }
+        await _syncKeepAliveServiceState();
       } else {
+        await checkAndRequestPermissions();
+        await _syncKeepAliveServiceState();
         // Reschedule
         final prayers = await PrayerTimeService().calculatePrayersForDate(DateTime.now());
         await scheduleAllPrayers(prayers);
@@ -80,14 +654,18 @@ class AdhanAlarmService {
     _fajrAlarmEnabled = enabled;
     try {
       await db.execute('''
-        UPDATE prayer_settings SET fajr_alarm_enabled = ? WHERE id = 'current'
+        INSERT INTO prayer_settings (id, fajr_alarm_enabled) VALUES ('current', ?)
+        ON CONFLICT(id) DO UPDATE SET fajr_alarm_enabled = excluded.fajr_alarm_enabled
       ''', [enabled ? 1 : 0]);
 
       if (!isSupportedPlatform) return;
 
       if (!enabled) {
         await AwesomeNotifications().cancel(9991);
+        await _syncKeepAliveServiceState();
       } else {
+        await checkAndRequestPermissions();
+        await _syncKeepAliveServiceState();
         final prayers = await PrayerTimeService().calculatePrayersForDate(DateTime.now());
         await scheduleAllPrayers(prayers);
       }
@@ -96,16 +674,46 @@ class AdhanAlarmService {
     }
   }
 
-  /// Schedules daily Adhan notifications and the +1 min Fajr Wake-Up Alarm
+  /// Schedules daily Adhan notifications and the +1 min Fajr Wake-Up Alarm.
+  /// Skips today's occurrence if that prayer is already marked done today,
+  /// and rolls past/completed slots forward to tomorrow's prayer times.
   Future<void> scheduleAllPrayers(List<PrayerItem> prayers) async {
     if (!isSupportedPlatform) return;
+    await _loadAlarmSettingsFromDb();
     final now = DateTime.now();
+    await _syncKeepAliveServiceState();
 
-    // 1. Schedule Adhan notifications for today's prayers
+    List<PrayerItem> tomorrowPrayers = const [];
+    try {
+      tomorrowPrayers = await PrayerTimeService()
+          .calculatePrayersForDate(now.add(const Duration(days: 1)));
+    } catch (_) {}
+    final tomorrowByOrder = {
+      for (final tp in tomorrowPrayers) tp.sortOrder: tp,
+    };
+
+    // 1. Schedule Adhan notifications (today if undone & upcoming, else tomorrow)
     if (_adhanNotificationsEnabled) {
       for (final prayer in prayers) {
-        if (prayer.time.isAfter(now)) {
+        final doneToday = await isPrayerCompletedToday(prayer.name);
+        if (doneToday) {
+          final notifId = 1000 + prayer.sortOrder;
+          await AwesomeNotifications().cancel(notifId);
+          await AwesomeNotifications().cancelSchedule(notifId);
+          await AwesomeNotifications().dismiss(notifId);
+          await cancelNativeAlarm(2000 + prayer.sortOrder);
+
+          final tomorrowPrayer = tomorrowByOrder[prayer.sortOrder];
+          if (tomorrowPrayer != null) {
+            await _scheduleSingleAdhan(tomorrowPrayer);
+          }
+        } else if (prayer.time.isAfter(now)) {
           await _scheduleSingleAdhan(prayer);
+        } else {
+          final tomorrowPrayer = tomorrowByOrder[prayer.sortOrder];
+          if (tomorrowPrayer != null) {
+            await _scheduleSingleAdhan(tomorrowPrayer);
+          }
         }
       }
     }
@@ -116,14 +724,29 @@ class AdhanAlarmService {
         (p) => p.sortOrder == 1,
         orElse: () => prayers.first,
       );
+      final fajrDoneToday = await isPrayerCompletedToday('fajr');
       final fajrAlarmTime = fajr.time.add(const Duration(minutes: 1));
-      if (fajrAlarmTime.isAfter(now)) {
+      if (!fajrDoneToday && fajrAlarmTime.isAfter(now)) {
         await _scheduleFajrWakeUpAlarm(fajrAlarmTime, fajr.formattedTime);
+      } else {
+        await AwesomeNotifications().cancel(9991);
+        await AwesomeNotifications().cancelSchedule(9991);
+        await AwesomeNotifications().dismiss(9991);
+        final tomorrowFajr = tomorrowByOrder[1];
+        if (tomorrowFajr != null) {
+          await _scheduleFajrWakeUpAlarm(
+            tomorrowFajr.time.add(const Duration(minutes: 1)),
+            tomorrowFajr.formattedTime,
+          );
+        }
       }
     }
   }
 
-  /// Schedules notification for a single prayer time
+  /// Schedules a full-screen intent notification for a single prayer time.
+  /// The notification uses the alarm audio channel with the selected adhan
+  /// sound, `fullScreenIntent: true`, `wakeUpScreen: true`, and
+  /// `category: Alarm` so it overrides DND and wakes the device.
   Future<void> _scheduleSingleAdhan(PrayerItem prayer) async {
     final notifId = 1000 + prayer.sortOrder;
 
@@ -139,21 +762,26 @@ class AdhanAlarmService {
           notificationLayout: NotificationLayout.Default,
           category: NotificationCategory.Alarm,
           wakeUpScreen: true,
+          fullScreenIntent: true,
+          autoDismissible: false,
+          locked: true,
           payload: {
             'type': 'adhan',
             'prayer_id': prayer.id,
             'prayer_name': prayer.name,
+            'prayer_name_ar': _prayerNameArabic[prayer.name] ?? prayer.name,
+            'prayer_time': prayer.formattedTime,
           },
         ),
         actionButtons: [
           NotificationActionButton(
-            key: 'MARK_DONE',
-            label: 'Mark as Completed',
+            key: 'DISMISS_ADHAN',
+            label: 'Dismiss',
             actionType: ActionType.Default,
           ),
           NotificationActionButton(
-            key: 'OPEN_QIBLA',
-            label: 'Qibla Direction',
+            key: 'MARK_DONE',
+            label: 'Mark as Prayed',
             actionType: ActionType.Default,
           ),
         ],
@@ -169,6 +797,15 @@ class AdhanAlarmService {
           allowWhileIdle: true,
           preciseAlarm: true,
         ),
+      );
+
+      // Pair with Android native AlarmClock wakeup so background/Doze opens AdhanFullScreenAlarm directly
+      await scheduleNativeAlarmForTime(
+        requestCode: 2000 + prayer.sortOrder,
+        triggerTime: prayer.time,
+        prayerName: prayer.name,
+        prayerId: prayer.id,
+        prayerTime: prayer.formattedTime,
       );
     } catch (e) {
       debugPrint('Error scheduling Adhan notification for ${prayer.name}: $e');
@@ -224,16 +861,36 @@ class AdhanAlarmService {
     }
   }
 
-  /// Starts Adhan alarm audio playback and vibration
+  /// Starts Adhan alarm audio playback using the alarm audio stream
+  /// so it plays at the alarm volume level, bypassing silent/DND mode.
   Future<void> startAlarmSound() async {
     if (_isAlarmRinging) return;
     _isAlarmRinging = true;
 
     try {
       _alarmPlayer ??= AudioPlayer();
+      // Configure audio context to use the alarm audio stream with transient exclusive focus
+      await _alarmPlayer!.setAudioContext(AudioContext(
+        android: const AudioContextAndroid(
+          usageType: AndroidUsageType.alarm,
+          contentType: AndroidContentType.music,
+          audioFocus: AndroidAudioFocus.gainTransientExclusive,
+          stayAwake: true,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: const {AVAudioSessionOptions.duckOthers},
+        ),
+      ));
       await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
       final source = AdhanSoundService().getActiveAudioSource();
       await _alarmPlayer!.play(source);
+      // Dismiss raw OS notification-sound alerts so the looping full-screen alarm doesn't echo
+      if (isSupportedPlatform) {
+        for (int i = 1; i <= 5; i++) {
+          unawaited(AwesomeNotifications().dismiss(1000 + i));
+        }
+      }
     } catch (e) {
       debugPrint('[AdhanAlarmService] startAlarmSound error: $e');
     }
@@ -244,7 +901,7 @@ class AdhanAlarmService {
     });
   }
 
-  /// Stops the alarm sound and vibration
+  /// Stops the alarm sound and vibration, and dismisses active notifications
   Future<void> stopAlarmSound() async {
     _isAlarmRinging = false;
     _vibrationTimer?.cancel();
@@ -258,17 +915,127 @@ class AdhanAlarmService {
       }
     }
 
-    await AwesomeNotifications().cancel(9991);
+    if (!isSupportedPlatform) return;
+
+    try {
+      await AwesomeNotifications().cancel(9991);
+      for (int i = 1; i <= 5; i++) {
+        await AwesomeNotifications().dismiss(1000 + i);
+      }
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _platformChannel.invokeMethod<bool>('cancelNativeWakeupNotification');
+      }
+    } catch (_) {}
+  }
+
+  /// Triggers the full-screen Adhan alarm overlay for any of the 5 prayers.
+  /// Shows the prayer name, time, plays the adhan sound, and provides
+  /// Dismiss and Mark-as-Prayed buttons.
+  ///
+  /// If the app was launched cold from a terminated state, this retries
+  /// until [rootNavigatorKey] mounts.
+  void triggerAdhanFullScreen({
+    required String prayerName,
+    String? prayerId,
+    String? prayerTime,
+    BuildContext? context,
+  }) {
+    unawaited(_triggerAdhanIfPending(
+      prayerName: prayerName,
+      prayerId: prayerId,
+      prayerTime: prayerTime,
+      context: context,
+    ));
+  }
+
+  Future<void> _triggerAdhanIfPending({
+    required String prayerName,
+    String? prayerId,
+    String? prayerTime,
+    BuildContext? context,
+  }) async {
+    if (isFullScreenAlarmShowing) return;
+
+    final lookup = (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
+    if (await isPrayerCompletedToday(lookup)) {
+      await stopAlarmSound();
+      return;
+    }
+    if (isFullScreenAlarmShowing) return;
+
+    final targetContext = context ?? rootNavigatorKey.currentContext;
+    if (targetContext == null) {
+      // App cold-booting: wait for root navigator to mount
+      int attempts = 0;
+      Timer.periodic(const Duration(milliseconds: 150), (timer) {
+        attempts++;
+        if (isFullScreenAlarmShowing) {
+          timer.cancel();
+          return;
+        }
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx != null) {
+          timer.cancel();
+          triggerAdhanFullScreen(
+            prayerName: prayerName,
+            prayerId: prayerId,
+            prayerTime: prayerTime,
+            context: ctx,
+          );
+        } else if (attempts >= 30) {
+          timer.cancel();
+          debugPrint('[AdhanAlarmService] Navigator key unavailable after 4.5s');
+        }
+      });
+      return;
+    }
+    if (!targetContext.mounted) return;
+
+    final nameAr = _prayerNameArabic[prayerName] ?? prayerName;
+    final time = prayerTime ?? '';
+
+    AdhanFullScreenAlarm.show(
+      targetContext,
+      prayerName: prayerName,
+      prayerNameAr: nameAr,
+      prayerTime: time,
+      prayerId: prayerId,
+    );
   }
 
   /// Triggers the non-dismissible Fajr Wake-Up Modal with cognitive challenge
   void triggerFajrWakeUpModal({BuildContext? context}) {
+    unawaited(_triggerFajrWakeUpModalIfPending(context: context));
+  }
+
+  Future<void> _triggerFajrWakeUpModalIfPending({BuildContext? context}) async {
+    if (_isModalShowing) return;
+    if (await isPrayerCompletedToday('fajr')) {
+      await stopAlarmSound();
+      return;
+    }
     if (_isModalShowing) return;
 
     final targetContext = context ?? rootNavigatorKey.currentContext;
     if (targetContext == null) {
+      int attempts = 0;
+      Timer.periodic(const Duration(milliseconds: 150), (timer) {
+        attempts++;
+        if (_isModalShowing) {
+          timer.cancel();
+          return;
+        }
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx != null) {
+          timer.cancel();
+          triggerFajrWakeUpModal(context: ctx);
+        } else if (attempts >= 30) {
+          timer.cancel();
+        }
+      });
       return;
     }
+    if (!targetContext.mounted) return;
 
     _isModalShowing = true;
     startAlarmSound();
@@ -293,7 +1060,20 @@ class AdhanAlarmService {
     });
   }
 
-  /// Handles incoming alarm notification tap or action
+  /// Handles incoming adhan notification tap or action from any prayer
+  void handleAdhanAction({
+    required String prayerName,
+    String? prayerId,
+    String? prayerTime,
+  }) {
+    triggerAdhanFullScreen(
+      prayerName: prayerName,
+      prayerId: prayerId,
+      prayerTime: prayerTime,
+    );
+  }
+
+  /// Handles incoming alarm notification tap or action (Fajr only)
   void handleFajrAlarmAction() {
     triggerFajrWakeUpModal();
   }

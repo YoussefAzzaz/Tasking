@@ -14,6 +14,33 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+// Ensure synthesized/window-manager GdkEvents carry a valid pointer device so
+// FlView axis lookups do not log GDK_IS_DEVICE(device) critical assertions.
+static gboolean ensure_event_device_cb(GtkWidget* widget,
+                                       GdkEvent* event,
+                                       gpointer user_data) {
+  if (event == nullptr) {
+    return FALSE;
+  }
+  const gboolean missing_device = gdk_event_get_device(event) == nullptr;
+  const gboolean missing_source = gdk_event_get_source_device(event) == nullptr;
+  if (!missing_device && !missing_source) {
+    return FALSE;
+  }
+  GdkDisplay* display = gdk_display_get_default();
+  GdkSeat* seat = display ? gdk_display_get_default_seat(display) : nullptr;
+  GdkDevice* pointer = seat ? gdk_seat_get_pointer(seat) : nullptr;
+  if (pointer != nullptr) {
+    if (missing_device) {
+      gdk_event_set_device(event, pointer);
+    }
+    if (missing_source) {
+      gdk_event_set_source_device(event, pointer);
+    }
+  }
+  return FALSE;
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -54,6 +81,17 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1440, 900);
 
+  // Set Linux window/taskbar icon from bundled Flutter asset
+  g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
+  if (exe_path != nullptr) {
+    g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
+    g_autofree gchar* icon_path = g_build_filename(
+        exe_dir, "data", "flutter_assets", "assets", "logo.png", nullptr);
+    if (g_file_test(icon_path, G_FILE_TEST_EXISTS)) {
+      gtk_window_set_icon_from_file(window, icon_path, nullptr);
+    }
+  }
+
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
@@ -73,6 +111,9 @@ static void my_application_activate(GApplication* application) {
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),
                            self);
   gtk_widget_realize(GTK_WIDGET(view));
+
+  g_signal_connect(window, "event", G_CALLBACK(ensure_event_device_cb), nullptr);
+  g_signal_connect(view, "event", G_CALLBACK(ensure_event_device_cb), nullptr);
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 

@@ -6,6 +6,7 @@ import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/project_repository.dart';
 import '../../../../data/task_repository.dart';
+import '../../../friends/widgets/pending_shares_section.dart';
 import '../../widgets/desktop_card.dart';
 import '../../widgets/desktop_horizontal_scroll.dart';
 import '../../widgets/ghost_button.dart';
@@ -37,7 +38,7 @@ class ProjectsTaskListPane extends StatefulWidget {
 }
 
 class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
-  int _taskFilterIndex = 0; // 0: All, 1: Today, 2: Active, 3: Done
+  int _taskFilterIndex = 0; // 0: All, 1: Today, 2: Active, 3: Done, 4: Collaborative
 
   int _compareTasks(Task a, Task b) {
     // 1. Automatically move checked/completed tasks down
@@ -72,6 +73,7 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
             1 => 'اليوم',
             2 => 'النشطة',
             3 => 'المكتملة',
+            4 => 'تعاونية',
             _ => label.tr(context),
           }
         : label;
@@ -190,10 +192,15 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
                     _buildFilterButton('Active', 2),
                     const SizedBox(width: 4),
                     _buildFilterButton('Done', 3),
+                    const SizedBox(width: 4),
+                    _buildFilterButton('Collaborative', 4),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
+              const CollaborativeTaskDeletedNoticeBanner(
+                margin: EdgeInsets.only(bottom: 10),
+              ),
               // Task items list
               Expanded(
                 child: StreamBuilder<List<Task>>(
@@ -220,6 +227,8 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
                         return !t.isCompleted;
                       } else if (_taskFilterIndex == 3) {
                         return t.isCompleted;
+                      } else if (_taskFilterIndex == 4) {
+                        return t.isCollaborative;
                       }
                       return true;
                     }).toList();
@@ -233,7 +242,8 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
                       );
                     }
 
-                    // Chronologically bucket tasks by due date
+                    // Separate active collaborative tasks cleanly from personal due-date buckets
+                    final collaborativeTasks = <Task>[];
                     final overdueTasks = <Task>[];
                     final todayTasks = <Task>[];
                     final tomorrowTasks = <Task>[];
@@ -242,6 +252,11 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
                     final finishedTasks = <Task>[];
 
                     for (final task in filtered) {
+                      if (task.isCollaborative &&
+                          (!task.isCompleted || _taskFilterIndex == 4)) {
+                        collaborativeTasks.add(task);
+                        continue;
+                      }
                       if (task.isCompleted) {
                         finishedTasks.add(task);
                         continue;
@@ -262,6 +277,14 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
                     }
 
                     final sections = <_DesktopTaskSection>[
+                      if (collaborativeTasks.isNotEmpty)
+                        _DesktopTaskSection(
+                          title: isArabic
+                              ? 'المهام التعاونية'
+                              : 'COLLABORATIVE TASKS',
+                          color: AxisColors.secondary,
+                          tasks: collaborativeTasks..sort(_compareTasks),
+                        ),
                       if (overdueTasks.isNotEmpty)
                         _DesktopTaskSection(
                           title: isArabic ? 'متأخرة' : 'OVERDUE',

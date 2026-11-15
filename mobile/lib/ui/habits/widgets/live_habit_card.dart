@@ -3,6 +3,7 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/habit_repository.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 /// Interactive habit card featuring XP rewards, custom habit icons, options sheet and check toggle
 class LiveHabitCard extends StatelessWidget {
@@ -79,6 +80,32 @@ class LiveHabitCard extends StatelessWidget {
                 ),
               ),
             ),
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                Navigator.pop(ctx);
+                ShareTaskSheet.showForHabit(context, habit);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.ios_share_rounded,
+                        color: AxisColors.secondary, size: 20),
+                    const SizedBox(width: 14),
+                    Text(
+                      isArabic ? 'مشاركة مع صاحب' : 'Share with Companion',
+                      style: const TextStyle(
+                        color: AxisColors.textHigh,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
             InkWell(
               borderRadius: BorderRadius.circular(10),
               onTap: () {
@@ -173,6 +200,10 @@ class LiveHabitCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDone = habit.isDoneToday;
+    final cleanSender = (habit.senderUsername ?? '')
+        .trim()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
 
     return AxisCard(
       tier: GlassTier.two,
@@ -188,6 +219,7 @@ class LiveHabitCard extends StatelessWidget {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onEdit,
+              onLongPress: () => ShareTaskSheet.showForHabit(context, habit),
               child: Row(
                 children: [
                   Container(
@@ -229,6 +261,26 @@ class LiveHabitCard extends StatelessWidget {
                           runSpacing: 2,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            if (cleanSender.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: AxisColors.primarySoft
+                                      .withValues(alpha: 0.16),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '@$cleanSender',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AxisColors.primarySoft,
+                                  ),
+                                ),
+                              ),
                             if (habit.remindTime != null)
                               Row(
                                 mainAxisSize: MainAxisSize.min,

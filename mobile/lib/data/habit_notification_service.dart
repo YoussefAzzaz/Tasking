@@ -67,9 +67,9 @@ class HabitOccurrence {
     );
   }
 
-  /// Fingerprint hashing config and trigger time to skip redundant platform calls.
+  /// Fingerprint hashing config, completion state, and trigger time to skip redundant platform calls.
   String get fingerprint =>
-      '${habit.id}_${habit.name}_${habit.remindTime}_${habit.scheduleType}_${habit.isEnabled}_${habit.color}_${triggerTime.millisecondsSinceEpoch}_$isCheckpoint';
+      '${habit.id}_${habit.name}_${habit.remindTime}_${habit.scheduleType}_${habit.isEnabled}_${habit.isDoneToday}_${habit.color}_${triggerTime.millisecondsSinceEpoch}_$isCheckpoint';
 }
 
 /// Service managing scheduled pre-habit notifications (10m and 5m before habit time),
@@ -177,26 +177,56 @@ class HabitNotificationService {
     _initialized = true;
 
     try {
+      await HabitRepository.ensureStateLoaded();
+
       final isAllowed = await AwesomeNotifications().isNotificationAllowed();
       if (!isAllowed) {
-        await AwesomeNotifications().requestPermissionToSendNotifications();
+        await AwesomeNotifications().requestPermissionToSendNotifications(
+          channelKey: channelKey,
+          permissions: const [
+            NotificationPermission.Alert,
+            NotificationPermission.Sound,
+            NotificationPermission.Vibration,
+            NotificationPermission.PreciseAlarms,
+          ],
+        );
+      } else {
+        final allowedList = await AwesomeNotifications().checkPermissionList(
+          channelKey: channelKey,
+          permissions: const [
+            NotificationPermission.Alert,
+            NotificationPermission.Sound,
+            NotificationPermission.PreciseAlarms,
+          ],
+        );
+        if (!allowedList.contains(NotificationPermission.PreciseAlarms)) {
+          await AwesomeNotifications().requestPermissionToSendNotifications(
+            channelKey: channelKey,
+            permissions: const [
+              NotificationPermission.Alert,
+              NotificationPermission.Sound,
+              NotificationPermission.PreciseAlarms,
+            ],
+          );
+        }
       }
 
-      // Listen to habit changes from PowerSync or local DB.
-      // watchHabits() immediately emits the initial list of habits from SQLite,
-      // avoiding duplicate scheduling passes on startup.
-      _habitsSub?.cancel();
-      _habitsSub = HabitRepository().watchHabits().listen(
-        (habits) async {
-          await syncHabitReminders(habits);
-        },
-        onError: (e) {
-          debugPrint('[HabitNotificationService] Stream error: $e');
-        },
-      );
+      _subscribeToHabits();
     } catch (e) {
       debugPrint('[HabitNotificationService] Error initializing: $e');
     }
+  }
+
+  void _subscribeToHabits() {
+    _habitsSub?.cancel();
+    _habitsSub = HabitRepository().watchHabits().listen(
+      (habits) async {
+        await syncHabitReminders(habits);
+      },
+      onError: (e) {
+        debugPrint('[HabitNotificationService] Stream error: $e');
+      },
+    );
   }
 
   /// Determines if a habit is scheduled to run on a given date
@@ -232,7 +262,7 @@ class HabitNotificationService {
     final completedCache = <String, bool>{};
 
     final activeHabits = habits.where((h) {
-      if (!h.isEnabled) return false;
+      if (!h.isEnabled || HabitRepository.isHabitPaused(h.id)) return false;
       final rt = h.remindTime;
       return rt != null && rt.trim().isNotEmpty;
     }).toList();
@@ -274,6 +304,10 @@ class HabitNotificationService {
         }
 
         if (isToday) {
+          if (habit.isDoneToday) {
+            completedCache[habit.id] = true;
+            continue;
+          }
           bool isDone = completedCache[habit.id] ?? false;
           if (!completedCache.containsKey(habit.id)) {
             isDone = isCompletedToday != null
@@ -365,7 +399,10 @@ class HabitNotificationService {
           .toList();
 
       for (final oldId in obsoleteIds) {
-        await AwesomeNotifications().cancel(oldId);
+        if (isSupportedPlatform) {
+          await AwesomeNotifications().cancel(oldId);
+          await AwesomeNotifications().dismiss(oldId);
+        }
         _scheduledFingerprints.remove(oldId);
         _slotHabitIds.remove(oldId);
       }
@@ -390,21 +427,22 @@ class HabitNotificationService {
   /// Refills the sliding window queue by fetching all active habits from SQLite.
   /// Protected against concurrent re-entrant calls.
   Future<void> refillQueue({bool force = false}) async {
-    if (!isDatabaseInitialized) return;
+    if (!isDatabaseInitialized || !isSupportedPlatform) return;
     if (_isSyncing) {
       _needsResync = true;
       return;
     }
     _isSyncing = true;
     try {
+      await HabitRepository.ensureStateLoaded();
       if (force) {
         _scheduledFingerprints.clear();
         _slotHabitIds.clear();
       }
       final uid = currentUserId;
       final query = uid.isNotEmpty
-          ? "SELECT * FROM habits WHERE user_id = ? AND (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''"
-          : "SELECT * FROM habits WHERE (user_id IS NULL OR user_id = '') AND (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''";
+          ? "SELECT * FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND (deleted_at IS NULL OR deleted_at = '') AND (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''"
+          : "SELECT * FROM habits WHERE (user_id IS NULL OR user_id = '') AND (deleted_at IS NULL OR deleted_at = '') AND (is_enabled != 0 OR is_enabled IS NULL) AND remind_time IS NOT NULL AND remind_time != ''";
       final params = uid.isNotEmpty ? [uid] : <dynamic>[];
       final rows = await db.getAll(query, params);
       final habits = rows.map((r) => Habit.fromRow(r)).toList();
@@ -420,8 +458,12 @@ class HabitNotificationService {
     }
   }
 
-  /// Reschedules all habits directly from SQLite.
+  /// Reschedules all habits directly from SQLite and rebinds stream to active user.
   Future<void> rescheduleAllHabits() async {
+    if (!isSupportedPlatform) return;
+    if (_initialized) {
+      _subscribeToHabits();
+    }
     await refillQueue(force: true);
   }
 
@@ -451,6 +493,7 @@ class HabitNotificationService {
 
   /// Internal helper to schedule a single-shot exact occurrence.
   Future<void> _scheduleOccurrence(HabitOccurrence slot) async {
+    if (!isSupportedPlatform) return;
     final habit = slot.habit;
     final habitColor = parseHex(habit.color);
 
@@ -517,8 +560,10 @@ class HabitNotificationService {
     try {
       _scheduledFingerprints.clear();
       _slotHabitIds.clear();
-      await AwesomeNotifications().cancelSchedulesByChannelKey(channelKey);
-      await AwesomeNotifications().cancelNotificationsByChannelKey(channelKey);
+      if (isSupportedPlatform) {
+        await AwesomeNotifications().cancelSchedulesByChannelKey(channelKey);
+        await AwesomeNotifications().cancelNotificationsByChannelKey(channelKey);
+      }
     } catch (e) {
       debugPrint('[HabitNotificationService] cancelAllHabitReminders error: $e');
     }
@@ -535,19 +580,24 @@ class HabitNotificationService {
       for (final id in idsToRemove) {
         _scheduledFingerprints.remove(id);
         _slotHabitIds.remove(id);
-        await AwesomeNotifications().cancel(id);
+        if (isSupportedPlatform) {
+          await AwesomeNotifications().cancel(id);
+          await AwesomeNotifications().dismiss(id);
+        }
       }
 
-      // Legacy IDs
-      await AwesomeNotifications()
-          .cancel(generateNotificationId(habitId, 10, 0));
-      await AwesomeNotifications()
-          .cancel(generateNotificationId(habitId, 5, 0));
-      for (int w = 1; w <= 7; w++) {
+      if (isSupportedPlatform) {
+        // Legacy IDs
         await AwesomeNotifications()
-            .cancel(generateNotificationId(habitId, 10, w));
+            .cancel(generateNotificationId(habitId, 10, 0));
         await AwesomeNotifications()
-            .cancel(generateNotificationId(habitId, 5, w));
+            .cancel(generateNotificationId(habitId, 5, 0));
+        for (int w = 1; w <= 7; w++) {
+          await AwesomeNotifications()
+              .cancel(generateNotificationId(habitId, 10, w));
+          await AwesomeNotifications()
+              .cancel(generateNotificationId(habitId, 5, w));
+        }
       }
     } catch (e) {
       debugPrint(
@@ -591,30 +641,51 @@ class HabitNotificationService {
       for (final id in idsToCancel) {
         _scheduledFingerprints.remove(id);
         _slotHabitIds.remove(id);
-        await AwesomeNotifications().cancelSchedule(id);
-        await AwesomeNotifications().dismiss(id);
+        if (isSupportedPlatform) {
+          await AwesomeNotifications().cancel(id);
+          await AwesomeNotifications().cancelSchedule(id);
+          await AwesomeNotifications().dismiss(id);
+        }
       }
 
       // Daisy-chain roll over to tomorrow: trigger queue refill to dynamically push upcoming slots
-      unawaited(refillQueue());
+      if (isSupportedPlatform) {
+        unawaited(refillQueue());
+      }
     } catch (e) {
       debugPrint(
           '[HabitNotificationService] Error dismissing completed habit notifications: $e');
     }
   }
 
-  /// Checks if a habit has already been completed today in SQLite
+  /// Checks if a habit has already been completed today (or in its current schedule cycle) in SQLite.
   Future<bool> isHabitCompletedToday(String habitId) async {
     if (!isDatabaseInitialized) return false;
     try {
-      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      String cycleStart = todayStr;
+      final habitRow = await db.getOptional(
+        'SELECT schedule_type, created_at FROM habits WHERE id = ? LIMIT 1',
+        [habitId],
+      );
+      if (habitRow != null) {
+        final scheduleType = (habitRow['schedule_type'] as String?) ?? 'daily';
+        final createdAtStr = habitRow['created_at'] as String?;
+        cycleStart = HabitRepository.calculateCycleStartDate(
+          scheduleType: scheduleType,
+          now: now,
+          createdAtStr: createdAtStr,
+        );
+      }
+
       final uid = currentUserId;
       final query = uid.isNotEmpty
-          ? 'SELECT id FROM habit_logs WHERE habit_id = ? AND log_date = ? AND status = ? AND (user_id = ? OR user_id IS NULL OR user_id = \'\') LIMIT 1'
-          : 'SELECT id FROM habit_logs WHERE habit_id = ? AND log_date = ? AND status = ? LIMIT 1';
+          ? 'SELECT id FROM habit_logs WHERE habit_id = ? AND log_date >= ? AND status = ? AND (user_id = ? OR user_id IS NULL OR user_id = \'\') LIMIT 1'
+          : 'SELECT id FROM habit_logs WHERE habit_id = ? AND log_date >= ? AND status = ? LIMIT 1';
       final params = uid.isNotEmpty
-          ? [habitId, todayStr, 'done', uid]
-          : [habitId, todayStr, 'done'];
+          ? [habitId, cycleStart, 'done', uid]
+          : [habitId, cycleStart, 'done'];
       final res = await db.getOptional(query, params);
       return res != null;
     } catch (_) {

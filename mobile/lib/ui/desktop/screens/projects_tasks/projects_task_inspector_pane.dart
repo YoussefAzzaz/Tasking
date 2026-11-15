@@ -9,6 +9,7 @@ import '../../../../data/task_repository.dart';
 import '../../../common/axis_markdown_viewer.dart';
 import '../../core/task_checklist_mixin.dart';
 import '../../dialogs/quick_task_dialog.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../widgets/accent_button.dart';
 import '../../widgets/desktop_card.dart';
 import '../../widgets/desktop_checkbox.dart';
@@ -136,13 +137,20 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
         }
 
         final isDone = task.isCompleted;
+        final cleanSender = (task.senderUsername ?? '')
+            .trim()
+            .replaceFirst(RegExp(r'^@+'), '')
+            .trim();
 
         return DesktopCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   Text(
                     isArabic ? 'فاحص المهام' : 'TASK INSPECTOR',
@@ -153,17 +161,38 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                       color: AxisColors.secondary,
                     ),
                   ),
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
                     children: [
+                      if (task.isCollaborative)
+                        TelemetryChip(
+                          label: isArabic ? 'تعاوني' : 'COLLABORATIVE',
+                          color: AxisColors.secondary,
+                        ),
+                      if (cleanSender.isNotEmpty)
+                        TelemetryChip(
+                          label: '@$cleanSender',
+                          color: AxisColors.primarySoft,
+                        ),
                       if (task.priority != null) PriorityBadge(priority: task.priority),
-                      const SizedBox(width: 8),
                       TelemetryChip(
                         label: isDone
                             ? (isArabic ? 'منتهية' : 'FINISHED')
                             : (isArabic ? 'قيد التنفيذ' : 'IN PROGRESS'),
                         color: isDone ? AxisColors.tertiary : AxisColors.secondary,
                       ),
-                      const SizedBox(width: 8),
+                      if (!isDone)
+                        GhostButton(
+                          label: isArabic ? 'مشاركة' : 'Share',
+                          icon: Icons.ios_share_rounded,
+                          height: 26,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          color: AxisColors.secondary,
+                          borderColor: AxisColors.secondary.withValues(alpha: 0.35),
+                          onPressed: () => ShareTaskSheet.show(context, task),
+                        ),
                       GhostButton(
                         label: isArabic ? 'تعديل' : 'Edit',
                         icon: Icons.edit_outlined,
@@ -354,6 +383,15 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                     spacing: 8,
                     runSpacing: 8,
                     children: [
+                      if (!isDone)
+                        GhostButton(
+                          key: const ValueKey('inspector_bottom_share_task_button'),
+                          label: isArabic ? 'مشاركة المهمة' : 'Share Task',
+                          icon: Icons.ios_share_rounded,
+                          color: AxisColors.secondary,
+                          borderColor: AxisColors.secondary.withValues(alpha: 0.35),
+                          onPressed: () => ShareTaskSheet.show(context, task),
+                        ),
                       GhostButton(
                         label: isDone
                             ? (isArabic ? 'تعيين كغير مكتملة' : 'Mark as Incomplete')

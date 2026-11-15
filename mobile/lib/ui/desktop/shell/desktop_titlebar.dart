@@ -5,11 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:powersync/powersync.dart' show SyncStatus;
 import 'package:window_manager/window_manager.dart';
 
 import '../../../core/theme.dart';
 import '../../../core/l10n/locale_service.dart';
+import '../../../data/auth_service.dart';
+import '../../../data/friend_repository.dart';
 import '../../../data/network_service.dart';
+import '../../../data/powersync_db.dart';
 import '../core/desktop_layout.dart';
 import '../widgets/telemetry_chip.dart';
 import '../widgets/desktop_live_clock.dart';
@@ -384,13 +388,87 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
 
                     // Sync Status Pill
                     ValueListenableBuilder<bool>(
-                      valueListenable: NetworkService().isOnlineNotifier,
-                      builder: (context, isOnline, _) {
-                        return TelemetryChip(
-                          label: isOnline ? 'ONLINE' : 'OFFLINE',
-                          dotColor: isOnline ? AxisColors.tertiary : AxisColors.warning,
-                          color: isOnline ? AxisColors.tertiary : AxisColors.warning,
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      valueListenable: AuthService().authStateNotifier,
+                      builder: (context, isAuthState, _) {
+                        return ValueListenableBuilder<bool>(
+                          valueListenable: NetworkService().isOnlineNotifier,
+                          builder: (context, isOnline, _) {
+                            return StreamBuilder<SyncStatus>(
+                              stream: isDatabaseInitialized
+                                  ? db.statusStream
+                                  : const Stream<SyncStatus>.empty(),
+                              initialData:
+                                  isDatabaseInitialized ? db.currentStatus : null,
+                              builder: (context, snapshot) {
+                                final syncStatus = snapshot.data;
+                                final hasDb = isDatabaseInitialized;
+                                final isDbConnected =
+                                    syncStatus?.connected ?? (hasDb && db.connected);
+                                final isDbConnecting =
+                                    syncStatus?.connecting ?? false;
+                                final hasSyncError = syncStatus?.anyError != null;
+                                final isAuth =
+                                    isAuthState || AuthService().isAuthenticated;
+
+                                if (!Platform.environment.containsKey('FLUTTER_TEST') &&
+                                    isOnline &&
+                                    hasDb &&
+                                    isAuth &&
+                                    !isDbConnected &&
+                                    !isDbConnecting &&
+                                    !hasSyncError) {
+                                  unawaited(ensurePowerSyncConnected());
+                                }
+
+                                final String label;
+                                final Color chipColor;
+                                if (!isOnline) {
+                                  label = 'OFFLINE';
+                                  chipColor = AxisColors.warning;
+                                } else if (!hasDb || !isAuth) {
+                                  label = 'ONLINE';
+                                  chipColor = AxisColors.tertiary;
+                                } else if (hasSyncError) {
+                                  label = 'SYNC ERR';
+                                  chipColor = AxisColors.error;
+                                } else if (isDbConnected) {
+                                  label = 'SYNCED';
+                                  chipColor = AxisColors.tertiary;
+                                } else if (isDbConnecting) {
+                                  label = 'SYNCING';
+                                  chipColor = AxisColors.secondary;
+                                } else {
+                                  label = 'LOCAL';
+                                  chipColor = AxisColors.warning;
+                                }
+
+                                return MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      unawaited(
+                                        ensurePowerSyncConnected(
+                                          forceReconnect: true,
+                                        ),
+                                      );
+                                      unawaited(
+                                        FriendRepository().syncAllFriendData(),
+                                      );
+                                    },
+                                    child: TelemetryChip(
+                                      label: label,
+                                      dotColor: chipColor,
+                                      color: chipColor,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 2,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
                         );
                       },
                     ),

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/ui/friends/widgets/pending_shares_section.dart';
 import 'package:axis/ui/tasks/task_card.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
 import 'package:axis/ui/tasks/task_filter_sheet.dart';
@@ -51,12 +52,12 @@ class _UpcomingTabState extends State<UpcomingTab> {
             }
 
             final tasks = snapshot.data ?? [];
-            if (tasks.isEmpty) return const TasksEmptyState();
 
             final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
             final tomorrowStr = DateFormat('yyyy-MM-dd')
                 .format(DateTime.now().add(const Duration(days: 1)));
 
+            final collaborative = <Task>[];
             final overdue = <Task>[];
             final today = <Task>[];
             final tomorrow = <Task>[];
@@ -66,6 +67,11 @@ class _UpcomingTabState extends State<UpcomingTab> {
             for (final t in tasks) {
               if (t.status == 'done') continue;
               if (!criteria.matches(t)) continue;
+
+              if (t.isCollaborative) {
+                collaborative.add(t);
+                continue;
+              }
 
               if (t.dueDate == null) {
                 noDate.add(t);
@@ -80,136 +86,171 @@ class _UpcomingTabState extends State<UpcomingTab> {
               }
             }
 
-            final hasUpcoming = today.isNotEmpty ||
+            final hasUpcoming = collaborative.isNotEmpty ||
+                today.isNotEmpty ||
                 tomorrow.isNotEmpty ||
                 upcoming.isNotEmpty ||
                 noDate.isNotEmpty;
 
-            if (!hasUpcoming && overdue.isEmpty) {
-              return TasksEmptyState(
-                isFiltered: criteria.isActive,
-                onReset: () =>
-                    widget.filterCriteria.value = const TaskFilterCriteria(),
-              );
-            }
-
             // Sort each bucket chronologically
+            collaborative.sort(compareTasksByDueDate);
             overdue.sort(compareTasksByDueDate);
             today.sort(compareTasksByDueDate);
             tomorrow.sort(compareTasksByDueDate);
             upcoming.sort(compareTasksByDueDate);
             noDate.sort(compareTasksByDueDate);
 
-            return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (overdue.isNotEmpty && widget.onNavigateToOutdated != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: InkWell(
-                      onTap: widget.onNavigateToOutdated,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AxisColors.error.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AxisColors.error.withValues(alpha: 0.35),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: CollaborativeTaskDeletedNoticeBanner(),
+                ),
+                Expanded(
+                  child: (!hasUpcoming && overdue.isEmpty)
+                      ? TasksEmptyState(
+                          isFiltered: criteria.isActive,
+                          onReset: () => widget.filterCriteria.value =
+                              const TaskFilterCriteria(),
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                        ),
-                        child: Row(
                           children: [
-                            const Icon(
-                              Icons.warning_amber_rounded,
-                              color: AxisColors.error,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                context.isArabic
-                                    ? 'هناك ${overdue.length} مهام فائتة معلقة'
-                                    : '${overdue.length} outdated ${overdue.length == 1 ? 'task' : 'tasks'} pending',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AxisColors.textHigh,
+                            if (collaborative.isNotEmpty)
+                              UpcomingSection(
+                                title: context.isArabic
+                                    ? 'المهام التعاونية'
+                                    : 'COLLABORATIVE TASKS',
+                                color: AxisColors.secondary,
+                                tasks: collaborative,
+                                repo: widget.repo,
+                              ),
+                            if (overdue.isNotEmpty &&
+                                widget.onNavigateToOutdated != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: InkWell(
+                                  onTap: widget.onNavigateToOutdated,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AxisColors.error
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: AxisColors.error
+                                            .withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.warning_amber_rounded,
+                                          color: AxisColors.error,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            context.isArabic
+                                                ? 'هناك ${overdue.length} مهام فائتة معلقة'
+                                                : '${overdue.length} outdated ${overdue.length == 1 ? 'task' : 'tasks'} pending',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AxisColors.textHigh,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          context.isArabic
+                                              ? 'عرض الفائتة'
+                                              : 'View Outdated',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: AxisColors.error,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          context.isArabic
+                                              ? Icons.arrow_back_ios_rounded
+                                              : Icons.arrow_forward_ios_rounded,
+                                          size: 11,
+                                          color: AxisColors.error,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else if (overdue.isNotEmpty)
+                              UpcomingSection(
+                                title: context.isArabic ? 'متأخرة' : 'OVERDUE',
+                                color: AxisColors.error,
+                                tasks: overdue,
+                                repo: widget.repo,
+                              ),
+                            if (!hasUpcoming && overdue.isNotEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: Text(
+                                    context.isArabic
+                                        ? 'لا توجد مهام قادمة مجدولة'
+                                        : 'No upcoming tasks scheduled',
+                                    style: const TextStyle(
+                                      color: AxisColors.textDim,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                            Text(
-                              context.isArabic ? 'عرض الفائتة' : 'View Outdated',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AxisColors.error,
+                            if (today.isNotEmpty)
+                              UpcomingSection(
+                                title: context.isArabic ? 'اليوم' : 'TODAY',
+                                color: AxisColors.primary,
+                                tasks: today,
+                                repo: widget.repo,
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              context.isArabic
-                                  ? Icons.arrow_back_ios_rounded
-                                  : Icons.arrow_forward_ios_rounded,
-                              size: 11,
-                              color: AxisColors.error,
-                            ),
+                            if (tomorrow.isNotEmpty)
+                              UpcomingSection(
+                                title: context.isArabic ? 'غداً' : 'TOMORROW',
+                                color: AxisColors.secondary,
+                                tasks: tomorrow,
+                                repo: widget.repo,
+                              ),
+                            if (upcoming.isNotEmpty)
+                              UpcomingSection(
+                                title: context.isArabic
+                                    ? 'في وقت لاحق هذا الشهر'
+                                    : 'LATER THIS MONTH',
+                                color: AxisColors.tertiary,
+                                tasks: upcoming,
+                                repo: widget.repo,
+                              ),
+                            if (noDate.isNotEmpty)
+                              UpcomingSection(
+                                title: context.isArabic
+                                    ? 'بدون تاريخ استحقاق'
+                                    : 'NO DUE DATE',
+                                color: AxisColors.textDim,
+                                tasks: noDate,
+                                repo: widget.repo,
+                              ),
                           ],
                         ),
-                      ),
-                    ),
-                  )
-                else if (overdue.isNotEmpty)
-                  UpcomingSection(
-                    title: context.isArabic ? 'متأخرة' : 'OVERDUE',
-                    color: AxisColors.error,
-                    tasks: overdue,
-                    repo: widget.repo,
-                  ),
-                if (!hasUpcoming && overdue.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: Text(
-                        context.isArabic
-                            ? 'لا توجد مهام قادمة مجدولة'
-                            : 'No upcoming tasks scheduled',
-                        style: const TextStyle(
-                          color: AxisColors.textDim,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (today.isNotEmpty)
-                  UpcomingSection(
-                    title: context.isArabic ? 'اليوم' : 'TODAY',
-                    color: AxisColors.primary,
-                    tasks: today,
-                    repo: widget.repo,
-                  ),
-                if (tomorrow.isNotEmpty)
-                  UpcomingSection(
-                    title: context.isArabic ? 'غداً' : 'TOMORROW',
-                    color: AxisColors.secondary,
-                    tasks: tomorrow,
-                    repo: widget.repo,
-                  ),
-                if (upcoming.isNotEmpty)
-                  UpcomingSection(
-                    title: context.isArabic ? 'في وقت لاحق هذا الشهر' : 'LATER THIS MONTH',
-                    color: AxisColors.tertiary,
-                    tasks: upcoming,
-                    repo: widget.repo,
-                  ),
-                if (noDate.isNotEmpty)
-                  UpcomingSection(
-                    title: context.isArabic ? 'بدون تاريخ استحقاق' : 'NO DUE DATE',
-                    color: AxisColors.textDim,
-                    tasks: noDate,
-                    repo: widget.repo,
-                  ),
+                ),
               ],
             );
           },

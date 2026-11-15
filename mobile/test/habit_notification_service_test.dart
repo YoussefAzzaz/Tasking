@@ -336,6 +336,31 @@ void main() {
       expect(occurrences[2].isCheckpoint, isTrue);
     });
 
+    test('buildUpcomingOccurrences skips today if habit.isDoneToday is already true', () async {
+      final habit = Habit(
+        id: 'habit_marked_done_flag',
+        name: 'Evening Adhkar',
+        remindTime: '09:00 AM',
+        scheduleType: 'daily',
+        isEnabled: true,
+        isDoneToday: true,
+      );
+
+      final fixedNow = DateTime(2026, 11, 9, 7, 0);
+      final occurrences = await HabitNotificationService().buildUpcomingOccurrences(
+        [habit],
+        limit: 4,
+        fromTime: fixedNow,
+        isCompletedToday: (_) async => false,
+      );
+
+      expect(occurrences.isNotEmpty, isTrue);
+      for (final occ in occurrences) {
+        expect(occ.dateKey, greaterThan(20261109));
+        expect(occ.triggerTime.day, isNot(equals(9)));
+      }
+    });
+
     test('buildUpcomingOccurrences skips today if habit is already completed today', () async {
       final habit = Habit(
         id: 'habit_completed_today',
@@ -422,6 +447,10 @@ void main() {
       final habitB = habitA.copyWith(remindTime: '08:30 AM');
       final occ3 = occ1.copyWith(habit: habitB);
       expect(occ1.fingerprint, isNot(equals(occ3.fingerprint)));
+
+      final habitDone = habitA.copyWith(isDoneToday: true);
+      final occ4 = occ1.copyWith(habit: habitDone);
+      expect(occ1.fingerprint, isNot(equals(occ4.fingerprint)));
     });
   });
 

@@ -15,6 +15,10 @@ class NoteCardWidget extends StatelessWidget {
     final icon =
         isJournal ? Icons.auto_stories_rounded : Icons.article_rounded;
     final dateStr = context.formatDate(note.createdAt, 'h:mm a • MMM d');
+    final cleanSender = (note.senderUsername ?? '')
+        .trim()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
 
     return AxisCard(
       tier: GlassTier.two,
@@ -85,52 +89,81 @@ class NoteCardWidget extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 11, color: AxisColors.textDim),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (note.category.isNotEmpty &&
-                            note.category != 'note' &&
-                            note.category != 'journal' &&
-                            note.category.toLowerCase() != 'general notes') ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            margin: const EdgeInsetsDirectional.only(end: 6),
-                            decoration: BoxDecoration(
-                              color: AxisColors.secondary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: AxisColors.secondary.withValues(alpha: 0.25),
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (cleanSender.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              margin: const EdgeInsetsDirectional.only(end: 6),
+                              decoration: BoxDecoration(
+                                color: AxisColors.primarySoft
+                                    .withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '@$cleanSender',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AxisColors.primarySoft,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              context.l10n.localizedNoteCategory(note.category),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: AxisColors.secondary,
+                          if (note.category.isNotEmpty &&
+                              note.category != 'note' &&
+                              note.category != 'journal' &&
+                              note.category.toLowerCase() != 'general notes') ...[
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                margin: const EdgeInsetsDirectional.only(end: 6),
+                                decoration: BoxDecoration(
+                                  color:
+                                      AxisColors.secondary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: AxisColors.secondary
+                                        .withValues(alpha: 0.25),
+                                  ),
+                                ),
+                                child: Text(
+                                  context.l10n.localizedNoteCategory(note.category),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AxisColors.secondary,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
+                          if (note.mood != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AxisColors.warning.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                note.mood!,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AxisColors.warning,
+                                ),
+                              ),
+                            ),
                         ],
-                        if (note.mood != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AxisColors.warning.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              note.mood!,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: AxisColors.warning,
-                              ),
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
                   ],
                 ),

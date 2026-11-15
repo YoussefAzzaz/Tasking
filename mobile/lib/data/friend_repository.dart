@@ -11,6 +11,7 @@ import 'daily_prayer_status_repository.dart';
 import 'friends/friend_activity_repository.dart';
 import 'friends/friend_search_repository.dart';
 import 'friends/companion_badge_service.dart';
+import 'sharing/companion_share_repository.dart';
 
 export 'friends/friend_models.dart';
 export 'daily_prayer_status_repository.dart';
@@ -22,9 +23,7 @@ export 'friends/companion_badge_service.dart';
 class FriendRepository {
   static final FriendRepository _instance = FriendRepository._internal();
   factory FriendRepository() => _instance;
-  FriendRepository._internal() {
-    _initAuthListeners();
-  }
+  FriendRepository._internal();
 
   SupabaseClient? get _supabaseClient {
     try {
@@ -41,19 +40,6 @@ class FriendRepository {
   String get currentUserName => DailyPrayerStatusRepository().currentUserName;
 
   void notifyChecklistChanged() => DailyPrayerStatusRepository().notifyChecklistChanged();
-
-  StreamSubscription? _authSubscription;
-
-  void _initAuthListeners() {
-    final client = _supabaseClient;
-    if (client == null || _authSubscription != null) return;
-
-    _authSubscription = client.auth.onAuthStateChange.listen((data) {
-      if (data.session != null && !data.session!.isExpired) {
-        unawaited(syncAllFriendData());
-      }
-    });
-  }
 
   /// Watches all accepted friends with their profiles and current levels.
   Stream<List<FriendUser>> watchAcceptedFriends({int? limit, int? offset}) {
@@ -104,9 +90,6 @@ class FriendRepository {
 
       try {
         final rows = await db.getAll(query, [uid, uid, uid]);
-        if (rows.isEmpty && isRemoteAuthenticated) {
-          unawaited(syncFriendshipsFromRemote());
-        }
 
         final profileCache = FriendSearchRepository().inMemoryProfileCache;
         final friends = rows.map((r) {
@@ -531,8 +514,11 @@ class FriendRepository {
       DailyPrayerStatusRepository().syncMyDailyPrayerStatus();
 
   Future<void> syncAllFriendData() async {
+    if (isSigningOut) return;
     await AuthService().ensureAuthenticatedSession();
+    if (isSigningOut) return;
     await syncFriendshipsFromRemote();
+    await CompanionShareRepository().syncSharesFromRemote();
     await syncActivityLogsFromRemote();
     await syncMyDailyPrayerStatus();
     notifyChecklistChanged();

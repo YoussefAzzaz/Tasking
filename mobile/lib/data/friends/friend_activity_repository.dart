@@ -33,7 +33,14 @@ class FriendActivityRepository {
     return savedUid != null && savedUid.isNotEmpty && savedUid != 'local_guest';
   }
 
+  bool _hasPurgedOldLogsThisSession = false;
+
+  void clearSessionState() {
+    _hasPurgedOldLogsThisSession = false;
+  }
+
   String get currentUserId {
+    if (isSigningOut) return '';
     try {
       final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid != null && uid.isNotEmpty) return uid;
@@ -109,11 +116,15 @@ class FriendActivityRepository {
 
   /// Purges transient friend activity logs older than 15 days in both Supabase and local SQLite.
   /// Note: Never purges the `logs` table, which stores persistent user XP and gamification history.
-  Future<void> purgeOldLogs() async {
+  Future<void> purgeOldLogs({bool force = false}) async {
+    if (isSigningOut) return;
+    if (!force && _hasPurgedOldLogsThisSession) return;
+    _hasPurgedOldLogsThisSession = true;
+
     final cutoff = DateTime.now().subtract(const Duration(days: 15)).toUtc().toIso8601String();
 
     // 1. Purge local SQLite
-    if (isDatabaseInitialized) {
+    if (isDatabaseInitialized && !isSigningOut) {
       try {
         await db.execute('DELETE FROM friend_activity_logs WHERE created_at < ?', [cutoff]);
       } catch (e) {
@@ -122,7 +133,7 @@ class FriendActivityRepository {
     }
 
     // 2. Purge Supabase
-    if (isRemoteAuthenticated && _supabaseClient != null) {
+    if (!isSigningOut && isRemoteAuthenticated && _supabaseClient != null) {
       try {
         await _supabaseClient!
             .from('friend_activity_logs')
@@ -140,8 +151,10 @@ class FriendActivityRepository {
 
   /// Pulls friend activity logs and notifications from Supabase
   Future<void> syncActivityLogsFromRemote() async {
+    if (isSigningOut) return;
     unawaited(purgeOldLogs());
     await AuthService().ensureAuthenticatedSession();
+    if (isSigningOut) return;
     final client = _supabaseClient;
     final uid = currentUserId;
     if (!isRemoteAuthenticated || client == null || uid.isEmpty || !isDatabaseInitialized) return;

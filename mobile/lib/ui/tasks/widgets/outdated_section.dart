@@ -189,19 +189,8 @@ class OutdatedSection extends StatelessWidget {
                   key: ValueKey(task.id),
                   task: task,
                   onToggle: (checked) async {
-                    final updated = Task(
-                      id: task.id,
-                      title: task.title,
-                      notes: task.notes,
+                    final updated = task.copyWith(
                       status: checked ? 'done' : 'todo',
-                      priority: task.priority,
-                      projectId: task.projectId,
-                      tags: task.tags,
-                      dueDate: task.dueDate,
-                      dueTime: task.dueTime,
-                      estimateMin: task.estimateMin,
-                      recurrenceRule: task.recurrenceRule,
-                      recurrenceMode: task.recurrenceMode,
                     );
                     await repo.updateTask(updated);
                   },
@@ -223,19 +212,8 @@ class OutdatedSection extends StatelessWidget {
                 key: ValueKey(task.id),
                 task: task,
                 onToggle: (checked) async {
-                  final updated = Task(
-                    id: task.id,
-                    title: task.title,
-                    notes: task.notes,
+                  final updated = task.copyWith(
                     status: checked ? 'done' : 'todo',
-                    priority: task.priority,
-                    projectId: task.projectId,
-                    tags: task.tags,
-                    dueDate: task.dueDate,
-                    dueTime: task.dueTime,
-                    estimateMin: task.estimateMin,
-                    recurrenceRule: task.recurrenceRule,
-                    recurrenceMode: task.recurrenceMode,
                   );
                   await repo.updateTask(updated);
                 },

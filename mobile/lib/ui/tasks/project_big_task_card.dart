@@ -359,19 +359,8 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                           AxisCheckbox(
                             checked: isDone,
                             onChanged: (checked) async {
-                              final updated = Task(
-                                id: task.id,
-                                title: task.title,
-                                notes: task.notes,
+                              final updated = task.copyWith(
                                 status: checked ? 'done' : 'todo',
-                                priority: task.priority,
-                                projectId: task.projectId,
-                                tags: task.tags,
-                                dueDate: task.dueDate,
-                                dueTime: task.dueTime,
-                                estimateMin: task.estimateMin,
-                                recurrenceRule: task.recurrenceRule,
-                                recurrenceMode: task.recurrenceMode,
                               );
                               await widget.taskRepo.updateTask(updated);
                             },
@@ -394,14 +383,46 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                                         : null,
                                   ),
                                 ),
-                                if (task.dueDate != null) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    context.isArabic ? 'الاستحقاق: ${task.dueDate}' : 'Due: ${task.dueDate}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AxisColors.textMuted,
-                                    ),
+                                if (task.dueDate != null ||
+                                    (task.senderUsername != null &&
+                                        task.senderUsername!.trim().isNotEmpty)) ...[
+                                  const SizedBox(height: 3),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 2,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      if (task.senderUsername != null &&
+                                          task.senderUsername!.trim().isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: AxisColors.primarySoft
+                                                .withValues(alpha: 0.16),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            '@${task.senderUsername!.trim().replaceFirst(RegExp(r'^@+'), '')}',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AxisColors.primarySoft,
+                                            ),
+                                          ),
+                                        ),
+                                      if (task.dueDate != null)
+                                        Text(
+                                          context.isArabic
+                                              ? 'الاستحقاق: ${task.dueDate}'
+                                              : 'Due: ${task.dueDate}',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AxisColors.textMuted,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ],

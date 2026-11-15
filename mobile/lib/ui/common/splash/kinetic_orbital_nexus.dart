@@ -144,7 +144,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 ),
               ),
 
-              // Central Glowing Nexus with Axis Infinity Emblem
+              // Central Glowing Nexus with Axis North Star Emblem
               Container(
                 width: 58,
                 height: 58,
@@ -171,15 +171,11 @@ class KineticOrbitalNexus extends StatelessWidget {
                   ],
                 ),
                 child: Center(
-                  child: ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFF8ED5FF), Color(0xFF38BDF8)],
-                    ).createShader(bounds),
-                    child: const Icon(
-                      Icons.all_inclusive_rounded,
-                      size: 32,
-                      color: Colors.white,
-                    ),
+                  child: Image.asset(
+                    'assets/logo_mark.png',
+                    width: 34,
+                    height: 34,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),

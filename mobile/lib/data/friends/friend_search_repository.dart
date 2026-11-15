@@ -35,6 +35,7 @@ class FriendSearchRepository {
   }
 
   String get currentUserId {
+    if (isSigningOut) return '';
     try {
       final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid != null && uid.isNotEmpty) return uid;
@@ -202,16 +203,26 @@ class FriendSearchRepository {
 
       // Check if row already exists by id or user_id
       final existing = await db.getOptional(
-        'SELECT id FROM user_profiles WHERE id = ? OR user_id = ? LIMIT 1',
+        'SELECT id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code FROM user_profiles WHERE id = ? OR user_id = ? LIMIT 1',
         [profId, otherUid],
       );
       if (existing != null) {
         final existingId = existing['id']?.toString() ?? profId;
-        await db.execute('''
-          UPDATE user_profiles SET
-            user_id = ?, name = ?, title = ?, avatar_color = ?, avatar_url = ?, total_xp = ?, level = ?, friend_code = ?, updated_at = ?
-          WHERE id = ?
-        ''', [otherUid, name, title, color, url, xp, lvl, fCode, nowUtc, existingId]);
+        final needsUpdate = existing['user_id']?.toString() != otherUid ||
+            existing['name']?.toString() != name ||
+            existing['title']?.toString() != title ||
+            existing['avatar_color']?.toString() != color ||
+            existing['avatar_url']?.toString() != url?.toString() ||
+            parseToInt(existing['total_xp']) != xp ||
+            parseToInt(existing['level'], 1) != lvl ||
+            existing['friend_code']?.toString() != fCode;
+        if (needsUpdate) {
+          await db.execute('''
+            UPDATE user_profiles SET
+              user_id = ?, name = ?, title = ?, avatar_color = ?, avatar_url = ?, total_xp = ?, level = ?, friend_code = ?, updated_at = ?
+            WHERE id = ?
+          ''', [otherUid, name, title, color, url, xp, lvl, fCode, nowUtc, existingId]);
+        }
       } else {
         try {
           await db.execute('''
@@ -276,7 +287,9 @@ class FriendSearchRepository {
 
   /// Pulls active friendships and pending requests directly from Supabase.
   Future<void> syncFriendshipsFromRemote() async {
+    if (isSigningOut) return;
     await AuthService().ensureAuthenticatedSession();
+    if (isSigningOut) return;
     final client = _supabaseClient;
     final uid = currentUserId;
     if (!isRemoteAuthenticated || client == null || uid.isEmpty || !isDatabaseInitialized) return;
@@ -316,10 +329,17 @@ class FriendSearchRepository {
             await db.execute('UPDATE friendships SET status = ?, updated_at = ? WHERE id = ?', [status, updatedAt, fId]);
           }
         } else {
-          await db.execute(
-            'INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-            [fId, reqId, addId, status, createdAt, updatedAt],
-          );
+          try {
+            await db.execute(
+              'INSERT INTO friendships (id, requester_id, addressee_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+              [fId, reqId, addId, status, createdAt, updatedAt],
+            );
+          } catch (_) {
+            await db.execute(
+              'UPDATE friendships SET status = ?, updated_at = ? WHERE id = ? AND status != ?',
+              [status, updatedAt, fId, status],
+            );
+          }
         }
 
         final otherUid = (reqId == uid) ? addId : reqId;

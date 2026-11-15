@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../../core/l10n/app_localizations.dart';
 
 import '../../../data/note_repository.dart';
@@ -305,6 +306,9 @@ class _JournalVaultScreenState extends State<JournalVaultScreen> {
                 onDeleteSelectedNote: _handleDeleteSelectedNote,
                 onExportMarkdown: _handleExportMarkdown,
                 onStartNewEntry: (tab) => _handleStartNewEntry(category: tab),
+                onShareSelectedNote: _selectedNote != null
+                    ? () => ShareTaskSheet.showForNote(context, _selectedNote!)
+                    : null,
               ),
               const SizedBox(height: DesktopLayout.sectionSpacing),
 

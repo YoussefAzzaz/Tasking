@@ -303,6 +303,7 @@ const appSchema = Schema([
       Column.text('share_mode'), // 'copy', 'collaborate'
       Column.text('status'), // 'pending', 'accepted', 'declined', 'cancelled'
       Column.text('preview_data'), // JSON string
+      Column.text('accepted_entity_id'), // Cloned entity ID for two-way collaboration
       Column.text('created_at'),
       Column.text('updated_at'),
     ],

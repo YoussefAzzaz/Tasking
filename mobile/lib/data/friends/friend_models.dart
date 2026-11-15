@@ -246,6 +246,15 @@ class FriendActivityLog {
   bool get isRequestAccepted => eventType == 'request_accepted';
   bool get isRequestDeclined => eventType == 'request_declined';
   bool get isPrayerReminder => eventType == 'prayer_reminder' || eventType == 'nudge';
+  bool get isSharedItemDeclined => eventType == 'shared_item_declined';
+  bool get isCollaborativeTaskDeleted =>
+      eventType == 'collaborative_task_deleted';
+  bool get isSharedItem =>
+      eventType == 'shared_item_sent' ||
+      eventType == 'shared_item_accepted' ||
+      eventType == 'shared_item_declined' ||
+      eventType == 'collaborative_task_completed' ||
+      eventType == 'collaborative_task_deleted';
 
   factory FriendActivityLog.fromRow(Map<String, dynamic> row) {
     Map<String, dynamic> meta = {};

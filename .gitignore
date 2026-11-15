@@ -26,6 +26,8 @@ Thumbs.db
 *.bak
 *.swp
 *~
+.temp/
+supabase/.temp/
 
 # Python cache (used in helper scripts & skills)
 __pycache__/

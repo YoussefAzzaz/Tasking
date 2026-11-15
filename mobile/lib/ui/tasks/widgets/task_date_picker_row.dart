@@ -42,9 +42,13 @@ class TaskDatePickerRow extends StatelessWidget {
             Expanded(
               flex: 3,
               child: FieldLabel(
-                label: estimateMin != null && estimateMin! <= 15
-                    ? (context.isArabic ? 'المؤقت (≤15 د مصغرة)' : 'TIMER (≤15M MICRO)')
-                    : (context.isArabic ? 'مدة المهمة (مؤقت)' : 'TASK DURATION (TIMER)'),
+                label: (estimateMin ?? 15) <= 15
+                    ? (context.isArabic
+                        ? 'المؤقت (≤15 د مصغرة) *'
+                        : 'TIMER (≤15M MICRO) *')
+                    : (context.isArabic
+                        ? 'مدة المهمة (مؤقت) *'
+                        : 'TASK DURATION (TIMER) *'),
               ),
             ),
           ],
@@ -140,20 +144,18 @@ class TaskDatePickerRow extends StatelessWidget {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          estimateMin != null
-                              ? (context.isArabic ? '$estimateMin دقيقة' : '$estimateMin min')
-                              : (context.isArabic ? 'ضبط المؤقت' : 'Set Timer'),
-                          style: TextStyle(
-                            color: estimateMin != null
-                                ? AxisColors.textHigh
-                                : AxisColors.textDim,
+                          context.isArabic
+                              ? '${estimateMin ?? 15} دقيقة'
+                              : '${estimateMin ?? 15} min',
+                          style: const TextStyle(
+                            color: AxisColors.textHigh,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (estimateMin != null)
+                      if (estimateMin != null && estimateMin != 15)
                         GestureDetector(
                           onTap: onClearDuration,
                           child: const Icon(Icons.clear_rounded,

@@ -27,4 +27,11 @@
 -keep class io.flutter.plugins.sharedpreferences.** { *; }
 -keep class com.llfbandit.app_links.** { *; }
 
+# App Main Activity & Settings Channel
+-keep class com.axis.axis.** { *; }
+
+# Awesome Notifications & Audio
+-keep class me.carda.awesome_notifications.** { *; }
+-keep class me.carda.** { *; }
+
 -keepattributes *Annotation*,Signature,Exception,InnerClasses

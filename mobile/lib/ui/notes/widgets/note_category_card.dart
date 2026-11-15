@@ -5,6 +5,7 @@ import 'package:axis/data/note_repository.dart';
 import 'package:axis/data/note_category_repository.dart';
 import 'package:axis/ui/common/category_filter_slider.dart';
 import 'package:axis/ui/notes/widgets/note_card_widget.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 /// EXPANDABLE NOTE CATEGORY CARD
 /// Displays notes grouped by category with live count, expand/collapse animation,
@@ -269,6 +270,8 @@ class _NoteCategoryCardState extends State<NoteCategoryCard> {
                               padding: const EdgeInsets.only(bottom: 8),
                               child: InkWell(
                                 onTap: () => widget.onTapNote(note),
+                                onLongPress: () =>
+                                    ShareTaskSheet.showForNote(context, note),
                                 borderRadius: BorderRadius.circular(12),
                                 child: NoteCardWidget(note: note),
                               ),

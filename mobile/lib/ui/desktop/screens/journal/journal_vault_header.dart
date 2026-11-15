@@ -16,6 +16,7 @@ class JournalVaultHeader extends StatelessWidget {
   final VoidCallback onDeleteSelectedNote;
   final VoidCallback onExportMarkdown;
   final ValueChanged<String> onStartNewEntry;
+  final VoidCallback? onShareSelectedNote;
 
   const JournalVaultHeader({
     super.key,
@@ -27,6 +28,7 @@ class JournalVaultHeader extends StatelessWidget {
     required this.onDeleteSelectedNote,
     required this.onExportMarkdown,
     required this.onStartNewEntry,
+    this.onShareSelectedNote,
   });
 
   @override
@@ -126,6 +128,16 @@ class JournalVaultHeader extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isEditing) ...[
+              if (onShareSelectedNote != null) ...[
+                GhostButton(
+                  label: isAr ? 'مشاركة' : 'Share',
+                  icon: Icons.ios_share_rounded,
+                  color: AxisColors.secondary,
+                  borderColor: AxisColors.secondary.withValues(alpha: 0.35),
+                  onPressed: onShareSelectedNote!,
+                ),
+                const SizedBox(width: 8),
+              ],
               GhostButton(
                 label: note.pinned
                     ? (isAr ? 'مثبت' : 'Pinned')

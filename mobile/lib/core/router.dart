@@ -9,6 +9,7 @@ import 'package:axis/ui/focus/focus_screen.dart';
 import 'package:axis/ui/friends/friends_screen.dart';
 import 'package:axis/ui/common/splash_screen.dart';
 import 'package:axis/ui/auth/auth_screen.dart';
+import 'package:axis/ui/debug/adhan_alarm_debug_screen.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/ui/shell/app_shell.dart';
 
@@ -109,6 +110,10 @@ final router = GoRouter(
     GoRoute(
       path: '/badges',
       builder: (context, state) => const MasteryBadgesScreen(),
+    ),
+    GoRoute(
+      path: '/debug/adhan-alarm',
+      builder: (context, state) => const AdhanAlarmDebugScreen(),
     ),
   ],
 );

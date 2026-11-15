@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:axis/data/habits/habit_state_manager.dart';
 
 /// Domain model representing a user habit.
@@ -15,6 +16,9 @@ class Habit {
   final int sortOrder;
   final bool isEnabled;
   final String? createdAt;
+  final String? shareId;
+  final String? senderId;
+  final String? senderUsername;
 
   Habit({
     required this.id,
@@ -30,6 +34,9 @@ class Habit {
     this.sortOrder = 999,
     this.isEnabled = true,
     this.createdAt,
+    this.shareId,
+    this.senderId,
+    this.senderUsername,
   });
 
   Habit copyWith({
@@ -46,6 +53,9 @@ class Habit {
     int? sortOrder,
     bool? isEnabled,
     String? createdAt,
+    String? shareId,
+    String? senderId,
+    String? senderUsername,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -61,7 +71,17 @@ class Habit {
       sortOrder: sortOrder ?? this.sortOrder,
       isEnabled: isEnabled ?? this.isEnabled,
       createdAt: createdAt ?? this.createdAt,
+      shareId: shareId ?? this.shareId,
+      senderId: senderId ?? this.senderId,
+      senderUsername: senderUsername ?? this.senderUsername,
     );
+  }
+
+  static String? _cleanUsername(dynamic raw) {
+    final val = raw?.toString().trim() ?? '';
+    if (val.isEmpty) return null;
+    final cleaned = val.replaceFirst(RegExp(r'^@+'), '').trim();
+    return cleaned.isEmpty ? null : cleaned;
   }
 
   factory Habit.fromRow(
@@ -99,6 +119,29 @@ class Habit {
           rawEnabled == 'true';
     }
 
+    Map<String, dynamic> preview = const {};
+    final rawPreview = row['share_preview_data'];
+    if (rawPreview is Map) {
+      preview = Map<String, dynamic>.from(rawPreview);
+    } else if (rawPreview is String && rawPreview.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawPreview);
+        if (decoded is Map) {
+          preview = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+    }
+
+    final shareIdRaw = row['share_id']?.toString().trim();
+    final previewSender = _cleanUsername(preview['sender_name']);
+    final rowSender = _cleanUsername(row['sender_username']);
+    final resolvedSender = (rowSender != null && rowSender != 'Companion')
+        ? rowSender
+        : (previewSender ?? rowSender);
+    final senderIdRaw =
+        row['share_sender_id']?.toString().trim() ??
+        preview['sender_id']?.toString().trim();
+
     return Habit(
       id: id,
       name: row['name'] as String,
@@ -113,6 +156,10 @@ class Habit {
       sortOrder: (row['sort_order'] as num?)?.toInt() ?? 999,
       isEnabled: isEnabled,
       createdAt: row['created_at'] as String?,
+      shareId: (shareIdRaw != null && shareIdRaw.isNotEmpty) ? shareIdRaw : null,
+      senderId:
+          (senderIdRaw != null && senderIdRaw.isNotEmpty) ? senderIdRaw : null,
+      senderUsername: resolvedSender,
     );
   }
 }

@@ -8,6 +8,7 @@ import 'package:axis/data/friend_repository.dart';
 import 'package:axis/data/mastery_badge_repository.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/ui/me/widgets/avatar_widget.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'companion_badges_list.dart';
 
@@ -388,6 +389,50 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                         ),
                       ),
                     ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Share Task, Habit, or Note Action Button
+                  SizedBox(
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      key: const ValueKey('companion_profile_share_button'),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        final navContext = Navigator.of(context).context;
+                        Navigator.of(context).pop();
+                        ShareWithCompanionSheet.show(
+                          navContext,
+                          companionUserId: status.userId,
+                          companionName: status.userName,
+                          companionAvatarColor: status.userAvatarColor,
+                          companionAvatarUrl: status.userAvatarUrl,
+                        );
+                      },
+                      icon: const Icon(Icons.ios_share_rounded, size: 17),
+                      label: Text(
+                        isArabic
+                            ? 'مشاركة مهمة أو عادة أو ملاحظة'
+                            : 'Share Task, Habit, or Note',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            AxisColors.primary.withValues(alpha: 0.16),
+                        foregroundColor: AxisColors.primarySoft,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: AxisColors.primarySoft.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 20),

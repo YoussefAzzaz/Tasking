@@ -54,31 +54,75 @@ class HabitRepository {
         createdAtStr: createdAtStr,
       );
 
+  static const String _joinedHabitsSelectPrefix = '''
+    SELECT
+      h.*,
+      cs.id AS share_id,
+      cs.sender_id AS share_sender_id,
+      cs.preview_data AS share_preview_data,
+      sp.name AS sender_username
+    FROM habits h
+    LEFT JOIN companion_shares cs
+      ON cs.id = (
+        SELECT cs2.id
+        FROM companion_shares cs2
+        WHERE cs2.entity_type = 'habit'
+          AND cs2.status = 'accepted'
+          AND cs2.accepted_entity_id = h.id
+          AND cs2.sender_id != COALESCE(h.user_id, '')
+        ORDER BY cs2.updated_at DESC
+        LIMIT 1
+      )
+    LEFT JOIN user_profiles sp ON sp.user_id = cs.sender_id
+  ''';
+
+  Future<bool> _hasShareJoinTables() async {
+    if (!isDatabaseInitialized) return false;
+    try {
+      final rows = await db.getAll('''
+        SELECT name FROM sqlite_master
+        WHERE type IN ('table', 'view')
+          AND name IN ('companion_shares', 'user_profiles')
+      ''');
+      return rows.length >= 2;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Stream<List<Habit>> watchHabits({int? limit, int? offset}) {
     if (!isDatabaseInitialized) {
       return Stream.value(const <Habit>[]);
     }
+    return _watchHabitsInternal(limit: limit, offset: offset);
+  }
+
+  Stream<List<Habit>> _watchHabitsInternal({int? limit, int? offset}) async* {
     unawaited(ensureStateLoaded());
     final now = DateTime.now();
     final uid = currentUserId;
-
-    var query = uid.isNotEmpty
-        ? 'SELECT * FROM habits '
-          'WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') AND (deleted_at IS NULL OR deleted_at = \'\') '
-          'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC'
-        : 'SELECT * FROM habits '
-          'WHERE (deleted_at IS NULL OR deleted_at = \'\') '
-          'ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC';
+    final hasJoin = await _hasShareJoinTables();
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
+    final limitClause = (limit != null && limit > 0)
+        ? ' LIMIT $limit${(offset != null && offset > 0) ? ' OFFSET $offset' : ''}'
+        : '';
 
-    if (limit != null && limit > 0) {
-      query += ' LIMIT $limit';
-      if (offset != null && offset > 0) {
-        query += ' OFFSET $offset';
-      }
+    final String query;
+    if (hasJoin) {
+      final whereClause = uid.isNotEmpty
+          ? 'WHERE (h.user_id = ? OR h.user_id IS NULL OR h.user_id = \'\') AND (h.deleted_at IS NULL OR h.deleted_at = \'\')'
+          : 'WHERE (h.deleted_at IS NULL OR h.deleted_at = \'\')';
+      query =
+          '$_joinedHabitsSelectPrefix $whereClause ORDER BY COALESCE(h.sort_order, 999) ASC, h.created_at ASC$limitClause';
+    } else {
+      final whereClause = uid.isNotEmpty
+          ? 'WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') AND (deleted_at IS NULL OR deleted_at = \'\')'
+          : 'WHERE (deleted_at IS NULL OR deleted_at = \'\')';
+      query =
+          'SELECT * FROM habits $whereClause ORDER BY COALESCE(sort_order, 999) ASC, created_at ASC$limitClause';
     }
 
-    return db
+    yield* db
         .watch(query, parameters: params)
         .asyncMap((habitRows) async {
       // Fetch recent completed logs (last 14 days) for schedule cycle completion check
@@ -137,7 +181,7 @@ class HabitRepository {
         fallback: <String, int>{},
       );
 
-      return habitRows.map((row) {
+      final rawHabits = habitRows.map((row) {
         final id = row['id'] as String;
         final scheduleType = (row['schedule_type'] as String?) ?? 'daily';
         final createdAtStr = row['created_at'] as String?;
@@ -156,6 +200,44 @@ class HabitRepository {
           streak: streakMap[id] ?? 0,
         );
       }).toList();
+
+      final seenIds = <String, int>{};
+      final seenKeys = <String, int>{};
+      final uniqueHabits = <Habit>[];
+      for (final h in rawHabits) {
+        final hasSender =
+            h.senderUsername != null && h.senderUsername!.trim().isNotEmpty;
+        final existingById = seenIds[h.id];
+        if (existingById != null) {
+          final existing = uniqueHabits[existingById];
+          final existingHasSender = existing.senderUsername != null &&
+              existing.senderUsername!.trim().isNotEmpty;
+          if (!existingHasSender && hasSender) {
+            uniqueHabits[existingById] = h;
+          }
+          continue;
+        }
+        final normKey =
+            '${h.name.trim().toLowerCase()}|${h.scheduleType.trim().toLowerCase()}';
+        final existingByKey =
+            h.name.trim().isNotEmpty ? seenKeys[normKey] : null;
+        if (existingByKey != null) {
+          final existing = uniqueHabits[existingByKey];
+          final existingHasSender = existing.senderUsername != null &&
+              existing.senderUsername!.trim().isNotEmpty;
+          if (!existingHasSender && hasSender) {
+            uniqueHabits[existingByKey] = h;
+          }
+          continue;
+        }
+        final idx = uniqueHabits.length;
+        seenIds[h.id] = idx;
+        if (h.name.trim().isNotEmpty) {
+          seenKeys[normKey] = idx;
+        }
+        uniqueHabits.add(h);
+      }
+      return uniqueHabits;
     });
   }
 
@@ -208,7 +290,7 @@ class HabitRepository {
     final now = DateTime.now().toUtc().toIso8601String();
     try {
       await db.execute('''
-        INSERT INTO habits (
+        INSERT OR REPLACE INTO habits (
           id, user_id, name, kind, icon, color, schedule_type, remind_time, target_value, sort_order, is_enabled, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''', [

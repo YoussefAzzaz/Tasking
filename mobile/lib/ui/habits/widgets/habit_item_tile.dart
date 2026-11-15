@@ -3,6 +3,7 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/habit_repository.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 /// Single interactive row representing a habit within a category card.
 class HabitItemTile extends StatelessWidget {
@@ -28,10 +29,15 @@ class HabitItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isArabic = context.isArabic;
+    final cleanSender = (habit.senderUsername ?? '')
+        .trim()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
     return Opacity(
       opacity: isEnabled ? 1.0 : 0.6,
       child: InkWell(
         onTap: onEdit,
+        onLongPress: () => ShareTaskSheet.showForHabit(context, habit),
         borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -69,7 +75,8 @@ class HabitItemTile extends StatelessWidget {
                     ),
                     if ((habit.remindTime != null &&
                             habit.remindTime!.isNotEmpty) ||
-                        habit.streakDays > 0) ...[
+                        habit.streakDays > 0 ||
+                        cleanSender.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       LayoutBuilder(
                         builder: (context, constraints) {
@@ -78,6 +85,30 @@ class HabitItemTile extends StatelessWidget {
                             runSpacing: 2,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
+                              if (cleanSender.isNotEmpty)
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                      maxWidth: constraints.maxWidth),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: AxisColors.primarySoft
+                                          .withValues(alpha: 0.16),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '@$cleanSender',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: AxisColors.primarySoft,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               if (habit.remindTime != null &&
                                   habit.remindTime!.isNotEmpty)
                                 ConstrainedBox(
@@ -220,7 +251,9 @@ class HabitItemTile extends StatelessWidget {
                       ),
                     ),
                     onSelected: (action) {
-                      if (action == 'edit') {
+                      if (action == 'share') {
+                        ShareTaskSheet.showForHabit(context, habit);
+                      } else if (action == 'edit') {
                         onEdit();
                       } else if (action == 'delete') {
                         onDelete();
@@ -229,6 +262,25 @@ class HabitItemTile extends StatelessWidget {
                       }
                     },
                     itemBuilder: (ctx) => [
+                      PopupMenuItem<String>(
+                        value: 'share',
+                        height: 38,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.ios_share_rounded,
+                                size: 16, color: AxisColors.primarySoft),
+                            const SizedBox(width: 10),
+                            Text(
+                              isArabic ? 'مشاركة مع صاحب' : 'Share with Companion',
+                              style: const TextStyle(
+                                color: AxisColors.textHigh,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       PopupMenuItem<String>(
                         value: 'toggle_enabled',
                         height: 38,

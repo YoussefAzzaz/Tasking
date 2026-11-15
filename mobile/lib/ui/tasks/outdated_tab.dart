@@ -112,6 +112,20 @@ class _OutdatedTabState extends State<OutdatedTab> {
             final showFinished = _activeFilter == OutdatedFilterMode.all ||
                 _activeFilter == OutdatedFilterMode.finished;
 
+            final collabOutdated =
+                outdated.where((t) => t.isCollaborative).toList();
+            final personalOutdated =
+                outdated.where((t) => !t.isCollaborative).toList();
+            final collabFinished =
+                finished.where((t) => t.isCollaborative).toList();
+            final personalFinished =
+                finished.where((t) => !t.isCollaborative).toList();
+
+            final collaborativeSectionTasks = <Task>[
+              if (showOutdated) ...collabOutdated,
+              if (showFinished) ...collabFinished,
+            ]..sort(compareTasksByDueDate);
+
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
@@ -126,15 +140,33 @@ class _OutdatedTabState extends State<OutdatedTab> {
                 ),
                 const SizedBox(height: 12),
 
+                // Dedicated Collaborative Tasks section
+                if (collaborativeSectionTasks.isNotEmpty) ...[
+                  OutdatedSection(
+                    title: context.isArabic
+                        ? 'المهام التعاونية'
+                        : 'COLLABORATIVE TASKS',
+                    subtitle: context.isArabic
+                        ? 'مهام مشتركة ومتزامنة مع أصحابك'
+                        : 'Shared tasks synchronized with your companions',
+                    color: AxisColors.secondary,
+                    tasks: collaborativeSectionTasks,
+                    repo: widget.repo,
+                  ),
+                  if ((showOutdated && personalOutdated.isNotEmpty) ||
+                      (showFinished && personalFinished.isNotEmpty))
+                    const SizedBox(height: 10),
+                ],
+
                 // Outdated / Overdue section
-                if (showOutdated && outdated.isNotEmpty)
+                if (showOutdated && personalOutdated.isNotEmpty)
                   OutdatedSection(
                     title: context.isArabic ? 'فائتة' : 'OUTDATED',
                     subtitle: context.isArabic
                         ? 'تجاوزت تاريخ الاستحقاق • مجمعة حسب التاريخ • انقر على مربع الاختيار للإكمال'
                         : 'Past due date • grouped by date • tap checkbox to mark complete',
                     color: AxisColors.error,
-                    tasks: outdated,
+                    tasks: personalOutdated,
                     repo: widget.repo,
                     groupByDate: true,
                   ),
@@ -152,8 +184,8 @@ class _OutdatedTabState extends State<OutdatedTab> {
                   ),
 
                 // Finished / Completed section
-                if (showFinished && finished.isNotEmpty) ...[
-                  if (showOutdated && outdated.isNotEmpty)
+                if (showFinished && personalFinished.isNotEmpty) ...[
+                  if (showOutdated && personalOutdated.isNotEmpty)
                     const SizedBox(height: 10),
                   OutdatedSection(
                     title: context.isArabic ? 'مكتملة' : 'FINISHED',
@@ -161,7 +193,7 @@ class _OutdatedTabState extends State<OutdatedTab> {
                         ? 'مهام مكتملة • انقر على مربع الاختيار للإعادة'
                         : 'Completed tasks • tap checkbox to restore to todo',
                     color: AxisColors.tertiary,
-                    tasks: finished,
+                    tasks: personalFinished,
                     repo: widget.repo,
                   ),
                 ],

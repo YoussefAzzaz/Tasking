@@ -6,6 +6,7 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/task_repository.dart';
 import '../../../common/axis_markdown_viewer.dart';
 import '../../core/task_checklist_mixin.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../dialogs/quick_task_dialog.dart';
 import '../../widgets/accent_button.dart';
 import '../../widgets/desktop_checkbox.dart';
@@ -85,39 +86,58 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AxisColors.secondary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AxisColors.secondary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.preview_rounded,
+                            color: AxisColors.secondary,
+                            size: 18,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.preview_rounded,
-                          color: AxisColors.secondary,
-                          size: 18,
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            isArabic
+                                ? "معاينة المهمة // مسار اليوم"
+                                : "TASK PREVIEW // TODAY'S STREAM",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.0,
+                              color: AxisColors.secondary,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        isArabic
-                            ? "معاينة المهمة // مسار اليوم"
-                            : "TASK PREVIEW // TODAY'S STREAM",
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0,
-                          color: AxisColors.secondary,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (!isDone) ...[
+                        GhostButton(
+                          key: const ValueKey('desktop_task_preview_share_button'),
+                          label: isArabic ? 'مشاركة' : 'Share',
+                          icon: Icons.ios_share_rounded,
+                          height: 28,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          color: AxisColors.secondary,
+                          borderColor: AxisColors.secondary.withValues(alpha: 0.35),
+                          onPressed: () => ShareTaskSheet.show(context, _currentTask),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       GhostButton(
                         label: isArabic ? 'تعديل' : 'Edit',
                         icon: Icons.edit_outlined,
@@ -325,14 +345,24 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
             const Divider(color: AxisColors.borderSubtle, height: 1),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 10,
+                runSpacing: 8,
                 children: [
+                  if (!isDone)
+                    GhostButton(
+                      label: isArabic ? 'مشاركة المهمة' : 'Share Task',
+                      icon: Icons.ios_share_rounded,
+                      color: AxisColors.secondary,
+                      borderColor: AxisColors.secondary.withValues(alpha: 0.35),
+                      onPressed: () => ShareTaskSheet.show(context, _currentTask),
+                    ),
                   GhostButton(
                     label: isArabic ? 'إغلاق' : 'Close',
                     onPressed: () => Navigator.of(context).pop(),
                   ),
-                  const SizedBox(width: 10),
                   AccentButton(
                     label: isDone
                         ? (isArabic ? 'تعيين كغير مكتملة' : 'Mark Incomplete')

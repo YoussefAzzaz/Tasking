@@ -54,6 +54,7 @@ class AppLocalizations {
   String get prayerHabits => isArabic ? 'الصلوات والعادات' : 'Prayer & Habits';
   String get journalVault => isArabic ? 'اليوميات والخزينة' : 'Journal & Vault';
   String get focusTimers => isArabic ? 'مؤقتات التركيز' : 'Focus Timers';
+  String get calendar => isArabic ? 'التقويم' : 'Calendar';
   String get profileSettings => isArabic ? 'الملف الشخصي والإعدادات' : 'Profile & Settings';
 
   // --------------------------------------------------------------------------

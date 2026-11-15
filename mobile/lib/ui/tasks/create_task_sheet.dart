@@ -13,6 +13,7 @@ import 'package:axis/ui/tasks/widgets/task_priority_selector.dart';
 import 'package:axis/ui/tasks/widgets/task_description_editor.dart';
 import 'package:axis/ui/tasks/widgets/task_date_picker_row.dart';
 import 'package:axis/ui/tasks/services/task_form_service.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 export 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 export 'package:axis/ui/tasks/widgets/project_selector_field.dart';
@@ -29,12 +30,14 @@ class CreateTaskSheet extends StatefulWidget {
     super.key,
     required this.onTaskCreated,
     this.initialProject,
+    this.initialDate,
     this.taskToEdit,
     this.onTaskUpdated,
   });
 
   final VoidCallback onTaskCreated;
   final String? initialProject;
+  final DateTime? initialDate;
   final Task? taskToEdit;
   final ValueChanged<Task>? onTaskUpdated;
 
@@ -62,7 +65,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
   String? _selectedProject;
   final Set<String> _selectedTags = {};
   DateTime? _selectedDate = DateTime.now();
-  int? _estimateMin;
+  int _estimateMin = 15;
   bool _saving = false;
   String? _errorText;
 
@@ -75,6 +78,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusManager.instance.primaryFocus?.unfocus();
     });
+    _selectedDate = widget.initialDate ?? DateTime.now();
     if (widget.taskToEdit != null) {
       final t = widget.taskToEdit!;
       _titleController.text = t.title;
@@ -93,9 +97,12 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
           if (clean.isNotEmpty) _selectedTags.add(clean);
         }
       }
-      _selectedDate =
-          t.dueDate != null ? DateTime.tryParse(t.dueDate!) : null;
-      _estimateMin = t.estimateMin;
+      _selectedDate = t.dueDate != null
+          ? DateTime.tryParse(t.dueDate!)
+          : (widget.initialDate ?? DateTime.now());
+      _estimateMin = (t.estimateMin != null && t.estimateMin! > 0)
+          ? t.estimateMin!
+          : 15;
     } else if (widget.initialProject != null &&
         widget.initialProject!.trim().isNotEmpty) {
       _selectedProject = widget.initialProject!.trim();
@@ -209,8 +216,9 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     await TaskDurationPickerSheet.show(
       context: context,
       initialEstimateMin: _estimateMin,
-      onApplied: (val) => setState(() => _estimateMin = val),
-      onCleared: () => setState(() => _estimateMin = null),
+      onApplied: (val) =>
+          setState(() => _estimateMin = (val > 0) ? val : 15),
+      onCleared: () => setState(() => _estimateMin = 15),
     );
   }
 
@@ -302,6 +310,9 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                     child: TaskSheetHeader(
                       isEdit: widget.taskToEdit != null,
                       onClose: () => Navigator.pop(context),
+                      onShare: (widget.taskToEdit != null && !widget.taskToEdit!.isCompleted)
+                          ? () => ShareTaskSheet.show(context, widget.taskToEdit!)
+                          : null,
                     ),
                   ),
                   const Divider(color: AxisColors.borderSubtle, height: 1),
@@ -384,8 +395,9 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                         onPickDate: _pickDate,
                         onClearDate: () => setState(() => _selectedDate = null),
                         onPickDuration: _pickDuration,
-                        onClearDuration: () => setState(() => _estimateMin = null),
-                        onSelectEstimateMin: (min) => setState(() => _estimateMin = min),
+                        onClearDuration: () => setState(() => _estimateMin = 15),
+                        onSelectEstimateMin: (min) => setState(
+                            () => _estimateMin = (min > 0) ? min : 15),
                         onSelectQuickDate: (date) => setState(() => _selectedDate = date),
                       ),
                       const SizedBox(height: 18),

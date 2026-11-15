@@ -183,11 +183,16 @@ class _ProjectsTabState extends State<ProjectsTab> {
                      !_locallyDeletedProjects.contains(idLower.replaceFirst('discovered_', ''));
             }).toList();
 
-            // Separate tasks by project
+            // Separate collaborative tasks from personal project buckets
+            final collaborativeTasks =
+                allTasks.where((t) => t.isCollaborative).toList();
+            final personalTasks =
+                allTasks.where((t) => !t.isCollaborative).toList();
+
             final Map<String, List<Task>> tasksByProject = {};
             final unassignedTasks = <Task>[];
 
-            for (final t in allTasks) {
+            for (final t in personalTasks) {
               if (t.projectId == null || t.projectId!.isEmpty) {
                 unassignedTasks.add(t);
                 continue;
@@ -232,6 +237,16 @@ class _ProjectsTabState extends State<ProjectsTab> {
                 color: AxisColors.secondary,
                 count: allTasks.length,
               ),
+              if (collaborativeTasks.isNotEmpty)
+                CategorySliderItem(
+                  id: 'collaborative',
+                  label: context.isArabic
+                      ? 'المهام التعاونية'
+                      : 'Collaborative Tasks',
+                  iconData: Icons.handshake_rounded,
+                  color: AxisColors.secondary,
+                  count: collaborativeTasks.length,
+                ),
               ...allProjects.map((project) {
                 final subtasks = tasksByProject[project.name] ?? [];
                 return CategorySliderItem(
@@ -253,6 +268,25 @@ class _ProjectsTabState extends State<ProjectsTab> {
             ];
 
             final isSearching = _searchQuery.isNotEmpty;
+
+            final showCollaborativeCard = (_selectedProjectId == 'all' ||
+                    _selectedProjectId == 'collaborative') &&
+                collaborativeTasks.isNotEmpty;
+
+            final displayedCollaborativeTasks = showCollaborativeCard
+                ? (!isSearching
+                    ? collaborativeTasks
+                    : collaborativeTasks
+                        .where((t) =>
+                            t.title.toLowerCase().contains(_searchQuery) ||
+                            (t.notes?.toLowerCase().contains(_searchQuery) ??
+                                false) ||
+                            (t.senderUsername
+                                    ?.toLowerCase()
+                                    .contains(_searchQuery) ??
+                                false))
+                        .toList())
+                : <Task>[];
 
             // Filter projects based on slider selection and search query
             final displayedProjects = allProjects.where((project) {
@@ -289,7 +323,8 @@ class _ProjectsTabState extends State<ProjectsTab> {
                 : <Task>[];
 
             // Count total matching tasks across displayed projects
-            int totalMatchingTasks = displayedUnassignedTasks.length;
+            int totalMatchingTasks = displayedCollaborativeTasks.length +
+                displayedUnassignedTasks.length;
             for (final proj in displayedProjects) {
               final raw = tasksByProject[proj.name] ?? [];
               final filtered = (!isSearching || proj.name.toLowerCase().contains(_searchQuery))
@@ -421,7 +456,10 @@ class _ProjectsTabState extends State<ProjectsTab> {
                     },
                   )
                 // No projects created state
-                else if (!isSearching && allProjects.isEmpty && unassignedTasks.isEmpty)
+                else if (!isSearching &&
+                    allProjects.isEmpty &&
+                    unassignedTasks.isEmpty &&
+                    collaborativeTasks.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                     child: Container(
@@ -462,6 +500,27 @@ class _ProjectsTabState extends State<ProjectsTab> {
                   )
                 // Render filtered project cards
                 else ...[
+                  if (displayedCollaborativeTasks.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ProjectBigTaskCard(
+                        project: Project(
+                          id: 'collaborative_tasks',
+                          name: context.isArabic
+                              ? 'المهام التعاونية'
+                              : 'Collaborative Tasks',
+                          color: '#06B6D4',
+                        ),
+                        color: AxisColors.secondary,
+                        subtasks: List<Task>.from(displayedCollaborativeTasks)
+                          ..sort(compareTasksByDueDate),
+                        forceExpand: isSearching,
+                        taskRepo: widget.taskRepo,
+                        projectRepo: widget.projectRepo,
+                        onAddSubtask: () => widget.onAddTask(),
+                      ),
+                    ),
+                  ],
                   ...displayedProjects.map((project) {
                     final rawSubtasks = tasksByProject[project.name] ?? [];
                     final subtasks = (!isSearching || project.name.toLowerCase().contains(_searchQuery))

@@ -9,11 +9,23 @@ import 'payload_sanitizer.dart';
 class SupabaseConnector extends PowerSyncBackendConnector {
   final PowerSyncDatabase? Function()? getDatabase;
   final String Function()? getCurrentUserId;
+  final bool Function()? isSigningOut;
 
-  SupabaseConnector({this.getDatabase, this.getCurrentUserId}) : super();
+  String? _lastLoggedCredUserId;
+  bool _loggedNoSession = false;
+
+  SupabaseConnector({
+    this.getDatabase,
+    this.getCurrentUserId,
+    this.isSigningOut,
+  }) : super();
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
+    if (isSigningOut?.call() == true) {
+      return null;
+    }
+
     final client = Supabase.instance.client;
     var session = client.auth.currentSession;
     if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
@@ -32,8 +44,12 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     }
 
     // 1. Guard against unauthenticated session or expired session
-    if (session == null || session.isExpired) {
-      debugPrint('[PowerSync SupabaseConnector] fetchCredentials: No active/valid authenticated session. Pausing sync.');
+    if (session == null || session.isExpired || isSigningOut?.call() == true) {
+      if (!_loggedNoSession) {
+        _loggedNoSession = true;
+        _lastLoggedCredUserId = null;
+        debugPrint('[PowerSync SupabaseConnector] fetchCredentials: No active/valid authenticated session. Pausing sync.');
+      }
       return null;
     }
 
@@ -51,7 +67,11 @@ class SupabaseConnector extends PowerSyncBackendConnector {
       return null;
     }
 
-    debugPrint('[PowerSync SupabaseConnector] Supplying credentials for user: ${session.user.id} -> $endpoint');
+    _loggedNoSession = false;
+    if (_lastLoggedCredUserId != session.user.id) {
+      _lastLoggedCredUserId = session.user.id;
+      debugPrint('[PowerSync SupabaseConnector] Supplying credentials for user: ${session.user.id} -> $endpoint');
+    }
 
     return PowerSyncCredentials(
       endpoint: endpoint,
@@ -98,11 +118,25 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     while (attempt < maxRetries) {
       attempt++;
       try {
-        if (tableName == 'friendships') {
-          // For friendships, an existing record might have been created by the other participant.
-          // Attempt an UPDATE first so the addressee can update status without triggering INSERT policy evaluations.
+        if (tableName == 'friendships' || tableName == 'companion_shares') {
+          // For friendships & companion_shares, an existing record might have been created by the other participant.
+          // Attempt an UPDATE first so the recipient/addressee can update status without triggering INSERT policy evaluations.
           final updated = await table.update(data).eq('id', recordId).select('id');
           if (updated.isEmpty) {
+            if (isPatch) {
+              if (tableName == 'companion_shares' &&
+                  (data['sender_id'] == null ||
+                      data['recipient_id'] == null ||
+                      data['entity_type'] == null ||
+                      data['entity_id'] == null)) {
+                return;
+              }
+              if (tableName == 'friendships' &&
+                  (data['requester_id'] == null ||
+                      data['addressee_id'] == null)) {
+                return;
+              }
+            }
             data['id'] = recordId;
             await table.upsert(data);
           }
@@ -187,6 +221,8 @@ class SupabaseConnector extends PowerSyncBackendConnector {
               } else {
                 await table.upsert(data);
               }
+            } else if (tableName == 'user_profiles') {
+              await table.upsert(data, onConflict: 'user_id');
             } else {
               await table.upsert(data);
             }
@@ -221,12 +257,33 @@ class SupabaseConnector extends PowerSyncBackendConnector {
             data['time'] ??= '12:00 PM';
             data['sort_order'] ??= ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].indexOf(prayerCode) + 1;
             final uidVal = data['user_id']?.toString() ?? '';
+            const validCodes = {'fajr', 'dhuhr', 'asr', 'maghrib', 'isha'};
+            if (data['is_done'] == false &&
+                database != null &&
+                uidVal.isNotEmpty &&
+                validCodes.contains(prayerCode)) {
+              try {
+                final now = DateTime.now();
+                final todayLocal =
+                    '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                final statusRow = await database.getOptional(
+                  'SELECT $prayerCode FROM daily_prayer_status WHERE user_id = ? AND date = ? LIMIT 1',
+                  [uidVal, todayLocal],
+                );
+                final statusVal = statusRow?[prayerCode];
+                if (statusVal == 1 || statusVal == true || statusVal == '1') {
+                  data['is_done'] = true;
+                }
+              } catch (_) {}
+            }
             if (uidVal.isNotEmpty) {
               data['id'] = 'prayer_${uidVal}_$prayerCode';
               await table.upsert(data, onConflict: 'user_id,prayer_code');
             } else {
               await table.upsert(data);
             }
+          } else if (tableName == 'user_profiles') {
+            await table.upsert(data, onConflict: 'user_id');
           } else {
             await table.upsert(data);
           }
@@ -369,6 +426,10 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 
   @override
   Future<void> uploadData(PowerSyncDatabase database) async {
+    if (isSigningOut?.call() == true) {
+      throw CredentialsException('Signing out; deferring upload.');
+    }
+
     final client = Supabase.instance.client;
 
     // 1. Ensure authenticated session BEFORE taking any transaction from the CRUD queue.
@@ -391,148 +452,159 @@ class SupabaseConnector extends PowerSyncBackendConnector {
       throw CredentialsException('Not logged in or session expired');
     }
 
-    final transaction = await database.getNextCrudTransaction();
-    if (transaction == null) {
-      return;
-    }
+    while (true) {
+      if (isSigningOut?.call() == true) {
+        return;
+      }
+      final transaction = await database.getNextCrudTransaction();
+      if (transaction == null) {
+        break;
+      }
 
-    try {
-      for (var op in transaction.crud) {
-        final tableName = op.table;
-        final rawData = op.opData != null ? Map<String, dynamic>.from(op.opData!) : <String, dynamic>{};
+      try {
+        for (var op in transaction.crud) {
+          final tableName = op.table;
+          final rawData = op.opData != null ? Map<String, dynamic>.from(op.opData!) : <String, dynamic>{};
 
-        // Determine the record's true user_id owner.
-        // For patch operations, op.opData often contains only changed columns and omits user_id.
-        var recordOwner = rawData['user_id'] as String?;
-        if ((recordOwner == null || recordOwner.isEmpty) &&
-            tableName != 'friendships' &&
-            op.op != UpdateType.delete) {
-          try {
-            final row = await database.getOptional(
-              'SELECT user_id FROM $tableName WHERE id = ?',
-              [op.id],
-            );
-            if (row != null && row['user_id'] != null) {
-              final localOwner = row['user_id'] as String?;
-              if (localOwner != null && localOwner.isNotEmpty) {
-                recordOwner = localOwner;
+          if (op.op == UpdateType.patch && rawData.isEmpty) {
+            continue;
+          }
+
+          // Determine the record's true user_id owner.
+          // For patch operations, op.opData often contains only changed columns and omits user_id.
+          var recordOwner = rawData['user_id'] as String?;
+          if ((recordOwner == null || recordOwner.isEmpty) &&
+              tableName != 'friendships' &&
+              tableName != 'companion_shares' &&
+              op.op != UpdateType.delete) {
+            try {
+              final row = await database.getOptional(
+                'SELECT user_id FROM $tableName WHERE id = ?',
+                [op.id],
+              );
+              if (row != null && row['user_id'] != null) {
+                final localOwner = row['user_id'] as String?;
+                if (localOwner != null && localOwner.isNotEmpty) {
+                  recordOwner = localOwner;
+                }
               }
+            } catch (_) {
+              // Table might not have user_id column
             }
-          } catch (_) {
-            // Table might not have user_id column
+          }
+
+          // Strictly skip attempting to push other users' records to Supabase
+          if (tableName != 'friendships' &&
+              tableName != 'companion_shares' &&
+              recordOwner != null &&
+              recordOwner != uid &&
+              recordOwner.isNotEmpty &&
+              recordOwner != 'local_guest') {
+            debugPrint('[PowerSync SupabaseConnector] Skipping foreign mutation on "$tableName" for user_id=$recordOwner (active uid is $uid)');
+            continue;
+          }
+
+          final sanitizedData = _sanitizePayload(tableName, rawData, uid);
+
+          if (tableName == 'prayers') {
+            final pCode = sanitizedData['prayer_code']?.toString() ??
+                RegExp(r'(fajr|dhuhr|asr|maghrib|isha)', caseSensitive: false).firstMatch(op.id)?.group(1)?.toLowerCase();
+            if (pCode != null) {
+              sanitizedData['prayer_code'] = pCode;
+              sanitizedData['name'] ??= pCode[0].toUpperCase() + pCode.substring(1);
+              sanitizedData['icon'] ??= pCode;
+            }
+          }
+
+          if (op.op == UpdateType.put) {
+            await _upsertWithRetry(
+              tableName: tableName,
+              initialData: sanitizedData,
+              isPatch: false,
+              recordId: op.id,
+              database: database,
+            );
+          } else if (op.op == UpdateType.patch) {
+            await _upsertWithRetry(
+              tableName: tableName,
+              initialData: sanitizedData,
+              isPatch: true,
+              recordId: op.id,
+              database: database,
+            );
+          } else if (op.op == UpdateType.delete) {
+            final table = client.from(tableName);
+            if (tableName == 'friendships' || tableName == 'companion_shares') {
+              await table.delete().eq('id', op.id);
+            } else if (uid.isNotEmpty) {
+              await table.delete().eq('id', op.id).eq('user_id', uid);
+            } else {
+              await table.delete().eq('id', op.id);
+            }
           }
         }
+        // Successfully pushed all operations in this transaction to Supabase!
+        await transaction.complete();
+      } on AuthException catch (e) {
+        debugPrint('[PowerSync SupabaseConnector] AuthException [${e.statusCode}]: ${e.message}');
+        if (e.statusCode == '401' || e.statusCode == '403') {
+          if (client.auth.currentSession?.refreshToken != null) {
+            try {
+              await client.auth.refreshSession();
+            } catch (_) {}
+          }
+        }
+        // Do NOT complete transaction; let PowerSync retry
+        rethrow;
+      } on PostgrestException catch (e) {
+        debugPrint('[PowerSync SupabaseConnector] PostgrestException [${e.code}]: ${e.message}');
+        final code = e.code ?? '';
+        final msg = e.message.toLowerCase();
 
-        // Strictly skip attempting to push other users' records to Supabase
-        if (tableName != 'friendships' &&
-            recordOwner != null &&
-            recordOwner != uid &&
-            recordOwner.isNotEmpty &&
-            recordOwner != 'local_guest') {
-          debugPrint('[PowerSync SupabaseConnector] Skipping foreign mutation on "$tableName" for user_id=$recordOwner (active uid is $uid)');
+        final isRlsViolation = code == '42501' ||
+            msg.contains('row-level security') ||
+            msg.contains('violates row-level security policy');
+
+        if (isRlsViolation) {
+          debugPrint('[PowerSync SupabaseConnector] Discarding RLS-blocked transaction [Code: 42501]: ${e.message}');
+          await transaction.complete();
           continue;
         }
 
-        final sanitizedData = _sanitizePayload(tableName, rawData, uid);
+        final isAuthError = code == '401' ||
+            code == '403' ||
+            code == 'PGRST301' ||
+            msg.contains('jwt') ||
+            msg.contains('token') ||
+            msg.contains('unauthorized') ||
+            msg.contains('forbidden');
 
-        if (tableName == 'prayers') {
-          final pCode = sanitizedData['prayer_code']?.toString() ??
-              RegExp(r'(fajr|dhuhr|asr|maghrib|isha)', caseSensitive: false).firstMatch(op.id)?.group(1)?.toLowerCase();
-          if (pCode != null) {
-            sanitizedData['prayer_code'] = pCode;
-            sanitizedData['name'] ??= pCode[0].toUpperCase() + pCode.substring(1);
-            sanitizedData['icon'] ??= pCode;
+        if (isAuthError) {
+          if (client.auth.currentSession?.refreshToken != null) {
+            try {
+              await client.auth.refreshSession();
+            } catch (_) {}
           }
+          // Do NOT complete transaction! Keep queued until auth succeeds
+          rethrow;
         }
 
-        if (op.op == UpdateType.put) {
-          await _upsertWithRetry(
-            tableName: tableName,
-            initialData: sanitizedData,
-            isPatch: false,
-            recordId: op.id,
-            database: database,
-          );
-        } else if (op.op == UpdateType.patch) {
-          await _upsertWithRetry(
-            tableName: tableName,
-            initialData: sanitizedData,
-            isPatch: true,
-            recordId: op.id,
-            database: database,
-          );
-        } else if (op.op == UpdateType.delete) {
-          final table = client.from(tableName);
-          if (tableName == 'friendships') {
-            await table.delete().eq('id', op.id);
-          } else if (uid.isNotEmpty) {
-            await table.delete().eq('id', op.id).eq('user_id', uid);
-          } else {
-            await table.delete().eq('id', op.id);
-          }
+        // Truly unrecoverable schema errors (e.g., table does not exist at all, foreign key or unhealable constraint violation)
+        final isTrulyFatal = code == '42P01' || // undefined table
+            code == '23503' || // foreign key violation
+            code == '23505' || // unique violation that couldn't be upserted
+            code == '23502';   // not-null violation that couldn't be healed
+
+        if (isTrulyFatal) {
+          debugPrint('[PowerSync SupabaseConnector] CRITICAL: Discarding unrecoverable transaction [Code: $code]: ${e.message} (ops: ${transaction.crud.map((o) => "${o.table}:${o.id}").join(",")})');
+          await transaction.complete();
+        } else {
+          rethrow;
         }
-      }
-      // Successfully pushed all operations in this transaction to Supabase!
-      await transaction.complete();
-    } on AuthException catch (e) {
-      debugPrint('[PowerSync SupabaseConnector] AuthException [${e.statusCode}]: ${e.message}');
-      if (e.statusCode == '401' || e.statusCode == '403') {
-        if (client.auth.currentSession?.refreshToken != null) {
-          try {
-            await client.auth.refreshSession();
-          } catch (_) {}
-        }
-      }
-      // Do NOT complete transaction; let PowerSync retry
-      rethrow;
-    } on PostgrestException catch (e) {
-      debugPrint('[PowerSync SupabaseConnector] PostgrestException [${e.code}]: ${e.message}');
-      final code = e.code ?? '';
-      final msg = e.message.toLowerCase();
-
-      final isRlsViolation = code == '42501' ||
-          msg.contains('row-level security') ||
-          msg.contains('violates row-level security policy');
-
-      if (isRlsViolation) {
-        debugPrint('[PowerSync SupabaseConnector] Discarding RLS-blocked transaction [Code: 42501]: ${e.message}');
-        await transaction.complete();
-        return;
-      }
-
-      final isAuthError = code == '401' ||
-          code == '403' ||
-          code == 'PGRST301' ||
-          msg.contains('jwt') ||
-          msg.contains('token') ||
-          msg.contains('unauthorized') ||
-          msg.contains('forbidden');
-
-      if (isAuthError) {
-        if (client.auth.currentSession?.refreshToken != null) {
-          try {
-            await client.auth.refreshSession();
-          } catch (_) {}
-        }
-        // Do NOT complete transaction! Keep queued until auth succeeds
+      } catch (e) {
+        debugPrint('[PowerSync SupabaseConnector] Unexpected upload error: $e');
         rethrow;
       }
-
-      // Truly unrecoverable schema errors (e.g., table does not exist at all, foreign key or unhealable constraint violation)
-      final isTrulyFatal = code == '42P01' || // undefined table
-          code == '23503' || // foreign key violation
-          code == '23505' || // unique violation that couldn't be upserted
-          code == '23502';   // not-null violation that couldn't be healed
-
-      if (isTrulyFatal) {
-        debugPrint('[PowerSync SupabaseConnector] CRITICAL: Discarding unrecoverable transaction [Code: $code]: ${e.message} (ops: ${transaction.crud.map((o) => "${o.table}:${o.id}").join(",")})');
-        await transaction.complete();
-      } else {
-        rethrow;
-      }
-    } catch (e) {
-      debugPrint('[PowerSync SupabaseConnector] Unexpected upload error: $e');
-      rethrow;
     }
   }
 }

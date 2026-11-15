@@ -25,7 +25,6 @@ import 'package:axis/core/l10n/locale_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:axis/core/bloc/blocs.dart';
-
 import 'dart:async';
 
 Future<void> main() async {
@@ -95,6 +94,11 @@ Future<void> main() async {
   } else {
     runApp(const AxisApp());
   }
+
+  // Check if app was woken up from terminated state by a notification action / fullScreenIntent
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    NotificationController.checkInitialNotificationAction();
+  });
 
   // Launch non-critical background services asynchronously without blocking UI startup
   unawaited(_initBackgroundServices());

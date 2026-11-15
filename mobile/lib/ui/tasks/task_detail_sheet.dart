@@ -50,19 +50,8 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
   Future<void> _toggleDone() async {
     HapticFeedback.mediumImpact();
-    final updated = Task(
-      id: _task.id,
-      title: _task.title,
-      notes: _task.notes,
+    final updated = _task.copyWith(
       status: _task.status == 'done' ? 'todo' : 'done',
-      priority: _task.priority,
-      projectId: _task.projectId,
-      tags: _task.tags,
-      dueDate: _task.dueDate,
-      dueTime: _task.dueTime,
-      estimateMin: _task.estimateMin,
-      recurrenceRule: _task.recurrenceRule,
-      recurrenceMode: _task.recurrenceMode,
     );
     await _repo.updateTask(updated);
     setState(() => _task = updated);
@@ -72,9 +61,18 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   @override
   Widget build(BuildContext context) {
     final isDone = _task.status == 'done';
+    final cleanSender = (_task.senderUsername ?? '')
+        .trim()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
     final tags = (_task.tags ?? '')
         .split(',')
-        .where((t) => t.trim().isNotEmpty)
+        .map((t) => t.trim())
+        .where((t) =>
+            t.isNotEmpty &&
+            (cleanSender.isEmpty ||
+                t.replaceFirst(RegExp(r'^@+'), '').toLowerCase() !=
+                    cleanSender.toLowerCase()))
         .toList();
 
     return ModalSheetScaffold(
@@ -116,32 +114,86 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AxisColors.primary.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  _task.projectId != null
-                                      ? '#${_task.projectId}'
-                                      : (context.isArabic ? 'تفاصيل المهمة' : 'TASK DETAILS'),
-                                  style: const TextStyle(
-                                    color: AxisColors.primarySoft,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 11,
-                                    letterSpacing: 1.1,
-                                  ),
+                              Flexible(
+                                child: Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AxisColors.primary
+                                            .withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        _task.projectId != null
+                                            ? '#${_task.projectId}'
+                                            : (context.isArabic
+                                                ? 'تفاصيل المهمة'
+                                                : 'TASK DETAILS'),
+                                        style: const TextStyle(
+                                          color: AxisColors.primarySoft,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                    ),
+                                    if (_task.isCollaborative)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AxisColors.secondary
+                                              .withValues(alpha: 0.16),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          context.isArabic
+                                              ? 'تعاوني'
+                                              : 'COLLAB',
+                                          style: const TextStyle(
+                                            color: AxisColors.secondary,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                      ),
+                                    if (cleanSender.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AxisColors.primarySoft
+                                              .withValues(alpha: 0.16),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '@$cleanSender',
+                                          style: const TextStyle(
+                                            color: AxisColors.primarySoft,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.share_outlined, size: 20, color: AxisColors.primarySoft),
-                                    tooltip: context.isArabic ? 'مشاركة مع صاحب' : 'Share with Companion',
-                                    onPressed: () => ShareTaskSheet.show(context, _task),
-                                  ),
+                                  if (!isDone)
+                                    IconButton(
+                                      icon: const Icon(Icons.share_outlined, size: 20, color: AxisColors.primarySoft),
+                                      tooltip: context.isArabic ? 'مشاركة مع صاحب' : 'Share with Companion',
+                                      onPressed: () => ShareTaskSheet.show(context, _task),
+                                    ),
                                   IconButton(
                                     icon: const Icon(Icons.edit_outlined, size: 20, color: AxisColors.secondary),
                                     tooltip: context.isArabic ? 'تعديل المهمة' : 'Edit Task',
@@ -237,6 +289,15 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
                 // Metadata section
                 _MetaSection(title: context.isArabic ? 'التفاصيل' : 'Details', children: [
+                  if (cleanSender.isNotEmpty)
+                    _MetaRow(
+                      icon: _task.isCollaborative
+                          ? Icons.handshake_rounded
+                          : Icons.person_outline_rounded,
+                      iconColor: AxisColors.secondary,
+                      label: context.isArabic ? 'مشارك بواسطة' : 'Shared by',
+                      value: '@$cleanSender',
+                    ),
                   if (_task.priority != null)
                     _MetaRow(
                       icon: Icons.flag_rounded,

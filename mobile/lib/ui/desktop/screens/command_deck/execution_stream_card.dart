@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/task_repository.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../widgets/desktop_card.dart';
 import '../../widgets/desktop_checkbox.dart';
 import '../../widgets/priority_badge.dart';
@@ -112,6 +113,8 @@ class _TaskRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         hoverColor: AxisColors.surfaceHigh.withValues(alpha: 0.35),
         onTap: onTap,
+        onLongPress: isDone ? null : () => ShareTaskSheet.show(context, task),
+        onSecondaryTap: isDone ? null : () => ShareTaskSheet.show(context, task),
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 3.0),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -153,6 +156,25 @@ class _TaskRow extends StatelessWidget {
                 Text(
                   task.dueTime!,
                   style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
+                ),
+              ],
+              if (!isDone) ...[
+                const SizedBox(width: 6),
+                Tooltip(
+                  message: AppLocalizations.of(context).isArabic ? 'مشاركة المهمة' : 'Share Task',
+                  child: InkWell(
+                    key: ValueKey('execution_stream_share_${task.id}'),
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: () => ShareTaskSheet.show(context, task),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4.0),
+                      child: Icon(
+                        Icons.ios_share_rounded,
+                        size: 15,
+                        color: AxisColors.secondary,
+                      ),
+                    ),
+                  ),
                 ),
               ],
               const SizedBox(width: 6),

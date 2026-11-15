@@ -5,6 +5,9 @@ import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/data/habit_notification_service.dart';
+import 'package:axis/data/daily_prayer_status_repository.dart';
+import 'package:axis/data/friends/friend_search_repository.dart';
+import 'package:axis/data/friends/friend_activity_repository.dart';
 
 /// Full-stack Authentication Service bridging Supabase Auth & PowerSync multi-tenant isolation.
 /// Provides offline session persistence, background auto-login, and seamless reconnect sync.
@@ -218,8 +221,8 @@ class AuthService {
 
       if (session != null && !session.isExpired) {
         setCachedUserId(session.user.id);
-        if (isDatabaseInitialized && !db.connected) {
-          db.connect(connector: createSupabaseConnector());
+        if (isDatabaseInitialized) {
+          unawaited(connectPowerSyncSafely());
         }
         return;
       }
@@ -267,6 +270,11 @@ class AuthService {
     if (client == null) throw StateError('Supabase is not initialized');
 
     try {
+      final currentAuthUid = currentUserId;
+      final previousUid = (currentAuthUid != null && currentAuthUid.isNotEmpty)
+          ? currentAuthUid
+          : ((_lastSavedSession?['user_id'] as String?) ?? '');
+
       final response = await client.auth.signInWithPassword(
         email: email.trim(),
         password: password,
@@ -276,6 +284,22 @@ class AuthService {
       final name = (response.user?.userMetadata?['display_name'] as String?) ??
           email.split('@').first;
 
+      // Guarantee prior user's local PowerSync tables are purged before activating the new account
+      if (uid.isNotEmpty &&
+          previousUid.isNotEmpty &&
+          previousUid != 'local_guest' &&
+          previousUid != uid &&
+          isDatabaseInitialized) {
+        try {
+          DailyPrayerStatusRepository().clearSessionState();
+          FriendSearchRepository().inMemoryProfileCache.clear();
+          FriendActivityRepository().clearSessionState();
+          await db.disconnectAndClear();
+        } catch (e) {
+          debugPrint('[AuthService] User switch disconnectAndClear notice: $e');
+        }
+      }
+
       await saveLocalSession(
         userId: uid,
         email: email.trim(),
@@ -283,8 +307,8 @@ class AuthService {
       );
 
       // Connect PowerSync with new user credentials if not already connected
-      if (response.session != null && isDatabaseInitialized && !db.connected) {
-        db.connect(connector: createSupabaseConnector());
+      if (response.session != null && isDatabaseInitialized) {
+        unawaited(connectPowerSyncSafely());
         unawaited(PrayerTimeService().syncPrayers());
       }
 
@@ -329,8 +353,8 @@ class AuthService {
       );
 
       // Auto-connect if session is immediately active and not already connected
-      if (response.session != null && isDatabaseInitialized && !db.connected) {
-        db.connect(connector: createSupabaseConnector());
+      if (response.session != null && isDatabaseInitialized) {
+        unawaited(connectPowerSyncSafely());
         unawaited(PrayerTimeService().syncPrayers());
       }
 
@@ -349,41 +373,47 @@ class AuthService {
 
   /// Secure sign out: terminates any active sessions, disconnects PowerSync, clears local SQLite user data and terminates remote session
   Future<void> signOut() async {
+    setSigningOut(true);
     try {
-      // 0. Cancel and dismiss all habit notifications to prevent cross-account leaks
+      // 0. Clear in-memory identity & caches immediately so active db.watch listeners
+      // abort cleanly and cannot rewrite User A rows while signing out.
+      _lastSavedSession = null;
+      setCachedUserId('');
+      authStateNotifier.value = false;
+      try {
+        DailyPrayerStatusRepository().clearSessionState();
+      } catch (_) {}
+      try {
+        FriendSearchRepository().inMemoryProfileCache.clear();
+      } catch (_) {}
+      try {
+        FriendActivityRepository().clearSessionState();
+      } catch (_) {}
+
+      // 1. Cancel and dismiss all habit notifications to prevent cross-account leaks
       try {
         await HabitNotificationService().cancelAllHabitReminders();
       } catch (e) {
         debugPrint('[AuthService] Clear habit notifications error: $e');
       }
 
-      // 1. Immediately terminate any active focus session / audio / timer
+      // 2. Immediately terminate any active focus session / audio / timer
       try {
         FocusSessionService().terminateSession();
       } catch (e) {
         debugPrint('[AuthService] Terminate focus session error: $e');
       }
 
-      // 2. Clear local SQLite database & session
+      // 3. Disconnect PowerSync sync transport first so no retries or frames arrive during teardown
       if (isDatabaseInitialized) {
         try {
           await db.disconnect();
         } catch (e) {
           debugPrint('[AuthService] PowerSync disconnect error: $e');
         }
-        try {
-          await clearUserDataOnSignOut();
-        } catch (e) {
-          debugPrint('[AuthService] Clear user data error: $e');
-        }
-        try {
-          await clearLocalSession();
-        } catch (e) {
-          debugPrint('[AuthService] Clear local session error: $e');
-        }
       }
 
-      // 3. Terminate active remote session on Supabase
+      // 4. Terminate active remote & local session on Supabase BEFORE clearing SQLite tables
       final client = _client;
       if (client != null) {
         try {
@@ -395,8 +425,28 @@ class AuthService {
           } catch (_) {}
         }
       }
+
+      // 5. Clear local SQLite database & auth session
+      if (isDatabaseInitialized) {
+        try {
+          await clearUserDataOnSignOut();
+        } catch (e) {
+          debugPrint('[AuthService] Clear user data error: $e');
+        }
+        try {
+          await clearLocalSession();
+        } catch (e) {
+          debugPrint('[AuthService] Clear local session error: $e');
+        }
+        // Final purge pass guarantees zero leftover frames or CRUD ops before next login
+        try {
+          await db.disconnectAndClear();
+        } catch (_) {}
+      }
     } catch (e) {
       debugPrint('[AuthService] Sign-out error: $e');
+    } finally {
+      setSigningOut(false);
     }
   }
 }

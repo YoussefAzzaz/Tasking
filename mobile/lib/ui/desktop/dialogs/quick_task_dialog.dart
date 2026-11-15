@@ -8,6 +8,7 @@ abstract final class QuickTaskDialog {
   static Future<void> show(
     BuildContext context, {
     String? initialProject,
+    DateTime? initialDate,
     Task? taskToEdit,
     ValueChanged<Task>? onTaskUpdated,
     VoidCallback? onTaskCreated,
@@ -41,6 +42,7 @@ abstract final class QuickTaskDialog {
               borderRadius: BorderRadius.circular(12),
               child: CreateTaskSheet(
                 initialProject: initialProject,
+                initialDate: initialDate,
                 taskToEdit: taskToEdit,
                 onTaskCreated: () {
                   onTaskCreated?.call();

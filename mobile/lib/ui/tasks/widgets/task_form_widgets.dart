@@ -222,10 +222,12 @@ class TaskSheetHeader extends StatelessWidget {
     super.key,
     required this.isEdit,
     required this.onClose,
+    this.onShare,
   });
 
   final bool isEdit;
   final VoidCallback onClose;
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -271,10 +273,24 @@ class TaskSheetHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded,
-                    color: AxisColors.textMuted, size: 22),
-                onPressed: onClose,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isEdit && onShare != null)
+                    IconButton(
+                      tooltip: AppLocalizations.of(context).isArabic
+                          ? 'مشاركة المهمة'
+                          : 'Share Task',
+                      icon: const Icon(Icons.ios_share_rounded,
+                          color: AxisColors.secondary, size: 20),
+                      onPressed: onShare,
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded,
+                        color: AxisColors.textMuted, size: 22),
+                    onPressed: onClose,
+                  ),
+                ],
               ),
             ],
           ),

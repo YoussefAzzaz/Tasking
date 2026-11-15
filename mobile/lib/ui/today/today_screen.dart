@@ -11,6 +11,7 @@ import 'package:axis/data/stats_repository.dart';
 import 'package:axis/data/mastery_badge_repository.dart';
 import 'package:axis/data/friend_repository.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/ui/prayers/adhan_permissions_sheet.dart';
 import 'package:axis/data/note_repository.dart';
 import 'package:axis/domain/gamification_engine.dart';
 import 'package:axis/ui/me/widgets/me_sections.dart' show BadgeDetailSheet;
@@ -89,6 +90,11 @@ class _TodayScreenState extends State<TodayScreen> {
       }
     });
     globalUserLevel.addListener(_onGlobalLevelChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        AdhanPermissionsSheet.checkAndShowFirstTime(context);
+      }
+    });
   }
 
   @override

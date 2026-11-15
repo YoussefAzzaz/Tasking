@@ -197,12 +197,21 @@ class FriendActivityNotificationsSection extends StatelessWidget {
                 } else if (log.isRequestAccepted) {
                   iconData = Icons.celebration_rounded;
                   iconColor = AxisColors.success;
-                } else if (log.isRequestDeclined) {
-                  iconData = Icons.cancel_outlined;
+                } else if (log.isRequestDeclined ||
+                    log.isSharedItemDeclined ||
+                    log.isCollaborativeTaskDeleted) {
+                  iconData = log.isCollaborativeTaskDeleted
+                      ? Icons.delete_sweep_outlined
+                      : Icons.cancel_outlined;
                   iconColor = AxisColors.error;
                 } else if (log.isPrayerReminder) {
                   iconData = Icons.mosque_rounded;
                   iconColor = AxisColors.tertiaryBright;
+                } else if (log.isSharedItem) {
+                  iconData = log.eventType == 'collaborative_task_completed'
+                      ? Icons.handshake_rounded
+                      : Icons.ios_share_rounded;
+                  iconColor = AxisColors.secondary;
                 }
 
                 return Container(

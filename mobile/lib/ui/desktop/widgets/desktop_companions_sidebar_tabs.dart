@@ -5,7 +5,9 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
 import 'package:axis/ui/me/widgets/avatar_widget.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../friends/widgets/companion_profile_modal.dart';
+import '../../friends/widgets/pending_shares_section.dart';
 import '../widgets/desktop_card.dart';
 
 /// Desktop panel with tabs for Circle management, notifications, and leaderboard standings.
@@ -93,6 +95,7 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
   Widget _buildCircleTab(bool isArabic, AppLocalizations l10n) {
     return ListView(
       children: [
+        const PendingSharesSection(),
         StreamBuilder<List<FriendUser>>(
           stream: _friendRepo.watchPendingRequests(),
           builder: (context, snapshot) {
@@ -204,6 +207,21 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
                                 ),
                               ),
                               IconButton(
+                                key: ValueKey('desktop_companion_share_${f.userId}'),
+                                tooltip: isArabic
+                                    ? 'مشاركة مهمة أو عادة أو ملاحظة'
+                                    : 'Share Task, Habit, or Note',
+                                icon: const Icon(Icons.ios_share_rounded,
+                                    size: 16, color: AxisColors.secondary),
+                                onPressed: () => ShareWithCompanionSheet.show(
+                                  context,
+                                  companionUserId: f.userId,
+                                  companionName: f.name,
+                                  companionAvatarColor: f.avatarColor,
+                                  companionAvatarUrl: f.avatarUrl,
+                                ),
+                              ),
+                              IconButton(
                                 icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AxisColors.textDim),
                                 onPressed: () => _friendRepo.removeFriendship(f.friendshipId),
                               ),
@@ -250,7 +268,25 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
                   decoration: BoxDecoration(color: AxisColors.surfaceLowest, borderRadius: BorderRadius.circular(8), border: Border.all(color: AxisColors.borderSubtle)),
                   child: Row(
                     children: [
-                      const Icon(Icons.notifications_active_rounded, size: 16, color: AxisColors.primarySoft),
+                      Icon(
+                        log.isCollaborativeTaskDeleted
+                            ? Icons.delete_sweep_outlined
+                            : (log.isSharedItemDeclined
+                                ? Icons.cancel_outlined
+                                : (log.isSharedItem
+                                    ? (log.eventType ==
+                                            'collaborative_task_completed'
+                                        ? Icons.handshake_rounded
+                                        : Icons.ios_share_rounded)
+                                    : Icons.notifications_active_rounded)),
+                        size: 16,
+                        color: (log.isSharedItemDeclined ||
+                                log.isCollaborativeTaskDeleted)
+                            ? AxisColors.error
+                            : (log.isSharedItem
+                                ? AxisColors.secondary
+                                : AxisColors.primarySoft),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textHigh)),

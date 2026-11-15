@@ -326,6 +326,28 @@ class JournalVaultNavigatorPane extends StatelessWidget {
                                   ),
                                 ),
                               ],
+                              if ((n.senderUsername ?? '')
+                                  .trim()
+                                  .replaceFirst(RegExp(r'^@+'), '')
+                                  .trim()
+                                  .isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AxisColors.primarySoft.withValues(alpha: 0.16),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '@${(n.senderUsername ?? '').trim().replaceFirst(RegExp(r'^@+'), '').trim()}',
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: AxisColors.primarySoft,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

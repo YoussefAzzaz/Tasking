@@ -136,6 +136,11 @@ class UserProfileRepository {
       final params = (uid.isNotEmpty && uid != 'local_guest') ? [uid] : <dynamic>[];
       final rows = await db.getAll(query, params);
 
+      String dbName = '';
+      String dbTitle = '';
+      String? dbAvatarUrl;
+      String? dbFriendCode;
+
       String name = '';
       String title = '';
       String avatarColor = '#6366F1';
@@ -146,28 +151,40 @@ class UserProfileRepository {
 
       if (rows.isNotEmpty) {
         final r = rows.first;
-        name = (r['name'] as String?) ?? '';
-        title = (r['title'] as String?) ?? '';
+        dbName = (r['name'] as String?) ?? '';
+        dbTitle = (r['title'] as String?) ?? '';
+        dbAvatarUrl = r['avatar_url'] as String?;
+        dbFriendCode = r['friend_code'] as String?;
+
+        name = dbName;
+        title = dbTitle;
         avatarColor = (r['avatar_color'] as String?) ?? '#6366F1';
-        avatarUrl = r['avatar_url'] as String?;
+        avatarUrl = dbAvatarUrl;
         totalXp = (r['total_xp'] as num?)?.toInt() ?? 0;
         level = (r['level'] as num?)?.toInt() ?? 1;
-        friendCode = r['friend_code'] as String?;
+        friendCode = dbFriendCode;
       }
 
       if ((friendCode == null || friendCode.isEmpty) && uid.isNotEmpty) {
         final hashPart = uid.replaceAll('-', '').toUpperCase();
         friendCode = 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
-        try {
-          await db.execute(
-            'UPDATE user_profiles SET friend_code = ? WHERE user_id = ?',
-            [friendCode, uid],
-          );
-        } catch (_) {}
+        if (rows.isNotEmpty) {
+          try {
+            await db.execute(
+              'UPDATE user_profiles SET friend_code = ? WHERE user_id = ?',
+              [friendCode, uid],
+            );
+          } catch (_) {}
+        }
       }
 
-      // Synchronize friend_code to Supabase remote user_profiles table asynchronously
-      if (friendCode != null && friendCode.isNotEmpty && uid.isNotEmpty && uid != 'local_guest' && _supabaseClient != null) {
+      // Synchronize friend_code to Supabase remote user_profiles table only if previously unset
+      if ((dbFriendCode == null || dbFriendCode.isEmpty) &&
+          friendCode != null &&
+          friendCode.isNotEmpty &&
+          uid.isNotEmpty &&
+          uid != 'local_guest' &&
+          _supabaseClient != null) {
         unawaited(() async {
           try {
             await _supabaseClient!.from('user_profiles').update({
@@ -248,13 +265,19 @@ class UserProfileRepository {
         } catch (_) {}
       }
 
-      // 4. Self-heal: persist recovered fields locally in local_auth_session and user_profiles
+      // 4. Self-heal: persist recovered fields locally only when actually changed
       try {
         await db.execute(
           'UPDATE local_auth_session SET avatar_url = COALESCE(?, avatar_url), display_name = ? WHERE id = ?',
           [avatarUrl, name, 'active_session'],
         );
-        if (uid.isNotEmpty && uid != 'local_guest') {
+        final profileNeedsUpdate = rows.isNotEmpty &&
+            (dbName != name ||
+                dbTitle != title ||
+                (avatarUrl != null &&
+                    avatarUrl.isNotEmpty &&
+                    dbAvatarUrl != avatarUrl));
+        if (uid.isNotEmpty && uid != 'local_guest' && profileNeedsUpdate) {
           await db.execute(
             'UPDATE user_profiles SET avatar_url = COALESCE(?, avatar_url), name = ?, title = ? WHERE user_id = ?',
             [avatarUrl, name, title, uid],

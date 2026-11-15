@@ -6,6 +6,7 @@ import 'package:axis/data/reading_preferences_service.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
 import 'package:axis/ui/common/reading_font_size_control.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
+import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 /// Modal bottom sheet displaying detailed note view, markdown content, mood badge and edit/delete actions
 class NoteDetailSheet extends StatefulWidget {
@@ -48,6 +49,10 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final l10n = AppLocalizations.of(context);
     final isJournal = _note.category == 'journal';
+    final cleanSender = (_note.senderUsername ?? '')
+        .trim()
+        .replaceFirst(RegExp(r'^@+'), '')
+        .trim();
 
     return ModalSheetScaffold(
       child: Container(
@@ -83,30 +88,68 @@ class _NoteDetailSheetState extends State<NoteDetailSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              isJournal
-                                  ? Icons.auto_stories_rounded
-                                  : Icons.article_rounded,
-                              color: AxisColors.secondary,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              l10n.localizedNoteCategory(_note.category).toUpperCase(),
-                              style: TextStyle(
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isJournal
+                                    ? Icons.auto_stories_rounded
+                                    : Icons.article_rounded,
                                 color: AxisColors.secondary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                letterSpacing: isArabic ? 0.0 : 1.2,
+                                size: 20,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  l10n
+                                      .localizedNoteCategory(_note.category)
+                                      .toUpperCase(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: AxisColors.secondary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    letterSpacing: isArabic ? 0.0 : 1.2,
+                                  ),
+                                ),
+                              ),
+                              if (cleanSender.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AxisColors.primarySoft
+                                        .withValues(alpha: 0.16),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '@$cleanSender',
+                                    style: const TextStyle(
+                                      color: AxisColors.primarySoft,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(
+                              icon: const Icon(Icons.ios_share_rounded,
+                                  color: AxisColors.primarySoft, size: 20),
+                              tooltip: isArabic
+                                  ? 'مشاركة مع صاحب'
+                                  : 'Share with Companion',
+                              onPressed: () =>
+                                  ShareTaskSheet.showForNote(context, _note),
+                            ),
                             IconButton(
                               icon: const Icon(Icons.edit_outlined,
                                   color: AxisColors.secondary, size: 20),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
+import 'package:axis/ui/prayers/adhan_permissions_sheet.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/data/prayers/adhan_sound_service.dart';
 import 'package:axis/ui/prayers/explore_adhan_sounds_sheet.dart';
@@ -46,6 +47,12 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
       _adhanEnabled = value;
       _isSaving = true;
     });
+    if (value) {
+      final allGranted = await _alarmService.areAllPermissionsGranted();
+      if (!allGranted && mounted) {
+        await AdhanPermissionsSheet.show(context);
+      }
+    }
     await _alarmService.setAdhanNotificationsEnabled(value);
     if (mounted) {
       setState(() => _isSaving = false);
@@ -58,6 +65,12 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
       _fajrAlarmEnabled = value;
       _isSaving = true;
     });
+    if (value) {
+      final allGranted = await _alarmService.areAllPermissionsGranted();
+      if (!allGranted && mounted) {
+        await AdhanPermissionsSheet.show(context);
+      }
+    }
     await _alarmService.setFajrAlarmEnabled(value);
     if (mounted) {
       setState(() => _isSaving = false);
@@ -315,6 +328,53 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
                         fontWeight: FontWeight.bold,
                         color: Color(0xFFEF4444),
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Permissions Setup / Audit Tile
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => AdhanPermissionsSheet.show(context),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.security_rounded,
+                      size: 18,
+                      color: Color(0xFF10B981),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        context.isArabic
+                            ? 'إعداد صلاحيات الأذان ومنع كتم الصوت'
+                            : 'Adhan Alarm Permissions & DND Setup',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: Color(0xFF10B981),
                     ),
                   ],
                 ),

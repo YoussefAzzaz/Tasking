@@ -103,10 +103,14 @@ class PayloadSanitizer {
     if (table == 'habits') {
       data.remove('start_date');
     } else if (table == 'tasks') {
-      if (data['status'] == 'skipped') {
-        data['status'] = 'done';
-      } else if (data['status'] != 'todo' && data['status'] != 'done' && data['status'] != 'cancelled') {
-        data['status'] = 'todo';
+      // Only validate/normalize status when the PATCH/PUT payload explicitly includes it,
+      // otherwise partial edits (like renaming or toggling priority) overwrite status with 'todo'.
+      if (data.containsKey('status')) {
+        if (data['status'] == 'skipped') {
+          data['status'] = 'done';
+        } else if (data['status'] != 'todo' && data['status'] != 'done' && data['status'] != 'cancelled') {
+          data['status'] = 'todo';
+        }
       }
       if (data['priority'] is int) {
         data['priority'] = (data['priority'] as int).clamp(0, 3);

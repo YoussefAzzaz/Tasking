@@ -12,4 +12,5 @@ abstract final class DesktopShortcuts {
   static const tab5    = SingleActivator(LogicalKeyboardKey.digit5, control: true);
   static const tab6    = SingleActivator(LogicalKeyboardKey.digit6, control: true);
   static const tab7    = SingleActivator(LogicalKeyboardKey.digit7, control: true);
+  static const tab8    = SingleActivator(LogicalKeyboardKey.digit8, control: true);
 }

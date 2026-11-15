@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/prayers/adhan_sound_service.dart';
+import 'package:axis/ui/prayers/adhan_permissions_sheet.dart';
 import 'package:axis/ui/prayers/explore_adhan_sounds_sheet.dart';
 
 /// Configuration card in the Me profile screen for managing Adhan notification sounds,
@@ -23,6 +25,7 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
   bool _adhanNotifications = true;
   bool _fajrAlarm = true;
   bool _isUploading = false;
+  int _debugTapCount = 0;
 
   @override
   void initState() {
@@ -33,12 +36,24 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
 
   Future<void> _toggleAdhanNotifications(bool value) async {
     HapticFeedback.lightImpact();
+    if (value) {
+      final allGranted = await _alarmService.areAllPermissionsGranted();
+      if (!allGranted && mounted) {
+        await AdhanPermissionsSheet.show(context);
+      }
+    }
     setState(() => _adhanNotifications = value);
     await _alarmService.setAdhanNotificationsEnabled(value);
   }
 
   Future<void> _toggleFajrAlarm(bool value) async {
     HapticFeedback.lightImpact();
+    if (value) {
+      final allGranted = await _alarmService.areAllPermissionsGranted();
+      if (!allGranted && mounted) {
+        await AdhanPermissionsSheet.show(context);
+      }
+    }
     setState(() => _fajrAlarm = value);
     await _alarmService.setFajrAlarmEnabled(value);
   }
@@ -90,50 +105,70 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.mosque_rounded,
-                    color: Color(0xFF38BDF8),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isArabic ? 'أصوات وتنبيهات الأذان' : 'ADHAN & PRAYER NOTIFICATIONS',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: isArabic ? 0.0 : 1.2,
-                          color: AxisColors.textHigh,
-                        ),
+            // Header (Secret 5-Tap on Mosque Icon or Long-Press opens Debug Cockpit)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onLongPress: () {
+                HapticFeedback.heavyImpact();
+                context.push('/debug/adhan-alarm');
+              },
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      _debugTapCount++;
+                      if (_debugTapCount >= 5) {
+                        _debugTapCount = 0;
+                        HapticFeedback.heavyImpact();
+                        context.push('/debug/adhan-alarm');
+                      } else {
+                        HapticFeedback.lightImpact();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(99),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isArabic
-                            ? 'تخصيص التكبيرات الأولى، تنبيهات الأوقات ومنبه الفجر'
-                            : 'Configure short Takbeerat calls & Fajr alarm',
-                        style: GoogleFonts.getFont(
-                          'Geist',
-                          fontSize: 11.5,
-                          color: AxisColors.textMuted,
-                        ),
+                      child: const Icon(
+                        Icons.mosque_rounded,
+                        color: Color(0xFF38BDF8),
+                        size: 20,
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isArabic ? 'أصوات وتنبيهات الأذان' : 'ADHAN & PRAYER NOTIFICATIONS',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: isArabic ? 0.0 : 1.2,
+                            color: AxisColors.textHigh,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isArabic
+                              ? 'تخصيص التكبيرات الأولى، تنبيهات الأوقات ومنبه الفجر'
+                              : 'Configure short Takbeerat calls & Fajr alarm',
+                          style: GoogleFonts.getFont(
+                            'Geist',
+                            fontSize: 11.5,
+                            color: AxisColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 16),
@@ -232,6 +267,39 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
                   activeThumbColor: const Color(0xFFF59E0B),
                 ),
               ],
+            ),
+
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () => AdhanPermissionsSheet.show(context),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.security_rounded, size: 16, color: Color(0xFF10B981)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isArabic ? 'صلاحيات الأذان وتجاوز وضع عدم الإزعاج' : 'Adhan Permissions & DND Override',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF10B981)),
+                  ],
+                ),
+              ),
             ),
 
             const SizedBox(height: 16),

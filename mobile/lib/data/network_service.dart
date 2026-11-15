@@ -118,8 +118,8 @@ class NetworkService with WidgetsBindingObserver {
         unawaited(AuthService().tryAutoLoginOrSync());
         unawaited(FriendRepository().syncAllFriendData());
       }
-      if (!db.connected) {
-        db.connect(connector: createSupabaseConnector());
+      if (!isPowerSyncConnectedOrConnecting) {
+        unawaited(connectPowerSyncSafely());
       }
     } catch (e) {
       debugPrint('[NetworkService] Error reconnecting sync: $e');

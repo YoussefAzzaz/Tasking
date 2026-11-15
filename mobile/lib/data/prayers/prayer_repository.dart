@@ -149,6 +149,16 @@ class PrayerRepository {
     // Preserves completion state ONLY if completed during today's calendar day.
     // If updated_at is from yesterday or earlier, completion resets back to 0 at 00:00.
     final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    Map<String, dynamic>? todayStatusRow;
+    if (userId.isNotEmpty) {
+      try {
+        todayStatusRow = await _db.getOptional(
+          'SELECT fajr, dhuhr, asr, maghrib, isha FROM daily_prayer_status WHERE user_id = ? AND date = ? LIMIT 1',
+          [userId, todayStr],
+        );
+      } catch (_) {}
+    }
+
     for (final item in prayerItems) {
       final code = item.id.toLowerCase();
       final prayerId = prayerIdForCode(code, userId);
@@ -165,9 +175,14 @@ class PrayerRepository {
         }
       }
 
-      final bool preserveDone = existing != null &&
-          isFromToday &&
-          ((existing['is_done'] as num?)?.toInt() == 1 || existing['is_done'] == true);
+      final statusDoneVal = todayStatusRow?[code];
+      final bool isDoneInDailyStatus =
+          statusDoneVal == 1 || statusDoneVal == true || statusDoneVal == '1';
+
+      final bool preserveDone = isDoneInDailyStatus ||
+          (existing != null &&
+              isFromToday &&
+              ((existing['is_done'] as num?)?.toInt() == 1 || existing['is_done'] == true));
 
       if (existing == null) {
         final dbCheck = await _db.getOptional('SELECT id FROM prayers WHERE id = ?', [prayerId]);

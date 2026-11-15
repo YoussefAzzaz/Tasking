@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'screens/calendar/desktop_calendar_screen.dart';
 
 import '../../core/theme.dart';
+import '../../data/friend_repository.dart';
 import '../../data/stats_repository.dart';
 import '../../data/user_profile_repository.dart';
 import 'core/desktop_shortcuts.dart';
@@ -33,10 +35,11 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
     super.initState();
     unawaited(UserProfileRepository().getProfile());
     unawaited(StatsRepository().getUserStats());
+    unawaited(FriendRepository().syncAllFriendData());
   }
 
   void _navigateToTab(int tabIndex) {
-    if (tabIndex >= 0 && tabIndex <= 6) {
+    if (tabIndex >= 0 && tabIndex <= 7) {
       setState(() {
         _selectedTab = tabIndex;
         _activatedTabs.add(tabIndex);
@@ -74,6 +77,8 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
           return const FriendsAccountabilityScreen();
         case 6:
           return const ProfileSettingsScreen();
+        case 7:
+          return const DesktopCalendarScreen();
         default:
           return const SizedBox.shrink();
       }
@@ -105,6 +110,7 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
         DesktopShortcuts.tab5: () => _navigateToTab(4),
         DesktopShortcuts.tab6: () => _navigateToTab(5),
         DesktopShortcuts.tab7: () => _navigateToTab(6),
+        DesktopShortcuts.tab8: () => _navigateToTab(7),
       },
       child: Focus(
         autofocus: true,
@@ -142,6 +148,7 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
                             _buildTab(4),
                             _buildTab(5),
                             _buildTab(6),
+                            _buildTab(7),
                           ],
                         ),
                       ),
