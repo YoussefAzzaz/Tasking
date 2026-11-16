@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/router.dart';
+import 'package:axis/data/adhan_alarm_service.dart';
+import 'package:axis/ui/prayers/adhan_full_screen_alarm.dart';
 import 'package:axis/ui/shell/axis_header.dart';
 import 'package:axis/ui/shell/axis_bottom_bar.dart';
-import 'package:axis/ui/shell/floating_focus_session_bar.dart';
 import 'package:axis/ui/shell/session_expired_banner.dart';
 import 'package:axis/ui/common/updates/update_notice_banner.dart';
 import 'package:axis/ui/desktop/desktop_command_center.dart';
@@ -38,6 +40,22 @@ class AppShell extends StatelessWidget {
 
     // Branch 2 is the center /today tab
     final isTodayTab = navigationShell.currentIndex == 2;
+
+    final adhan = AdhanAlarmService().activeAdhanInfo;
+    if (adhan != null && !AdhanAlarmService().isFullScreenAlarmShowing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!AdhanAlarmService().isFullScreenAlarmShowing) {
+          final ctx = rootNavigatorKey.currentContext ?? context;
+          AdhanFullScreenAlarm.show(
+            ctx,
+            prayerName: adhan['prayerName'] ?? 'Prayer',
+            prayerNameAr: adhan['prayerNameAr'] ?? 'الصلاة',
+            prayerTime: adhan['prayerTime'] ?? '',
+            prayerId: adhan['prayerId'],
+          );
+        }
+      });
+    }
 
     return PopScope(
       canPop: isTodayTab,

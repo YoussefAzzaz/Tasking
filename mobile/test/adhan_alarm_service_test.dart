@@ -111,11 +111,16 @@ void main() {
       }
     });
 
-    test('isAdhanHandledOrDismissedToday correctly tracks triggered and dismissed adhan for current day', () async {
+    test('isAdhanHandledOrDismissedToday correctly tracks dismissed adhan for current day', () async {
       final service = AdhanAlarmService();
       expect(await service.isAdhanHandledOrDismissedToday('unknown_prayer'), isFalse);
 
+      // Triggered does not mean dismissed (screen must still be allowed to display)
       await service.markAdhanTriggeredToday('fajr');
+      expect(await service.isAdhanHandledOrDismissedToday('fajr'), isFalse);
+
+      // Once dismissed, it is recorded as handled/dismissed
+      await service.markAdhanDismissedToday('fajr');
       expect(await service.isAdhanHandledOrDismissedToday('fajr'), isTrue);
       expect(await service.isAdhanHandledOrDismissedToday('Fajr Prayer'), isTrue);
       expect(await service.isAdhanHandledOrDismissedToday('dhuhr'), isFalse);

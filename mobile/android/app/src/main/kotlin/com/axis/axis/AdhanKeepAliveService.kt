@@ -159,34 +159,32 @@ class AdhanKeepAliveService : Service() {
                         .setSilent(true)
                         .setContentIntent(fullScreenPendingIntent)
 
-                    // If phone is ON (screen interactive), fullScreenIntent can also be attached.
-                    // If phone is OFF, do NOT set fullScreenIntent so screen does not wake into the activity!
-                    if (isScreenOn) {
-                        notifBuilder.setFullScreenIntent(fullScreenPendingIntent, true)
-                    }
+                    // Always attach fullScreenIntent so lock screen wakes directly to the Adhan activity
+                    notifBuilder.setFullScreenIntent(fullScreenPendingIntent, true)
 
                     nm.notify(WAKEUP_NOTIFICATION_ID, notifBuilder.build())
                 }
             } catch (_: Exception) {}
 
-            // When the phone is ON (screen is interactive): bring MainActivity forward to show adhan screen with sound!
-            // When the phone is OFF: do NOT launch activity, notification only.
-            if (isScreenOn) {
-                try {
-                    val wakeLock = pm?.newWakeLock(
-                        PowerManager.PARTIAL_WAKE_LOCK,
-                        "axis:adhan_wakeup_lock",
-                    )
-                    wakeLock?.acquire(15_000L)
-                } catch (_: Exception) {}
+            // Acquire wake lock to keep CPU awake while Flutter & Adhan screen render
+            try {
+                @Suppress("DEPRECATION")
+                val wakeLock = pm?.newWakeLock(
+                    PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                    "axis:adhan_wakeup_lock",
+                ) ?: pm?.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK,
+                    "axis:adhan_wakeup_lock",
+                )
+                wakeLock?.acquire(15_000L)
+            } catch (_: Exception) {}
 
+            try {
+                context.startActivity(launchIntent)
+            } catch (_: Exception) {
                 try {
-                    context.startActivity(launchIntent)
-                } catch (_: Exception) {
-                    try {
-                        fullScreenPendingIntent.send()
-                    } catch (_: Exception) {}
-                }
+                    fullScreenPendingIntent.send()
+                } catch (_: Exception) {}
             }
         }
     }

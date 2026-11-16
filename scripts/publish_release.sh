@@ -98,7 +98,7 @@ sed -i "s/^version: .*/version: ${NEW_PUBSPEC_VER}/" "${MOBILE_DIR}/pubspec.yaml
 # 2. Run analysis and tests
 echo "[2/6] Running static analysis and regression verification..."
 (cd "${MOBILE_DIR}" && flutter analyze --no-fatal-infos)
-(cd "${MOBILE_DIR}" && flutter test test/update_checker_test.dart test/update_ui_test.dart test/auth_remember_me_test.dart)
+(cd "${MOBILE_DIR}" && flutter test test/update_checker_test.dart test/update_ui_test.dart test/auth_remember_me_test.dart test/adhan_alarm_service_test.dart test/adhan_full_screen_alarm_test.dart)
 
 # 3. Create releases directory
 mkdir -p "${RELEASES_DIR}"

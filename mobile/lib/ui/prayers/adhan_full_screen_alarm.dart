@@ -38,7 +38,8 @@ class AdhanFullScreenAlarm extends StatefulWidget {
     if (AdhanAlarmService().isFullScreenAlarmShowing) return;
     AdhanAlarmService().isFullScreenAlarmShowing = true;
 
-    Navigator.of(context, rootNavigator: true).push(
+    final targetCtx = rootNavigatorKey.currentContext ?? context;
+    Navigator.of(targetCtx, rootNavigator: true).push(
       PageRouteBuilder(
         opaque: true,
         barrierDismissible: false,
@@ -55,7 +56,9 @@ class AdhanFullScreenAlarm extends StatefulWidget {
         },
         transitionDuration: const Duration(milliseconds: 400),
       ),
-    );
+    ).then((_) {
+      AdhanAlarmService().isFullScreenAlarmShowing = false;
+    });
   }
 
   /// Closes any currently displaying full-screen Adhan overlay

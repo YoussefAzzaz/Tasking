@@ -242,7 +242,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                       color: AxisColors.textMuted,
                     ),
                     tooltip: 'Profile & Settings',
-                    onPressed: () => widget.onSelectTab(6),
+                    onPressed: () => widget.onSelectTab(7),
                   ),
                 ],
               ),

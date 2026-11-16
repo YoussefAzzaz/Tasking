@@ -53,7 +53,9 @@ class AdhanAlarmService {
   /// Guards against duplicate full-screen adhan overlays.
   bool isFullScreenAlarmShowing = false;
   bool _platformHandlerRegistered = false;
-  static final Set<String> _inMemoryHandledAdhans = <String>{};
+  static final Set<String> _inMemoryDismissedAdhans = <String>{};
+  Map<String, String>? _activeAdhanInfo;
+  Map<String, String>? get activeAdhanInfo => _activeAdhanInfo;
 
   bool get adhanNotificationsEnabled => _adhanNotificationsEnabled;
   bool get fajrAlarmEnabled => _fajrAlarmEnabled;
@@ -176,34 +178,38 @@ class AdhanAlarmService {
     }
   }
 
-  /// Checks whether today's adhan for this prayer has already been triggered or dismissed.
-  Future<bool> isAdhanHandledOrDismissedToday(String prayerCodeOrId) async {
+  /// Checks whether today's adhan for this prayer has already been dismissed by the user.
+  Future<bool> isAdhanDismissedToday(String prayerCodeOrId) async {
     final code = canonicalPrayerCode(prayerCodeOrId);
     if (code == null) return false;
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final key = '${todayStr}_$code';
-    if (_inMemoryHandledAdhans.contains(key)) return true;
+    if (_inMemoryDismissedAdhans.contains(key)) return true;
     if (!isDatabaseInitialized) return false;
     try {
       final rows = await db.getAll(
-        'SELECT id FROM prayer_adhan_events WHERE id = ? LIMIT 1',
+        'SELECT id FROM prayer_adhan_events WHERE id = ? AND dismissed = 1 LIMIT 1',
         [key],
       );
       if (rows.isNotEmpty) {
-        _inMemoryHandledAdhans.add(key);
+        _inMemoryDismissedAdhans.add(key);
         return true;
       }
     } catch (_) {}
     return false;
   }
 
-  /// Marks today's adhan for this prayer as triggered to prevent duplicate or unsolicited popups.
+  /// Backward-compatible alias for checking if today's adhan was dismissed.
+  Future<bool> isAdhanHandledOrDismissedToday(String prayerCodeOrId) async {
+    return isAdhanDismissedToday(prayerCodeOrId);
+  }
+
+  /// Marks today's adhan for this prayer as triggered to log telemetry.
   Future<void> markAdhanTriggeredToday(String prayerCodeOrId) async {
     final code = canonicalPrayerCode(prayerCodeOrId);
     if (code == null) return;
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final key = '${todayStr}_$code';
-    _inMemoryHandledAdhans.add(key);
     if (!isDatabaseInitialized) return;
     try {
       await db.execute('''
@@ -220,7 +226,8 @@ class AdhanAlarmService {
     if (code == null) return;
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final key = '${todayStr}_$code';
-    _inMemoryHandledAdhans.add(key);
+    _inMemoryDismissedAdhans.add(key);
+    _activeAdhanInfo = null;
     if (isDatabaseInitialized) {
       try {
         await db.execute('''
@@ -335,17 +342,21 @@ class AdhanAlarmService {
   }
 
   /// Checks whether current time has passed the scheduled prayer time
-  /// by more than [graceMinutes] (default 2 minutes).
+  /// by more than [graceMinutes] (default 30 minutes).
   static bool isAfterAdhanTime({
     String? prayerTime,
     String? prayerName,
-    int graceMinutes = 2,
+    int graceMinutes = 30,
   }) {
+    // If the alarm is currently ringing, it is definitely active.
+    if (_instance._isAlarmRinging) return false;
+
     final now = DateTime.now();
     int? prayerMin;
 
     if (prayerTime != null && prayerTime.trim().isNotEmpty) {
       prayerMin = HabitRepository.parseTimeToMinutes(prayerTime);
+      if (prayerMin > 24 * 60) prayerMin = null;
     }
 
     if (prayerMin == null && prayerName != null && prayerName.trim().isNotEmpty) {
@@ -355,6 +366,7 @@ class AdhanAlarmService {
           p.id.toLowerCase() == prayerName.toLowerCase());
       if (match.isNotEmpty) {
         prayerMin = HabitRepository.parseTimeToMinutes(match.first.time);
+        if (prayerMin > 24 * 60) prayerMin = null;
       }
     }
 
@@ -1042,6 +1054,7 @@ class AdhanAlarmService {
     _isAlarmRinging = false;
     _isModalShowing = false;
     isFullScreenAlarmShowing = false;
+    _activeAdhanInfo = null;
     _vibrationTimer?.cancel();
     _vibrationTimer = null;
 
@@ -1108,13 +1121,23 @@ class AdhanAlarmService {
       return;
     }
 
-    // If the scheduled prayer time has already passed, do NOT launch the adhan screen.
-    if (isAfterAdhanTime(prayerTime: prayerTime, prayerName: prayerName)) {
+    // If the scheduled prayer time has already passed and the alarm is not currently ringing, do NOT launch the adhan screen.
+    if (!_isAlarmRinging && isAfterAdhanTime(prayerTime: prayerTime, prayerName: prayerName)) {
       debugPrint('[AdhanAlarmService] Bypassing adhan screen because current time is after adhan time ($prayerTime).');
       await stopAlarmSound();
       return;
     }
     if (isFullScreenAlarmShowing) return;
+
+    final nameAr = _prayerNameArabic[prayerName] ?? prayerName;
+    final time = prayerTime ?? '';
+
+    _activeAdhanInfo = {
+      'prayerName': prayerName,
+      'prayerNameAr': nameAr,
+      'prayerTime': time,
+      'prayerId': prayerId ?? '',
+    };
 
     final targetContext = context ?? rootNavigatorKey.currentContext;
     if (targetContext == null) {
@@ -1135,21 +1158,18 @@ class AdhanAlarmService {
             prayerTime: prayerTime,
             context: ctx,
           );
-        } else if (attempts >= 30) {
+        } else if (attempts >= 40) {
           timer.cancel();
-          debugPrint('[AdhanAlarmService] Navigator key unavailable after 4.5s');
+          debugPrint('[AdhanAlarmService] Navigator key unavailable after 6s');
         }
       });
       return;
     }
     if (!targetContext.mounted) return;
 
-    // Record as triggered today so entering the app will not trigger it again
+    // Record as triggered today so telemetry is recorded
     await markAdhanTriggeredToday(lookup);
     if (!targetContext.mounted) return;
-
-    final nameAr = _prayerNameArabic[prayerName] ?? prayerName;
-    final time = prayerTime ?? '';
 
     AdhanFullScreenAlarm.show(
       targetContext,

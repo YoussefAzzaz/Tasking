@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:axis/core/theme.dart';
+import 'package:axis/core/router.dart';
+import 'package:axis/data/adhan_alarm_service.dart';
+import 'package:axis/ui/prayers/adhan_full_screen_alarm.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/ui/common/splash/splash_technical_grid.dart';
@@ -93,11 +96,27 @@ class _SplashScreenState extends State<SplashScreen>
               defaultTargetPlatform == TargetPlatform.iOS)) {
         HapticFeedback.lightImpact();
       }
+      final adhan = AdhanAlarmService().activeAdhanInfo;
       if (AuthService().hasActiveSession) {
         context.go('/today');
         unawaited(AuthService().tryAutoLoginOrSync());
       } else {
         context.go('/auth');
+      }
+
+      if (adhan != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = rootNavigatorKey.currentContext;
+          if (ctx != null && !AdhanAlarmService().isFullScreenAlarmShowing) {
+            AdhanFullScreenAlarm.show(
+              ctx,
+              prayerName: adhan['prayerName'] ?? 'Prayer',
+              prayerNameAr: adhan['prayerNameAr'] ?? 'الصلاة',
+              prayerTime: adhan['prayerTime'] ?? '',
+              prayerId: adhan['prayerId'],
+            );
+          }
+        });
       }
     } catch (e) {
       debugPrint('[SplashScreen] Navigation error: $e');

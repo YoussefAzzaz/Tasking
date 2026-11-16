@@ -1681,6 +1681,7 @@ void main() {
           title: 'Ship V2',
           status: 'todo',
           isCollaborative: false,
+          dueDate: now.toIso8601String().split('T').first,
         ),
       ]);
       final filterCriteria = ValueNotifier(const TaskFilterCriteria());
