@@ -147,7 +147,31 @@ if [[ "$DRY_RUN" == "true" ]]; then
   exit 0
 fi
 
-echo "[6/6] Publishing release ${TAG} to GitHub Releases..."
+echo "[6/6] Committing version bump and pushing to git..."
+if git diff --quiet "${MOBILE_DIR}/pubspec.yaml"; then
+  echo "  --> pubspec.yaml already committed."
+else
+  git add "${MOBILE_DIR}/pubspec.yaml"
+  git commit -m "chore(release): bump version to ${NEW_PUBSPEC_VER}"
+fi
+
+CURRENT_BRANCH=$(git branch --show-current)
+git push origin "$CURRENT_BRANCH"
+
+# If on a release branch, also fast-forward main so the default git branch is up-to-date
+if [[ "$CURRENT_BRANCH" != "main" ]]; then
+  echo "  --> Syncing main branch to ${CURRENT_BRANCH}..."
+  git checkout main
+  git merge --ff-only "$CURRENT_BRANCH"
+  git push origin main
+  git checkout "$CURRENT_BRANCH"
+fi
+
+COMMIT_HASH=$(git rev-parse HEAD)
+git tag -f "$TAG" "$COMMIT_HASH"
+git push -f origin "$TAG"
+
+echo "Publishing release ${TAG} to GitHub Releases..."
 
 RELEASE_FILES=(
   "${APK_TARGET}"
@@ -161,9 +185,16 @@ if [[ -f "${RELEASES_DIR}/SHA256SUMS.txt" ]]; then
   RELEASE_FILES+=("${RELEASES_DIR}/SHA256SUMS.txt")
 fi
 
-gh release create "$TAG" "${RELEASE_FILES[@]}" \
-  --title "Axis ${TAG}" \
-  --notes "${CHANGELOG}"
+# If release exists on GitHub, upload or recreate
+if gh release view "$TAG" >/dev/null 2>&1; then
+  echo "  --> Release $TAG already exists on GitHub. Uploading updated assets..."
+  gh release upload "$TAG" "${RELEASE_FILES[@]}" --clobber
+else
+  gh release create "$TAG" "${RELEASE_FILES[@]}" \
+    --target "$COMMIT_HASH" \
+    --title "Axis ${TAG}" \
+    --notes "${CHANGELOG}"
+fi
 
 echo "=================================================================="
 echo "  RELEASE ${TAG} IS NOW LIVE!"
