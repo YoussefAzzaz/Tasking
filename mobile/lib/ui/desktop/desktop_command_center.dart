@@ -20,6 +20,7 @@ import 'shell/desktop_sidebar.dart';
 import 'shell/desktop_titlebar.dart';
 import '../shell/session_expired_banner.dart';
 import '../common/updates/update_notice_banner.dart';
+import '../common/updates/update_notice_modal.dart';
 import '../../data/updates/app_update_service.dart';
 
 /// Root desktop shell host managing titlebar, sidebar, keyboard routing, and tab views.
@@ -40,7 +41,19 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
     unawaited(UserProfileRepository().getProfile());
     unawaited(StatsRepository().getUserStats());
     unawaited(FriendRepository().syncAllFriendData());
-    unawaited(AppUpdateService().checkForUpdate());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final update = await AppUpdateService().checkForUpdate();
+      if (update != null && mounted) {
+        final currentVer = await AppUpdateService().getInstalledVersion();
+        if (!mounted) return;
+        if (update.shouldPrompt(
+          currentVersion: currentVer.toString(),
+          currentBuildNumber: currentVer.buildNumber,
+        )) {
+          UpdateNoticeModal.show(context, updateInfo: update);
+        }
+      }
+    });
   }
 
   void _navigateToTab(int tabIndex) {

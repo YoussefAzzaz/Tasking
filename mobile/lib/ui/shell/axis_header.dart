@@ -8,6 +8,7 @@ import 'package:powersync/powersync.dart' show SyncStatus;
 import 'package:axis/data/network_service.dart';
 import 'package:axis/data/user_profile_repository.dart';
 import 'package:axis/data/updates/app_update_service.dart';
+import 'package:axis/ui/common/updates/update_notice_modal.dart';
 import 'package:axis/ui/me/widgets/avatar_widget.dart';
 import 'package:axis/ui/common/sync_status_modal.dart';
 
@@ -26,7 +27,19 @@ class _AxisHeaderState extends State<AxisHeader> {
   void initState() {
     super.initState();
     UserProfileRepository().getProfile();
-    AppUpdateService().checkForUpdate();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final update = await AppUpdateService().checkForUpdate();
+      if (update != null && mounted) {
+        final currentVer = await AppUpdateService().getInstalledVersion();
+        if (!mounted) return;
+        if (update.shouldPrompt(
+          currentVersion: currentVer.toString(),
+          currentBuildNumber: currentVer.buildNumber,
+        )) {
+          UpdateNoticeModal.show(context, updateInfo: update);
+        }
+      }
+    });
   }
 
   @override
