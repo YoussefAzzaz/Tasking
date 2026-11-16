@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 enum BadgeCategory {
   all('All', Icons.grid_view_rounded, Color(0xFF6366F1)),
   execution('Execution', Icons.task_alt_rounded, Color(0xFF10B981)),
-  focus('Deep Work', Icons.timer_outlined, Color(0xFF38BDF8)),
+  focus('Deep Work', Icons.timer_outlined, Color(0xFF0EA5E9)),
   consistency('Streaks', Icons.local_fire_department_rounded, Color(0xFFF59E0B)),
   habits('Habits', Icons.repeat_rounded, Color(0xFFEC4899)),
   knowledge('Knowledge', Icons.auto_stories_rounded, Color(0xFFA855F7)),
-  systems('Systems', Icons.folder_special_rounded, Color(0xFF06B6D4)),
+  systems('Systems', Icons.folder_special_rounded, Color(0xFF7DD3FC)),
   evolution('Evolution', Icons.bolt_rounded, Color(0xFFEAB308)),
   mindfulness('Mindfulness', Icons.spa_rounded, Color(0xFF14B8A6));
 

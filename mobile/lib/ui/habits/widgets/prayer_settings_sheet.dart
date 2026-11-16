@@ -184,7 +184,7 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
           // Toggle 1: Daily Adhan Notifications
           _buildSettingCard(
             icon: Icons.notifications_active_rounded,
-            iconColor: const Color(0xFF38BDF8),
+            iconColor: AxisColors.secondary,
             title: context.isArabic ? 'إشعارات الأذان اليومية' : 'Daily Adhan Notifications',
             subtitle: context.isArabic
                 ? 'استلام إشعارات ذات أولوية عالية في مواقيت الصلاة المحددة (الفجر، الظهر، العصر، المغرب، العشاء).'
@@ -210,12 +210,12 @@ class _PrayerSettingsSheetState extends State<PrayerSettingsSheet> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                        color: AxisColors.secondary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.music_note_rounded,
-                        color: Color(0xFF38BDF8),
+                        color: AxisColors.secondary,
                         size: 22,
                       ),
                     ),

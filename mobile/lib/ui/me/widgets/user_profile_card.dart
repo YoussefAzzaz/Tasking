@@ -69,14 +69,7 @@ class UserProfileCard extends StatelessWidget {
     final titleCtrl = TextEditingController(text: userTitle);
     String selectedColor = avatarColor ?? '#6366F1';
 
-    const presetColors = [
-      '#6366F1', // Electric Indigo
-      '#38BDF8', // Atmospheric Cyan
-      '#10B981', // Emerald
-      '#F59E0B', // Amber
-      '#EC4899', // Pink
-      '#A855F7', // Purple
-    ];
+    const presetColors = AxisColors.presetHexes;
 
     showDialog(
       context: context,

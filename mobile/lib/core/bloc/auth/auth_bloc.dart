@@ -52,6 +52,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final res = await _authService.signIn(
         email: event.email,
         password: event.password,
+        rememberMe: event.rememberMe,
       );
       emit(Authenticated(
         userId: res.user?.id ?? _authService.currentUserId ?? '',

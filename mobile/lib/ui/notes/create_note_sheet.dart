@@ -23,12 +23,18 @@ class CreateNoteSheet extends StatefulWidget {
     this.initialCategory = 'General',
     this.existingCategories,
     this.noteToEdit,
+    this.initialMood,
+    this.initialBodyPrompt,
+    this.appendTimestampOnEdit = false,
   });
 
   final VoidCallback onNoteCreated;
   final String initialCategory;
   final List<NoteCategory>? existingCategories;
   final Note? noteToEdit;
+  final String? initialMood;
+  final String? initialBodyPrompt;
+  final bool appendTimestampOnEdit;
 
   @override
   State<CreateNoteSheet> createState() => _CreateNoteSheetState();
@@ -45,7 +51,7 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
   late String _category; // 'note' or 'journal'
   bool _showCategoryDropdown = false;
   List<NoteCategory> _categories = [];
-  String _selectedCategoryColor = '#38BDF8';
+  String _selectedCategoryColor = '#0EA5E9';
   String _selectedCategoryIcon = 'article';
 
   String _selectedMood = 'HIGH ENERGY';
@@ -65,7 +71,15 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
       final n = widget.noteToEdit!;
       _titleController.text = n.title;
       _bodyController.text = n.bodyMd;
-      if (n.bodyMd.trim().isNotEmpty) {
+      if (widget.appendTimestampOnEdit) {
+        final timeStr = DateFormat('hh:mm a').format(DateTime.now());
+        final separator = n.bodyMd.trim().isEmpty ? '' : '\n\n';
+        _bodyController.text = '${n.bodyMd.trimRight()}$separator**[$timeStr]** ';
+        _bodyController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _bodyController.text.length),
+        );
+      }
+      if (_bodyController.text.trim().isNotEmpty) {
         _isBodyExpanded = true;
       }
       final isJ = n.category.toLowerCase() == 'journal';
@@ -78,7 +92,11 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
       } else if (!isJ) {
         _categoryController.text = 'General';
       }
-      if (n.mood != null) _selectedMood = n.mood!;
+      if (widget.initialMood != null && widget.initialMood!.isNotEmpty) {
+        _selectedMood = widget.initialMood!;
+      } else if (n.mood != null) {
+        _selectedMood = n.mood!;
+      }
       _pinned = n.pinned;
     } else {
       final isJ = widget.initialCategory.toLowerCase() == 'journal';
@@ -96,6 +114,13 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
       if (_category == 'journal') {
         _titleController.text =
             'Daily Journal • ${DateFormat('EEE, MMM d').format(DateTime.now())}';
+      }
+      if (widget.initialMood != null && widget.initialMood!.isNotEmpty) {
+        _selectedMood = widget.initialMood!;
+      }
+      if (widget.initialBodyPrompt != null && widget.initialBodyPrompt!.isNotEmpty) {
+        _bodyController.text = widget.initialBodyPrompt!;
+        _isBodyExpanded = true;
       }
     }
 
@@ -349,8 +374,8 @@ class _CreateNoteSheetState extends State<CreateNoteSheet> {
                           setState(() => _previewMode = !_previewMode),
                       onInsertTemplate: () {
                         final template = isArabic
-                            ? '### 📅 ماذا حدث اليوم\n- \n\n### 🏆 أهم الإنجازات والانتصارات\n1. \n\n### 💭 أفكار وتأملات\n> '
-                            : '### 📅 What Happened Today\n- \n\n### 🏆 Key Wins & Accomplishments\n1. \n\n### 💭 Thoughts & Reflections\n> ';
+                            ? '### ماذا حدث اليوم\n- \n\n### أهم الإنجازات والانتصارات\n1. \n\n### أفكار وتأملات\n> '
+                            : '### What Happened Today\n- \n\n### Key Wins & Accomplishments\n1. \n\n### Thoughts & Reflections\n> ';
                         if (_bodyController.text.trim().isEmpty) {
                           _bodyController.text = template;
                         } else {

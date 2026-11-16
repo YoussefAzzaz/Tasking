@@ -199,10 +199,12 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                         const Divider(height: 18, color: AxisColors.borderSubtle),
                         _buildDiagnosticRow(
                           label: isArabic ? 'مصادقة Supabase' : 'Supabase Authentication',
-                          status: auth.isAuthenticated
-                              ? (isArabic ? 'تمت المصادقة' : 'AUTHENTICATED')
-                              : (isGuest ? (isArabic ? 'ضيف (غير متصل)' : 'GUEST (OFFLINE)') : (isArabic ? 'غير مصادق' : 'UNAUTHENTICATED')),
-                          isGood: auth.isAuthenticated,
+                          status: auth.isSessionExpired
+                              ? (isArabic ? 'انتهت الجلسة' : 'EXPIRED')
+                              : (auth.isAuthenticated
+                                  ? (isArabic ? 'تمت المصادقة' : 'AUTHENTICATED')
+                                  : (isGuest ? (isArabic ? 'ضيف (غير متصل)' : 'GUEST (OFFLINE)') : (isArabic ? 'غير مصادق' : 'UNAUTHENTICATED'))),
+                          isGood: auth.isAuthenticated && !auth.isSessionExpired,
                           icon: Icons.shield_outlined,
                         ),
                       ],
@@ -235,6 +237,49 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                     ),
                   ],
                   const SizedBox(height: 18),
+                  if (auth.isSessionExpired) ...[
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        setState(() {
+                          _isSyncing = true;
+                          _syncMessage = null;
+                        });
+                        final navigator = Navigator.of(context);
+                        final router = GoRouter.of(context);
+                        final ok = await AuthService().trySilentReAuthWithSavedCredentials();
+                        if (ok) {
+                          await ensurePowerSyncConnected();
+                          if (mounted) {
+                            setState(() {
+                              _syncMessage = isArabic
+                                  ? 'تمت إعادة المصادقة واستئناف المزامنة بنجاح!'
+                                  : 'Re-authenticated and cloud sync resumed successfully!';
+                              _isSyncing = false;
+                            });
+                          }
+                        } else {
+                          if (mounted) {
+                            navigator.pop();
+                            router.go('/auth');
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.lock_open_rounded, size: 16),
+                      label: Text(
+                        auth.hasSavedCredentials
+                            ? (isArabic ? 'إعادة المصادقة كـ ${auth.savedEmail}' : 'RE-AUTHENTICATE AS ${auth.savedEmail}')
+                            : (isArabic ? 'انتهت الجلسة • تسجيل الدخول مجدداً' : 'SESSION EXPIRED • LOG IN AGAIN'),
+                        style: GoogleFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AxisColors.danger,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   if (isGuest) ...[
                     ElevatedButton.icon(
                       onPressed: () {

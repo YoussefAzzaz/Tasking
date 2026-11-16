@@ -142,7 +142,12 @@ class _TodayScreenState extends State<TodayScreen> {
     );
   }
 
-  void _openCreateJournal({Note? noteToEdit}) {
+  void _openCreateJournal({
+    Note? noteToEdit,
+    String? initialMood,
+    String? initialPrompt,
+    bool appendTimestamp = false,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -150,6 +155,9 @@ class _TodayScreenState extends State<TodayScreen> {
       builder: (_) => CreateNoteSheet(
         initialCategory: 'journal',
         noteToEdit: noteToEdit,
+        initialMood: initialMood,
+        initialBodyPrompt: initialPrompt,
+        appendTimestampOnEdit: appendTimestamp,
         onNoteCreated: () => setState(() {}),
       ),
     );
@@ -330,10 +338,31 @@ class _TodayScreenState extends State<TodayScreen> {
                       orElse: () => null,
                     );
 
+                    final journalNotes = notes
+                        .where((n) => n.category.toLowerCase() == 'journal')
+                        .toList();
+                    final noteDates = journalNotes
+                        .map((n) => DateFormat('yyyy-MM-dd').format(n.createdAt.toLocal()))
+                        .toSet();
+                    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+                    int journalStreak = 0;
+                    DateTime checkDay = noteDates.contains(todayStr)
+                        ? now
+                        : now.subtract(const Duration(days: 1));
+                    while (noteDates.contains(DateFormat('yyyy-MM-dd').format(checkDay))) {
+                      journalStreak++;
+                      checkDay = checkDay.subtract(const Duration(days: 1));
+                    }
+
                     return DailyJournalCard(
                       todayJournal: todayJournal,
+                      streak: journalStreak,
                       onOpenTodayJournal: (note) => _showJournalDetail(note),
                       onStartNewJournal: () => _openCreateJournal(),
+                      onStartNewJournalWithPrompt: ({initialMood, initialPrompt}) =>
+                          _openCreateJournal(initialMood: initialMood, initialPrompt: initialPrompt),
+                      onAppendToTodayJournal: (note) =>
+                          _openCreateJournal(noteToEdit: note, appendTimestamp: true),
                     );
                   },
                 ),

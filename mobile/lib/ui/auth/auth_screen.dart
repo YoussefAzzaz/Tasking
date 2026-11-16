@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:axis/core/bloc/blocs.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized;
 import 'package:axis/ui/auth/widgets/desktop_auth_view.dart';
 import 'package:axis/ui/auth/widgets/mobile_auth_view.dart';
 
@@ -26,6 +27,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   bool _isSignUp = false;
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _rememberMe = true;
   String? _errorMessage;
 
   final _formKey = GlobalKey<FormState>();
@@ -45,6 +47,29 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     );
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _animCtrl.forward();
+    _populateSavedCredentials();
+  }
+
+  Future<void> _populateSavedCredentials() async {
+    final auth = AuthService();
+    if (!auth.hasSavedCredentials && isDatabaseInitialized) {
+      await auth.init();
+    }
+    if (auth.hasSavedCredentials) {
+      final savedEmail = auth.savedEmail;
+      final savedPass = auth.getDecryptedPassword();
+      if (mounted) {
+        setState(() {
+          _rememberMe = true;
+          if (savedEmail != null && savedEmail.isNotEmpty && _emailCtrl.text.isEmpty) {
+            _emailCtrl.text = savedEmail;
+          }
+          if (savedPass != null && savedPass.isNotEmpty && _passwordCtrl.text.isEmpty) {
+            _passwordCtrl.text = savedPass;
+          }
+        });
+      }
+    }
   }
 
   @override
@@ -92,6 +117,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
             bloc.add(AuthSignInRequested(
               email: _emailCtrl.text,
               password: _passwordCtrl.text,
+              rememberMe: _rememberMe,
             ));
           }
           await completer.future.timeout(const Duration(seconds: 15));
@@ -109,6 +135,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           await AuthService().signIn(
             email: _emailCtrl.text,
             password: _passwordCtrl.text,
+            rememberMe: _rememberMe,
           );
         }
       }
@@ -222,6 +249,8 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
             _obscurePassword = !_obscurePassword;
           });
         },
+        rememberMe: _rememberMe,
+        onRememberMeChanged: (val) => setState(() => _rememberMe = val),
         onSubmit: _submit,
         onContinueOffline: _continueOffline,
       );
@@ -248,6 +277,8 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           _obscurePassword = !_obscurePassword;
         });
       },
+      rememberMe: _rememberMe,
+      onRememberMeChanged: (val) => setState(() => _rememberMe = val),
       onSubmit: _submit,
       onContinueOffline: _continueOffline,
     );

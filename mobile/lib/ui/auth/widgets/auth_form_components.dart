@@ -449,3 +449,67 @@ class AuthSecurityNote extends StatelessWidget {
   }
 }
 
+/// Cyber-styled "Remember Me" toggle button for login forms.
+class AuthRememberMeButton extends StatelessWidget {
+  const AuthRememberMeButton({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isArabic = AppLocalizations.of(context).isArabic;
+
+    return InkWell(
+      key: const ValueKey('auth_remember_me_button'),
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: value
+                    ? AxisColors.primary.withValues(alpha: 0.25)
+                    : AxisColors.surfaceHigh.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: value ? AxisColors.primarySoft : AxisColors.borderSubtle,
+                  width: 1.5,
+                ),
+              ),
+              child: value
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 13,
+                      color: AxisColors.primarySoft,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                isArabic ? 'تذكرني على هذا الجهاز' : 'Remember me on this device',
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: value ? AxisColors.textHigh : AxisColors.textMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

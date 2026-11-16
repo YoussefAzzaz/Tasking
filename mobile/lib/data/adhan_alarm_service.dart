@@ -53,6 +53,7 @@ class AdhanAlarmService {
   /// Guards against duplicate full-screen adhan overlays.
   bool isFullScreenAlarmShowing = false;
   bool _platformHandlerRegistered = false;
+  static final Set<String> _inMemoryHandledAdhans = <String>{};
 
   bool get adhanNotificationsEnabled => _adhanNotificationsEnabled;
   bool get fajrAlarmEnabled => _fajrAlarmEnabled;
@@ -175,6 +176,79 @@ class AdhanAlarmService {
     }
   }
 
+  /// Checks whether today's adhan for this prayer has already been triggered or dismissed.
+  Future<bool> isAdhanHandledOrDismissedToday(String prayerCodeOrId) async {
+    final code = canonicalPrayerCode(prayerCodeOrId);
+    if (code == null) return false;
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final key = '${todayStr}_$code';
+    if (_inMemoryHandledAdhans.contains(key)) return true;
+    if (!isDatabaseInitialized) return false;
+    try {
+      final rows = await db.getAll(
+        'SELECT id FROM prayer_adhan_events WHERE id = ? LIMIT 1',
+        [key],
+      );
+      if (rows.isNotEmpty) {
+        _inMemoryHandledAdhans.add(key);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /// Marks today's adhan for this prayer as triggered to prevent duplicate or unsolicited popups.
+  Future<void> markAdhanTriggeredToday(String prayerCodeOrId) async {
+    final code = canonicalPrayerCode(prayerCodeOrId);
+    if (code == null) return;
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final key = '${todayStr}_$code';
+    _inMemoryHandledAdhans.add(key);
+    if (!isDatabaseInitialized) return;
+    try {
+      await db.execute('''
+        INSERT INTO prayer_adhan_events (id, prayer_code, event_date, dismissed, triggered_at)
+        VALUES (?, ?, ?, 0, ?)
+        ON CONFLICT(id) DO UPDATE SET triggered_at = excluded.triggered_at
+      ''', [key, code, todayStr, DateTime.now().toIso8601String()]);
+    } catch (_) {}
+  }
+
+  /// Marks today's adhan for this prayer as dismissed, stopping sound and cancelling related alarms.
+  Future<void> markAdhanDismissedToday(String prayerCodeOrId) async {
+    final code = canonicalPrayerCode(prayerCodeOrId);
+    if (code == null) return;
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final key = '${todayStr}_$code';
+    _inMemoryHandledAdhans.add(key);
+    if (isDatabaseInitialized) {
+      try {
+        await db.execute('''
+          INSERT INTO prayer_adhan_events (id, prayer_code, event_date, dismissed, triggered_at)
+          VALUES (?, ?, ?, 1, ?)
+          ON CONFLICT(id) DO UPDATE SET dismissed = 1
+        ''', [key, code, todayStr, DateTime.now().toIso8601String()]);
+      } catch (_) {}
+    }
+    // If Fajr adhan is dismissed, cancel the scheduled +1m Fajr wake-up verification alarm immediately
+    if (code == 'fajr' && isSupportedPlatform) {
+      try {
+        await AwesomeNotifications().cancelSchedule(9991);
+        await AwesomeNotifications().cancel(9991);
+        await AwesomeNotifications().dismiss(9991);
+      } catch (_) {}
+    }
+  }
+
+  /// Explicitly dismisses the active adhan for a prayer and stops all sound & vibration.
+  Future<void> dismissAdhan({String? prayerName, String? prayerId}) async {
+    final lookup = (prayerId != null && prayerId.isNotEmpty)
+        ? prayerId
+        : (prayerName ?? 'fajr');
+    await markAdhanDismissedToday(lookup);
+    await stopAlarmSound();
+  }
+
   /// Cancels today's scheduled/active notification when a prayer is marked done,
   /// or re-evaluates scheduling when unchecked back to undone.
   Future<void> onPrayerCompletedToday(
@@ -244,6 +318,12 @@ class AdhanAlarmService {
           final prayerName = (args['prayerName'] as String?) ?? 'Prayer';
           final prayerId = args['prayerId'] as String?;
           final prayerTime = args['prayerTime'] as String?;
+          final lookup = (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
+          if (await isAdhanHandledOrDismissedToday(lookup) || await isPrayerCompletedToday(lookup)) {
+            debugPrint('[AdhanAlarmService] Bypassing onAdhanTrigger: already handled/dismissed today ($lookup).');
+            await stopAlarmSound();
+            return;
+          }
           triggerAdhanFullScreen(
             prayerName: prayerName,
             prayerId: (prayerId != null && prayerId.isNotEmpty) ? prayerId : null,
@@ -293,8 +373,15 @@ class AdhanAlarmService {
         final prayerName = payload['prayerName'] ?? 'Prayer';
         final prayerId = payload['prayerId'];
         final prayerTime = payload['prayerTime'];
+        final lookup = (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
+        if (await isAdhanHandledOrDismissedToday(lookup) || await isPrayerCompletedToday(lookup)) {
+          debugPrint('[AdhanAlarmService] Bypassing pending native adhan launch: already handled/dismissed today ($lookup).');
+          await stopAlarmSound();
+          return;
+        }
         if (isAfterAdhanTime(prayerTime: prayerTime, prayerName: prayerName)) {
           debugPrint('[AdhanAlarmService] Bypassing pending native adhan launch: current time is after adhan time ($prayerTime).');
+          await stopAlarmSound();
           return;
         }
         triggerAdhanFullScreen(
@@ -858,11 +945,17 @@ class AdhanAlarmService {
 
     try {
       await AwesomeNotifications().cancel(notifId);
+      await AwesomeNotifications().cancelSchedule(notifId);
+
+      final activeSound = AdhanSoundService().currentSound;
+      final targetChannel = activeSound.id == 'alafasy'
+          ? 'fajr_alarm_channel_alafasy'
+          : 'fajr_alarm_channel';
 
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
           id: notifId,
-          channelKey: 'fajr_alarm_channel',
+          channelKey: targetChannel,
           title: 'Fajr Wake-Up Alarm',
           body: 'Prayer is better than sleep. Complete the wake-up verification to stop the alarm.',
           notificationLayout: NotificationLayout.BigText,
@@ -925,6 +1018,11 @@ class AdhanAlarmService {
       await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
       final source = AdhanSoundService().getActiveAudioSource();
       await _alarmPlayer!.play(source);
+      // Guard against race condition if stopAlarmSound was called while play was initializing
+      if (!_isAlarmRinging) {
+        await _alarmPlayer?.stop();
+        return;
+      }
       // Dismiss raw OS notification-sound alerts so the looping full-screen alarm doesn't echo
       if (isSupportedPlatform) {
         for (int i = 1; i <= 5; i++) {
@@ -942,6 +1040,8 @@ class AdhanAlarmService {
   /// Stops the alarm sound and vibration, and dismisses active notifications
   Future<void> stopAlarmSound() async {
     _isAlarmRinging = false;
+    _isModalShowing = false;
+    isFullScreenAlarmShowing = false;
     _vibrationTimer?.cancel();
     _vibrationTimer = null;
 
@@ -953,11 +1053,18 @@ class AdhanAlarmService {
       }
     }
 
+    try {
+      AdhanSoundService().stopPreview();
+    } catch (_) {}
+
     if (!isSupportedPlatform) return;
 
     try {
+      await AwesomeNotifications().cancelSchedule(9991);
       await AwesomeNotifications().cancel(9991);
+      await AwesomeNotifications().dismiss(9991);
       for (int i = 1; i <= 5; i++) {
+        await AwesomeNotifications().cancel(1000 + i);
         await AwesomeNotifications().dismiss(1000 + i);
       }
       if (defaultTargetPlatform == TargetPlatform.android) {
@@ -994,15 +1101,16 @@ class AdhanAlarmService {
   }) async {
     if (isFullScreenAlarmShowing) return;
 
-    // If the scheduled prayer time has already passed, do NOT launch the adhan screen.
-    if (isAfterAdhanTime(prayerTime: prayerTime, prayerName: prayerName)) {
-      debugPrint('[AdhanAlarmService] Bypassing adhan screen because current time is after adhan time ($prayerTime).');
+    final lookup = (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
+    if (await isAdhanHandledOrDismissedToday(lookup) || await isPrayerCompletedToday(lookup)) {
+      debugPrint('[AdhanAlarmService] Bypassing adhan: already handled or completed today ($lookup).');
       await stopAlarmSound();
       return;
     }
 
-    final lookup = (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
-    if (await isPrayerCompletedToday(lookup)) {
+    // If the scheduled prayer time has already passed, do NOT launch the adhan screen.
+    if (isAfterAdhanTime(prayerTime: prayerTime, prayerName: prayerName)) {
+      debugPrint('[AdhanAlarmService] Bypassing adhan screen because current time is after adhan time ($prayerTime).');
       await stopAlarmSound();
       return;
     }
@@ -1036,6 +1144,10 @@ class AdhanAlarmService {
     }
     if (!targetContext.mounted) return;
 
+    // Record as triggered today so entering the app will not trigger it again
+    await markAdhanTriggeredToday(lookup);
+    if (!targetContext.mounted) return;
+
     final nameAr = _prayerNameArabic[prayerName] ?? prayerName;
     final time = prayerTime ?? '';
 
@@ -1048,14 +1160,15 @@ class AdhanAlarmService {
     );
   }
 
-  /// Triggers the non-dismissible Fajr Wake-Up Modal with cognitive challenge
+  /// Triggers the Fajr Wake-Up Modal with cognitive challenge
   void triggerFajrWakeUpModal({BuildContext? context}) {
     unawaited(_triggerFajrWakeUpModalIfPending(context: context));
   }
 
   Future<void> _triggerFajrWakeUpModalIfPending({BuildContext? context}) async {
     if (_isModalShowing) return;
-    if (await isPrayerCompletedToday('fajr')) {
+    if (await isAdhanHandledOrDismissedToday('fajr') || await isPrayerCompletedToday('fajr')) {
+      debugPrint('[AdhanAlarmService] Bypassing fajr wake-up modal: already handled or completed today.');
       await stopAlarmSound();
       return;
     }
@@ -1087,12 +1200,19 @@ class AdhanAlarmService {
 
     showDialog(
       context: targetContext,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (_) => PopScope(
-        canPop: false,
+        canPop: true,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) {
+            stopAlarmSound();
+            markAdhanDismissedToday('fajr');
+          }
+        },
         child: FajrAlarmDialog(
           onAlarmDismissed: () async {
             await stopAlarmSound();
+            await markAdhanDismissedToday('fajr');
             _isModalShowing = false;
             // Mark Fajr prayer as completed in the dedicated prayers table
             await PrayerTimeService().togglePrayer('fajr', true);

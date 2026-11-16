@@ -19,7 +19,7 @@ class ColorAccentSelector extends StatelessWidget {
 
   static const colors = [
     {'hex': '#10B981', 'color': AxisColors.success, 'label': 'Emerald'},
-    {'hex': '#38BDF8', 'color': AxisColors.secondary, 'label': 'Cyan'},
+    {'hex': '#0EA5E9', 'color': AxisColors.secondary, 'label': 'Cyan'},
     {'hex': '#6366F1', 'color': AxisColors.primary, 'label': 'Indigo'},
     {'hex': '#F59E0B', 'color': AxisColors.warning, 'label': 'Amber'},
     {'hex': '#EC4899', 'color': Color(0xFFEC4899), 'label': 'Rose'},

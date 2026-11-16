@@ -110,5 +110,19 @@ void main() {
         expect(AdhanAlarmService.isAfterAdhanTime(prayerTime: futureTimeStr), isFalse);
       }
     });
+
+    test('isAdhanHandledOrDismissedToday correctly tracks triggered and dismissed adhan for current day', () async {
+      final service = AdhanAlarmService();
+      expect(await service.isAdhanHandledOrDismissedToday('unknown_prayer'), isFalse);
+
+      await service.markAdhanTriggeredToday('fajr');
+      expect(await service.isAdhanHandledOrDismissedToday('fajr'), isTrue);
+      expect(await service.isAdhanHandledOrDismissedToday('Fajr Prayer'), isTrue);
+      expect(await service.isAdhanHandledOrDismissedToday('dhuhr'), isFalse);
+
+      await service.markAdhanDismissedToday('dhuhr');
+      expect(await service.isAdhanHandledOrDismissedToday('dhuhr'), isTrue);
+      expect(await service.isAdhanHandledOrDismissedToday('prayer_abc_dhuhr'), isTrue);
+    });
   });
 }

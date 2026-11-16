@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:axis/core/theme.dart';
 
 /// Ambient background layer with technical coordinate grid and chromatic fog radials.
 class SplashTechnicalGrid extends StatelessWidget {
@@ -27,10 +28,10 @@ class SplashTechnicalGrid extends StatelessWidget {
             height: 320,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF38BDF8).withValues(alpha: 0.12),
+              color: AxisColors.secondary.withValues(alpha: 0.12),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF38BDF8).withValues(alpha: 0.18),
+                  color: AxisColors.secondary.withValues(alpha: 0.18),
                   blurRadius: 110,
                   spreadRadius: 40,
                 ),
@@ -46,10 +47,10 @@ class SplashTechnicalGrid extends StatelessWidget {
             height: 280,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF6366F1).withValues(alpha: 0.14),
+              color: AxisColors.primary.withValues(alpha: 0.14),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.16),
+                  color: AxisColors.primary.withValues(alpha: 0.16),
                   blurRadius: 120,
                   spreadRadius: 30,
                 ),
@@ -65,10 +66,10 @@ class SplashTechnicalGrid extends StatelessWidget {
             height: 260,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF38BDF8).withValues(alpha: 0.08),
+              color: AxisColors.secondary.withValues(alpha: 0.08),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF38BDF8).withValues(alpha: 0.10),
+                  color: AxisColors.secondary.withValues(alpha: 0.10),
                   blurRadius: 90,
                   spreadRadius: 20,
                 ),
@@ -88,7 +89,7 @@ class TechnicalGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.035)
+      ..color = AxisColors.secondary.withValues(alpha: 0.035)
       ..strokeWidth = 1.0;
 
     const step = 28.0;

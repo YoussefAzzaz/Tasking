@@ -211,10 +211,10 @@ class _SplashScreenState extends State<SplashScreen>
                 height: 6,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFF38BDF8),
+                  color: AxisColors.secondary,
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0xFF38BDF8),
+                      color: AxisColors.secondary,
                       blurRadius: 6,
                       spreadRadius: 1,
                     ),
@@ -242,7 +242,7 @@ class _SplashScreenState extends State<SplashScreen>
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 3.5,
-            color: const Color(0xFF8ED5FF),
+            color: AxisColors.secondarySoft,
           ),
         ),
 
@@ -260,7 +260,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: const Icon(
             Icons.sensors_rounded,
             size: 16,
-            color: Color(0xFF38BDF8),
+            color: AxisColors.secondary,
           ),
         ),
       ],
@@ -274,7 +274,7 @@ class _SplashScreenState extends State<SplashScreen>
         Expanded(
           child: _buildMicroPill(
             label: 'SYS.READY',
-            dotColor: const Color(0xFF38BDF8),
+            dotColor: AxisColors.secondary,
             textColor: AxisColors.textHigh,
           ),
         ),
@@ -282,7 +282,7 @@ class _SplashScreenState extends State<SplashScreen>
         Expanded(
           child: _buildMicroPill(
             label: 'LOCAL-FIRST',
-            dotColor: const Color(0xFF818CF8),
+            dotColor: AxisColors.primarySofter,
             textColor: AxisColors.textMuted,
           ),
         ),
@@ -290,8 +290,8 @@ class _SplashScreenState extends State<SplashScreen>
         Expanded(
           child: _buildMicroPill(
             label: 'MESH // 64',
-            dotColor: const Color(0xFFC084FC),
-            textColor: const Color(0xFF8ED5FF),
+            dotColor: AxisColors.warning,
+            textColor: AxisColors.secondarySoft,
           ),
         ),
       ],
@@ -374,7 +374,7 @@ class _SplashScreenState extends State<SplashScreen>
                 height: 5,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFF38BDF8),
+                  color: AxisColors.secondary,
                 ),
               ),
               const SizedBox(width: 6),
@@ -403,7 +403,7 @@ class _SplashScreenState extends State<SplashScreen>
             color: AxisColors.textHigh,
             shadows: [
               Shadow(
-                color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
+                color: AxisColors.secondary.withValues(alpha: 0.35),
                 blurRadius: 18,
               ),
             ],
@@ -435,21 +435,21 @@ class _SplashScreenState extends State<SplashScreen>
       child: InkWell(
         onTap: _proceedToApp,
         borderRadius: BorderRadius.circular(10),
-        splashColor: const Color(0xFF38BDF8).withValues(alpha: 0.2),
-        highlightColor: const Color(0xFF38BDF8).withValues(alpha: 0.1),
+        splashColor: AxisColors.secondary.withValues(alpha: 0.2),
+        highlightColor: AxisColors.secondary.withValues(alpha: 0.1),
         child: Container(
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: const Color(0xFF38BDF8).withValues(alpha: 0.14),
+            color: AxisColors.secondary.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: const Color(0xFF38BDF8).withValues(alpha: 0.50),
+              color: AxisColors.secondary.withValues(alpha: 0.50),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF38BDF8).withValues(alpha: 0.25),
+                color: AxisColors.secondary.withValues(alpha: 0.25),
                 blurRadius: 16,
                 spreadRadius: -2,
               ),
@@ -463,7 +463,7 @@ class _SplashScreenState extends State<SplashScreen>
                   const Icon(
                     Icons.all_inclusive_rounded,
                     size: 18,
-                    color: Color(0xFF38BDF8),
+                    color: AxisColors.secondary,
                   ),
                   const SizedBox(width: 10),
                   Text(
@@ -481,7 +481,7 @@ class _SplashScreenState extends State<SplashScreen>
               const Icon(
                 Icons.arrow_forward_rounded,
                 size: 18,
-                color: Color(0xFF38BDF8),
+                color: AxisColors.secondary,
               ),
             ],
           ),

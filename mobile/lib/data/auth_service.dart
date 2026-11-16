@@ -8,6 +8,7 @@ import 'package:axis/data/habit_notification_service.dart';
 import 'package:axis/data/daily_prayer_status_repository.dart';
 import 'package:axis/data/friends/friend_search_repository.dart';
 import 'package:axis/data/friends/friend_activity_repository.dart';
+import 'package:axis/core/security/secure_credential_vault.dart';
 
 /// Full-stack Authentication Service bridging Supabase Auth & PowerSync multi-tenant isolation.
 /// Provides offline session persistence, background auto-login, and seamless reconnect sync.
@@ -26,9 +27,16 @@ class AuthService {
 
   Map<String, dynamic>? _lastSavedSession;
   bool _isAutoLoggingIn = false;
+  bool _isReAuthenticating = false;
 
   /// Reactive notifier for GoRouter refreshListenable & auth state observers
   final ValueNotifier<bool> authStateNotifier = ValueNotifier<bool>(false);
+
+  /// Reactive notifier when the cloud token is expired / deprecated and needs re-login
+  final ValueNotifier<bool> sessionExpiredNotifier = ValueNotifier<bool>(false);
+
+  /// Whether the current session has an expired / deprecated token
+  bool get isSessionExpired => sessionExpiredNotifier.value;
 
   Map<String, dynamic>? get lastSavedSession => _lastSavedSession;
 
@@ -140,35 +148,70 @@ class AuthService {
     }
   }
 
+  /// Whether encrypted credentials exist in local cache for re-authentication
+  bool get hasSavedCredentials {
+    final enc = _lastSavedSession?['encrypted_password'] as String?;
+    final email = _lastSavedSession?['email'] as String?;
+    return enc != null && enc.isNotEmpty && email != null && email.isNotEmpty;
+  }
+
+  /// Returns the cached email if any
+  String? get savedEmail => _lastSavedSession?['email'] as String?;
+
+  /// Attempts to recover the decrypted plain password from the secure vault
+  String? getDecryptedPassword() {
+    final enc = _lastSavedSession?['encrypted_password'] as String?;
+    if (enc == null || enc.isEmpty) return null;
+    return SecureCredentialVault.decryptPassword(enc);
+  }
+
+  /// Returns the stored password hash (for verification without decryption)
+  String? get storedPasswordHash => _lastSavedSession?['password_hash'] as String?;
+
   /// Persist session metadata locally in SQLite for offline access
   Future<void> saveLocalSession({
     required String userId,
     required String email,
     String? displayName,
     String? avatarUrl,
+    String? plainPassword,
   }) async {
     setCachedUserId(userId);
+
+    String? encryptedPassword = _lastSavedSession?['encrypted_password'] as String?;
+    String? passwordHash = _lastSavedSession?['password_hash'] as String?;
+
+    if (plainPassword != null && plainPassword.isNotEmpty) {
+      encryptedPassword = SecureCredentialVault.encryptPassword(plainPassword);
+      passwordHash = SecureCredentialVault.hashPassword(plainPassword);
+    }
+
     _lastSavedSession = {
       'id': 'active_session',
       'user_id': userId,
       'email': email,
       'display_name': displayName,
       'avatar_url': avatarUrl,
+      'encrypted_password': encryptedPassword,
+      'password_hash': passwordHash,
       'last_login_at': DateTime.now().toUtc().toIso8601String(),
     };
+    sessionExpiredNotifier.value = false;
     authStateNotifier.value = true;
 
     if (isDatabaseInitialized) {
       try {
         await db.execute('''
           INSERT INTO local_auth_session (
-            id, user_id, email, display_name, avatar_url, last_login_at
-          ) VALUES (?, ?, ?, ?, ?, ?)
+            id, user_id, email, display_name, avatar_url, encrypted_password, password_hash, last_login_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             user_id = excluded.user_id,
             email = excluded.email,
             display_name = excluded.display_name,
             avatar_url = COALESCE(excluded.avatar_url, local_auth_session.avatar_url),
+            encrypted_password = COALESCE(excluded.encrypted_password, local_auth_session.encrypted_password),
+            password_hash = COALESCE(excluded.password_hash, local_auth_session.password_hash),
             last_login_at = excluded.last_login_at
         ''', [
           'active_session',
@@ -176,6 +219,8 @@ class AuthService {
           email,
           displayName,
           avatarUrl,
+          encryptedPassword,
+          passwordHash,
           DateTime.now().toUtc().toIso8601String(),
         ]);
         await purgeForeignUserData();
@@ -189,6 +234,7 @@ class AuthService {
   Future<void> clearLocalSession() async {
     _lastSavedSession = null;
     setCachedUserId('');
+    sessionExpiredNotifier.value = false;
     authStateNotifier.value = false;
     if (isDatabaseInitialized) {
       try {
@@ -197,6 +243,63 @@ class AuthService {
         debugPrint('[AuthService] Error clearing local auth session: $e');
       }
     }
+  }
+
+  /// Clears saved credentials from local storage and memory while keeping user session
+  Future<void> clearSavedCredentials() async {
+    if (_lastSavedSession != null) {
+      _lastSavedSession!['encrypted_password'] = null;
+      _lastSavedSession!['password_hash'] = null;
+    }
+    if (isDatabaseInitialized) {
+      try {
+        await db.execute(
+          'UPDATE local_auth_session SET encrypted_password = NULL, password_hash = NULL WHERE id = ?',
+          ['active_session'],
+        );
+      } catch (e) {
+        debugPrint('[AuthService] Error clearing saved credentials: $e');
+      }
+    }
+  }
+
+  /// Attempts silent re-authentication with Supabase using cached encrypted credentials
+  Future<bool> trySilentReAuthWithSavedCredentials() async {
+    if (_isReAuthenticating) return false;
+    final client = _client;
+    if (client == null) return false;
+    final email = savedEmail;
+    final password = getDecryptedPassword();
+    if (email == null || email.isEmpty || password == null || password.isEmpty) {
+      return false;
+    }
+
+    _isReAuthenticating = true;
+    try {
+      debugPrint('[AuthService] Attempting silent re-authentication with secure cached credentials for $email...');
+      final response = await client.auth.signInWithPassword(
+        email: email.trim(),
+        password: password,
+      );
+      if (response.session != null && !response.session!.isExpired) {
+        final uid = response.user?.id ?? '';
+        if (uid.isNotEmpty) {
+          setCachedUserId(uid);
+        }
+        sessionExpiredNotifier.value = false;
+        authStateNotifier.value = true;
+        if (isDatabaseInitialized) {
+          unawaited(connectPowerSyncSafely());
+        }
+        debugPrint('[AuthService] Silent re-authentication successful! Session restored.');
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[AuthService] Silent re-authentication failed: $e');
+    } finally {
+      _isReAuthenticating = false;
+    }
+    return false;
   }
 
   /// Silently restores Supabase session in the background and connects PowerSync if online
@@ -219,12 +322,22 @@ class AuthService {
         }
       }
 
+      if (session == null || session.isExpired) {
+        final reAuthOk = await trySilentReAuthWithSavedCredentials();
+        if (reAuthOk) {
+          session = client.auth.currentSession;
+        }
+      }
+
       if (session != null && !session.isExpired) {
         setCachedUserId(session.user.id);
+        sessionExpiredNotifier.value = false;
         if (isDatabaseInitialized) {
           unawaited(connectPowerSyncSafely());
         }
         return;
+      } else {
+        sessionExpiredNotifier.value = true;
       }
     } catch (e) {
       debugPrint('[AuthService] tryAutoLoginOrSync error: $e');
@@ -258,13 +371,28 @@ class AuthService {
       }
     }
 
-    return session != null && !session.isExpired && session.user.id.isNotEmpty && session.user.id != 'local_guest';
+    if (session == null || session.isExpired) {
+      final reAuthOk = await trySilentReAuthWithSavedCredentials();
+      if (reAuthOk) {
+        session = client.auth.currentSession;
+      }
+    }
+
+    final isValid = session != null && !session.isExpired && session.user.id.isNotEmpty && session.user.id != 'local_guest';
+    final savedUid = currentUserId;
+    if (!isValid && savedUid != null && savedUid.isNotEmpty && savedUid != 'local_guest') {
+      sessionExpiredNotifier.value = true;
+    } else if (isValid) {
+      sessionExpiredNotifier.value = false;
+    }
+    return isValid;
   }
 
   /// Sign in with email and password
   Future<AuthResponse> signIn({
     required String email,
     required String password,
+    bool rememberMe = true,
   }) async {
     final client = _client;
     if (client == null) throw StateError('Supabase is not initialized');
@@ -304,7 +432,12 @@ class AuthService {
         userId: uid,
         email: email.trim(),
         displayName: name,
+        plainPassword: rememberMe ? password : null,
       );
+
+      if (!rememberMe) {
+        await clearSavedCredentials();
+      }
 
       // Connect PowerSync with new user credentials if not already connected
       if (response.session != null && isDatabaseInitialized) {
@@ -350,6 +483,7 @@ class AuthService {
         userId: uid,
         email: email.trim(),
         displayName: cleanName,
+        plainPassword: password,
       );
 
       // Auto-connect if session is immediately active and not already connected

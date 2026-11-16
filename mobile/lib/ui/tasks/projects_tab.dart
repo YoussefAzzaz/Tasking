@@ -167,7 +167,7 @@ class _ProjectsTabState extends State<ProjectsTab> {
                 discoveredProjects.add(Project(
                   id: 'discovered_${t.projectId}',
                   name: t.projectId!.trim(),
-                  color: '#06B6D4',
+                  color: '#0EA5E9',
                 ));
               }
             }
@@ -509,7 +509,7 @@ class _ProjectsTabState extends State<ProjectsTab> {
                           name: context.isArabic
                               ? 'المهام التعاونية'
                               : 'Collaborative Tasks',
-                          color: '#06B6D4',
+                          color: '#0EA5E9',
                         ),
                         color: AxisColors.secondary,
                         subtasks: List<Task>.from(displayedCollaborativeTasks)

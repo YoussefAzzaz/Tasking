@@ -88,7 +88,7 @@ class VaultSyncTelemetryCard extends StatelessWidget {
                           const Icon(
                             Icons.lock_clock_outlined,
                             size: 14,
-                            color: Color(0xFF38BDF8),
+                            color: AxisColors.secondary,
                           ),
                           const SizedBox(width: 6),
                           Flexible(
@@ -118,7 +118,7 @@ class VaultSyncTelemetryCard extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: const Color(0xFF8ED5FF),
+                        color: AxisColors.secondarySoft,
                       ),
                     ),
                   ],
@@ -145,13 +145,13 @@ class VaultSyncTelemetryCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                             gradient: const LinearGradient(
                               colors: [
-                                Color(0xFF6366F1),
-                                Color(0xFF38BDF8),
+                                AxisColors.primary,
+                                AxisColors.secondary,
                               ],
                             ),
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
-                                color: Color(0xFF38BDF8),
+                                color: AxisColors.secondary.withValues(alpha: 0.6),
                                 blurRadius: 8,
                                 spreadRadius: 1,
                               ),
@@ -189,14 +189,14 @@ class VaultSyncTelemetryCard extends StatelessWidget {
                       _buildTelemetryColumn(
                         label: isArabic ? 'الحالة' : 'STATE',
                         value: isArabic ? 'مشفر' : 'ENCRYPTED',
-                        valueColor: const Color(0xFF38BDF8),
+                        valueColor: AxisColors.secondary,
                         align: CrossAxisAlignment.center,
                         isArabic: isArabic,
                       ),
                       _buildTelemetryColumn(
                         label: isArabic ? 'العقد' : 'NODES',
                         value: isArabic ? '64 نشطة' : '64 ACTIVE',
-                        valueColor: const Color(0xFF818CF8),
+                        valueColor: AxisColors.primarySofter,
                         align: CrossAxisAlignment.end,
                         isArabic: isArabic,
                       ),

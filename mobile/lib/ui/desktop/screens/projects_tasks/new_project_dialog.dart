@@ -28,7 +28,7 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
   String _selectedColor = '#6366F1';
   static const List<String> _presetColors = [
     '#6366F1',
-    '#38BDF8',
+    '#0EA5E9',
     '#10B981',
     '#F59E0B',
     '#EF4444',

@@ -103,7 +103,7 @@ final List<BadgeDefinition> kExecutionFocusBadges = [
     subtitle: 'Calibrate time budgets',
     category: BadgeCategory.execution,
     icon: Icons.av_timer_rounded,
-    color: Color(0xFF38BDF8),
+    color: Color(0xFF0EA5E9),
     metricType: BadgeMetricType.tasksEstimated,
     tiers: [
       BadgeTier(tierNumber: 1, name: 'Estimator', targetValue: 5, unit: 'tasks', description: 'Complete 5 tasks that had estimated minutes.'),
@@ -118,7 +118,7 @@ final List<BadgeDefinition> kExecutionFocusBadges = [
     subtitle: 'Maintain recurring cadence',
     category: BadgeCategory.execution,
     icon: Icons.update_rounded,
-    color: Color(0xFF06B6D4),
+    color: Color(0xFF7DD3FC),
     metricType: BadgeMetricType.tasksRecurring,
     tiers: [
       BadgeTier(tierNumber: 1, name: 'Cadence Starter', targetValue: 3, unit: 'repeating tasks', description: 'Complete 3 recurring tasks.'),
@@ -182,7 +182,7 @@ final List<BadgeDefinition> kExecutionFocusBadges = [
     subtitle: 'Descend into immersion',
     category: BadgeCategory.focus,
     icon: Icons.scuba_diving_rounded,
-    color: Color(0xFF38BDF8),
+    color: Color(0xFF0EA5E9),
     metricType: BadgeMetricType.focusMinutes,
     tiers: [
       BadgeTier(tierNumber: 1, name: 'Shallows', targetValue: 180, unit: 'min', description: 'Accumulate 3 hours of focused immersion.'),
@@ -287,7 +287,7 @@ final List<BadgeDefinition> kExecutionFocusBadges = [
     subtitle: 'Peak mental bandwidth',
     category: BadgeCategory.focus,
     icon: Icons.psychology_rounded,
-    color: Color(0xFF06B6D4),
+    color: Color(0xFF7DD3FC),
     metricType: BadgeMetricType.focusMinutes,
     tiers: [
       BadgeTier(tierNumber: 1, name: 'Spark Flow', targetValue: 400, unit: 'min', description: 'Enter hyperflow for 400 minutes.'),

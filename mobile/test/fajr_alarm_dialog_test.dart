@@ -59,5 +59,11 @@ void main() {
     // Verify error message is shown and alarm is not dismissed
     expect(find.text('Incorrect answer. Calculate again to wake up!'), findsOneWidget);
     expect(dismissed, false);
+
+    // Tap the direct Stop Alarm button to guarantee immediate user control
+    expect(find.byKey(const ValueKey('stop_fajr_alarm_button')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('stop_fajr_alarm_button')));
+    await tester.pump();
+    expect(dismissed, isTrue);
   });
 }

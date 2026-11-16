@@ -186,7 +186,7 @@ class _FajrAlarmDialogState extends State<FajrAlarmDialog>
                 style: const TextStyle(
                   fontSize: 11,
                   fontStyle: FontStyle.italic,
-                  color: Color(0xFF38BDF8),
+                  color: AxisColors.secondary,
                 ),
               ),
               Text(
@@ -340,6 +340,27 @@ class _FajrAlarmDialogState extends State<FajrAlarmDialog>
                       ],
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Emergency direct Stop Alarm button to guarantee user control
+              TextButton.icon(
+                key: const ValueKey('stop_fajr_alarm_button'),
+                onPressed: () {
+                  HapticFeedback.mediumImpact();
+                  widget.onAlarmDismissed();
+                  Navigator.of(context, rootNavigator: true).pop();
+                },
+                icon: const Icon(Icons.alarm_off_rounded, size: 15, color: Color(0xFFEF4444)),
+                label: Text(
+                  context.isArabic ? 'إيقاف المنبه' : 'Stop Alarm',
+                  style: const TextStyle(
+                    color: Color(0xFFEF4444),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

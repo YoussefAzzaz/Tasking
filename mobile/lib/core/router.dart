@@ -9,6 +9,7 @@ import 'package:axis/ui/focus/focus_screen.dart';
 import 'package:axis/ui/friends/friends_screen.dart';
 import 'package:axis/ui/common/splash_screen.dart';
 import 'package:axis/ui/auth/auth_screen.dart';
+import 'package:axis/ui/calendar/calendar_screen.dart';
 import 'package:axis/ui/debug/adhan_alarm_debug_screen.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/ui/shell/app_shell.dart';
@@ -98,6 +99,10 @@ final router = GoRouter(
           ],
         ),
       ],
+    ),
+    GoRoute(
+      path: '/calendar',
+      builder: (context, state) => const CalendarScreen(),
     ),
     GoRoute(
       path: '/me',

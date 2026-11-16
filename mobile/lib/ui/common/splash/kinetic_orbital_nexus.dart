@@ -30,7 +30,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 child: Text(
                   '⎡',
                   style: GoogleFonts.jetBrainsMono(
-                    color: const Color(0xFF3E484F),
+                    color: AxisColors.textDim.withValues(alpha: 0.5),
                     fontSize: 16,
                     fontWeight: FontWeight.w300,
                   ),
@@ -42,7 +42,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 child: Text(
                   '⎤',
                   style: GoogleFonts.jetBrainsMono(
-                    color: const Color(0xFF3E484F),
+                    color: AxisColors.textDim.withValues(alpha: 0.5),
                     fontSize: 16,
                     fontWeight: FontWeight.w300,
                   ),
@@ -54,7 +54,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 child: Text(
                   '⎣',
                   style: GoogleFonts.jetBrainsMono(
-                    color: const Color(0xFF3E484F),
+                    color: AxisColors.textDim.withValues(alpha: 0.5),
                     fontSize: 16,
                     fontWeight: FontWeight.w300,
                   ),
@@ -66,7 +66,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 child: Text(
                   '⎦',
                   style: GoogleFonts.jetBrainsMono(
-                    color: const Color(0xFF3E484F),
+                    color: AxisColors.textDim.withValues(alpha: 0.5),
                     fontSize: 16,
                     fontWeight: FontWeight.w300,
                   ),
@@ -82,7 +82,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.16),
+                      color: AxisColors.secondary.withValues(alpha: 0.16),
                       width: 1.2,
                     ),
                   ),
@@ -113,12 +113,12 @@ class KineticOrbitalNexus extends StatelessWidget {
                     color: AxisColors.surfaceHigh.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
+                      color: AxisColors.secondary.withValues(alpha: 0.35),
                       width: 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF38BDF8).withValues(alpha: 0.18),
+                        color: AxisColors.secondary.withValues(alpha: 0.18),
                         blurRadius: 24,
                         spreadRadius: -2,
                       ),
@@ -137,7 +137,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                     color: AxisColors.surfaceLowest.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: const Color(0xFF818CF8).withValues(alpha: 0.30),
+                      color: AxisColors.primarySofter.withValues(alpha: 0.30),
                       width: 1,
                     ),
                   ),
@@ -159,12 +159,12 @@ class KineticOrbitalNexus extends StatelessWidget {
                     ],
                   ),
                   border: Border.all(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.65),
+                    color: AxisColors.secondary.withValues(alpha: 0.65),
                     width: 1.2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
+                      color: AxisColors.secondary.withValues(alpha: 0.35),
                       blurRadius: 18,
                       spreadRadius: 2,
                     ),
@@ -200,7 +200,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                       fontSize: 9,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.5,
-                      color: const Color(0xFF38BDF8),
+                      color: AxisColors.secondary,
                     ),
                   ),
                 ),
@@ -226,8 +226,8 @@ class OrbitArcPainter extends CustomPainter {
       ..shader = const SweepGradient(
         colors: [
           Colors.transparent,
-          Color(0xFF6366F1),
-          Color(0xFF38BDF8),
+          AxisColors.primary,
+          AxisColors.secondary,
           Colors.transparent,
         ],
         stops: [0.0, 0.45, 0.85, 1.0],

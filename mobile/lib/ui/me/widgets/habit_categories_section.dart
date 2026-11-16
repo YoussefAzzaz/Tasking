@@ -101,13 +101,7 @@ class HabitCategoriesSection extends StatelessWidget {
                 const SizedBox(height: 8),
                 Builder(
                   builder: (context) {
-                    const presetList = [
-                      '#10B981',
-                      '#38BDF8',
-                      '#6366F1',
-                      '#F59E0B',
-                      '#EC4899',
-                    ];
+                    const presetList = AxisColors.presetHexes;
                     final isCustom = !presetList.any(
                         (p) => p.toUpperCase() == selectedColor.toUpperCase());
 

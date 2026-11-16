@@ -27,10 +27,10 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
   late final TextEditingController _hexController;
 
   static const List<String> _quickPresets = [
-    '#6366F1', // Indigo
-    '#06B6D4', // Cyan
+    '#6366F1', // Indigo (Logo inner)
+    '#0EA5E9', // Cyan (Logo inner)
     '#10B981', // Emerald
-    '#F59E0B', // Amber
+    '#F59E0B', // Amber (Logo peak)
     '#EC4899', // Rose
     '#8B5CF6', // Purple
     '#EF4444', // Red
@@ -39,10 +39,10 @@ class _CyberColorPickerDialogState extends State<CyberColorPickerDialog> {
     '#F97316', // Orange
     '#84CC16', // Lime
     '#D946EF', // Fuchsia
-    '#0EA5E9', // Sky
-    '#E11D48', // Crimson
+    '#7DD3FC', // Light Cyan (Logo outer)
+    '#818CF8', // Soft Indigo (Logo outer)
     '#22C55E', // Green
-    '#A855F7', // Violet
+    '#FCD34D', // Bright Amber (Logo peak light)
   ];
 
   @override

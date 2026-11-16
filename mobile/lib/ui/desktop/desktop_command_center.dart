@@ -18,6 +18,9 @@ import 'screens/profile_settings_screen.dart';
 import 'screens/projects_tasks_screen.dart';
 import 'shell/desktop_sidebar.dart';
 import 'shell/desktop_titlebar.dart';
+import '../shell/session_expired_banner.dart';
+import '../common/updates/update_notice_banner.dart';
+import '../../data/updates/app_update_service.dart';
 
 /// Root desktop shell host managing titlebar, sidebar, keyboard routing, and tab views.
 class DesktopCommandCenter extends StatefulWidget {
@@ -37,6 +40,7 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
     unawaited(UserProfileRepository().getProfile());
     unawaited(StatsRepository().getUserStats());
     unawaited(FriendRepository().syncAllFriendData());
+    unawaited(AppUpdateService().checkForUpdate());
   }
 
   void _navigateToTab(int tabIndex) {
@@ -77,9 +81,9 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
         case 5:
           return const FriendsAccountabilityScreen();
         case 6:
-          return const ProfileSettingsScreen();
-        case 7:
           return const DesktopCalendarScreen();
+        case 7:
+          return const ProfileSettingsScreen();
         default:
           return const SizedBox.shrink();
       }
@@ -140,17 +144,25 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
                     Expanded(
                       child: Container(
                         color: AxisColors.canvasBase,
-                        child: IndexedStack(
-                          index: _selectedTab,
+                        child: Column(
                           children: [
-                            _buildTab(0),
-                            _buildTab(1),
-                            _buildTab(2),
-                            _buildTab(3),
-                            _buildTab(4),
-                            _buildTab(5),
-                            _buildTab(6),
-                            _buildTab(7),
+                            const UpdateNoticeBanner(),
+                            const SessionExpiredBanner(),
+                            Expanded(
+                              child: IndexedStack(
+                                index: _selectedTab,
+                                children: [
+                                  _buildTab(0),
+                                  _buildTab(1),
+                                  _buildTab(2),
+                                  _buildTab(3),
+                                  _buildTab(4),
+                                  _buildTab(5),
+                                  _buildTab(6),
+                                  _buildTab(7),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),

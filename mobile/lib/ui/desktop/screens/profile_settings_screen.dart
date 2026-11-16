@@ -18,6 +18,7 @@ import 'profile/desktop_mastery_badges_card.dart';
 import 'profile/desktop_task_tags_card.dart';
 import 'profile/desktop_note_categories_card.dart';
 import 'profile/desktop_habit_categories_card.dart';
+import 'profile/desktop_update_card.dart';
 import 'profile/operator_identity_card.dart';
 
 export 'profile/desktop_language_card.dart';
@@ -26,6 +27,7 @@ export 'profile/desktop_mastery_badges_card.dart';
 export 'profile/desktop_task_tags_card.dart';
 export 'profile/desktop_note_categories_card.dart';
 export 'profile/desktop_habit_categories_card.dart';
+export 'profile/desktop_update_card.dart';
 export 'profile/operator_identity_card.dart';
 
 /// Profile & Settings Screen (Tab 5) — Identity, customization, note/habit categories, and telemetry.
@@ -44,11 +46,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final _newNoteCatController = TextEditingController();
   final _newTagController = TextEditingController();
   String _selectedHabitCatColor = '#6366F1';
-  String _selectedNoteCatColor = '#38BDF8';
+  String _selectedNoteCatColor = '#0EA5E9';
   bool _isSaving = false;
   bool _isUploadingAvatar = false;
 
-  final _palette = ['#6366F1', '#38BDF8', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6'];
+  final _palette = ['#6366F1', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6'];
 
   @override
   void initState() {
@@ -306,6 +308,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: DesktopLayout.sectionSpacing),
+          const DesktopUpdateCard(),
         ],
       ),
     );

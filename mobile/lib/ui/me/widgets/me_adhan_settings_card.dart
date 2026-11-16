@@ -129,12 +129,12 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                        color: AxisColors.secondary.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.mosque_rounded,
-                        color: Color(0xFF38BDF8),
+                        color: AxisColors.secondary,
                         size: 20,
                       ),
                     ),

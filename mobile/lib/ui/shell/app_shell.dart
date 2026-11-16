@@ -5,6 +5,8 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/ui/shell/axis_header.dart';
 import 'package:axis/ui/shell/axis_bottom_bar.dart';
 import 'package:axis/ui/shell/floating_focus_session_bar.dart';
+import 'package:axis/ui/shell/session_expired_banner.dart';
+import 'package:axis/ui/common/updates/update_notice_banner.dart';
 import 'package:axis/ui/desktop/desktop_command_center.dart';
 
 /// App shell with header + 5-tab bottom nav using IndexedStack:
@@ -56,6 +58,10 @@ class AppShell extends StatelessWidget {
             ),
             // Floating Focus Session Bar under the top header
             const FloatingFocusSessionBar(),
+            // Update Notice Banner if new release available
+            const UpdateNoticeBanner(),
+            // Session Expired Banner if token expired
+            const SessionExpiredBanner(),
             // Content is the IndexedStack keeping all branch states alive
             Expanded(child: navigationShell),
           ],

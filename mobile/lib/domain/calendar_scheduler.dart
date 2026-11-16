@@ -278,13 +278,16 @@ abstract final class CalendarScheduler {
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
+    bool includeCompleted = true,
   }) {
     final blockedIntervals = <({int start, int end})>[
       for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
       for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
     ]..sort((a, b) => a.start.compareTo(b.start));
 
-    final active = orderedTasks.where((t) => !t.isCompleted).toList();
+    final active = includeCompleted
+        ? orderedTasks
+        : orderedTasks.where((t) => !t.isCompleted).toList();
     final packed = <Task>[];
 
     final now = referenceTime ?? DateTime.now();
@@ -344,8 +347,11 @@ abstract final class CalendarScheduler {
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
+    bool includeCompleted = false,
   }) {
-    final active = dayTasks.where((t) => !t.isCompleted).toList();
+    final active = includeCompleted
+        ? dayTasks
+        : dayTasks.where((t) => !t.isCompleted).toList();
     final now = referenceTime ?? DateTime.now();
     final isToday = dateStr == formatDate(now);
     final indexed = active.asMap().entries.toList();
@@ -395,8 +401,11 @@ abstract final class CalendarScheduler {
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
+    bool includeCompleted = true,
   }) {
-    final active = currentDayTasks.where((t) => !t.isCompleted).toList();
+    final active = includeCompleted
+        ? currentDayTasks
+        : currentDayTasks.where((t) => !t.isCompleted).toList();
     final movedIndex = active.indexWhere((t) => t.id == movedTaskId);
     if (movedIndex < 0) {
       return packTasksForDay(
@@ -406,6 +415,7 @@ abstract final class CalendarScheduler {
         prayerBlocks: prayerBlocks,
         dayStartMin: dayStartMin,
         referenceTime: referenceTime,
+        includeCompleted: includeCompleted,
       );
     }
 
@@ -572,6 +582,7 @@ abstract final class CalendarScheduler {
     int dayStartMin = defaultDayStartMinutes,
     int? targetDropMinute,
     DateTime? referenceTime,
+    bool includeCompleted = true,
   }) {
     final movedIdx = allTasks.indexWhere((t) => t.id == movedTaskId);
     if (movedIdx < 0) return const [];
@@ -588,9 +599,9 @@ abstract final class CalendarScheduler {
 
     final targetDayTasks = <Task>[
       for (final t in allTasks)
-        if (t.id != movedTaskId && t.dueDate == targetDateStr && !t.isCompleted)
+        if (t.id != movedTaskId && t.dueDate == targetDateStr && (includeCompleted || !t.isCompleted))
           t.copyWith(clearDueTime: targetDropMinute == null),
-      if (!updatedMoved.isCompleted) updatedMoved,
+      if (includeCompleted || !updatedMoved.isCompleted) updatedMoved,
     ];
 
     final packedTarget = sortAndPackDayByPriority(
@@ -600,6 +611,7 @@ abstract final class CalendarScheduler {
       prayerBlocks: prayerBlocks,
       dayStartMin: dayStartMin,
       referenceTime: referenceTime,
+      includeCompleted: includeCompleted,
     );
 
     if (sourceDateStr != null &&
@@ -609,7 +621,7 @@ abstract final class CalendarScheduler {
         for (final t in allTasks)
           if (t.id != movedTaskId &&
               t.dueDate == sourceDateStr &&
-              !t.isCompleted)
+              (includeCompleted || !t.isCompleted))
             t,
       ];
       final packedSource = sortAndPackDayByPriority(
@@ -619,6 +631,7 @@ abstract final class CalendarScheduler {
         prayerBlocks: prayerBlocks,
         dayStartMin: dayStartMin,
         referenceTime: referenceTime,
+        includeCompleted: includeCompleted,
       );
       return [...packedTarget, ...packedSource];
     }
@@ -636,11 +649,12 @@ abstract final class CalendarScheduler {
     required List<CalendarHabitBlock> habitBlocks,
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
+    bool includeCompleted = true,
   }) {
     final clampedDuration = sanitizeDuration(newEstimateMin);
     final updatedDayTasks = [
       for (final t in dayTasks)
-        if (!t.isCompleted)
+        if (includeCompleted || !t.isCompleted)
           t.id == resizedTaskId
               ? t.copyWith(estimateMin: clampedDuration)
               : t,
@@ -652,6 +666,7 @@ abstract final class CalendarScheduler {
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
       dayStartMin: dayStartMin,
+      includeCompleted: includeCompleted,
     );
   }
 
@@ -686,6 +701,7 @@ abstract final class CalendarScheduler {
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
+    bool includeCompleted = true,
   }) {
     final blockedIntervals = <({int start, int end})>[
       for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
@@ -694,7 +710,7 @@ abstract final class CalendarScheduler {
 
     // Active existing tasks on this date (excluding newTask):
     final activeExisting = existingDayTasks
-        .where((t) => !t.isCompleted && t.id != newTask.id)
+        .where((t) => (includeCompleted || !t.isCompleted) && t.id != newTask.id)
         .toList();
 
     // Map by ID for easy lookup and in-place updates, normalizing any task lacking dueTime:
@@ -740,8 +756,11 @@ abstract final class CalendarScheduler {
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
+    bool includeCompleted = true,
   }) {
-    final active = dayTasks.where((t) => !t.isCompleted).toList();
+    final active = includeCompleted
+        ? dayTasks
+        : dayTasks.where((t) => !t.isCompleted).toList();
     if (active.isEmpty) return const [];
 
     final blockedIntervals = <({int start, int end})>[

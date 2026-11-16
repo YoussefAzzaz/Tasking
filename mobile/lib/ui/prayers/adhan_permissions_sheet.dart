@@ -144,7 +144,7 @@ class _AdhanPermissionsSheetState extends State<AdhanPermissionsSheet>
               backgroundColor: const Color(0xFF0F172A),
               content: Row(
                 children: [
-                  const Icon(Icons.notifications_active_rounded, color: Color(0xFF38BDF8), size: 20),
+                  const Icon(Icons.notifications_active_rounded, color: AxisColors.secondary, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -334,7 +334,7 @@ class _AdhanPermissionsSheetState extends State<AdhanPermissionsSheet>
           // Permission Items
           _buildPermissionItem(
             icon: Icons.notifications_active_rounded,
-            iconColor: const Color(0xFF38BDF8),
+            iconColor: AxisColors.secondary,
             title: isArabic ? 'إشعارات الأذان اليومية' : 'Prayer Notifications',
             subtitle: isArabic
                 ? 'إرسال إشعارات الأذان ذات الأولوية العالية عند حلول وقت الصلاة.'
@@ -435,7 +435,7 @@ class _AdhanPermissionsSheetState extends State<AdhanPermissionsSheet>
 
           _buildPermissionItem(
             icon: Icons.layers_rounded,
-            iconColor: const Color(0xFF06B6D4),
+            iconColor: AxisColors.secondary,
             title: isArabic ? 'الظهور فوق التطبيقات الأخرى' : 'Display Over Other Apps',
             subtitle: isArabic
                 ? 'يعرض شاشة الأذان فوراً فوق أي تطبيق تستخدمه عند حلول وقت الصلاة.'

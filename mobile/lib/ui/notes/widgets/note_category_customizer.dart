@@ -29,14 +29,7 @@ class NoteCategoryCustomizer extends StatelessWidget {
   final ValueChanged<String> onColorChanged;
   final ValueChanged<String> onIconChanged;
 
-  static const _palette = [
-    '#38BDF8',
-    '#10B981',
-    '#6366F1',
-    '#F59E0B',
-    '#EC4899',
-    '#A855F7',
-  ];
+  static const _palette = AxisColors.presetHexes;
 
   @override
   Widget build(BuildContext context) {

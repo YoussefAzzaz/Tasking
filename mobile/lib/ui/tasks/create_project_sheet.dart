@@ -22,10 +22,10 @@ class _CreateProjectSheetState extends State<CreateProjectSheet> {
   String? _errorText;
 
   static const _palette = [
-    {'name': 'Indigo', 'hex': '#6366F1', 'color': Color(0xFF6366F1)},
-    {'name': 'Cyan', 'hex': '#06B6D4', 'color': Color(0xFF06B6D4)},
-    {'name': 'Emerald', 'hex': '#10B981', 'color': Color(0xFF10B981)},
-    {'name': 'Amber', 'hex': '#F59E0B', 'color': Color(0xFFF59E0B)},
+    {'name': 'Indigo', 'hex': '#6366F1', 'color': AxisColors.primary},
+    {'name': 'Cyan', 'hex': '#0EA5E9', 'color': AxisColors.secondary},
+    {'name': 'Emerald', 'hex': '#10B981', 'color': AxisColors.success},
+    {'name': 'Amber', 'hex': '#F59E0B', 'color': AxisColors.warning},
     {'name': 'Rose', 'hex': '#EC4899', 'color': Color(0xFFEC4899)},
     {'name': 'Purple', 'hex': '#8B5CF6', 'color': Color(0xFF8B5CF6)},
   ];

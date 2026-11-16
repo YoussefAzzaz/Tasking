@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:axis/core/config/app_config.dart';
+import 'package:axis/data/auth_service.dart';
 import 'payload_sanitizer.dart';
 
 /// PowerSync backend connector bridging local SQLite CRUD mutations to Supabase REST / Postgres
@@ -44,7 +45,17 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     }
 
     // 1. Guard against unauthenticated session or expired session
+    if (session == null || session.isExpired) {
+      final reAuthOk = await AuthService().trySilentReAuthWithSavedCredentials();
+      if (reAuthOk) {
+        session = client.auth.currentSession;
+      }
+    }
+
     if (session == null || session.isExpired || isSigningOut?.call() == true) {
+      if (isSigningOut?.call() != true) {
+        AuthService().sessionExpiredNotifier.value = true;
+      }
       if (!_loggedNoSession) {
         _loggedNoSession = true;
         _lastLoggedCredUserId = null;
@@ -448,6 +459,16 @@ class SupabaseConnector extends PowerSyncBackendConnector {
     final uid = user?.id ?? (getCurrentUserId != null ? getCurrentUserId!() : '');
 
     if (session == null || user == null || uid.isEmpty || session.isExpired) {
+      final reAuthOk = await AuthService().trySilentReAuthWithSavedCredentials();
+      if (reAuthOk) {
+        session = client.auth.currentSession;
+      }
+    }
+
+    if (session == null || user == null || uid.isEmpty || session.isExpired) {
+      if (isSigningOut?.call() != true) {
+        AuthService().sessionExpiredNotifier.value = true;
+      }
       debugPrint('[PowerSync SupabaseConnector] No authenticated user or session expired; deferring upload.');
       throw CredentialsException('Not logged in or session expired');
     }
@@ -548,6 +569,8 @@ class SupabaseConnector extends PowerSyncBackendConnector {
       } on AuthException catch (e) {
         debugPrint('[PowerSync SupabaseConnector] AuthException [${e.statusCode}]: ${e.message}');
         if (e.statusCode == '401' || e.statusCode == '403') {
+          AuthService().sessionExpiredNotifier.value = true;
+          unawaited(AuthService().trySilentReAuthWithSavedCredentials());
           if (client.auth.currentSession?.refreshToken != null) {
             try {
               await client.auth.refreshSession();

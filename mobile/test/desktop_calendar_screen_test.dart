@@ -342,6 +342,7 @@ void main() {
         newTask: newTask,
         habitBlocks: const [],
         dayStartMin: 8 * 60,
+        referenceTime: DateTime(2026, 11, 16, 7, 0),
       );
 
       final existTask = scheduled.firstWhere((t) => t.id == 't_p1_exist');
@@ -362,6 +363,7 @@ void main() {
         newTask: newTask,
         habitBlocks: const [],
         dayStartMin: 8 * 60,
+        referenceTime: DateTime(2026, 11, 16, 7, 0),
       );
 
       final p1 = scheduled.firstWhere((t) => t.id == 't_p1_new');
@@ -382,6 +384,7 @@ void main() {
         newTask: newTask,
         habitBlocks: const [],
         dayStartMin: 8 * 60,
+        referenceTime: DateTime(2026, 11, 16, 7, 0),
       );
 
       final p2 = scheduled.firstWhere((t) => t.id == 't_p2_9');
@@ -570,6 +573,7 @@ void main() {
         selectedDate: DateTime.now(),
         estimateMin: null,
         existingProjects: const [],
+        referenceTime: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 7, 0),
       );
 
       expect(created.estimateMin, 15);
@@ -840,7 +844,7 @@ void main() {
       expect(find.text('1 Hour'), findsOneWidget);
     });
 
-    testWidgets('DesktopSidebar exposes Calendar item at index 7', (tester) async {
+    testWidgets('DesktopSidebar exposes Calendar item at index 6', (tester) async {
       tester.view.physicalSize = const Size(1024, 700);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -864,7 +868,7 @@ void main() {
       expect(find.text('Calendar'), findsOneWidget);
       await tester.tap(find.text('Calendar'));
       await tester.pump();
-      expect(selected, 7);
+      expect(selected, 6);
     });
 
     testWidgets('default week starts on Sunday and columns show Sun as first column', (tester) async {
@@ -1129,6 +1133,80 @@ void main() {
       expect(find.byKey(const ValueKey('calendar_task_t_dated')), findsOneWidget);
       expect(find.byKey(const ValueKey('calendar_task_t_undated')), findsNothing);
       expect(find.text('Undated Floating Task'), findsNothing);
+    });
+
+    testWidgets('completed tasks appear in the calendar and can be toggled via Completed button', (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final activeTask = Task(
+        id: 't_active',
+        title: 'Pending Urgent Task',
+        priority: 1,
+        dueDate: '2026-11-16',
+        dueTime: '10:00',
+        estimateMin: 15,
+        status: 'todo',
+      );
+      final completedTask = Task(
+        id: 't_done',
+        title: 'Completed Finished Task',
+        priority: 2,
+        dueDate: '2026-11-16',
+        dueTime: '11:00',
+        estimateMin: 30,
+        status: 'done',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AxisTheme.dark,
+          home: Scaffold(
+            body: DesktopCalendarScreen(
+              initialTasks: [activeTask, completedTask],
+              initialHabits: const [],
+              initialPrayers: const [],
+              initialSelectedDate: DateTime(2026, 11, 16),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // By default, both active and completed tasks should be displayed on the calendar!
+      expect(find.byKey(const ValueKey('calendar_task_t_active')), findsOneWidget);
+      expect(find.byKey(const ValueKey('calendar_task_t_done')), findsOneWidget);
+      expect(find.text('Pending Urgent Task'), findsOneWidget);
+      expect(find.text('Completed Finished Task'), findsOneWidget);
+
+      // Completed task has checkmark icon inside its block
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('calendar_task_t_done')),
+          matching: find.byIcon(Icons.check_circle_rounded),
+        ),
+        findsOneWidget,
+      );
+
+      // Toggle completed button to HIDE completed tasks
+      final toggleBtn = find.byKey(const ValueKey('calendar_toggle_completed_button'));
+      expect(toggleBtn, findsOneWidget);
+      await tester.tap(toggleBtn);
+      await tester.pumpAndSettle();
+
+      // Now completed task is hidden, active task is still visible
+      expect(find.byKey(const ValueKey('calendar_task_t_active')), findsOneWidget);
+      expect(find.byKey(const ValueKey('calendar_task_t_done')), findsNothing);
+
+      // Toggle completed button again to SHOW completed tasks
+      await tester.tap(toggleBtn);
+      await tester.pumpAndSettle();
+
+      // Both are visible again
+      expect(find.byKey(const ValueKey('calendar_task_t_active')), findsOneWidget);
+      expect(find.byKey(const ValueKey('calendar_task_t_done')), findsOneWidget);
     });
   });
 }

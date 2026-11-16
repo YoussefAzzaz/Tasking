@@ -15,7 +15,7 @@ class NoteCategory {
     required this.id,
     required this.name,
     this.icon = 'article',
-    this.color = '#38BDF8',
+    this.color = '#0EA5E9',
   });
 
   NoteCategory copyWith({
@@ -67,7 +67,7 @@ class NoteCategoryRepository {
             id: r['id'] as String,
             name: name,
             icon: (r['icon'] as String?) ?? 'article',
-            color: (r['color'] as String?) ?? '#38BDF8',
+            color: (r['color'] as String?) ?? '#0EA5E9',
           ));
         }
       }
@@ -88,7 +88,7 @@ class NoteCategoryRepository {
                 id: 'discovered_$catName',
                 name: catName,
                 icon: 'article',
-                color: '#38BDF8',
+                color: '#0EA5E9',
               ),
             );
           }
@@ -137,7 +137,7 @@ class NoteCategoryRepository {
             id: r['id'] as String,
             name: name,
             icon: (r['icon'] as String?) ?? 'article',
-            color: (r['color'] as String?) ?? '#38BDF8',
+            color: (r['color'] as String?) ?? '#0EA5E9',
           ));
         }
       }
@@ -157,7 +157,7 @@ class NoteCategoryRepository {
               id: 'discovered_$catName',
               name: catName,
               icon: 'article',
-              color: '#38BDF8',
+              color: '#0EA5E9',
             ),
           );
         }
@@ -180,7 +180,7 @@ class NoteCategoryRepository {
                 id: sr['id'] as String,
                 name: name,
                 icon: (sr['icon'] as String?) ?? 'article',
-                color: (sr['color'] as String?) ?? '#38BDF8',
+                color: (sr['color'] as String?) ?? '#0EA5E9',
               );
               categories.add(cat);
               try {
@@ -208,7 +208,7 @@ class NoteCategoryRepository {
   Future<void> addCategory({
     required String name,
     String icon = 'article',
-    String color = '#38BDF8',
+    String color = '#0EA5E9',
   }) async {
     final cleanName = name.trim();
     if (cleanName.isEmpty) return;

@@ -299,7 +299,7 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
             backgroundColor: const Color(0xFF0F172A),
             content: Row(
               children: [
-                const Icon(Icons.timer_rounded, color: Color(0xFF38BDF8), size: 20),
+                const Icon(Icons.timer_rounded, color: AxisColors.secondary, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -413,10 +413,10 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                  color: AxisColors.secondary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.monitor_heart_rounded, color: Color(0xFF38BDF8), size: 18),
+                child: const Icon(Icons.monitor_heart_rounded, color: AxisColors.secondary, size: 18),
               ),
               const SizedBox(width: 10),
               Text(
@@ -720,8 +720,8 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
 
   Widget _buildImmediateTestsCard() {
     final testPrayers = [
-      {'name': 'Fajr', 'nameAr': 'الفجر', 'time': '05:15 AM', 'id': 'habit_prayer_fajr', 'color': const Color(0xFF38BDF8), 'icon': Icons.wb_twilight_rounded},
-      {'name': 'Dhuhr', 'nameAr': 'الظهر', 'time': '12:30 PM', 'id': 'habit_prayer_dhuhr', 'color': const Color(0xFFFBBF24), 'icon': Icons.wb_sunny_rounded},
+      {'name': 'Fajr', 'nameAr': 'الفجر', 'time': '05:15 AM', 'id': 'habit_prayer_fajr', 'color': AxisColors.secondary, 'icon': Icons.wb_twilight_rounded},
+      {'name': 'Dhuhr', 'nameAr': 'الظهر', 'time': '12:30 PM', 'id': 'habit_prayer_dhuhr', 'color': AxisColors.warningBright, 'icon': Icons.wb_sunny_rounded},
       {'name': 'Asr', 'nameAr': 'العصر', 'time': '03:45 PM', 'id': 'habit_prayer_asr', 'color': const Color(0xFFF97316), 'icon': Icons.sunny_snowing},
       {'name': 'Maghrib', 'nameAr': 'المغرب', 'time': '06:10 PM', 'id': 'habit_prayer_maghrib', 'color': const Color(0xFFEF4444), 'icon': Icons.nights_stay_rounded},
       {'name': 'Isha', 'nameAr': 'العشاء', 'time': '07:40 PM', 'id': 'habit_prayer_isha', 'color': const Color(0xFF8B5CF6), 'icon': Icons.dark_mode_rounded},
@@ -742,10 +742,10 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                  color: AxisColors.secondary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.fullscreen_rounded, color: Color(0xFF38BDF8), size: 18),
+                child: const Icon(Icons.fullscreen_rounded, color: AxisColors.secondary, size: 18),
               ),
               const SizedBox(width: 10),
               Text(

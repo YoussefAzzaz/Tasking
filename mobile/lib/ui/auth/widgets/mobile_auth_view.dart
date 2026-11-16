@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/auth_service.dart';
@@ -23,6 +24,8 @@ class MobileAuthView extends StatelessWidget {
   final VoidCallback onTogglePasswordVisibility;
   final VoidCallback onSubmit;
   final VoidCallback onContinueOffline;
+  final bool rememberMe;
+  final ValueChanged<bool>? onRememberMeChanged;
 
   const MobileAuthView({
     super.key,
@@ -39,6 +42,8 @@ class MobileAuthView extends StatelessWidget {
     required this.onTogglePasswordVisibility,
     required this.onSubmit,
     required this.onContinueOffline,
+    this.rememberMe = true,
+    this.onRememberMeChanged,
   });
 
   @override
@@ -121,6 +126,92 @@ class MobileAuthView extends StatelessWidget {
                           const SizedBox(height: 16),
                         ],
 
+                        // Quick Login Card with Cached Hashed & Encrypted Credentials
+                        if (!isSignUp && AuthService().hasSavedCredentials) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AxisColors.surfaceLowest,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AxisColors.secondary.withValues(alpha: 0.35),
+                                width: 1.1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AxisColors.secondary.withValues(alpha: 0.08),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: AxisColors.secondary.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.lock_person_rounded,
+                                    size: 15,
+                                    color: AxisColors.secondary,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isArabic ? 'حساب محفوظ (مشفر)' : 'SAVED ACCOUNT READY',
+                                        style: GoogleFonts.spaceGrotesk(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.5,
+                                          color: AxisColors.secondarySoft,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        AuthService().savedEmail ?? '',
+                                        style: GoogleFonts.getFont(
+                                          'Geist',
+                                          fontSize: 12,
+                                          color: AxisColors.textHigh,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    emailCtrl.text = AuthService().savedEmail ?? '';
+                                    final p = AuthService().getDecryptedPassword();
+                                    if (p != null) passwordCtrl.text = p;
+                                    onSubmit();
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    backgroundColor: AxisColors.secondary.withValues(alpha: 0.18),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  child: Text(
+                                    isArabic ? 'دخول سريع' : 'QUICK LOGIN',
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AxisColors.secondarySoft,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
                         // Display Name Field (SignUp only)
                         if (isSignUp) ...[
                           AuthTextField(
@@ -186,7 +277,15 @@ class MobileAuthView extends StatelessWidget {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 24),
+                        if (!isSignUp) ...[
+                          const SizedBox(height: 10),
+                          AuthRememberMeButton(
+                            value: rememberMe,
+                            onChanged: onRememberMeChanged ?? (_) {},
+                          ),
+                          const SizedBox(height: 16),
+                        ] else
+                          const SizedBox(height: 24),
 
                         // Submit Button
                         AuthSubmitButton(

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/auth_service.dart';
-import 'package:axis/data/powersync_db.dart' show globalUserLevel;
+import 'package:axis/data/powersync_db.dart' show globalUserLevel, isDatabaseInitialized, db;
+import 'package:powersync/powersync.dart' show SyncStatus;
 import 'package:axis/data/network_service.dart';
 import 'package:axis/data/user_profile_repository.dart';
+import 'package:axis/data/updates/app_update_service.dart';
 import 'package:axis/ui/me/widgets/avatar_widget.dart';
 import 'package:axis/ui/common/sync_status_modal.dart';
 
@@ -23,6 +26,7 @@ class _AxisHeaderState extends State<AxisHeader> {
   void initState() {
     super.initState();
     UserProfileRepository().getProfile();
+    AppUpdateService().checkForUpdate();
   }
 
   @override
@@ -88,85 +92,133 @@ class _AxisHeaderState extends State<AxisHeader> {
                       return ValueListenableBuilder<bool>(
                         valueListenable: AuthService().authStateNotifier,
                         builder: (context, _, _) {
-                          final auth = AuthService();
-                          final isGuest = auth.isGuest;
+                          return ValueListenableBuilder<bool>(
+                            valueListenable: AuthService().sessionExpiredNotifier,
+                            builder: (context, isSessionExpired, _) {
+                              return StreamBuilder<SyncStatus>(
+                                stream: isDatabaseInitialized
+                                    ? db.statusStream
+                                    : const Stream<SyncStatus>.empty(),
+                                initialData: isDatabaseInitialized ? db.currentStatus : null,
+                                builder: (context, snapshot) {
+                                  final auth = AuthService();
+                                  final isGuest = auth.isGuest;
+                                  final isArabic = context.isArabic;
+                                  final syncStatus = snapshot.data;
+                                  final isDbConnected =
+                                      syncStatus?.connected ?? (isDatabaseInitialized && db.connected);
+                                  final hasSyncError = syncStatus?.anyError != null;
+                                  final isConnecting = syncStatus?.connecting ?? false;
 
-                          final Color dotColor;
-                          final String label;
-                          final String tooltipMsg;
+                                  final Color dotColor;
+                                  final String label;
+                                  final String tooltipMsg;
 
-                          final isArabic = context.isArabic;
-                          if (!isOnline) {
-                            dotColor = AxisColors.warning;
-                            label = isArabic ? 'غير متصل' : 'OFFLINE';
-                            tooltipMsg = isArabic
-                                ? 'غير متصل • يعمل بأمان عبر SQLite المحلي'
-                                : 'Offline • Operating securely with local SQLite';
-                          } else if (isGuest) {
-                            dotColor = const Color(0xFFF59E0B);
-                            label = isArabic ? 'ضيف (محلي)' : 'GUEST (LOCAL)';
-                            tooltipMsg = isArabic
-                                ? 'العمل كضيف محلي. انقر لتسجيل الدخول والمزامنة مع سطح المكتب و Supabase.'
-                                : 'Operating as local guest. Tap to sign in and sync with Desktop & Supabase.';
-                          } else {
-                            dotColor = AxisColors.tertiary;
-                            label = isArabic ? 'متزامن' : 'SYNCED';
-                            tooltipMsg = isArabic
-                                ? 'متزامن سحابياً • PowerSync نشط (${auth.currentUser?.email ?? "متصل"})'
-                                : 'Cloud Synced • PowerSync active (${auth.currentUser?.email ?? "Connected"})';
-                          }
+                                  if (!isOnline) {
+                                    dotColor = AxisColors.warning;
+                                    label = isArabic ? 'غير متصل' : 'OFFLINE';
+                                    tooltipMsg = isArabic
+                                        ? 'غير متصل • يعمل بأمان عبر SQLite المحلي'
+                                        : 'Offline • Operating securely with local SQLite';
+                                  } else if (isSessionExpired) {
+                                    dotColor = AxisColors.danger;
+                                    label = isArabic ? 'انتهت الجلسة' : 'EXPIRED';
+                                    tooltipMsg = isArabic
+                                        ? 'انتهت صلاحية الجلسة • العمل محفوظ محلياً. اضغط لإعادة تسجيل الدخول'
+                                        : 'Session Expired • Work saved locally in SQLite. Tap to re-login.';
+                                  } else if (isGuest) {
+                                    dotColor = const Color(0xFFF59E0B);
+                                    label = isArabic ? 'ضيف (محلي)' : 'GUEST (LOCAL)';
+                                    tooltipMsg = isArabic
+                                        ? 'العمل كضيف محلي. انقر لتسجيل الدخول والمزامنة مع سطح المكتب و Supabase.'
+                                        : 'Operating as local guest. Tap to sign in and sync with Desktop & Supabase.';
+                                  } else if (hasSyncError) {
+                                    dotColor = AxisColors.warning;
+                                    label = isArabic ? 'خطأ مزامنة' : 'SYNC ERROR';
+                                    tooltipMsg = isArabic
+                                        ? 'تعذر اكتمال المزامنة السحابية. اضغط لفحص التفاصيل.'
+                                        : 'Cloud sync encountered an issue. Tap to view diagnostics.';
+                                  } else if (!isDbConnected) {
+                                    if (isConnecting) {
+                                      dotColor = AxisColors.secondary;
+                                      label = isArabic ? 'جارٍ الاتصال' : 'CONNECTING';
+                                      tooltipMsg = isArabic
+                                          ? 'جارٍ الاتصال بمحرك PowerSync...'
+                                          : 'Connecting to PowerSync engine...';
+                                    } else {
+                                      dotColor = AxisColors.warning;
+                                      label = isArabic ? 'غير متزامن' : 'NOT SYNCED';
+                                      tooltipMsg = isArabic
+                                          ? 'غير متزامن سحابياً • العمل محفوظ محلياً. اضغط لإعادة المحاولة.'
+                                          : 'Not synced with cloud • Work saved locally. Tap to retry.';
+                                    }
+                                  } else {
+                                    dotColor = AxisColors.tertiary;
+                                    label = isArabic ? 'متزامن' : 'SYNCED';
+                                    tooltipMsg = isArabic
+                                        ? 'متزامن سحابياً • PowerSync نشط (${auth.currentUser?.email ?? "متصل"})'
+                                        : 'Cloud Synced • PowerSync active (${auth.currentUser?.email ?? "Connected"})';
+                                  }
 
-                          return GestureDetector(
-                            onTap: () => SyncStatusModal.show(context),
-                            behavior: HitTestBehavior.opaque,
-                            child: Tooltip(
-                              message: tooltipMsg,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Sync dot (reactive to online / offline / guest status)
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: dotColor,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: dotColor.withValues(alpha: 0.7),
-                                          blurRadius: 6,
-                                        )
-                                      ],
+                                  return GestureDetector(
+                                    onTap: () => SyncStatusModal.show(context),
+                                    behavior: HitTestBehavior.opaque,
+                                    child: Tooltip(
+                                      message: tooltipMsg,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Sync dot (reactive to online / offline / guest / expired status)
+                                          AnimatedContainer(
+                                            duration: const Duration(milliseconds: 300),
+                                            width: 6,
+                                            height: 6,
+                                            decoration: BoxDecoration(
+                                              color: dotColor,
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: dotColor.withValues(alpha: 0.7),
+                                                  blurRadius: 6,
+                                                )
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          AnimatedDefaultTextStyle(
+                                            duration: const Duration(milliseconds: 300),
+                                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                                      color: isSessionExpired
+                                                          ? AxisColors.danger
+                                                          : (isGuest
+                                                              ? const Color(0xFFF59E0B)
+                                                              : (isOnline ? AxisColors.textMuted : AxisColors.warning)),
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      letterSpacing: 0.5,
+                                                    ) ??
+                                                const TextStyle(),
+                                            child: Text(label),
+                                          ),
+                                          if (isGuest || isSessionExpired) ...[
+                                            const SizedBox(width: 2),
+                                            Icon(
+                                              context.isArabic
+                                                  ? Icons.arrow_back_ios_rounded
+                                                  : Icons.arrow_forward_ios_rounded,
+                                              size: 8,
+                                              color: isSessionExpired
+                                                  ? AxisColors.danger
+                                                  : const Color(0xFFF59E0B),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  AnimatedDefaultTextStyle(
-                                    duration: const Duration(milliseconds: 300),
-                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                              color: isGuest
-                                                  ? const Color(0xFFF59E0B)
-                                                  : (isOnline ? AxisColors.textMuted : AxisColors.warning),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.5,
-                                            ) ??
-                                        const TextStyle(),
-                                    child: Text(label),
-                                  ),
-                                  if (isGuest) ...[
-                                    const SizedBox(width: 2),
-                                    Icon(
-                                      context.isArabic
-                                          ? Icons.arrow_back_ios_rounded
-                                          : Icons.arrow_forward_ios_rounded,
-                                      size: 8,
-                                      color: const Color(0xFFF59E0B),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
+                                  );
+                                },
+                              );
+                            },
                           );
                         },
                       );
@@ -206,7 +258,34 @@ class _AxisHeaderState extends State<AxisHeader> {
               );
             },
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
+          // Calendar entry button
+          Tooltip(
+            message: context.isArabic ? 'التقويم' : 'Calendar',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: const ValueKey('axis_header_calendar_button'),
+                onTap: () => context.push('/calendar'),
+                borderRadius: BorderRadius.circular(9999),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AxisColors.surfaceHigh.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AxisColors.borderSubtle),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_month_rounded,
+                    size: 16,
+                    color: AxisColors.textHigh,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           // Avatar → opens Me (renders real user pfp if available with active border when selected)
           ValueListenableBuilder<UserProfile>(
             valueListenable: UserProfileRepository().profileNotifier,

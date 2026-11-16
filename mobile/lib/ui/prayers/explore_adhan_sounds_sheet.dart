@@ -142,11 +142,11 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                    color: AxisColors.secondary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.3)),
+                    border: Border.all(color: AxisColors.secondary.withValues(alpha: 0.3)),
                   ),
-                  child: const Icon(Icons.music_note_rounded, color: Color(0xFF38BDF8), size: 22),
+                  child: const Icon(Icons.music_note_rounded, color: AxisColors.secondary, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -196,7 +196,7 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                       gradient: LinearGradient(
                         colors: [
                           AxisColors.primary.withValues(alpha: 0.22),
-                          const Color(0xFF38BDF8).withValues(alpha: 0.12),
+                          AxisColors.secondary.withValues(alpha: 0.12),
                           AxisColors.surfaceLowest,
                         ],
                         begin: Alignment.topLeft,

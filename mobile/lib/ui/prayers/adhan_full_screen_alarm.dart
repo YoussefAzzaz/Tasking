@@ -101,8 +101,8 @@ class _AdhanFullScreenAlarmState extends State<AdhanFullScreenAlarm>
   };
 
   static const _prayerColors = <String, Color>{
-    'Fajr': Color(0xFF38BDF8),
-    'Dhuhr': Color(0xFFFBBF24),
+    'Fajr': AxisColors.secondary,
+    'Dhuhr': AxisColors.warningBright,
     'Asr': Color(0xFFF97316),
     'Maghrib': Color(0xFFEF4444),
     'Isha': Color(0xFF8B5CF6),
@@ -140,7 +140,10 @@ class _AdhanFullScreenAlarmState extends State<AdhanFullScreenAlarm>
   Future<void> _dismiss() async {
     HapticFeedback.lightImpact();
     AdhanAlarmService().isFullScreenAlarmShowing = false;
-    unawaited(AdhanAlarmService().stopAlarmSound());
+    unawaited(AdhanAlarmService().dismissAdhan(
+      prayerName: widget.prayerName,
+      prayerId: widget.prayerId,
+    ));
 
     if (mounted) {
       try {
@@ -181,16 +184,19 @@ class _AdhanFullScreenAlarmState extends State<AdhanFullScreenAlarm>
   Widget build(BuildContext context) {
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final prayerColor =
-        _prayerColors[widget.prayerName] ?? const Color(0xFF38BDF8);
+        _prayerColors[widget.prayerName] ?? AxisColors.secondary;
     final prayerIcon =
         _prayerIcons[widget.prayerName] ?? Icons.mosque_rounded;
     final displayName = isArabic ? widget.prayerNameAr : widget.prayerName;
 
     return PopScope(
-      canPop: false,
+      canPop: true,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
-          AdhanAlarmService().stopAlarmSound();
+          AdhanAlarmService().dismissAdhan(
+            prayerName: widget.prayerName,
+            prayerId: widget.prayerId,
+          );
           AdhanAlarmService().isFullScreenAlarmShowing = false;
         }
       },

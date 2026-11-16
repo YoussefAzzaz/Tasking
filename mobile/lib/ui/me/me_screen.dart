@@ -20,6 +20,7 @@ import 'package:axis/ui/me/widgets/me_account_section.dart';
 import 'package:axis/ui/me/widgets/me_language_section.dart';
 import 'package:axis/ui/me/widgets/me_avatar_service.dart';
 import 'package:axis/ui/me/widgets/me_adhan_settings_card.dart';
+import 'package:axis/ui/me/widgets/me_update_section.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 
 export 'package:axis/ui/me/widgets/user_profile_card.dart';
@@ -424,6 +425,11 @@ class _MeScreenState extends State<MeScreen> {
 
               // App Language Selector
               const MeLanguageSection(),
+
+              const SizedBox(height: 24),
+
+              // System Version & Updates Section
+              const MeUpdateSection(),
 
               const SizedBox(height: 32),
 

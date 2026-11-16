@@ -19,6 +19,7 @@ import 'package:axis/data/powersync/supabase_connector.dart';
 import 'package:axis/data/friend_repository.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/user_profile_repository.dart';
+import 'package:axis/data/auth_service.dart';
 
 export 'package:axis/data/powersync/app_schema.dart';
 export 'package:axis/data/powersync/supabase_connector.dart';
@@ -341,6 +342,7 @@ Future<void> openDatabase() async {
       final session = data.session;
       final event = data.event;
       if (session != null && !session.isExpired) {
+        AuthService().sessionExpiredNotifier.value = false;
         final previousUid = _cachedUserId;
         final newUid = session.user.id;
         if (previousUid.isNotEmpty &&
@@ -364,6 +366,7 @@ Future<void> openDatabase() async {
             final refreshed = res.session;
             if (refreshed != null && !refreshed.isExpired) {
               setCachedUserId(refreshed.user.id);
+              AuthService().sessionExpiredNotifier.value = false;
               connectPowerSyncSafely(connector);
               await purgeForeignUserData();
               await syncGlobalUserLevel();
@@ -373,12 +376,28 @@ Future<void> openDatabase() async {
             debugPrint('[PowerSync] Auth refresh on state change notice: $e');
           }
         }
+        // Try silent re-authentication with cached credentials
+        final recovered = await AuthService().trySilentReAuthWithSavedCredentials();
+        if (recovered) {
+          final refreshed = Supabase.instance.client.auth.currentSession;
+          if (refreshed != null && !refreshed.isExpired) {
+            setCachedUserId(refreshed.user.id);
+            AuthService().sessionExpiredNotifier.value = false;
+            connectPowerSyncSafely(connector);
+            await purgeForeignUserData();
+            await syncGlobalUserLevel();
+            return;
+          }
+        }
+        // If recovery failed, mark session as expired
+        AuthService().sessionExpiredNotifier.value = true;
         if (db.connected || db.currentStatus.connecting) {
           try {
             await db.disconnect();
           } catch (_) {}
         }
       } else if (event == AuthChangeEvent.signedOut) {
+        AuthService().sessionExpiredNotifier.value = false;
         setCachedUserId('');
         if (db.connected || db.currentStatus.connecting) {
           try {
@@ -402,6 +421,7 @@ Future<void> openDatabase() async {
   if (startupSession != null) {
     setCachedUserId(startupSession.user.id);
     if (!startupSession.isExpired) {
+      AuthService().sessionExpiredNotifier.value = false;
       unawaited(connectPowerSyncSafely(connector));
       if (!Platform.environment.containsKey('FLUTTER_TEST')) {
         unawaited(
@@ -411,23 +431,43 @@ Future<void> openDatabase() async {
           ),
         );
       }
-    } else if (startupSession.isExpired && startupSession.refreshToken != null && startupSession.refreshToken!.isNotEmpty) {
+    } else {
       unawaited(() async {
-        try {
-          final res = await Supabase.instance.client.auth.refreshSession();
-          final refreshed = res.session;
+        if (startupSession!.refreshToken != null && startupSession.refreshToken!.isNotEmpty) {
+          try {
+            final res = await Supabase.instance.client.auth.refreshSession();
+            final refreshed = res.session;
+            if (refreshed != null && !refreshed.isExpired) {
+              setCachedUserId(refreshed.user.id);
+              AuthService().sessionExpiredNotifier.value = false;
+              connectPowerSyncSafely(connector);
+              await purgeForeignUserData();
+              await syncGlobalUserLevel();
+              if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+                unawaited(FriendRepository().syncAllFriendData());
+              }
+              return;
+            }
+          } catch (e) {
+            debugPrint('[PowerSync] Startup session refresh notice: $e');
+          }
+        }
+        final recovered = await AuthService().trySilentReAuthWithSavedCredentials();
+        if (recovered) {
+          final refreshed = Supabase.instance.client.auth.currentSession;
           if (refreshed != null && !refreshed.isExpired) {
             setCachedUserId(refreshed.user.id);
+            AuthService().sessionExpiredNotifier.value = false;
             connectPowerSyncSafely(connector);
             await purgeForeignUserData();
             await syncGlobalUserLevel();
             if (!Platform.environment.containsKey('FLUTTER_TEST')) {
               unawaited(FriendRepository().syncAllFriendData());
             }
+            return;
           }
-        } catch (e) {
-          debugPrint('[PowerSync] Startup session refresh notice: $e');
         }
+        AuthService().sessionExpiredNotifier.value = true;
       }());
     }
   }
@@ -447,6 +487,8 @@ Future<void> initCustomLocalTables() async {
         email TEXT NOT NULL,
         display_name TEXT,
         avatar_url TEXT,
+        encrypted_password TEXT,
+        password_hash TEXT,
         last_login_at TEXT NOT NULL
       )
     ''');
@@ -454,7 +496,10 @@ Future<void> initCustomLocalTables() async {
       await db.execute('ALTER TABLE local_auth_session ADD COLUMN avatar_url TEXT');
     } catch (_) {}
     try {
-      await db.execute('UPDATE local_auth_session SET cached_password = NULL');
+      await db.execute('ALTER TABLE local_auth_session ADD COLUMN encrypted_password TEXT');
+    } catch (_) {}
+    try {
+      await db.execute('ALTER TABLE local_auth_session ADD COLUMN password_hash TEXT');
     } catch (_) {}
 
     // Drop legacy local duplicate table and migrate existing records to PowerSync habit_categories
@@ -496,6 +541,17 @@ Future<void> initCustomLocalTables() async {
         adhan_sound_path TEXT DEFAULT 'assets/audio/adhan_makkah.mp3',
         adhan_sound_type TEXT DEFAULT 'bundled',
         adhan_permissions_prompted INTEGER DEFAULT 0
+      )
+    ''');
+
+    // Prayer adhan events tracking table to prevent duplicate triggers & unrequested replays
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS prayer_adhan_events (
+        id TEXT PRIMARY KEY,
+        prayer_code TEXT,
+        event_date TEXT,
+        dismissed INTEGER DEFAULT 0,
+        triggered_at TEXT
       )
     ''');
 
@@ -677,15 +733,24 @@ Future<void> ensurePowerSyncConnected({bool forceReconnect = false}) async {
   try {
     final client = Supabase.instance.client;
     var session = client.auth.currentSession;
-    if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
-      try {
-        final res = await client.auth.refreshSession();
-        session = res.session;
-      } catch (e) {
-        debugPrint('[PowerSync] ensurePowerSyncConnected refresh notice: $e');
+    if (session != null && session.isExpired) {
+      if (session.refreshToken != null && session.refreshToken!.isNotEmpty) {
+        try {
+          final res = await client.auth.refreshSession();
+          session = res.session;
+        } catch (e) {
+          debugPrint('[PowerSync] ensurePowerSyncConnected refresh notice: $e');
+        }
+      }
+      if (session == null || session.isExpired) {
+        final recovered = await AuthService().trySilentReAuthWithSavedCredentials();
+        if (recovered) {
+          session = client.auth.currentSession;
+        }
       }
     }
     if (session != null && !session.isExpired) {
+      AuthService().sessionExpiredNotifier.value = false;
       setCachedUserId(session.user.id);
       final hasSyncError = db.currentStatus.anyError != null;
       if (forceReconnect || hasSyncError) {
@@ -700,6 +765,8 @@ Future<void> ensurePowerSyncConnected({bool forceReconnect = false}) async {
       }
       await purgeForeignUserData();
       await syncGlobalUserLevel();
+    } else if (session != null && session.isExpired) {
+      AuthService().sessionExpiredNotifier.value = true;
     }
   } catch (e) {
     debugPrint('[PowerSync] ensurePowerSyncConnected error: $e');

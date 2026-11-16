@@ -68,6 +68,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
   /// Those days preserve manual task ordering rather than auto-sorting by P1..P3
   /// until a cross-day move, resize, or explicit creation updates them.
   final Set<String> _manuallyOrderedDays = {};
+  bool _showCompletedTasks = true;
 
   final List<GlobalKey> _dayColumnKeys = List.generate(7, (_) => GlobalKey());
 
@@ -197,7 +198,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     List<CalendarPrayerBlock> prayerBlocks,
   ) {
     final dayTasks = _tasks
-        .where((t) => t.dueDate == dateStr && !t.isCompleted)
+        .where((t) => t.dueDate == dateStr && (_showCompletedTasks || !t.isCompleted))
         .toList();
     if (dayTasks.isEmpty) return const [];
 
@@ -226,6 +227,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
         dayTasks: ordered,
         habitBlocks: habitBlocks,
         prayerBlocks: prayerBlocks,
+        includeCompleted: _showCompletedTasks,
       );
     }
 
@@ -234,6 +236,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
       dayTasks: dayTasks,
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
+      includeCompleted: _showCompletedTasks,
     );
   }
 
@@ -272,6 +275,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
       targetDropMinute: targetDropMinute,
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
+      includeCompleted: _showCompletedTasks,
     );
 
     _manuallyOrderedDays.add(dateStr);
@@ -296,6 +300,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
       targetDropMinute: targetDropMinute,
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
+      includeCompleted: _showCompletedTasks,
     );
 
     _applyUpdatedTasksLocally(updated);
@@ -312,7 +317,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     _manuallyOrderedDays.remove(dateStr);
 
     final rawDayTasks = _tasks
-        .where((t) => t.dueDate == dateStr && !t.isCompleted)
+        .where((t) => t.dueDate == dateStr && (_showCompletedTasks || !t.isCompleted))
         .toList();
     final repacked = CalendarScheduler.resizeTaskDuration(
       dateStr: dateStr,
@@ -321,6 +326,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
       newEstimateMin: newDurationMin,
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
+      includeCompleted: _showCompletedTasks,
     );
 
     _applyUpdatedTasksLocally(repacked);
@@ -639,6 +645,8 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
               ),
               // Dynamic Zoom Controls: 1h -> 30m -> 15m
               _buildZoomControls(isAr),
+              // Show / Hide Completed Tasks toggle
+              _buildCompletedToggle(isAr),
               AccentButton(
                 key: const ValueKey('calendar_new_task_button'),
                 label: l10n.newTask,
@@ -649,6 +657,66 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedToggle(bool isAr) {
+    return Tooltip(
+      message: isAr
+          ? (_showCompletedTasks ? 'إخفاء المهام المكتملة' : 'إظهار المهام المكتملة')
+          : (_showCompletedTasks ? 'Hide Completed Tasks' : 'Show Completed Tasks'),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const ValueKey('calendar_toggle_completed_button'),
+          onTap: () {
+            setState(() {
+              _showCompletedTasks = !_showCompletedTasks;
+            });
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: _showCompletedTasks
+                  ? AxisColors.tertiary.withValues(alpha: 0.15)
+                  : AxisColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _showCompletedTasks
+                    ? AxisColors.tertiary.withValues(alpha: 0.5)
+                    : AxisColors.borderSubtle,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _showCompletedTasks
+                      ? Icons.check_circle_rounded
+                      : Icons.check_circle_outline_rounded,
+                  size: 15,
+                  color: _showCompletedTasks
+                      ? AxisColors.tertiary
+                      : AxisColors.textMuted,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isAr ? 'المكتملة' : 'Completed',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: _showCompletedTasks
+                        ? AxisColors.tertiary
+                        : AxisColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1315,16 +1383,21 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
         : CalendarScheduler.sanitizeDuration(task.estimateMin);
     final top = (startMin / 60.0) * _hourHeight;
     final height = math.max((duration / 60.0) * _hourHeight, 22.0);
-    final pColor = _priorityColor(task.priority);
+    final isDone = task.isCompleted;
+    final pColor = isDone ? AxisColors.tertiary : _priorityColor(task.priority);
     final pLabel = _priorityLabel(task.priority);
     final showCompact = height < 44;
 
     final blockCard = Container(
       decoration: BoxDecoration(
-        color: pColor.withValues(alpha: 0.18),
+        color: isDone
+            ? AxisColors.tertiary.withValues(alpha: 0.10)
+            : pColor.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: pColor.withValues(alpha: 0.5),
+          color: isDone
+              ? AxisColors.tertiary.withValues(alpha: 0.40)
+              : pColor.withValues(alpha: 0.5),
           width: 1,
         ),
       ),
@@ -1333,7 +1406,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(width: 3, color: pColor),
+            Container(width: 3, color: isDone ? AxisColors.tertiary : pColor),
             Expanded(
               child: Padding(
                 padding: EdgeInsets.symmetric(
@@ -1343,10 +1416,18 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                 child: showCompact
                     ? Row(
                         children: [
+                          if (isDone) ...[
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: AxisColors.tertiary,
+                              size: 11,
+                            ),
+                            const SizedBox(width: 3),
+                          ],
                           Text(
                             pLabel,
                             style: GoogleFonts.jetBrainsMono(
-                              color: pColor,
+                              color: isDone ? AxisColors.tertiary : pColor,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1355,10 +1436,12 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                           Expanded(
                             child: Text(
                               task.title,
-                              style: const TextStyle(
-                                color: AxisColors.textHigh,
+                              style: TextStyle(
+                                color: isDone ? AxisColors.textMuted : AxisColors.textHigh,
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
+                                decoration: isDone ? TextDecoration.lineThrough : null,
+                                decorationColor: AxisColors.textDim,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1380,10 +1463,18 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                         children: [
                           Row(
                             children: [
+                              if (isDone) ...[
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AxisColors.tertiary,
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 3),
+                              ],
                               Text(
                                 pLabel,
                                 style: GoogleFonts.jetBrainsMono(
-                                  color: pColor,
+                                  color: isDone ? AxisColors.tertiary : pColor,
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -1406,10 +1497,12 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                           Flexible(
                             child: Text(
                               task.title,
-                              style: const TextStyle(
-                                color: AxisColors.textHigh,
+                              style: TextStyle(
+                                color: isDone ? AxisColors.textMuted : AxisColors.textHigh,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
+                                decoration: isDone ? TextDecoration.lineThrough : null,
+                                decorationColor: AxisColors.textDim,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -1456,6 +1549,14 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (isDone) ...[
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          color: AxisColors.tertiary,
+                          size: 11,
+                        ),
+                        const SizedBox(width: 3),
+                      ],
                       Text(
                         pLabel,
                         style: GoogleFonts.jetBrainsMono(
@@ -1468,10 +1569,12 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                       Expanded(
                         child: Text(
                           task.title,
-                          style: const TextStyle(
-                            color: AxisColors.textHigh,
+                          style: TextStyle(
+                            color: isDone ? AxisColors.textMuted : AxisColors.textHigh,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
+                            decoration: isDone ? TextDecoration.lineThrough : null,
+                            decorationColor: AxisColors.textDim,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

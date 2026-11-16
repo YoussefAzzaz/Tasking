@@ -141,7 +141,7 @@ class NoteCategorySelectorField extends StatelessWidget {
       items.add(
         InkWell(
           onTap: () {
-            onSelectCategory(rawText, 'article', '#38BDF8');
+            onSelectCategory(rawText, 'article', '#0EA5E9');
             onOpenChanged(false);
             focusNode.unfocus();
           },

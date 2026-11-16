@@ -219,7 +219,7 @@ final List<BadgeDefinition> kHabitsMindfulnessBadges = [
     subtitle: 'Structure deliverables',
     category: BadgeCategory.systems,
     icon: Icons.folder_special_rounded,
-    color: Color(0xFF06B6D4),
+    color: Color(0xFF7DD3FC),
     metricType: BadgeMetricType.projectsCreated,
     tiers: [
       BadgeTier(tierNumber: 1, name: 'Initiator', targetValue: 1, unit: 'project', description: 'Create your first custom project.'),
@@ -249,7 +249,7 @@ final List<BadgeDefinition> kHabitsMindfulnessBadges = [
     subtitle: 'Clean taxonomy labels',
     category: BadgeCategory.systems,
     icon: Icons.label_rounded,
-    color: Color(0xFF38BDF8),
+    color: Color(0xFF0EA5E9),
     metricType: BadgeMetricType.tagsCreated,
     tiers: [
       BadgeTier(tierNumber: 1, name: 'Labeler', targetValue: 2, unit: 'tags', description: 'Create your first 2 custom task tags.'),

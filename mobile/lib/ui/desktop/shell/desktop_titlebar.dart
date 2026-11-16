@@ -388,83 +388,100 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
 
                     // Sync Status Pill
                     ValueListenableBuilder<bool>(
-                      valueListenable: AuthService().authStateNotifier,
-                      builder: (context, isAuthState, _) {
+                      valueListenable: AuthService().sessionExpiredNotifier,
+                      builder: (context, isExpired, _) {
                         return ValueListenableBuilder<bool>(
-                          valueListenable: NetworkService().isOnlineNotifier,
-                          builder: (context, isOnline, _) {
-                            return StreamBuilder<SyncStatus>(
-                              stream: isDatabaseInitialized
-                                  ? db.statusStream
-                                  : const Stream<SyncStatus>.empty(),
-                              initialData:
-                                  isDatabaseInitialized ? db.currentStatus : null,
-                              builder: (context, snapshot) {
-                                final syncStatus = snapshot.data;
-                                final hasDb = isDatabaseInitialized;
-                                final isDbConnected =
-                                    syncStatus?.connected ?? (hasDb && db.connected);
-                                final isDbConnecting =
-                                    syncStatus?.connecting ?? false;
-                                final hasSyncError = syncStatus?.anyError != null;
-                                final isAuth =
-                                    isAuthState || AuthService().isAuthenticated;
+                          valueListenable: AuthService().authStateNotifier,
+                          builder: (context, isAuthState, _) {
+                            return ValueListenableBuilder<bool>(
+                              valueListenable: NetworkService().isOnlineNotifier,
+                              builder: (context, isOnline, _) {
+                                return StreamBuilder<SyncStatus>(
+                                  stream: isDatabaseInitialized
+                                      ? db.statusStream
+                                      : const Stream<SyncStatus>.empty(),
+                                  initialData:
+                                      isDatabaseInitialized ? db.currentStatus : null,
+                                  builder: (context, snapshot) {
+                                    final syncStatus = snapshot.data;
+                                    final hasDb = isDatabaseInitialized;
+                                    final isDbConnected =
+                                        syncStatus?.connected ?? (hasDb && db.connected);
+                                    final isDbConnecting =
+                                        syncStatus?.connecting ?? false;
+                                    final hasSyncError = syncStatus?.anyError != null;
+                                    final isAuth =
+                                        isAuthState || AuthService().isAuthenticated;
 
-                                if (!Platform.environment.containsKey('FLUTTER_TEST') &&
-                                    isOnline &&
-                                    hasDb &&
-                                    isAuth &&
-                                    !isDbConnected &&
-                                    !isDbConnecting &&
-                                    !hasSyncError) {
-                                  unawaited(ensurePowerSyncConnected());
-                                }
+                                    if (!Platform.environment.containsKey('FLUTTER_TEST') &&
+                                        isOnline &&
+                                        hasDb &&
+                                        isAuth &&
+                                        !isExpired &&
+                                        !isDbConnected &&
+                                        !isDbConnecting &&
+                                        !hasSyncError) {
+                                      unawaited(ensurePowerSyncConnected());
+                                    }
 
-                                final String label;
-                                final Color chipColor;
-                                if (!isOnline) {
-                                  label = 'OFFLINE';
-                                  chipColor = AxisColors.warning;
-                                } else if (!hasDb || !isAuth) {
-                                  label = 'ONLINE';
-                                  chipColor = AxisColors.tertiary;
-                                } else if (hasSyncError) {
-                                  label = 'SYNC ERR';
-                                  chipColor = AxisColors.error;
-                                } else if (isDbConnected) {
-                                  label = 'SYNCED';
-                                  chipColor = AxisColors.tertiary;
-                                } else if (isDbConnecting) {
-                                  label = 'SYNCING';
-                                  chipColor = AxisColors.secondary;
-                                } else {
-                                  label = 'LOCAL';
-                                  chipColor = AxisColors.warning;
-                                }
+                                    final String label;
+                                    final Color chipColor;
+                                    if (!isOnline) {
+                                      label = 'OFFLINE';
+                                      chipColor = AxisColors.warning;
+                                    } else if (isExpired) {
+                                      label = 'EXPIRED';
+                                      chipColor = AxisColors.error;
+                                    } else if (!hasDb || !isAuth) {
+                                      label = 'ONLINE';
+                                      chipColor = AxisColors.tertiary;
+                                    } else if (hasSyncError) {
+                                      label = 'SYNC ERR';
+                                      chipColor = AxisColors.error;
+                                    } else if (isDbConnected) {
+                                      label = 'SYNCED';
+                                      chipColor = AxisColors.tertiary;
+                                    } else if (isDbConnecting) {
+                                      label = 'SYNCING';
+                                      chipColor = AxisColors.secondary;
+                                    } else {
+                                      label = 'LOCAL';
+                                      chipColor = AxisColors.warning;
+                                    }
 
-                                return MouseRegion(
-                                  cursor: SystemMouseCursors.click,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      unawaited(
-                                        ensurePowerSyncConnected(
-                                          forceReconnect: true,
+                                    return MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          if (isExpired) {
+                                            AuthService().trySilentReAuthWithSavedCredentials().then((ok) {
+                                              if (ok) {
+                                                ensurePowerSyncConnected(forceReconnect: true);
+                                              }
+                                            });
+                                            return;
+                                          }
+                                          unawaited(
+                                            ensurePowerSyncConnected(
+                                              forceReconnect: true,
+                                            ),
+                                          );
+                                          unawaited(
+                                            FriendRepository().syncAllFriendData(),
+                                          );
+                                        },
+                                        child: TelemetryChip(
+                                          label: label,
+                                          dotColor: chipColor,
+                                          color: chipColor,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 2,
+                                          ),
                                         ),
-                                      );
-                                      unawaited(
-                                        FriendRepository().syncAllFriendData(),
-                                      );
-                                    },
-                                    child: TelemetryChip(
-                                      label: label,
-                                      dotColor: chipColor,
-                                      color: chipColor,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 7,
-                                        vertical: 2,
                                       ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 );
                               },
                             );

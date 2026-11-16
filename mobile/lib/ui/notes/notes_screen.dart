@@ -197,7 +197,7 @@ class _NotesScreenState extends State<NotesScreen> {
                           id: 'discovered_$catTrimmed',
                           name: catTrimmed,
                           icon: 'article',
-                          color: '#38BDF8',
+                          color: '#0EA5E9',
                         ),
                       );
                     }

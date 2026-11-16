@@ -18,22 +18,36 @@ class AxisColors {
   static const Color glassTier1        = Color(0xFF131A2A); // 0.65 alpha
   static const Color glassTier2        = Color(0xFF192236); // 0.82 alpha
 
-  // Primary accents — from DESIGN.md narrative
-  static const Color primary           = Color(0xFF6366F1); // Electric Violet / Indigo
+  // Primary accents — from DESIGN.md narrative & Logo System
+  static const Color primary           = Color(0xFF6366F1); // Electric Violet / Indigo (Logo left inner facet)
   static const Color primarySoft       = Color(0xFFC0C1FF); // primary on dark = text/icon use
-  static const Color secondary         = Color(0xFF38BDF8); // Atmospheric Cyan
-  static const Color secondarySoft     = Color(0xFF7BD0FF); // lighter cyan
+  static const Color primarySofter     = Color(0xFF818CF8); // Soft Indigo (Logo left outer facet)
+  static const Color secondary         = Color(0xFF0EA5E9); // Deep Cyan (Logo right inner facet)
+  static const Color secondarySoft     = Color(0xFF7DD3FC); // Light Cyan (Logo right outer facet)
+  static const Color secondaryBright   = Color(0xFF7DD3FC); // Light Cyan alias
   static const Color tertiary          = Color(0xFF4EDEA3); // Radiant Emerald (design tertiary)
   static const Color tertiaryBright    = Color(0xFF6FFBBE); // tertiary-fixed
   static const Color success           = Color(0xFF10B981); // gamification emerald
-  static const Color warning           = Color(0xFFF59E0B); // Auric Amber priority/prestige
-  static const Color warningBright     = Color(0xFFFBBF24); // bright amber
+  static const Color warning           = Color(0xFFF59E0B); // Auric Amber (Logo peak shade)
+  static const Color warningBright     = Color(0xFFFCD34D); // Bright Amber (Logo peak light)
+  static const Color peakBright        = Color(0xFFFCD34D); // Bright Amber peak alias
   static const Color error             = Color(0xFFFFB4AB); // error red
+  static const Color danger            = Color(0xFFEF4444); // P1 Crimson / danger alert
 
   // Priority Tokens
   static const Color priorityHigh      = Color(0xFFEF4444); // P1 Crimson
   static const Color priorityMed       = Color(0xFFF59E0B); // P2 Amber
-  static const Color priorityLow       = Color(0xFF38BDF8); // P3 Atmospheric Cyan
+  static const Color priorityLow       = Color(0xFF0EA5E9); // P3 Logo Deep Cyan
+
+  // User-selectable presets across the app
+  static const List<String> presetHexes = [
+    '#6366F1', // Indigo (Logo primary)
+    '#0EA5E9', // Sky / Cyan (Logo secondary)
+    '#10B981', // Emerald
+    '#F59E0B', // Amber (Logo peak)
+    '#EC4899', // Pink / Rose
+    '#8B5CF6', // Purple
+  ];
 
   // Text
   static const Color textHigh          = Color(0xFFF8FAFC); // Primary headings, active

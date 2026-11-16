@@ -52,6 +52,28 @@ class NotificationController {
         final key = initialAction.buttonKeyPressed;
         final channelKey = initialAction.channelKey;
         final payload = initialAction.payload;
+
+        // If cold opened from an adhan or fajr notification, check if already handled/dismissed today
+        final prayerId = payload?['prayer_id'];
+        final prayerName = payload?['prayer_name'] ?? '';
+        final lookup = (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
+        if (lookup.isNotEmpty &&
+            (await AdhanAlarmService().isAdhanHandledOrDismissedToday(lookup) ||
+             await AdhanAlarmService().isPrayerCompletedToday(lookup))) {
+          debugPrint('[NotificationController] Bypassing cold action: $lookup already handled/dismissed today.');
+          await AdhanAlarmService().stopAlarmSound();
+          return;
+        }
+
+        if (channelKey != null && channelKey.startsWith('fajr_alarm_channel')) {
+          if (await AdhanAlarmService().isAdhanHandledOrDismissedToday('fajr') ||
+              await AdhanAlarmService().isPrayerCompletedToday('fajr')) {
+            debugPrint('[NotificationController] Bypassing cold Fajr alarm: already handled/dismissed today.');
+            await AdhanAlarmService().stopAlarmSound();
+            return;
+          }
+        }
+
         _handleAction(key, payload: payload, channelKey: channelKey);
       }
     } catch (e) {
@@ -67,13 +89,25 @@ class NotificationController {
     } else if (key == 'ACTION_STOP') {
       FocusSessionService().resetTimer();
     } else if (key == 'DISMISS_FAJR_ALARM') {
-      AdhanAlarmService().stopAlarmSound();
-    } else if (channelKey == 'fajr_alarm_channel') {
-      AdhanAlarmService().handleFajrAlarmAction();
+      AdhanAlarmService().dismissAdhan(prayerName: 'Fajr', prayerId: 'fajr');
+    } else if (channelKey != null && channelKey.startsWith('fajr_alarm_channel')) {
+      unawaited(() async {
+        if (await AdhanAlarmService().isAdhanHandledOrDismissedToday('fajr') ||
+            await AdhanAlarmService().isPrayerCompletedToday('fajr')) {
+          await AdhanAlarmService().stopAlarmSound();
+          return;
+        }
+        AdhanAlarmService().handleFajrAlarmAction();
+      }());
     } else if (key == 'DISMISS_ADHAN') {
+      final prayerId = payload?['prayer_id'];
+      final prayerName = payload?['prayer_name'];
+      AdhanAlarmService().dismissAdhan(prayerName: prayerName, prayerId: prayerId);
       AdhanFullScreenAlarm.dismissCurrent();
     } else if (key == 'MARK_DONE') {
       final prayerId = payload?['prayer_id'];
+      final prayerName = payload?['prayer_name'];
+      AdhanAlarmService().dismissAdhan(prayerName: prayerName, prayerId: prayerId);
       if (prayerId != null) {
         PrayerTimeService().togglePrayer(prayerId, true);
       }
@@ -85,14 +119,15 @@ class NotificationController {
       AdhanFullScreenAlarm.dismissCurrent();
     } else if (key == 'SHOW_ADHAN' ||
         (channelKey != null && channelKey.startsWith('prayer_adhan_channel'))) {
-      // Adhan notification displayed/tapped: verify prayer isn't already marked done today before ringing
+      // Adhan notification displayed/tapped: verify prayer isn't already handled/marked done today before ringing
       final prayerName = payload?['prayer_name'] ?? 'Fajr';
       final prayerId = payload?['prayer_id'];
       final prayerTime = payload?['prayer_time'] ?? '';
       unawaited(() async {
         final lookup =
             (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
-        if (await AdhanAlarmService().isPrayerCompletedToday(lookup)) {
+        if (await AdhanAlarmService().isPrayerCompletedToday(lookup) ||
+            await AdhanAlarmService().isAdhanHandledOrDismissedToday(lookup)) {
           await AdhanAlarmService().stopAlarmSound();
           return;
         }
@@ -141,10 +176,13 @@ class NotificationController {
     } else {
       // Running in headless background isolate without main thread port
       try {
-        if (key == 'DISMISS_FAJR_ALARM' || channelKey == 'fajr_alarm_channel') {
-          await AdhanAlarmService().stopAlarmSound();
+        if (key == 'DISMISS_FAJR_ALARM' || (channelKey != null && channelKey.startsWith('fajr_alarm_channel'))) {
+          await AdhanAlarmService().dismissAdhan(prayerName: 'Fajr', prayerId: 'fajr');
         } else if (key == 'DISMISS_ADHAN') {
-          await AdhanAlarmService().stopAlarmSound();
+          await AdhanAlarmService().dismissAdhan(
+            prayerName: payload?['prayer_name'],
+            prayerId: payload?['prayer_id'],
+          );
         } else if (key == 'MARK_DONE' && payload != null) {
           if (isDatabaseInitialized) {
             final prayerId = payload['prayer_id'];
@@ -157,7 +195,10 @@ class NotificationController {
               await HabitNotificationService().onHabitCompletedToday(habitId);
             }
           }
-          await AdhanAlarmService().stopAlarmSound();
+          await AdhanAlarmService().dismissAdhan(
+            prayerName: payload['prayer_name'],
+            prayerId: payload['prayer_id'],
+          );
         }
       } catch (_) {}
     }
@@ -170,9 +211,11 @@ class NotificationController {
   @pragma("vm:entry-point")
   static Future<void> onNotificationDisplayedMethod(
       ReceivedNotification receivedNotification) async {
-    if (receivedNotification.channelKey == 'fajr_alarm_channel') {
+    if (receivedNotification.channelKey != null &&
+        receivedNotification.channelKey!.startsWith('fajr_alarm_channel')) {
       final isDone = await AdhanAlarmService().isPrayerCompletedToday('fajr');
-      if (isDone) {
+      final isHandled = await AdhanAlarmService().isAdhanHandledOrDismissedToday('fajr');
+      if (isDone || isHandled) {
         if (receivedNotification.id != null) {
           await AwesomeNotifications().dismiss(receivedNotification.id!);
           await AwesomeNotifications().cancel(receivedNotification.id!);
@@ -184,7 +227,7 @@ class NotificationController {
     }
 
     // When an Adhan notification is displayed (foreground or background),
-    // skip if already marked done today; otherwise open AdhanFullScreenAlarm.
+    // skip if already marked done or dismissed today; otherwise open AdhanFullScreenAlarm.
     if (receivedNotification.channelKey != null &&
         receivedNotification.channelKey!.startsWith('prayer_adhan_channel')) {
       final payload = receivedNotification.payload;
@@ -195,7 +238,8 @@ class NotificationController {
           ? prayerId
           : (prayerName ?? '');
       if (lookup.isNotEmpty &&
-          await AdhanAlarmService().isPrayerCompletedToday(lookup)) {
+          (await AdhanAlarmService().isPrayerCompletedToday(lookup) ||
+           await AdhanAlarmService().isAdhanHandledOrDismissedToday(lookup))) {
         if (receivedNotification.id != null) {
           await AwesomeNotifications().dismiss(receivedNotification.id!);
           await AwesomeNotifications().cancel(receivedNotification.id!);
@@ -271,8 +315,11 @@ class NotificationController {
     // Handle swipe dismiss of notification
     final channelKey = receivedAction.channelKey;
     if ((channelKey != null && channelKey.startsWith('prayer_adhan_channel')) ||
-        channelKey == 'fajr_alarm_channel') {
-      await AdhanAlarmService().stopAlarmSound();
+        (channelKey != null && channelKey.startsWith('fajr_alarm_channel'))) {
+      final payload = receivedAction.payload;
+      final prayerId = payload?['prayer_id'];
+      final prayerName = payload?['prayer_name'];
+      await AdhanAlarmService().dismissAdhan(prayerName: prayerName, prayerId: prayerId);
     }
   }
 }

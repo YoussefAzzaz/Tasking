@@ -87,7 +87,7 @@ class _PendingSharesSectionState extends State<PendingSharesSection> {
                       gradient: LinearGradient(
                         colors: [
                           AxisColors.primary.withValues(alpha: 0.14),
-                          const Color(0xFF38BDF8).withValues(alpha: 0.08),
+                          AxisColors.secondary.withValues(alpha: 0.08),
                           AxisColors.surfaceLowest,
                         ],
                         begin: Alignment.topLeft,
@@ -684,7 +684,7 @@ class _PendingShareCardState extends State<_PendingShareCard> {
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color:
-                            const Color(0xFF38BDF8).withValues(alpha: 0.16),
+                            AxisColors.secondary.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -694,7 +694,7 @@ class _PendingShareCardState extends State<_PendingShareCard> {
                         style: const TextStyle(
                           fontSize: 8.5,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF38BDF8),
+                          color: AxisColors.secondary,
                           letterSpacing: 0.5,
                         ),
                       ),

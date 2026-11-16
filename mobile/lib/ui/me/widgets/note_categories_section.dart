@@ -32,7 +32,7 @@ class NoteCategoriesSection extends StatelessWidget {
   void _showAddCategoryDialog(BuildContext context) {
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final catCtrl = TextEditingController();
-    String selectedColor = '#38BDF8';
+    String selectedColor = '#0EA5E9';
     String selectedIcon = 'article';
 
     final icons = [
@@ -148,14 +148,7 @@ class NoteCategoriesSection extends StatelessWidget {
                 const SizedBox(height: 8),
                 Builder(
                   builder: (context) {
-                    const presetList = [
-                      '#38BDF8',
-                      '#10B981',
-                      '#6366F1',
-                      '#F59E0B',
-                      '#EC4899',
-                      '#A855F7',
-                    ];
+                    const presetList = AxisColors.presetHexes;
                     return Wrap(
                       spacing: 10,
                       runSpacing: 8,
