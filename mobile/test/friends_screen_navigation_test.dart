@@ -43,11 +43,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Tap on Weekly Standings (Tab 2)
-    await tester.tap(find.text("Weekly Standings"));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
     // Tap on Today's Board (Tab 1)
     await tester.tap(find.text("Today's Board"));
     await tester.pump();
@@ -77,9 +72,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify all 3 tabs rendered
+    // Verify 2 tabs rendered (Circle & Today's Board)
     final tabs = find.byType(Tab);
-    expect(tabs, findsNWidgets(3));
+    expect(tabs, findsNWidgets(2));
 
     // Tap Tab 1 (Today's Prayers)
     await tester.tap(tabs.at(1));
@@ -93,16 +88,6 @@ void main() {
 
     // Re-tap Tab 0 (Circle)
     await tester.tap(tabs.at(0));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // Tap Tab 2 (Weekly Standings)
-    await tester.tap(tabs.at(2));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // Re-tap Tab 2
-    await tester.tap(tabs.at(2));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
   });

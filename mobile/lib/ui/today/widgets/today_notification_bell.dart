@@ -340,56 +340,72 @@ class TodayNotificationBell extends StatelessWidget {
                                         dateStr = l10n.formatDate(dt, 'h:mm a');
                                       } catch (_) {}
 
-                                      return Container(
-                                        margin: const EdgeInsets.only(bottom: 8),
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: AxisColors.surfaceLowest,
+                                      return Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () => friendRepo.dismissNotification(log.id),
                                           borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: AxisColors.borderSubtle),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: iconColor.withValues(
-                                                    alpha: 0.14),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: Icon(icon,
-                                                  size: 16, color: iconColor),
+                                          child: Container(
+                                            margin: const EdgeInsets.only(bottom: 8),
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                            decoration: BoxDecoration(
+                                              color: AxisColors.surfaceLowest,
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                  color: AxisColors.borderSubtle),
                                             ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    log.title,
-                                                    style: GoogleFonts.getFont(
-                                                        'Geist',
-                                                        fontSize: 12.5,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color:
-                                                            AxisColors.textHigh),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color: iconColor.withValues(
+                                                        alpha: 0.14),
+                                                    shape: BoxShape.circle,
                                                   ),
-                                                  if (dateStr.isNotEmpty)
-                                                    Text(
-                                                      dateStr,
-                                                      style: GoogleFonts
-                                                          .spaceGrotesk(
-                                                              fontSize: 10.5,
-                                                              color: AxisColors
-                                                                  .textDim),
-                                                    ),
-                                                ],
-                                              ),
+                                                  child: Icon(icon,
+                                                      size: 16, color: iconColor),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        log.title,
+                                                        style: GoogleFonts.getFont(
+                                                            'Geist',
+                                                            fontSize: 12.5,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color:
+                                                                AxisColors.textHigh),
+                                                      ),
+                                                      if (dateStr.isNotEmpty)
+                                                        Text(
+                                                          dateStr,
+                                                          style: GoogleFonts
+                                                              .spaceGrotesk(
+                                                                  fontSize: 10.5,
+                                                                  color: AxisColors
+                                                                      .textDim),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(Icons.close_rounded,
+                                                      size: 16, color: AxisColors.textDim),
+                                                  onPressed: () =>
+                                                      friendRepo.dismissNotification(log.id),
+                                                  tooltip: l10n.isArabic ? 'إخفاء' : 'Dismiss',
+                                                  constraints: const BoxConstraints(),
+                                                  padding: const EdgeInsets.all(6),
+                                                ),
+                                              ],
                                             ),
-                                          ],
+                                          ),
                                         ),
                                       );
                                     }),

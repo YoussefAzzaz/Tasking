@@ -273,11 +273,12 @@ class PrayerTimeService with WidgetsBindingObserver {
   }
 
   /// Toggles completion of a single prayer and awards/reverts EXP without recreating any records.
-  Future<void> togglePrayer(String prayerId, bool isDone, [String? userId]) =>
+  Future<void> togglePrayer(String prayerId, bool isDone, [String? userId, String? date]) =>
       _completionHandler.togglePrayer(
         prayerId: prayerId,
         isDone: isDone,
         userId: userId ?? currentUserId,
+        date: date,
       );
 
   void dispose() {

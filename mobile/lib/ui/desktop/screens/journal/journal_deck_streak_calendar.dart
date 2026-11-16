@@ -28,7 +28,8 @@ class JournalDeckStreakCalendar extends StatelessWidget {
           checkDay = checkDay.subtract(const Duration(days: 1));
         }
 
-        final monday = now.subtract(Duration(days: now.weekday - 1));
+        // Week starts from Sunday:
+        final sunday = now.subtract(Duration(days: now.weekday % 7));
 
         final streakLabel = isAr
             ? (streak > 0 ? 'تتابع $streak أيام' : 'تتابع 0 يوم')
@@ -75,7 +76,7 @@ class JournalDeckStreakCalendar extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(7, (i) {
-                  final day = monday.add(Duration(days: i));
+                  final day = sunday.add(Duration(days: i));
                   final dStr = DateFormat('yyyy-MM-dd').format(day);
                   final isToday = day.year == now.year && day.month == now.month && day.day == now.day;
                   final hasNote = noteDates.contains(dStr);

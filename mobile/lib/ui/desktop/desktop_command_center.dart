@@ -8,6 +8,7 @@ import '../../data/stats_repository.dart';
 import '../../data/user_profile_repository.dart';
 import 'core/desktop_shortcuts.dart';
 import 'dialogs/omnibar_dialog.dart';
+import 'dialogs/quick_task_dialog.dart';
 import 'screens/command_deck_screen.dart';
 import 'screens/focus_timers_screen.dart';
 import 'screens/friends_accountability_screen.dart';
@@ -102,6 +103,7 @@ class _DesktopCommandCenterState extends State<DesktopCommandCenter> {
   Widget build(BuildContext context) {
     return CallbackShortcuts(
       bindings: {
+        DesktopShortcuts.newTask: () => QuickTaskDialog.show(context),
         DesktopShortcuts.omnibar: _openOmnibar,
         DesktopShortcuts.tab1: () => _navigateToTab(0),
         DesktopShortcuts.tab2: () => _navigateToTab(1),

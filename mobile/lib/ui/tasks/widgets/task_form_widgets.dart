@@ -223,29 +223,33 @@ class TaskSheetHeader extends StatelessWidget {
     required this.isEdit,
     required this.onClose,
     this.onShare,
+    this.isDesktop = false,
   });
 
   final bool isEdit;
   final VoidCallback onClose;
   final VoidCallback? onShare;
+  final bool isDesktop;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
+      padding: EdgeInsets.fromLTRB(20, isDesktop ? 16 : 12, 16, isDesktop ? 14 : 8),
       child: Column(
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AxisColors.borderGlass2,
-                borderRadius: BorderRadius.circular(9999),
+          if (!isDesktop) ...[
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AxisColors.borderGlass2,
+                  borderRadius: BorderRadius.circular(9999),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

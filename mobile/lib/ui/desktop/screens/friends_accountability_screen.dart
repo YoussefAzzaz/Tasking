@@ -85,10 +85,30 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
                       separatorBuilder: (_, _) => const SizedBox(height: 6),
                       itemBuilder: (context, index) {
                         final log = logs[index];
-                        return Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: AxisColors.surfaceLowest, borderRadius: BorderRadius.circular(8)),
-                          child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh)),
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _friendRepo.dismissNotification(log.id),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(color: AxisColors.surfaceLowest, borderRadius: BorderRadius.circular(8)),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh)),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close_rounded, size: 14, color: AxisColors.textDim),
+                                    onPressed: () => _friendRepo.dismissNotification(log.id),
+                                    tooltip: l10n.isArabic ? 'إخفاء' : 'Dismiss',
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(4),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         );
                       },
                     );

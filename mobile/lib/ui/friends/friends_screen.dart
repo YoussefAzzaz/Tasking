@@ -9,10 +9,9 @@ import 'package:axis/data/user_profile_repository.dart';
 
 import 'widgets/friends_circle_tab.dart';
 import 'widgets/friends_today_prayers_tab.dart';
-import 'widgets/friends_standings_tab.dart';
 import 'widgets/add_companion_sheet.dart';
 
-/// Main mobile screen for Companions, Mutual Prayer Accountability, and Circle Standings.
+/// Main mobile screen for Companions and Mutual Prayer Accountability.
 class FriendsScreen extends StatefulWidget {
   final int initialTabIndex;
 
@@ -33,15 +32,14 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
 
   final _circleScrollController = ScrollController();
   final _todayScrollController = ScrollController();
-  final _standingsScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 3,
+      length: 2,
       vsync: this,
-      initialIndex: widget.initialTabIndex.clamp(0, 2),
+      initialIndex: widget.initialTabIndex.clamp(0, 1),
     );
 
     _friendRepo.syncAllFriendData();
@@ -52,7 +50,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     _tabController.dispose();
     _circleScrollController.dispose();
     _todayScrollController.dispose();
-    _standingsScrollController.dispose();
     super.dispose();
   }
 
@@ -143,14 +140,34 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final log = logs[index];
-                      return Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AxisColors.surfaceLowest,
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _friendRepo.dismissNotification(log.id),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AxisColors.borderSubtle),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AxisColors.surfaceLowest,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AxisColors.borderSubtle),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh)),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close_rounded, size: 16, color: AxisColors.textDim),
+                                  onPressed: () => _friendRepo.dismissNotification(log.id),
+                                  tooltip: l10n.isArabic ? 'إخفاء' : 'Dismiss',
+                                  constraints: const BoxConstraints(),
+                                  padding: const EdgeInsets.all(4),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh)),
                       );
                     },
                   );
@@ -280,25 +297,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                     ],
                   ),
                 ),
-                Tab(
-                  height: 38,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.military_tech_outlined, size: 14),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          l10n.weeklyStandings,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -316,12 +314,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           _KeepAliveWrapper(
             child: FriendsTodayPrayersTab(
               scrollController: _todayScrollController,
-              onAddCompanion: _openAddCompanionSheet,
-            ),
-          ),
-          _KeepAliveWrapper(
-            child: FriendsStandingsTab(
-              scrollController: _standingsScrollController,
               onAddCompanion: _openAddCompanionSheet,
             ),
           ),

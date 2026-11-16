@@ -83,7 +83,8 @@ class NotificationController {
         HabitNotificationService().onHabitCompletedToday(habitId);
       }
       AdhanFullScreenAlarm.dismissCurrent();
-    } else if (key == 'SHOW_ADHAN' || channelKey == 'prayer_adhan_channel') {
+    } else if (key == 'SHOW_ADHAN' ||
+        (channelKey != null && channelKey.startsWith('prayer_adhan_channel'))) {
       // Adhan notification displayed/tapped: verify prayer isn't already marked done today before ringing
       final prayerName = payload?['prayer_name'] ?? 'Fajr';
       final prayerId = payload?['prayer_id'];
@@ -92,6 +93,13 @@ class NotificationController {
         final lookup =
             (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
         if (await AdhanAlarmService().isPrayerCompletedToday(lookup)) {
+          await AdhanAlarmService().stopAlarmSound();
+          return;
+        }
+        if (AdhanAlarmService.isAfterAdhanTime(
+          prayerTime: prayerTime,
+          prayerName: prayerName,
+        )) {
           await AdhanAlarmService().stopAlarmSound();
           return;
         }
@@ -177,7 +185,8 @@ class NotificationController {
 
     // When an Adhan notification is displayed (foreground or background),
     // skip if already marked done today; otherwise open AdhanFullScreenAlarm.
-    if (receivedNotification.channelKey == 'prayer_adhan_channel') {
+    if (receivedNotification.channelKey != null &&
+        receivedNotification.channelKey!.startsWith('prayer_adhan_channel')) {
       final payload = receivedNotification.payload;
       final prayerName = payload?['prayer_name'];
       final prayerId = payload?['prayer_id'];
@@ -195,12 +204,19 @@ class NotificationController {
         await AdhanAlarmService().stopAlarmSound();
         return;
       }
+      if (AdhanAlarmService.isAfterAdhanTime(
+        prayerTime: prayerTime,
+        prayerName: prayerName,
+      )) {
+        await AdhanAlarmService().stopAlarmSound();
+        return;
+      }
       if (prayerName != null) {
         final sendPort = IsolateNameServer.lookupPortByName('notification_action_port');
         if (sendPort != null) {
           sendPort.send({
             'key': 'SHOW_ADHAN',
-            'channelKey': 'prayer_adhan_channel',
+            'channelKey': receivedNotification.channelKey ?? 'prayer_adhan_channel',
             'payload': payload,
           });
         } else {
@@ -254,7 +270,8 @@ class NotificationController {
       ReceivedAction receivedAction) async {
     // Handle swipe dismiss of notification
     final channelKey = receivedAction.channelKey;
-    if (channelKey == 'prayer_adhan_channel' || channelKey == 'fajr_alarm_channel') {
+    if ((channelKey != null && channelKey.startsWith('prayer_adhan_channel')) ||
+        channelKey == 'fajr_alarm_channel') {
       await AdhanAlarmService().stopAlarmSound();
     }
   }

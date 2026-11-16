@@ -9,7 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme.dart';
 import '../../../../data/habit_repository.dart';
-import '../../../../data/powersync_db.dart' show isDatabaseInitialized;
+import '../../../../data/powersync_db.dart' show isDatabaseInitialized, db;
 import '../../../../data/prayer_time_service.dart';
 import '../../../../data/task_repository.dart';
 import '../../../../domain/calendar_scheduler.dart';
@@ -30,9 +30,10 @@ class DesktopCalendarScreen extends StatefulWidget {
     this.initialTasks,
     this.initialHabits,
     this.initialPrayers,
+    this.initialCompletedLogs,
     this.initialSelectedDate,
-    this.initialStartWeekday = DateTime.monday,
-    this.initialZoomLevel = CalendarZoomLevel.hour,
+    this.initialStartWeekday = DateTime.sunday,
+    this.initialZoomLevel = CalendarZoomLevel.halfHour,
   });
 
   final TaskRepository? taskRepo;
@@ -41,6 +42,7 @@ class DesktopCalendarScreen extends StatefulWidget {
   final List<Task>? initialTasks;
   final List<Habit>? initialHabits;
   final List<Prayer>? initialPrayers;
+  final Map<String, Set<String>>? initialCompletedLogs;
   final DateTime? initialSelectedDate;
   final int initialStartWeekday;
   final CalendarZoomLevel initialZoomLevel;
@@ -72,6 +74,9 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
   StreamSubscription<List<Task>>? _taskSub;
   StreamSubscription<List<Habit>>? _habitSub;
   StreamSubscription<List<Prayer>>? _prayerSub;
+  StreamSubscription<List<Map<String, dynamic>>>? _habitLogsSub;
+
+  Map<String, Set<String>> _completedLogsByDate = {};
 
   String? _resizingTaskId;
   int _resizingBaseDurationMin = CalendarScheduler.defaultTaskDurationMin;
@@ -88,6 +93,9 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     _tasks = List<Task>.from(widget.initialTasks ?? const []);
     _habits = List<Habit>.from(widget.initialHabits ?? const []);
     _prayers = List<Prayer>.from(widget.initialPrayers ?? const []);
+    if (widget.initialCompletedLogs != null) {
+      _completedLogsByDate = Map.from(widget.initialCompletedLogs!);
+    }
     _verticalScrollController = ScrollController(
       initialScrollOffset: 6.5 * _hourHeight, // Start visible around 06:30
     );
@@ -140,6 +148,28 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
         );
       } catch (_) {}
     }
+
+    if (isDatabaseInitialized) {
+      try {
+        _habitLogsSub = db.watch(
+          "SELECT habit_id, log_date FROM habit_logs WHERE status = 'done'",
+        ).listen((rows) {
+          if (!mounted) return;
+          final map = <String, Set<String>>{};
+          for (final r in rows) {
+            final hId = (r['habit_id'] as String? ?? '').toLowerCase().trim();
+            final lDate = (r['log_date'] as String? ?? '').trim();
+            if (hId.isNotEmpty && lDate.isNotEmpty) {
+              map.putIfAbsent(lDate, () => <String>{}).add(hId);
+              if (hId.startsWith('prayer_')) {
+                map[lDate]!.add(hId.replaceFirst('prayer_', ''));
+              }
+            }
+          }
+          setState(() => _completedLogsByDate = map);
+        }, onError: (_) {});
+      } catch (_) {}
+    }
   }
 
   @override
@@ -147,6 +177,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     _taskSub?.cancel();
     _habitSub?.cancel();
     _prayerSub?.cancel();
+    _habitLogsSub?.cancel();
     _verticalScrollController.dispose();
     super.dispose();
   }
@@ -170,17 +201,35 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
         .toList();
     if (dayTasks.isEmpty) return const [];
 
+    final allHaveDueTime = dayTasks.every((t) =>
+        t.dueTime != null && t.dueTime!.trim().isNotEmpty);
+
+    if (allHaveDueTime) {
+      final sorted = [...dayTasks]..sort((a, b) {
+          final timeA = CalendarScheduler.parseTimeToMinutes(a.dueTime) ??
+              CalendarScheduler.defaultDayStartMinutes;
+          final timeB = CalendarScheduler.parseTimeToMinutes(b.dueTime) ??
+              CalendarScheduler.defaultDayStartMinutes;
+          if (timeA != timeB) return timeA.compareTo(timeB);
+          final prioA = CalendarScheduler.priorityRank(a.priority);
+          final prioB = CalendarScheduler.priorityRank(b.priority);
+          if (prioA != prioB) return prioA.compareTo(prioB);
+          return a.id.compareTo(b.id);
+        });
+      return sorted;
+    }
+
     if (_manuallyOrderedDays.contains(dateStr)) {
       final ordered = CalendarScheduler.orderByCurrentSchedule(dayTasks);
-      return CalendarScheduler.packTasksForDay(
+      return CalendarScheduler.packTasksPreservingExplicitTimes(
         dateStr: dateStr,
-        orderedTasks: ordered,
+        dayTasks: ordered,
         habitBlocks: habitBlocks,
         prayerBlocks: prayerBlocks,
       );
     }
 
-    return CalendarScheduler.sortAndPackDayByPriority(
+    return CalendarScheduler.packTasksPreservingExplicitTimes(
       dateStr: dateStr,
       dayTasks: dayTasks,
       habitBlocks: habitBlocks,
@@ -230,7 +279,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     await _persistUpdatedTasks(reordered);
   }
 
-  Future<void> _handleCrossDayMove(Task movedTask, String targetDateStr) async {
+  Future<void> _handleCrossDayMove(Task movedTask, String targetDateStr, [int? targetDropMinute]) async {
     final sourceDateStr = movedTask.dueDate;
     final habitBlocks = _dailyHabitBlocks;
     final prayerBlocks = _dailyPrayerBlocks;
@@ -244,6 +293,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
       allTasks: _tasks,
       movedTaskId: movedTask.id,
       targetDateStr: targetDateStr,
+      targetDropMinute: targetDropMinute,
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
     );
@@ -335,12 +385,20 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     }
   }
 
-  Future<void> _openCreateTaskDialog() async {
-    final targetDate = _selectedDate;
+  Future<void> _openCreateTaskDialog({DateTime? date, String? time}) async {
+    final targetDate = date ?? _selectedDate;
     final targetDateStr = CalendarScheduler.formatDate(targetDate);
+    final now = DateTime.now();
+    final isToday = targetDate.year == now.year &&
+        targetDate.month == now.month &&
+        targetDate.day == now.day;
+    final initialTime = time ??
+        (isToday ? CalendarScheduler.defaultTodayTaskTimeString(now) : null);
+
     await QuickTaskDialog.show(
       context,
       initialDate: targetDate,
+      initialTime: initialTime,
       onTaskCreated: () {
         if (!mounted) return;
         setState(() {
@@ -510,7 +568,15 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                 label: isAr ? 'بداية الأسبوع' : 'Start',
                 value: _startWeekday,
                 items: [
-                  for (var w = DateTime.monday; w <= DateTime.sunday; w++)
+                  for (final w in [
+                    DateTime.sunday,
+                    DateTime.monday,
+                    DateTime.tuesday,
+                    DateTime.wednesday,
+                    DateTime.thursday,
+                    DateTime.friday,
+                    DateTime.saturday,
+                  ])
                     DropdownMenuItem<int>(
                       value: w,
                       child: Text(_weekdayShortName(w, isAr)),
@@ -968,6 +1034,21 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              // Double-tap empty calendar slot to create task at clicked time
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onDoubleTapDown: (tapDetails) {
+                    final clickedMin = ((tapDetails.localPosition.dy / _hourHeight) * 60)
+                        .round()
+                        .clamp(0, 23 * 60 + 45);
+                    final snapped = (clickedMin ~/ 15) * 15;
+                    final timeStr = CalendarScheduler.formatMinutes(snapped);
+                    _openCreateTaskDialog(date: day, time: timeStr);
+                  },
+                  child: const SizedBox.expand(),
+                ),
+              ),
               // Dynamic grid lines based on zoom level (1h -> 30m -> 15m)
               for (var i = 0; i < totalSlots; i++)
                 Positioned(
@@ -999,73 +1080,148 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     );
   }
 
+  bool _isPrayerDone(String dateStr, CalendarPrayerBlock block) {
+    final code = block.prayer.prayerCode.toLowerCase().trim();
+    final pId = block.prayer.id.toLowerCase().trim();
+    final dateLogs = _completedLogsByDate[dateStr];
+    if (dateLogs != null) {
+      if (dateLogs.contains(code) ||
+          dateLogs.contains('prayer_$code') ||
+          dateLogs.contains(pId)) {
+        return true;
+      }
+    }
+    final todayStr = CalendarScheduler.formatDate(DateTime.now());
+    if (dateStr == todayStr && block.prayer.isDone) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isHabitDone(String dateStr, CalendarHabitBlock block) {
+    final hId = block.habit.id.toLowerCase().trim();
+    final dateLogs = _completedLogsByDate[dateStr];
+    if (dateLogs != null && (dateLogs.contains(hId) || dateLogs.contains('habit_$hId'))) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _togglePrayerForDate(String dateStr, CalendarPrayerBlock block) async {
+    final currentlyDone = _isPrayerDone(dateStr, block);
+    final nextDone = !currentlyDone;
+    setState(() {
+      final code = block.prayer.prayerCode.toLowerCase().trim();
+      final set = _completedLogsByDate.putIfAbsent(dateStr, () => <String>{});
+      if (nextDone) {
+        set.add(code);
+        set.add('prayer_$code');
+      } else {
+        set.remove(code);
+        set.remove('prayer_$code');
+      }
+    });
+    try {
+      await PrayerCompletionHandler().togglePrayer(
+        prayerId: block.prayer.prayerCode,
+        isDone: nextDone,
+        date: dateStr,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _toggleHabitForDate(String dateStr, CalendarHabitBlock block) async {
+    final currentlyDone = _isHabitDone(dateStr, block);
+    final nextDone = !currentlyDone;
+    setState(() {
+      final hId = block.habit.id.toLowerCase().trim();
+      final set = _completedLogsByDate.putIfAbsent(dateStr, () => <String>{});
+      if (nextDone) {
+        set.add(hId);
+      } else {
+        set.remove(hId);
+      }
+    });
+    try {
+      await HabitRepository().toggleHabit(
+        block.habit.id,
+        nextDone,
+        dateStr,
+      );
+    } catch (_) {}
+  }
+
   Widget _buildPrayerBlockWidget(String dateStr, CalendarPrayerBlock block) {
     final top = (block.startMinute / 60.0) * _hourHeight;
     final height = math.max((block.durationMin / 60.0) * _hourHeight, 22.0);
     const prayerColor = AxisColors.tertiary; // Emerald accent
-    final isDone = block.prayer.isDone;
+    final isDone = _isPrayerDone(dateStr, block);
 
     return Positioned(
       top: top,
       left: 3,
       right: 3,
       height: height,
-      child: Container(
-        key: ValueKey('calendar_prayer_${dateStr}_${block.prayer.prayerCode}'),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: isDone
-              ? prayerColor.withValues(alpha: 0.08)
-              : prayerColor.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _togglePrayerForDate(dateStr, block),
+        child: Container(
+          key: ValueKey('calendar_prayer_${dateStr}_${block.prayer.prayerCode}'),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
             color: isDone
-                ? prayerColor.withValues(alpha: 0.35)
-                : prayerColor.withValues(alpha: 0.65),
-            width: 1,
+                ? prayerColor.withValues(alpha: 0.08)
+                : prayerColor.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isDone
+                  ? prayerColor.withValues(alpha: 0.35)
+                  : prayerColor.withValues(alpha: 0.65),
+              width: 1,
+            ),
           ),
-        ),
-        child: ClipRect(
-          child: Row(
-            children: [
-              Icon(
-                isDone ? Icons.check_circle_rounded : _prayerIcon(block.prayer.prayerCode),
-                size: 12,
-                color: isDone ? AxisColors.textDim : prayerColor,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  height >= 34
-                      ? '${block.prayer.name} (${block.startTimeFormatted})'
-                      : block.prayer.name,
-                  style: TextStyle(
-                    color: isDone ? AxisColors.textDim : AxisColors.textHigh,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    decoration: isDone ? TextDecoration.lineThrough : null,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: ClipRect(
+            child: Row(
+              children: [
+                Icon(
+                  isDone ? Icons.check_circle_rounded : _prayerIcon(block.prayer.prayerCode),
+                  size: 12,
+                  color: isDone ? AxisColors.textDim : prayerColor,
                 ),
-              ),
-              const SizedBox(width: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: prayerColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  '15m',
-                  style: TextStyle(
-                    color: prayerColor,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    height >= 34
+                        ? '${block.prayer.name} (${block.startTimeFormatted})'
+                        : block.prayer.name,
+                    style: TextStyle(
+                      color: isDone ? AxisColors.textDim : AxisColors.textHigh,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      decoration: isDone ? TextDecoration.lineThrough : null,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: prayerColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    '15m',
+                    style: TextStyle(
+                      color: prayerColor,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1076,59 +1232,73 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     final top = (block.startMinute / 60.0) * _hourHeight;
     final height = math.max((block.durationMin / 60.0) * _hourHeight, 22.0);
     final habitColor = _parseHabitColor(block.habit.color);
+    final isDone = _isHabitDone(dateStr, block);
 
     return Positioned(
       top: top,
       left: 3,
       right: 3,
       height: height,
-      child: Container(
-        key: ValueKey('calendar_habit_${dateStr}_${block.habit.id}'),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: habitColor.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: habitColor.withValues(alpha: 0.55),
-            width: 1,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _toggleHabitForDate(dateStr, block),
+        child: Container(
+          key: ValueKey('calendar_habit_${dateStr}_${block.habit.id}'),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: isDone
+                ? habitColor.withValues(alpha: 0.08)
+                : habitColor.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isDone
+                  ? habitColor.withValues(alpha: 0.35)
+                  : habitColor.withValues(alpha: 0.55),
+              width: 1,
+            ),
           ),
-        ),
-        child: ClipRect(
-          child: Row(
-            children: [
-              Icon(Icons.lock_clock_rounded, size: 11, color: habitColor),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  height >= 34
-                      ? '${block.habit.name} (${block.startTimeFormatted})'
-                      : block.habit.name,
-                  style: const TextStyle(
-                    color: AxisColors.textHigh,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: ClipRect(
+            child: Row(
+              children: [
+                Icon(
+                  isDone ? Icons.check_circle_rounded : Icons.lock_clock_rounded,
+                  size: 11,
+                  color: isDone ? AxisColors.textDim : habitColor,
                 ),
-              ),
-              const SizedBox(width: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: habitColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '15m',
-                  style: TextStyle(
-                    color: habitColor,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    height >= 34
+                        ? '${block.habit.name} (${block.startTimeFormatted})'
+                        : block.habit.name,
+                    style: TextStyle(
+                      color: isDone ? AxisColors.textDim : AxisColors.textHigh,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      decoration: isDone ? TextDecoration.lineThrough : null,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: habitColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '15m',
+                    style: TextStyle(
+                      color: isDone ? AxisColors.textDim : habitColor,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

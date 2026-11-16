@@ -10,7 +10,7 @@ import '../../friends/widgets/companion_profile_modal.dart';
 import '../../friends/widgets/pending_shares_section.dart';
 import '../widgets/desktop_card.dart';
 
-/// Desktop panel with tabs for Circle management, notifications, and leaderboard standings.
+/// Desktop panel with tabs for Circle management and notifications.
 class DesktopCompanionsSidebarTabs extends StatefulWidget {
   final VoidCallback onAddCompanion;
 
@@ -25,7 +25,7 @@ class DesktopCompanionsSidebarTabs extends StatefulWidget {
 
 class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarTabs> {
   final _friendRepo = FriendRepository();
-  int _selectedTab = 0; // 0: Circle & Requests, 1: Activity, 2: Standings
+  int _selectedTab = 0; // 0: Circle & Requests, 1: Activity
 
   @override
   Widget build(BuildContext context) {
@@ -41,15 +41,13 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
               _buildTabBtn(0, isArabic ? 'الدائرة' : 'Circle', Icons.group_rounded),
               const SizedBox(width: 4),
               _buildTabBtn(1, isArabic ? 'التنبيهات' : 'Activity', Icons.notifications_active_rounded),
-              const SizedBox(width: 4),
-              _buildTabBtn(2, isArabic ? 'الترتيب' : 'Standings', Icons.military_tech_rounded),
             ],
           ),
           const SizedBox(height: 12),
           Expanded(
             child: _selectedTab == 0
                 ? _buildCircleTab(isArabic, l10n)
-                : (_selectedTab == 1 ? _buildActivityTab(isArabic, l10n) : _buildStandingsTab(isArabic, l10n)),
+                : _buildActivityTab(isArabic, l10n),
           ),
         ],
       ),
@@ -262,94 +260,57 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
               ],
             ),
             const SizedBox(height: 6),
-            ...logs.map((log) => Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: AxisColors.surfaceLowest, borderRadius: BorderRadius.circular(8), border: Border.all(color: AxisColors.borderSubtle)),
-                  child: Row(
-                    children: [
-                      Icon(
-                        log.isCollaborativeTaskDeleted
-                            ? Icons.delete_sweep_outlined
-                            : (log.isSharedItemDeclined
-                                ? Icons.cancel_outlined
+            ...logs.map((log) => Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _friendRepo.dismissNotification(log.id),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AxisColors.surfaceLowest,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AxisColors.borderSubtle),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            log.isCollaborativeTaskDeleted
+                                ? Icons.delete_sweep_outlined
+                                : (log.isSharedItemDeclined
+                                    ? Icons.cancel_outlined
+                                    : (log.isSharedItem
+                                        ? (log.eventType ==
+                                                'collaborative_task_completed'
+                                            ? Icons.handshake_rounded
+                                            : Icons.ios_share_rounded)
+                                        : Icons.notifications_active_rounded)),
+                            size: 16,
+                            color: (log.isSharedItemDeclined ||
+                                    log.isCollaborativeTaskDeleted)
+                                ? AxisColors.error
                                 : (log.isSharedItem
-                                    ? (log.eventType ==
-                                            'collaborative_task_completed'
-                                        ? Icons.handshake_rounded
-                                        : Icons.ios_share_rounded)
-                                    : Icons.notifications_active_rounded)),
-                        size: 16,
-                        color: (log.isSharedItemDeclined ||
-                                log.isCollaborativeTaskDeleted)
-                            ? AxisColors.error
-                            : (log.isSharedItem
-                                ? AxisColors.secondary
-                                : AxisColors.primarySoft),
+                                    ? AxisColors.secondary
+                                    : AxisColors.primarySoft),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textHigh)),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 14, color: AxisColors.textDim),
+                            onPressed: () => _friendRepo.dismissNotification(log.id),
+                            tooltip: l10n.isArabic ? 'إخفاء' : 'Dismiss',
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(4),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textHigh)),
-                      ),
-                    ],
+                    ),
                   ),
                 )),
           ],
-        );
-      },
-    );
-  }
-
-  Widget _buildStandingsTab(bool isArabic, AppLocalizations l10n) {
-    return StreamBuilder<List<FriendUser>>(
-      stream: _friendRepo.watchAllStandings(),
-      builder: (context, snapshot) {
-        final standings = snapshot.data ?? [];
-        if (standings.isEmpty) {
-          return Center(child: Text(l10n.noCompanionsYet, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim)));
-        }
-
-        return ListView.separated(
-          itemCount: standings.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 6),
-          itemBuilder: (context, index) {
-            final f = standings[index];
-            final rank = index + 1;
-            final isMe = f.userId == _friendRepo.currentUserId;
-
-            return Container(
-              decoration: BoxDecoration(
-                color: isMe ? AxisColors.surfaceLow : AxisColors.surfaceLowest,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isMe ? AxisColors.primary.withValues(alpha: 0.5) : AxisColors.borderSubtle),
-              ),
-              child: InkWell(
-                onTap: () async {
-                  HapticFeedback.lightImpact();
-                  final status = await _friendRepo.getStatusForCompanion(f);
-                  if (context.mounted) {
-                    CompanionProfileModal.showCompanionDialog(context, status, f);
-                  }
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  child: Row(
-                    children: [
-                      Text('#$rank', style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: rank == 1 ? AxisColors.warning : AxisColors.textDim)),
-                      const SizedBox(width: 8),
-                      AvatarWidget(name: f.name, avatarColor: f.avatarColor, avatarUrl: f.avatarUrl, size: 28),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(f.name, style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh), overflow: TextOverflow.ellipsis),
-                      ),
-                      Text('${f.totalXp} XP', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
         );
       },
     );

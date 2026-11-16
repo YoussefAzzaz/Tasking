@@ -144,40 +144,6 @@ class FriendRepository {
     return controller.stream;
   }
 
-  /// Watches all standings (current user + all accepted friends) sorted by XP.
-  Stream<List<FriendUser>> watchAllStandings() {
-    return watchAcceptedFriends().asyncMap((friends) async {
-      final uid = currentUserId;
-      if (uid.isEmpty || !isDatabaseInitialized) return friends;
-
-      final myProfileRow = await db.getOptional(
-        'SELECT id, user_id, name, title, avatar_color, avatar_url, total_xp, level, friend_code FROM user_profiles WHERE user_id = ? LIMIT 1',
-        [uid],
-      );
-
-      final myName = currentUserName;
-      final myUser = FriendUser(
-        id: myProfileRow?['id']?.toString() ?? 'prof_$uid',
-        userId: uid,
-        name: (myProfileRow?['name']?.toString() ?? '').trim().isNotEmpty
-            ? myProfileRow!['name'].toString()
-            : (myName.isNotEmpty ? myName : 'You'),
-        title: myProfileRow?['title']?.toString() ?? 'Specialist',
-        avatarColor: myProfileRow?['avatar_color']?.toString() ?? '#6366F1',
-        avatarUrl: myProfileRow?['avatar_url']?.toString(),
-        totalXp: parseToInt(myProfileRow?['total_xp']),
-        level: parseToInt(myProfileRow?['level'], 1),
-        friendCode: myProfileRow?['friend_code']?.toString(),
-        friendshipId: 'self',
-        status: 'accepted',
-        isRequester: false,
-      );
-
-      final all = <FriendUser>[myUser, ...friends];
-      all.sort((a, b) => b.totalXp.compareTo(a.totalXp));
-      return all;
-    });
-  }
 
   /// Watches pending incoming friend requests for the current user.
   Stream<List<FriendUser>> watchPendingRequests() {
@@ -274,6 +240,9 @@ class FriendRepository {
 
   Stream<List<FriendActivityLog>> watchFriendActivityLogs() =>
       FriendActivityRepository().watchFriendActivityLogs();
+
+  Future<void> dismissNotification(String logId) =>
+      FriendActivityRepository().dismissNotification(logId);
 
   Future<void> clearFriendNotifications() =>
       FriendActivityRepository().clearFriendNotifications();

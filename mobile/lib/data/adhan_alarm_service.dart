@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:axis/core/router.dart';
+import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/prayer_time_service.dart';
 import 'package:axis/data/prayers/adhan_sound_service.dart';
@@ -253,6 +254,36 @@ class AdhanAlarmService {
     });
   }
 
+  /// Checks whether current time has passed the scheduled prayer time
+  /// by more than [graceMinutes] (default 2 minutes).
+  static bool isAfterAdhanTime({
+    String? prayerTime,
+    String? prayerName,
+    int graceMinutes = 2,
+  }) {
+    final now = DateTime.now();
+    int? prayerMin;
+
+    if (prayerTime != null && prayerTime.trim().isNotEmpty) {
+      prayerMin = HabitRepository.parseTimeToMinutes(prayerTime);
+    }
+
+    if (prayerMin == null && prayerName != null && prayerName.trim().isNotEmpty) {
+      final defaults = PrayerTimeService.defaultPrayers();
+      final match = defaults.where((p) =>
+          p.name.toLowerCase() == prayerName.toLowerCase() ||
+          p.id.toLowerCase() == prayerName.toLowerCase());
+      if (match.isNotEmpty) {
+        prayerMin = HabitRepository.parseTimeToMinutes(match.first.time);
+      }
+    }
+
+    if (prayerMin == null) return false;
+
+    final nowMin = now.hour * 60 + now.minute;
+    return nowMin > (prayerMin + graceMinutes);
+  }
+
   /// Checks if Android launched/woke MainActivity directly for an Adhan alarm.
   Future<void> checkPendingNativeAdhanLaunch() async {
     if (!isSupportedPlatform || defaultTargetPlatform != TargetPlatform.android) return;
@@ -262,6 +293,10 @@ class AdhanAlarmService {
         final prayerName = payload['prayerName'] ?? 'Prayer';
         final prayerId = payload['prayerId'];
         final prayerTime = payload['prayerTime'];
+        if (isAfterAdhanTime(prayerTime: prayerTime, prayerName: prayerName)) {
+          debugPrint('[AdhanAlarmService] Bypassing pending native adhan launch: current time is after adhan time ($prayerTime).');
+          return;
+        }
         triggerAdhanFullScreen(
           prayerName: prayerName,
           prayerId: (prayerId != null && prayerId.isNotEmpty) ? prayerId : null,
@@ -753,18 +788,23 @@ class AdhanAlarmService {
     try {
       await AwesomeNotifications().cancel(notifId);
 
+      final activeSound = AdhanSoundService().currentSound;
+      final targetChannel = activeSound.id == 'alafasy'
+          ? 'prayer_adhan_channel_alafasy'
+          : 'prayer_adhan_channel';
+
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
           id: notifId,
-          channelKey: 'prayer_adhan_channel',
+          channelKey: targetChannel,
           title: 'Adhan: ${prayer.name}',
           body: 'It is now time for ${prayer.name} (${prayer.formattedTime}).',
           notificationLayout: NotificationLayout.Default,
           category: NotificationCategory.Alarm,
-          wakeUpScreen: true,
-          fullScreenIntent: true,
-          autoDismissible: false,
-          locked: true,
+          wakeUpScreen: false,
+          fullScreenIntent: false,
+          autoDismissible: true,
+          locked: false,
           payload: {
             'type': 'adhan',
             'prayer_id': prayer.id,
@@ -827,10 +867,10 @@ class AdhanAlarmService {
           body: 'Prayer is better than sleep. Complete the wake-up verification to stop the alarm.',
           notificationLayout: NotificationLayout.BigText,
           category: NotificationCategory.Alarm,
-          wakeUpScreen: true,
-          fullScreenIntent: true,
-          autoDismissible: false,
-          locked: true,
+          wakeUpScreen: false,
+          fullScreenIntent: false,
+          autoDismissible: true,
+          locked: false,
           payload: {
             'type': 'fajr_alarm',
             'adhan_time': adhanTimeStr,
@@ -896,9 +936,7 @@ class AdhanAlarmService {
     }
 
     _vibrationTimer?.cancel();
-    _vibrationTimer = Timer.periodic(const Duration(milliseconds: 900), (_) {
-      HapticFeedback.heavyImpact();
-    });
+    _vibrationTimer = null;
   }
 
   /// Stops the alarm sound and vibration, and dismisses active notifications
@@ -955,6 +993,13 @@ class AdhanAlarmService {
     BuildContext? context,
   }) async {
     if (isFullScreenAlarmShowing) return;
+
+    // If the scheduled prayer time has already passed, do NOT launch the adhan screen.
+    if (isAfterAdhanTime(prayerTime: prayerTime, prayerName: prayerName)) {
+      debugPrint('[AdhanAlarmService] Bypassing adhan screen because current time is after adhan time ($prayerTime).');
+      await stopAlarmSound();
+      return;
+    }
 
     final lookup = (prayerId != null && prayerId.isNotEmpty) ? prayerId : prayerName;
     if (await isPrayerCompletedToday(lookup)) {

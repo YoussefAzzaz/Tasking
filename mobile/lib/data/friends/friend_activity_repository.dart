@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/user_profile_repository.dart';
@@ -12,6 +14,35 @@ class FriendActivityRepository {
   static final FriendActivityRepository _instance = FriendActivityRepository._();
   factory FriendActivityRepository() => _instance;
   FriendActivityRepository._();
+
+  final Set<String> _dismissedLogIds = {};
+  bool _dismissedLoaded = false;
+
+  Future<void> _ensureDismissedLoaded() async {
+    if (_dismissedLoaded) return;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/dismissed_notifications.json');
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final list = (jsonDecode(content) as List?)?.cast<String>();
+        if (list != null) {
+          _dismissedLogIds.addAll(list);
+        }
+      }
+      _dismissedLoaded = true;
+    } catch (_) {
+      _dismissedLoaded = true;
+    }
+  }
+
+  Future<void> _persistDismissedLogIds() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/dismissed_notifications.json');
+      await file.writeAsString(jsonEncode(_dismissedLogIds.toList()));
+    } catch (_) {}
+  }
 
   SupabaseClient? get _supabaseClient {
     try {
@@ -37,6 +68,17 @@ class FriendActivityRepository {
 
   void clearSessionState() {
     _hasPurgedOldLogsThisSession = false;
+    _dismissedLogIds.clear();
+    _dismissedLoaded = false;
+  }
+
+  @visibleForTesting
+  Set<String> get dismissedLogIdsForTesting => _dismissedLogIds;
+
+  @visibleForTesting
+  void resetDismissedForTesting() {
+    _dismissedLogIds.clear();
+    _dismissedLoaded = false;
   }
 
   String get currentUserId {
@@ -92,22 +134,67 @@ class FriendActivityRepository {
       LIMIT 30
     ''';
 
-    return db.watch(query, parameters: [uid]).map((rows) {
-      return rows.map((r) => FriendActivityLog.fromRow(r)).toList();
+    return db.watch(query, parameters: [uid]).asyncMap((rows) async {
+      await _ensureDismissedLoaded();
+      return rows
+          .map((r) => FriendActivityLog.fromRow(r))
+          .where((log) => !_dismissedLogIds.contains(log.id))
+          .toList();
     });
   }
 
-  /// Clears notifications for the current user.
+  /// Dismisses a single notification by id permanently.
+  Future<void> dismissNotification(String logId) async {
+    if (logId.isEmpty) return;
+    await _ensureDismissedLoaded();
+    _dismissedLogIds.add(logId);
+    await _persistDismissedLogIds();
+
+    if (isDatabaseInitialized) {
+      try {
+        await db.execute('DELETE FROM friend_activity_logs WHERE id = ?', [logId]);
+      } catch (e) {
+        debugPrint('[FriendActivityRepository] Error deleting log locally: $e');
+      }
+    }
+
+    if (isRemoteAuthenticated) {
+      try {
+        await AuthService().ensureAuthenticatedSession();
+        await _supabaseClient?.from('friend_activity_logs').delete().eq('id', logId);
+      } catch (e) {
+        debugPrint('[FriendActivityRepository] Notice dismissing notification on Supabase: $e');
+      }
+    }
+  }
+
+  /// Clears notifications for the current user permanently across launches.
   Future<void> clearFriendNotifications() async {
     final uid = currentUserId;
     if (uid.isEmpty) return;
 
+    await _ensureDismissedLoaded();
+
     if (isDatabaseInitialized) {
-      await db.execute('DELETE FROM friend_activity_logs WHERE user_id = ?', [uid]);
+      try {
+        final rows = await db.getAll('SELECT id FROM friend_activity_logs WHERE user_id = ?', [uid]);
+        for (final row in rows) {
+          final id = row['id']?.toString();
+          if (id != null && id.isNotEmpty) {
+            _dismissedLogIds.add(id);
+          }
+        }
+        await _persistDismissedLogIds();
+        await db.execute('DELETE FROM friend_activity_logs WHERE user_id = ?', [uid]);
+      } catch (e) {
+        debugPrint('[FriendActivityRepository] Error clearing logs locally: $e');
+      }
     }
+
     if (isRemoteAuthenticated) {
       try {
-        await _supabaseClient!.from('friend_activity_logs').delete().eq('user_id', uid);
+        await AuthService().ensureAuthenticatedSession();
+        await _supabaseClient?.from('friend_activity_logs').delete().eq('user_id', uid);
       } catch (e) {
         debugPrint('[FriendActivityRepository] Notice clearing notifications on Supabase: $e');
       }
@@ -159,6 +246,19 @@ class FriendActivityRepository {
     final uid = currentUserId;
     if (!isRemoteAuthenticated || client == null || uid.isEmpty || !isDatabaseInitialized) return;
 
+    await _ensureDismissedLoaded();
+
+    // Clean any locally present dismissed notifications
+    if (_dismissedLogIds.isNotEmpty) {
+      try {
+        final placeholders = List.filled(_dismissedLogIds.length, '?').join(',');
+        await db.execute(
+          'DELETE FROM friend_activity_logs WHERE id IN ($placeholders)',
+          _dismissedLogIds.toList(),
+        );
+      } catch (_) {}
+    }
+
     try {
       final remoteLogs = await client
           .from('friend_activity_logs')
@@ -170,6 +270,15 @@ class FriendActivityRepository {
       for (final r in remoteLogs) {
         final lId = r['id']?.toString() ?? '';
         if (lId.isEmpty) continue;
+
+        // Never pull or restore dismissed logs
+        if (_dismissedLogIds.contains(lId)) {
+          try {
+            await client.from('friend_activity_logs').delete().eq('id', lId);
+          } catch (_) {}
+          continue;
+        }
+
         final evType = r['event_type']?.toString() ?? 'prayer_reminder';
         final title = r['title']?.toString() ?? '';
         final meta = r['metadata'] != null ? jsonEncode(r['metadata']) : '{}';

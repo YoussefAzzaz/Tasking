@@ -58,13 +58,13 @@ class _InboxTabState extends State<InboxTab> {
             }).toList()
               ..sort(compareTasksByDueDate);
 
-            // Personal normal tasks (due today or active unscheduled tasks)
+            // Personal normal tasks (due today; tasks without due date do not appear in today tasks)
             final personalTodayTasks = allTasks.where((t) {
               if (t.isCollaborative) return false;
               if (!criteria.matches(t)) return false;
               final d = t.dueDate?.trim() ?? '';
               if (d.isEmpty) {
-                return !t.isCompleted;
+                return false;
               }
               return d == todayStr || d.startsWith(todayStr);
             }).toList()

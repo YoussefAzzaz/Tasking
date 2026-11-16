@@ -214,37 +214,53 @@ class FriendActivityNotificationsSection extends StatelessWidget {
                   iconColor = AxisColors.secondary;
                 }
 
-                return Container(
+                return Material(
                   key: ValueKey('log_${log.id}'),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AxisColors.surfaceLowest,
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => friendRepo.dismissNotification(log.id),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AxisColors.borderSubtle),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          color: iconColor.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(iconData, size: 15, color: iconColor),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AxisColors.surfaceLowest,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AxisColors.borderSubtle),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          log.title,
-                          style: GoogleFonts.getFont('Geist',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: AxisColors.textHigh),
-                        ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: iconColor.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(iconData, size: 15, color: iconColor),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              log.title,
+                              style: GoogleFonts.getFont('Geist',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: AxisColors.textHigh),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                size: 15, color: AxisColors.textDim),
+                            onPressed: () =>
+                                friendRepo.dismissNotification(log.id),
+                            tooltip: l10n.isArabic ? 'إخفاء' : 'Dismiss',
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(6),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 );
               }),

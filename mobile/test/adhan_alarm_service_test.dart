@@ -92,5 +92,23 @@ void main() {
       expect(AdhanAlarmService.canonicalPrayerCode('Asr'), 'asr');
       expect(AdhanAlarmService.canonicalPrayerCode(''), isNull);
     });
+
+    test('isAfterAdhanTime correctly identifies whether current time is after scheduled adhan', () {
+      final now = DateTime.now();
+      final pastHour = (now.hour - 1 + 24) % 24;
+      final pastTimeStr = '${pastHour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+      final futureHour = (now.hour + 2) % 24;
+      final futureTimeStr = '${futureHour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+      // Past time (1 hour ago) should be after adhan time
+      if (now.hour > 0) {
+        expect(AdhanAlarmService.isAfterAdhanTime(prayerTime: pastTimeStr), isTrue);
+      }
+      // Future time (2 hours in future) should not be after adhan time
+      if (now.hour < 22) {
+        expect(AdhanAlarmService.isAfterAdhanTime(prayerTime: futureTimeStr), isFalse);
+      }
+    });
   });
 }

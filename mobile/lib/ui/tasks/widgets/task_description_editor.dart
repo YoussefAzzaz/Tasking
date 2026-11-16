@@ -18,6 +18,7 @@ class TaskDescriptionEditor extends StatelessWidget {
     required this.onToggleExpanded,
     required this.onTogglePreview,
     required this.onChanged,
+    this.isDesktop = false,
   });
 
   final TextEditingController controller;
@@ -27,9 +28,163 @@ class TaskDescriptionEditor extends StatelessWidget {
   final VoidCallback onToggleExpanded;
   final VoidCallback onTogglePreview;
   final VoidCallback onChanged;
+  final bool isDesktop;
 
   @override
   Widget build(BuildContext context) {
+    if (isDesktop) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: FieldLabel(
+                  label: context.isArabic
+                      ? 'الوصف (ماركداون وقوائم)'
+                      : 'DESCRIPTION (MARKDOWN & LISTS)',
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: InkWell(
+                  onTap: onTogglePreview,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: previewMode
+                          ? AxisColors.secondary.withValues(alpha: 0.25)
+                          : AxisColors.surfaceHigh.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: previewMode
+                            ? AxisColors.secondary
+                            : AxisColors.borderSubtle,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          previewMode
+                              ? Icons.edit_note_rounded
+                              : Icons.visibility_outlined,
+                          size: 14,
+                          color: previewMode
+                              ? AxisColors.secondary
+                              : AxisColors.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          previewMode
+                              ? (context.isArabic ? 'تعديل' : 'Edit')
+                              : (context.isArabic ? 'معاينة' : 'Preview'),
+                          style: TextStyle(
+                            color: previewMode
+                                ? AxisColors.secondary
+                                : AxisColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (!previewMode) ...[
+            NoteFormatToolbar(
+              controller: controller,
+              focusNode: focusNode,
+              onChanged: onChanged,
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AxisColors.surfaceHigh.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AxisColors.borderSubtle, width: 1),
+                ),
+                child: AutoDirectionScope(
+                  controller: controller,
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    autofocus: false,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    inputFormatters: const [
+                      MarkdownListTextInputFormatter(),
+                    ],
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AxisColors.textHigh,
+                          height: 1.5,
+                        ),
+                    cursorColor: AxisColors.primary,
+                    decoration: InputDecoration(
+                      hintText: context.isArabic
+                          ? 'أضف ملاحظات بصيغة ماركداون، قوائم (- أو 1.)، مربعات اختيار (- [ ])، روابط...'
+                          : 'Add markdown formatted notes, lists (- or 1.), checklists (- [ ]), links...',
+                      hintStyle: const TextStyle(color: AxisColors.textDim, fontSize: 13),
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ] else ...[
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AxisColors.surfaceHigh.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AxisColors.secondary.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: controller.text.trim().isEmpty
+                    ? Center(
+                        child: Text(
+                          context.isArabic
+                              ? 'لا توجد معاينة بعد. انتقل إلى التعديل لكتابة الملاحظات.'
+                              : 'Nothing to preview yet. Switch to Edit to write markdown notes.',
+                          style: const TextStyle(
+                            color: AxisColors.textDim,
+                            fontStyle: FontStyle.italic,
+                            fontSize: 13,
+                          ),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        child: AxisMarkdownViewer(
+                          markdown: controller.text,
+                          onMarkdownChanged: (updatedDesc) {
+                            controller.text = updatedDesc;
+                            onChanged();
+                          },
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

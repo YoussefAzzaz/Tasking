@@ -82,7 +82,7 @@ class DesktopTodayScheduleCard extends StatelessWidget {
                         final tasks = taskSnap.data ?? [];
                         final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
                         final todayTasks = tasks
-                            .where((t) => !t.isCompleted && (t.dueDate == todayStr || t.dueTime != null))
+                            .where((t) => !t.isCompleted && t.dueDate == todayStr)
                             .take(3)
                             .toList();
 

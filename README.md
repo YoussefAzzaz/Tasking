@@ -286,6 +286,9 @@ flutter build macos --release
 
 # Linux Release:
 flutter build linux --release
+
+# Register Linux desktop launcher & system icon (Ubuntu / GNOME / FreeDesktop):
+./linux/install.sh
 ```
 
 ---

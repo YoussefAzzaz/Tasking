@@ -127,8 +127,7 @@ void main() {
 
       // 7. Mastery Badges Card
       expect(find.text('أوسمة إتقان المشغل'), findsOneWidget);
-      expect(find.text('معرض الجوائز'), findsOneWidget);
-      expect(find.text('فتح الشارات ↗'), findsOneWidget);
+      expect(find.text('المعرض ↗'), findsOneWidget);
     });
   });
 }

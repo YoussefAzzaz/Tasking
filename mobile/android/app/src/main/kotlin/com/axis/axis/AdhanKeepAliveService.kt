@@ -99,15 +99,8 @@ class AdhanKeepAliveService : Service() {
             prayerNameAr: String?,
             prayerTime: String?,
         ) {
-            // Briefly acquire a partial wake lock so CPU remains awake while Flutter & screen render.
-            try {
-                val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-                val wakeLock = pm?.newWakeLock(
-                    PowerManager.PARTIAL_WAKE_LOCK,
-                    "axis:adhan_wakeup_lock",
-                )
-                wakeLock?.acquire(15_000L)
-            } catch (_: Exception) {}
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val isScreenOn = pm?.isInteractive ?: false
 
             val launchIntent = buildMainActivityAdhanIntent(
                 context,
@@ -126,7 +119,7 @@ class AdhanKeepAliveService : Service() {
                 pendingFlags,
             )
 
-            // Post a silent high-priority full-screen intent notification as an OS guarantee for lock screens.
+            // Post notification
             try {
                 val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                 if (nm != null) {
@@ -138,7 +131,7 @@ class AdhanKeepAliveService : Service() {
                             "Adhan Screen Wakeup",
                             NotificationManager.IMPORTANCE_HIGH,
                         ).apply {
-                            description = "Wakes and opens the full-screen Adhan screen at prayer time"
+                            description = "Adhan notification at prayer time"
                             setSound(null, null)
                             enableVibration(false)
                             setShowBadge(false)
@@ -154,32 +147,46 @@ class AdhanKeepAliveService : Service() {
                         "Time for prayer"
                     }
 
-                    val notif = NotificationCompat.Builder(context, WAKEUP_CHANNEL_ID)
+                    val notifBuilder = NotificationCompat.Builder(context, WAKEUP_CHANNEL_ID)
                         .setSmallIcon(R.mipmap.ic_launcher)
                         .setContentTitle(title)
                         .setContentText(body)
                         .setPriority(NotificationCompat.PRIORITY_MAX)
                         .setCategory(NotificationCompat.CATEGORY_ALARM)
                         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                        .setOngoing(true)
+                        .setOngoing(false)
                         .setAutoCancel(true)
                         .setSilent(true)
-                        .setFullScreenIntent(fullScreenPendingIntent, true)
                         .setContentIntent(fullScreenPendingIntent)
-                        .build()
 
-                    nm.notify(WAKEUP_NOTIFICATION_ID, notif)
+                    // If phone is ON (screen interactive), fullScreenIntent can also be attached.
+                    // If phone is OFF, do NOT set fullScreenIntent so screen does not wake into the activity!
+                    if (isScreenOn) {
+                        notifBuilder.setFullScreenIntent(fullScreenPendingIntent, true)
+                    }
+
+                    nm.notify(WAKEUP_NOTIFICATION_ID, notifBuilder.build())
                 }
             } catch (_: Exception) {}
 
-            // Directly launch / bring MainActivity forward as well (works immediately when unlocked
-            // or when Display Over Other Apps / alarm exemption applies).
-            try {
-                context.startActivity(launchIntent)
-            } catch (_: Exception) {
+            // When the phone is ON (screen is interactive): bring MainActivity forward to show adhan screen with sound!
+            // When the phone is OFF: do NOT launch activity, notification only.
+            if (isScreenOn) {
                 try {
-                    fullScreenPendingIntent.send()
+                    val wakeLock = pm?.newWakeLock(
+                        PowerManager.PARTIAL_WAKE_LOCK,
+                        "axis:adhan_wakeup_lock",
+                    )
+                    wakeLock?.acquire(15_000L)
                 } catch (_: Exception) {}
+
+                try {
+                    context.startActivity(launchIntent)
+                } catch (_: Exception) {
+                    try {
+                        fullScreenPendingIntent.send()
+                    } catch (_: Exception) {}
+                }
             }
         }
     }

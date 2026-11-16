@@ -41,12 +41,15 @@ class PrayerCompletionHandler {
     required String prayerId,
     required bool isDone,
     String? userId,
+    String? date,
   }) async {
     if (!_ready) return;
     final uid = userId ?? currentUserId;
     final now = DateTime.now();
     final nowUtc = now.toUtc().toIso8601String();
-    final today = DateFormat('yyyy-MM-dd').format(now);
+    final actualToday = DateFormat('yyyy-MM-dd').format(now);
+    final today = date ?? actualToday;
+    final isTargetToday = today == actualToday;
 
     final code = extractPrayerCode(prayerId);
     final canonicalId = PrayerRepository.prayerIdForCode(code, uid);
@@ -82,20 +85,22 @@ class PrayerCompletionHandler {
           defaultPrayer.icon,
           defaultPrayer.time,
           defaultPrayer.sortOrder,
-          isDone ? 1 : 0,
+          (isDone && isTargetToday) ? 1 : 0,
           nowUtc,
           nowUtc,
         ]);
       }
 
-      // 2. Update completion state across all matching rows for this prayer code
-      await _db.execute('''
-        UPDATE prayers SET
-          is_done = ?,
-          user_id = CASE WHEN user_id IS NULL OR user_id = '' OR user_id = 'local_guest' THEN ? ELSE user_id END,
-          updated_at = ?
-        WHERE id = ? OR (prayer_code = ? AND (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest'))
-      ''', [isDone ? 1 : 0, uid, nowUtc, canonicalId, code, uid]);
+      // 2. Update completion state across all matching rows for this prayer code ONLY if target date is today
+      if (isTargetToday) {
+        await _db.execute('''
+          UPDATE prayers SET
+            is_done = ?,
+            user_id = CASE WHEN user_id IS NULL OR user_id = '' OR user_id = 'local_guest' THEN ? ELSE user_id END,
+            updated_at = ?
+          WHERE id = ? OR (prayer_code = ? AND (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest'))
+        ''', [isDone ? 1 : 0, uid, nowUtc, canonicalId, code, uid]);
+      }
 
       // 3. Purge obsolete non-canonical orphan duplicate rows for this code
       if (uid.isNotEmpty) {
@@ -146,11 +151,13 @@ class PrayerCompletionHandler {
         await _db.execute(deleteQuery, deleteParams);
       }
 
-      // 5. Directly update daily_prayer_status in DailyPrayerStatusRepository for instant atomic sync
-      await DailyPrayerStatusRepository().updateSinglePrayerStatus(code, isDone);
+      // 5. Directly update daily_prayer_status in DailyPrayerStatusRepository for instant atomic sync if target is today
+      if (isTargetToday) {
+        await DailyPrayerStatusRepository().updateSinglePrayerStatus(code, isDone);
 
-      // 6. Cancel or reschedule today's Adhan/Fajr notification immediately
-      await AdhanAlarmService().onPrayerCompletedToday(code, isDone: isDone);
+        // 6. Cancel or reschedule today's Adhan/Fajr notification immediately
+        await AdhanAlarmService().onPrayerCompletedToday(code, isDone: isDone);
+      }
 
       StatsRepository().invalidateStats();
       await syncGlobalUserLevel();

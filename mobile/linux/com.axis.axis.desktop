@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Axis
+GenericName=Productivity Cockpit
+Comment=Next-generation personal productivity cockpit, task matrix, and habit tracker
+Exec=/home/mizouni/Documents/Tasking/mobile/build/linux/x64/release/bundle/axis
+Icon=com.axis.axis
+Terminal=false
+Categories=Office;ProjectManagement;
+Keywords=Task;Todo;Axis;Productivity;Habits;Calendar;Cockpit;
+StartupWMClass=com.axis.axis
+StartupNotify=true

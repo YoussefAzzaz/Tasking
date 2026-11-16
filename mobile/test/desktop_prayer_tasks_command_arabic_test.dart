@@ -330,7 +330,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text("معاينة المهمة // مسار اليوم"), findsOneWidget);
-      expect(find.text('تعديل'), findsOneWidget);
+      expect(find.text('تعديل'), findsNWidgets(2));
       expect(find.text('إغلاق'), findsOneWidget);
       expect(find.text('إكمال المهمة'), findsOneWidget);
       expect(find.text('قيد التنفيذ'), findsOneWidget);

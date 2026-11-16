@@ -134,6 +134,36 @@ abstract final class CalendarScheduler {
     return snapped.clamp(minTaskDurationMin, maxTaskDurationMin);
   }
 
+  /// Snaps minutes since midnight to [stepMinutes] (default 15m), clamped to valid day bounds.
+  static int snapTimeToGrid(int minutes, [int stepMinutes = 15]) {
+    final snapped = (minutes / stepMinutes).round() * stepMinutes;
+    return snapped.clamp(0, 24 * 60 - minTaskDurationMin);
+  }
+
+  /// Returns the default start minute for a new task created today.
+  ///
+  /// Placed after the current time (+30 minutes), snapped to the next 15-minute mark.
+  /// For example, if created at 15:00 (3:00 PM), returns 930 (15:30 / 3:30 PM).
+  static int defaultTodayTaskStartMinute([DateTime? referenceTime]) {
+    final now = referenceTime ?? DateTime.now();
+    final nowMinutes = now.hour * 60 + now.minute;
+    var target = nowMinutes + 30;
+    final remainder = target % 15;
+    if (remainder != 0) {
+      target += (15 - remainder);
+    }
+    // If it's early morning before the day starts (before 08:00), default to 08:00
+    if (target < defaultDayStartMinutes) {
+      target = defaultDayStartMinutes;
+    }
+    return target.clamp(0, 23 * 60 + 45);
+  }
+
+  /// Formats the default time string (`HH:mm`) for a new task created today.
+  static String defaultTodayTaskTimeString([DateTime? referenceTime]) {
+    return formatMinutes(defaultTodayTaskStartMinute(referenceTime));
+  }
+
   /// Returns standard minutes from midnight for canonical prayer codes.
   static int defaultPrayerMinutesForCode(String code) {
     return switch (code.toLowerCase().trim()) {
@@ -247,6 +277,7 @@ abstract final class CalendarScheduler {
     required List<CalendarHabitBlock> habitBlocks,
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
+    DateTime? referenceTime,
   }) {
     final blockedIntervals = <({int start, int end})>[
       for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
@@ -256,11 +287,20 @@ abstract final class CalendarScheduler {
     final active = orderedTasks.where((t) => !t.isCompleted).toList();
     final packed = <Task>[];
 
-    var cursor = dayStartMin.clamp(0, 24 * 60 - minTaskDurationMin);
+    final now = referenceTime ?? DateTime.now();
+    final isToday = dateStr == formatDate(now);
+    final defaultStart = isToday ? defaultTodayTaskStartMinute(now) : dayStartMin;
+
+    var cursor = defaultStart.clamp(0, 24 * 60 - minTaskDurationMin);
 
     for (final task in active) {
       final duration = sanitizeDuration(task.estimateMin);
-      var slotStart = cursor;
+      final explicitTime = parseTimeToMinutes(task.dueTime);
+
+      var slotStart = explicitTime ?? cursor;
+      if (slotStart < cursor) {
+        slotStart = cursor;
+      }
 
       var adjusted = true;
       while (adjusted) {
@@ -287,7 +327,9 @@ abstract final class CalendarScheduler {
       );
 
       final nextCursor = clampedStart + duration;
-      cursor = nextCursor.clamp(0, 24 * 60 - minTaskDurationMin);
+      if (nextCursor > cursor) {
+        cursor = nextCursor.clamp(0, 24 * 60 - minTaskDurationMin);
+      }
     }
 
     return packed;
@@ -301,8 +343,11 @@ abstract final class CalendarScheduler {
     required List<CalendarHabitBlock> habitBlocks,
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
+    DateTime? referenceTime,
   }) {
     final active = dayTasks.where((t) => !t.isCompleted).toList();
+    final now = referenceTime ?? DateTime.now();
+    final isToday = dateStr == formatDate(now);
     final indexed = active.asMap().entries.toList();
 
     indexed.sort((a, b) {
@@ -321,21 +366,26 @@ abstract final class CalendarScheduler {
       return a.key.compareTo(b.key);
     });
 
+    final effectiveStart = isToday ? defaultTodayTaskStartMinute(now) : dayStartMin;
+
     return packTasksForDay(
       dateStr: dateStr,
       orderedTasks: indexed.map((e) => e.value).toList(),
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
-      dayStartMin: dayStartMin,
+      dayStartMin: effectiveStart,
+      referenceTime: referenceTime,
     );
   }
 
   /// Reorders [movedTaskId] within the SAME day ([dateStr]) based on
-  /// [targetDropMinute], WITHOUT priority re-sorting.
-  ///
-  /// Treats the move as reordering the day's task list (e.g., dragging a P3
-  /// task to the top puts it first in the morning), while still keeping every
-  /// task clear of [habitBlocks] and [prayerBlocks].
+  /// [targetDropMinute] using priority-aware forward collision resolution:
+  /// - If target slot is occupied and incoming task has strictly higher priority
+  ///   (e.g. P1 vs P2), incoming task takes the slot and the existing task moves
+  ///   to the next empty space.
+  /// - If priority is equal or lower, the existing task stays in its place and the
+  ///   moved task moves to the next empty space.
+  /// - Empty space before [targetDropMinute] is never used.
   static List<Task> reorderTaskWithinSameDay({
     required String dateStr,
     required List<Task> currentDayTasks,
@@ -344,6 +394,7 @@ abstract final class CalendarScheduler {
     required List<CalendarHabitBlock> habitBlocks,
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
+    DateTime? referenceTime,
   }) {
     final active = currentDayTasks.where((t) => !t.isCompleted).toList();
     final movedIndex = active.indexWhere((t) => t.id == movedTaskId);
@@ -354,56 +405,157 @@ abstract final class CalendarScheduler {
         habitBlocks: habitBlocks,
         prayerBlocks: prayerBlocks,
         dayStartMin: dayStartMin,
+        referenceTime: referenceTime,
       );
     }
 
-    // Order current day tasks by their current scheduled dueTime (or input order).
-    final orderedCurrent = _orderByScheduledTime(active);
-    final originalMovedIdx =
-        orderedCurrent.indexWhere((t) => t.id == movedTaskId);
-    final movedTask = orderedCurrent[originalMovedIdx];
-    final remaining = <Task>[];
-    final wasBeforeMoved = <bool>[];
-    for (var i = 0; i < orderedCurrent.length; i++) {
-      if (i == originalMovedIdx) continue;
-      remaining.add(orderedCurrent[i]);
-      wasBeforeMoved.add(i < originalMovedIdx);
-    }
+    final movedTask = active[movedIndex];
+    final remaining = active.where((t) => t.id != movedTaskId).toList();
+    final targetMin = snapTimeToGrid(targetDropMinute, 5);
 
-    // Ensure remaining tasks have concrete time slots for accurate drop lookup.
-    final packedRemaining = packTasksForDay(
+    return resolveCollisionPlacement(
       dateStr: dateStr,
-      orderedTasks: remaining,
+      existingDayTasks: remaining,
+      incomingTask: movedTask,
+      targetStartMinute: targetMin,
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
       dayStartMin: dayStartMin,
+      minGapMinutes: 1,
     );
+  }
 
-    var insertIdx = packedRemaining.length;
-    for (var i = 0; i < packedRemaining.length; i++) {
-      final t = packedRemaining[i];
-      final start = parseTimeToMinutes(t.dueTime) ?? dayStartMin;
-      final duration = sanitizeDuration(t.estimateMin);
-      final end = start + duration;
-      final shouldInsertBefore = wasBeforeMoved[i]
-          ? targetDropMinute < end
-          : targetDropMinute <= start;
-      if (shouldInsertBefore) {
-        insertIdx = i;
-        break;
+  /// Resolves task placement on [dateStr] starting from [targetStartMinute]
+  /// using the calendar collision rules:
+  /// 1. Searches strictly forward: never moves any task into empty space before [targetStartMinute].
+  /// 2. If slot is occupied by a conflicting task:
+  ///    - Priority matters before creation time:
+  ///      If incoming task has higher priority (P1 vs P2):
+  ///      Incoming task takes the slot; conflicting task moves to the next empty space.
+  ///      If that next space is filled, recall the collision function with the same principle.
+  ///    - If priority is the same or incoming has lower priority:
+  ///      The existing task stays in its place, and the incoming task moves to the next
+  ///      empty space. If that next space is filled, recall the collision function with the same principle.
+  /// 3. Skips over any blocked habit or prayer intervals.
+  static List<Task> resolveCollisionPlacement({
+    required String dateStr,
+    required List<Task> existingDayTasks,
+    required Task incomingTask,
+    required int targetStartMinute,
+    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarPrayerBlock> prayerBlocks = const [],
+    int dayStartMin = defaultDayStartMinutes,
+    int minGapMinutes = 0,
+  }) {
+    final blockedIntervals = <({int start, int end})>[
+      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
+      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
+    ]..sort((a, b) => a.start.compareTo(b.start));
+
+    final tasksMap = <String, Task>{
+      for (final t in existingDayTasks)
+        if (!t.isCompleted && t.id != incomingTask.id && t.dueTime != null && t.dueTime!.trim().isNotEmpty)
+          t.id: t,
+    };
+
+    int skipBlocked(int startMin, int duration) {
+      var cur = startMin;
+      var adjusted = true;
+      while (adjusted && cur < 24 * 60 - minTaskDurationMin) {
+        adjusted = false;
+        final slotEnd = cur + duration;
+        for (final block in blockedIntervals) {
+          if (cur < block.end && slotEnd > block.start) {
+            if (block.end > cur && block.end < 24 * 60 - minTaskDurationMin) {
+              cur = block.end;
+              adjusted = true;
+              break;
+            }
+          }
+        }
       }
+      return cur;
     }
 
-    final reordered = [...remaining];
-    reordered.insert(insertIdx.clamp(0, reordered.length), movedTask);
+    void placeTask(Task task, int requestedMin) {
+      final duration = sanitizeDuration(task.estimateMin);
+      var cur = skipBlocked(requestedMin, duration);
 
-    return packTasksForDay(
-      dateStr: dateStr,
-      orderedTasks: reordered,
-      habitBlocks: habitBlocks,
-      prayerBlocks: prayerBlocks,
-      dayStartMin: dayStartMin,
-    );
+      while (cur < 24 * 60 - minTaskDurationMin) {
+        cur = skipBlocked(cur, duration);
+        final slotEnd = cur + duration;
+
+        Task? conflicting;
+        int? confEnd;
+
+        for (final other in tasksMap.values) {
+          if (other.id == task.id) continue;
+          final oStart = parseTimeToMinutes(other.dueTime);
+          if (oStart == null) continue;
+          final oDuration = sanitizeDuration(other.estimateMin);
+          final oEnd = oStart + oDuration;
+
+          // Check if intervals overlap
+          if (cur < oEnd && slotEnd > oStart) {
+            conflicting = other;
+            confEnd = oEnd;
+            break;
+          }
+        }
+
+        if (conflicting == null) {
+          // No collision! Place task at cur
+          tasksMap[task.id] = task.copyWith(
+            dueDate: dateStr,
+            dueTime: formatMinutes(cur.clamp(0, 24 * 60 - minTaskDurationMin)),
+            estimateMin: duration,
+          );
+          return;
+        }
+
+        final taskRank = priorityRank(task.priority);
+        final confRank = priorityRank(conflicting.priority);
+
+        if (taskRank < confRank) {
+          // Task has strictly higher priority (e.g. P1 vs P2):
+          // Task takes slot 'cur', and conflicting is displaced forward to next empty space!
+          tasksMap[task.id] = task.copyWith(
+            dueDate: dateStr,
+            dueTime: formatMinutes(cur.clamp(0, 24 * 60 - minTaskDurationMin)),
+            estimateMin: duration,
+          );
+          tasksMap.remove(conflicting.id);
+          final nextMin = cur + duration + minGapMinutes;
+          placeTask(conflicting, nextMin);
+          return;
+        } else {
+          // Conflicting has equal or higher priority:
+          // Conflicting stays in place; task moves to next space after conflicting:
+          final nextMin = confEnd! + minGapMinutes;
+          cur = nextMin;
+        }
+      }
+
+      tasksMap[task.id] = task.copyWith(
+        dueDate: dateStr,
+        dueTime: formatMinutes(cur.clamp(0, 24 * 60 - minTaskDurationMin)),
+        estimateMin: duration,
+      );
+    }
+
+    placeTask(incomingTask, targetStartMinute);
+
+    final allTasks = tasksMap.values.toList();
+    allTasks.sort((a, b) {
+      final timeA = parseTimeToMinutes(a.dueTime) ?? dayStartMin;
+      final timeB = parseTimeToMinutes(b.dueTime) ?? dayStartMin;
+      if (timeA != timeB) return timeA.compareTo(timeB);
+      final rA = priorityRank(a.priority);
+      final rB = priorityRank(b.priority);
+      if (rA != rB) return rA.compareTo(rB);
+      return a.id.compareTo(b.id);
+    });
+    return allTasks;
   }
 
   /// Moves [movedTaskId] from its current day to [targetDateStr] and
@@ -418,6 +570,8 @@ abstract final class CalendarScheduler {
     required List<CalendarHabitBlock> habitBlocks,
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
+    int? targetDropMinute,
+    DateTime? referenceTime,
   }) {
     final movedIdx = allTasks.indexWhere((t) => t.id == movedTaskId);
     if (movedIdx < 0) return const [];
@@ -427,14 +581,15 @@ abstract final class CalendarScheduler {
 
     final updatedMoved = movedTask.copyWith(
       dueDate: targetDateStr,
-      clearDueTime: true,
+      dueTime: targetDropMinute != null ? formatMinutes(targetDropMinute) : null,
+      clearDueTime: targetDropMinute == null,
       estimateMin: sanitizeDuration(movedTask.estimateMin),
     );
 
     final targetDayTasks = <Task>[
       for (final t in allTasks)
         if (t.id != movedTaskId && t.dueDate == targetDateStr && !t.isCompleted)
-          t,
+          t.copyWith(clearDueTime: targetDropMinute == null),
       if (!updatedMoved.isCompleted) updatedMoved,
     ];
 
@@ -444,6 +599,7 @@ abstract final class CalendarScheduler {
       habitBlocks: habitBlocks,
       prayerBlocks: prayerBlocks,
       dayStartMin: dayStartMin,
+      referenceTime: referenceTime,
     );
 
     if (sourceDateStr != null &&
@@ -462,6 +618,7 @@ abstract final class CalendarScheduler {
         habitBlocks: habitBlocks,
         prayerBlocks: prayerBlocks,
         dayStartMin: dayStartMin,
+        referenceTime: referenceTime,
       );
       return [...packedTarget, ...packedSource];
     }
@@ -502,6 +659,162 @@ abstract final class CalendarScheduler {
   /// list order for ties or unscheduled tasks).
   static List<Task> orderByCurrentSchedule(List<Task> tasks) {
     return _orderByScheduledTime(tasks);
+  }
+
+  /// Auto-schedules [newTask] on [dateStr] respecting priority and existing tasks:
+  ///
+  /// Rules:
+  /// 1. Reordering only happens for the newly created task (and directly conflicting
+  ///    lower-priority tasks pushed down), never reordering non-conflicting existing tasks.
+  /// 2. If [newTask] has an explicit [dueTime], it is placed at that time without reordering
+  ///    earlier or non-conflicting tasks.
+  /// 3. If [newTask] is created without a due time:
+  ///    - Baseline time is `defaultTodayTaskStartMinute(referenceTime)` for today,
+  ///      or [dayStartMin] (08:00) for other days.
+  ///    - If an existing task of equal or higher priority occupies the slot (e.g. existing P1 vs new P1),
+  ///      the newly created task is placed after the existing task.
+  ///    - If an existing task has lower priority (e.g. existing P2 at 08:00 vs new P1 at 08:00),
+  ///      the new task takes 08:00 and the P2 task is moved down after the P1 task.
+  ///    - If there is a P2 task at 09:00 and a P1 task is created at 10:00, the P2 task is
+  ///      NOT reordered after the P1 task.
+  /// 4. If any task is deleted, remaining tasks are left as they are.
+  static List<Task> scheduleNewTaskForDay({
+    required String dateStr,
+    required List<Task> existingDayTasks,
+    required Task newTask,
+    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarPrayerBlock> prayerBlocks = const [],
+    int dayStartMin = defaultDayStartMinutes,
+    DateTime? referenceTime,
+  }) {
+    final blockedIntervals = <({int start, int end})>[
+      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
+      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
+    ]..sort((a, b) => a.start.compareTo(b.start));
+
+    // Active existing tasks on this date (excluding newTask):
+    final activeExisting = existingDayTasks
+        .where((t) => !t.isCompleted && t.id != newTask.id)
+        .toList();
+
+    // Map by ID for easy lookup and in-place updates, normalizing any task lacking dueTime:
+    final tasksMap = <String, Task>{};
+    var normCursor = dayStartMin;
+    for (final t in activeExisting) {
+      if (t.dueTime != null && t.dueTime!.trim().isNotEmpty) {
+        tasksMap[t.id] = t;
+      } else {
+        while (blockedIntervals.any((b) => normCursor < b.end && (normCursor + sanitizeDuration(t.estimateMin)) > b.start)) {
+          normCursor += 15;
+        }
+        final normalized = t.copyWith(dueTime: formatMinutes(normCursor));
+        tasksMap[t.id] = normalized;
+        normCursor += sanitizeDuration(t.estimateMin);
+      }
+    }
+
+    final now = referenceTime ?? DateTime.now();
+    final isToday = dateStr == formatDate(now);
+    final explicitMin = parseTimeToMinutes(newTask.dueTime);
+    final candidateStart = explicitMin != null
+        ? snapTimeToGrid(explicitMin, 5)
+        : (isToday ? defaultTodayTaskStartMinute(now) : dayStartMin);
+
+    return resolveCollisionPlacement(
+      dateStr: dateStr,
+      existingDayTasks: tasksMap.values.toList(),
+      incomingTask: newTask,
+      targetStartMinute: candidateStart,
+      habitBlocks: habitBlocks,
+      prayerBlocks: prayerBlocks,
+      dayStartMin: dayStartMin,
+    );
+  }
+
+  /// Packs any unscheduled tasks into open slots on [dateStr] while keeping
+  /// all tasks with existing `dueTime` at their exact slots without reordering.
+  static List<Task> packTasksPreservingExplicitTimes({
+    required String dateStr,
+    required List<Task> dayTasks,
+    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarPrayerBlock> prayerBlocks = const [],
+    int dayStartMin = defaultDayStartMinutes,
+    DateTime? referenceTime,
+  }) {
+    final active = dayTasks.where((t) => !t.isCompleted).toList();
+    if (active.isEmpty) return const [];
+
+    final blockedIntervals = <({int start, int end})>[
+      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
+      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
+    ]..sort((a, b) => a.start.compareTo(b.start));
+
+    final now = referenceTime ?? DateTime.now();
+    final isToday = dateStr == formatDate(now);
+    final baseline = isToday ? defaultTodayTaskStartMinute(now) : dayStartMin;
+
+    final result = <Task>[];
+    final scheduled = active.where((t) => t.dueTime != null && t.dueTime!.trim().isNotEmpty).toList();
+    final unscheduled = active.where((t) => t.dueTime == null || t.dueTime!.trim().isEmpty).toList();
+
+    unscheduled.sort((a, b) {
+      final rA = priorityRank(a.priority);
+      final rB = priorityRank(b.priority);
+      if (rA != rB) return rA.compareTo(rB);
+      return a.id.compareTo(b.id);
+    });
+
+    result.addAll(scheduled);
+
+    var cursor = baseline;
+    for (final task in unscheduled) {
+      final duration = sanitizeDuration(task.estimateMin);
+      var placed = false;
+      while (!placed && cursor < 24 * 60 - minTaskDurationMin) {
+        var hitBlock = false;
+        for (final block in blockedIntervals) {
+          if (cursor < block.end && (cursor + duration) > block.start) {
+            cursor = block.end;
+            hitBlock = true;
+            break;
+          }
+        }
+        if (hitBlock) continue;
+
+        var hitTask = false;
+        for (final s in result) {
+          final sStart = parseTimeToMinutes(s.dueTime) ?? dayStartMin;
+          final sEnd = sStart + sanitizeDuration(s.estimateMin);
+          if (cursor < sEnd && (cursor + duration) > sStart) {
+            cursor = sEnd;
+            hitTask = true;
+            break;
+          }
+        }
+        if (hitTask) continue;
+
+        placed = true;
+      }
+
+      result.add(task.copyWith(
+        dueDate: dateStr,
+        dueTime: formatMinutes(cursor.clamp(0, 24 * 60 - minTaskDurationMin)),
+        estimateMin: duration,
+      ));
+      cursor += duration;
+    }
+
+    result.sort((a, b) {
+      final timeA = parseTimeToMinutes(a.dueTime) ?? dayStartMin;
+      final timeB = parseTimeToMinutes(b.dueTime) ?? dayStartMin;
+      if (timeA != timeB) return timeA.compareTo(timeB);
+      final rA = priorityRank(a.priority);
+      final rB = priorityRank(b.priority);
+      if (rA != rB) return rA.compareTo(rB);
+      return a.id.compareTo(b.id);
+    });
+
+    return result;
   }
 
   static List<Task> _orderByScheduledTime(List<Task> tasks) {

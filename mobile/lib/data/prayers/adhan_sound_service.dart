@@ -73,13 +73,24 @@ class AdhanSoundService {
   /// Canonical curated famous Adhan list
   static final List<AdhanSoundOption> kFamousAdhans = [
     const AdhanSoundOption(
+      id: 'alafasy',
+      name: 'Sheikh Mishary Rashid Alafasy',
+      nameAr: 'الشيخ مشاري راشد العفاسي',
+      muadhin: 'Mishary Rashid Alafasy (Maqam Hijaz)',
+      muadhinAr: 'مشاري راشد العفاسي (مقام الحجاز)',
+      description: 'Heart-soothing authentic full Adhan in Maqam Hijaz',
+      descriptionAr: 'أذان كامل عذب ومرتل بمقام الحجاز محبب لقلوب الملايين',
+      assetPath: 'assets/audio/adhan_alafasy.mp3',
+      isBundled: true,
+    ),
+    const AdhanSoundOption(
       id: 'makkah',
       name: 'Makkah Al-Mukarramah',
       nameAr: 'أذان مكة المكرمة (الحرم المكي)',
       muadhin: 'Sheikh Ali Mulla / Sheikh Yunus Khoja',
       muadhinAr: 'الشيخ علي ملا / الشيخ يونس خوجة',
-      description: 'Canonical & timeless Grand Mosque Adhan (Takbeerat)',
-      descriptionAr: 'تكبيرات الأذان الشرعي والتاريخي للمسجد الحرام بمكة المكرمة',
+      description: 'Canonical & timeless Grand Mosque Adhan',
+      descriptionAr: 'الأذان الشرعي والتاريخي للمسجد الحرام بمكة المكرمة',
       assetPath: 'assets/audio/adhan_makkah.mp3',
       isBundled: true,
     ),
@@ -89,20 +100,9 @@ class AdhanSoundService {
       nameAr: 'أذان المدينة المنورة (المسجد النبوي)',
       muadhin: 'Sheikh Abdul Majeed Al-Surayhi',
       muadhinAr: 'الشيخ عبد المجيد السريحي',
-      description: 'Serene and spiritual Prophet’s Mosque Adhan (Takbeerat)',
-      descriptionAr: 'تكبيرات أذان المسجد النبوي الشريف بروحانية وسكينة عالية',
+      description: 'Serene and spiritual Prophet’s Mosque Adhan',
+      descriptionAr: 'أذان المسجد النبوي الشريف بروحانية وسكينة عالية',
       assetPath: 'assets/audio/adhan_madinah.mp3',
-      isBundled: true,
-    ),
-    const AdhanSoundOption(
-      id: 'alafasy',
-      name: 'Sheikh Mishary Rashid Alafasy',
-      nameAr: 'الشيخ مشاري راشد العفاسي',
-      muadhin: 'Mishary Rashid Alafasy (Maqam Hijaz)',
-      muadhinAr: 'مشاري راشد العفاسي (مقام الحجاز)',
-      description: 'Melodic, heart-soothing Hijazi Adhan (Takbeerat)',
-      descriptionAr: 'تكبيرات أذان عذب ومرتل بمقام الحجاز محبب لقلوب الملايين',
-      assetPath: 'assets/audio/adhan_alafasy.mp3',
       isBundled: true,
     ),
     const AdhanSoundOption(
@@ -111,7 +111,7 @@ class AdhanSoundService {
       nameAr: 'الشيخ عبد الباسط عبد الصمد',
       muadhin: 'Abdul Basit (Historic Egyptian Maqam)',
       muadhinAr: 'أسطورة التلاوة عبد الباسط عبد الصمد',
-      description: 'Golden era resonant historic masterpiece (Takbeerat)',
+      description: 'Golden era resonant historic masterpiece',
       descriptionAr: 'تحفة صوتية تاريخية من العصر الذهبي للقراء بمصر',
       remoteUrl: 'https://archive.org/download/4-9-13MakkahDuhurAdhanSheikhYunusKhoja/4-9-13MakkahDuhurAdhanSheikhYunusKhoja.mp3',
       isBundled: false,
@@ -122,7 +122,7 @@ class AdhanSoundService {
       nameAr: 'أذان المسجد الأقصى المبارك (القدس)',
       muadhin: 'Mu’adhin of Blessed Al-Aqsa',
       muadhinAr: 'مؤذنو المسجد الأقصى الشريف',
-      description: 'Historic Adhan echoing from the holy city (Takbeerat)',
+      description: 'Historic Adhan echoing from the holy city',
       descriptionAr: 'أذان مهيب يصدح من رحاب المسجد الأقصى المبارك',
       remoteUrl: 'https://archive.org/download/February12012MaghribAdhaan/SheikhFayda_Maghrib_2-1-12.mp3',
       isBundled: false,
@@ -280,7 +280,7 @@ class AdhanSoundService {
       } else if (sound.remoteUrl != null) {
         source = UrlSource(sound.remoteUrl!);
       } else {
-        source = AssetSource('audio/adhan_makkah.mp3');
+        source = AssetSource('audio/adhan_alafasy.mp3');
       }
 
       await _previewPlayer!.stop();
@@ -380,7 +380,7 @@ class AdhanSoundService {
       final clean = sound.assetPath!.replaceFirst('assets/', '');
       return AssetSource(clean);
     }
-    return AssetSource('audio/adhan_makkah.mp3');
+    return AssetSource('audio/adhan_alafasy.mp3');
   }
 
   /// Pure Dart MPEG frame slicer to truncate MP3 audio cleanly at frame boundaries

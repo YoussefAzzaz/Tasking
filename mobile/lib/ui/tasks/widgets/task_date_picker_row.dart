@@ -15,6 +15,9 @@ class TaskDatePickerRow extends StatelessWidget {
     required this.onClearDuration,
     required this.onSelectEstimateMin,
     required this.onSelectQuickDate,
+    this.selectedTime,
+    this.onPickTime,
+    this.onClearTime,
   });
 
   final DateTime? selectedDate;
@@ -25,6 +28,9 @@ class TaskDatePickerRow extends StatelessWidget {
   final VoidCallback onClearDuration;
   final ValueChanged<int> onSelectEstimateMin;
   final ValueChanged<DateTime> onSelectQuickDate;
+  final TimeOfDay? selectedTime;
+  final VoidCallback? onPickTime;
+  final VoidCallback? onClearTime;
 
   @override
   Widget build(BuildContext context) {
@@ -229,36 +235,86 @@ class TaskDatePickerRow extends StatelessWidget {
         const SizedBox(height: 8),
 
         // Quick Date Chips
-        Row(
-          children: [
-            QuickDateChip(
-              label: context.isArabic ? 'اليوم' : 'Today',
-              isSelected: selectedDate != null &&
-                  selectedDate!.year == now.year &&
-                  selectedDate!.month == now.month &&
-                  selectedDate!.day == now.day,
-              onTap: () => onSelectQuickDate(now),
-            ),
-            const SizedBox(width: 6),
-            QuickDateChip(
-              label: context.isArabic ? 'غداً' : 'Tomorrow',
-              isSelected: () {
-                if (selectedDate == null) return false;
-                final tmr = now.add(const Duration(days: 1));
-                return selectedDate!.year == tmr.year &&
-                    selectedDate!.month == tmr.month &&
-                    selectedDate!.day == tmr.day;
-              }(),
-              onTap: () => onSelectQuickDate(now.add(const Duration(days: 1))),
-            ),
-            const SizedBox(width: 6),
-            QuickDateChip(
-              label: context.isArabic ? 'خلال 3 أيام' : 'In 3 Days',
-              isSelected: false,
-              onTap: () => onSelectQuickDate(now.add(const Duration(days: 3))),
-            ),
-          ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              QuickDateChip(
+                label: context.isArabic ? 'اليوم' : 'Today',
+                isSelected: selectedDate != null &&
+                    selectedDate!.year == now.year &&
+                    selectedDate!.month == now.month &&
+                    selectedDate!.day == now.day,
+                onTap: () => onSelectQuickDate(now),
+              ),
+              const SizedBox(width: 6),
+              QuickDateChip(
+                label: context.isArabic ? 'غداً' : 'Tomorrow',
+                isSelected: () {
+                  if (selectedDate == null) return false;
+                  final tmr = now.add(const Duration(days: 1));
+                  return selectedDate!.year == tmr.year &&
+                      selectedDate!.month == tmr.month &&
+                      selectedDate!.day == tmr.day;
+                }(),
+                onTap: () => onSelectQuickDate(now.add(const Duration(days: 1))),
+              ),
+              const SizedBox(width: 6),
+              QuickDateChip(
+                label: context.isArabic ? 'خلال 3 أيام' : 'In 3 Days',
+                isSelected: false,
+                onTap: () => onSelectQuickDate(now.add(const Duration(days: 3))),
+              ),
+            ],
+          ),
         ),
+        if (onPickTime != null) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: onPickTime,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: selectedTime != null
+                    ? AxisColors.primary.withValues(alpha: 0.15)
+                    : AxisColors.surfaceHigh.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: selectedTime != null ? AxisColors.primary : AxisColors.borderSubtle,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.access_time_rounded,
+                    size: 14,
+                    color: selectedTime != null ? AxisColors.primary : AxisColors.textMuted,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    selectedTime != null
+                        ? selectedTime!.format(context)
+                        : (context.isArabic ? 'وقت المهمة (تلقائي)' : 'Task Time (Auto)'),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: selectedTime != null ? FontWeight.w600 : FontWeight.w500,
+                      color: selectedTime != null ? AxisColors.textHigh : AxisColors.textDim,
+                    ),
+                  ),
+                  if (selectedTime != null && onClearTime != null) ...[
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: onClearTime,
+                      child: const Icon(Icons.clear_rounded, size: 14, color: AxisColors.textDim),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

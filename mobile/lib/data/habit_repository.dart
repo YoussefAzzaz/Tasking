@@ -393,12 +393,12 @@ class HabitRepository {
     unawaited(DailyPrayerStatusRepository().syncMyDailyPrayerStatus());
   }
 
-  Future<void> toggleHabit(String habitId, bool done) async {
+  Future<void> toggleHabit(String habitId, bool done, [String? targetDate]) async {
     final uid = currentUserId;
     CacheService().invalidate('habit_streaks_map_${uid.isNotEmpty ? uid : 'global'}');
     StatsRepository().invalidateStats();
 
-    final today = _todayStr();
+    final today = targetDate ?? _todayStr();
     final now = DateTime.now();
     final nowUtc = now.toUtc().toIso8601String();
     final logEventId = IdGenerator.generateDeterministicId('xpevent_${habitId}_$today');
@@ -438,23 +438,34 @@ class HabitRepository {
       }
     } else {
       try {
-        final habitRow = await db.getOptional('SELECT schedule_type, created_at FROM habits WHERE id = ?', [habitId]);
-        final scheduleType = (habitRow?['schedule_type'] as String?) ?? 'daily';
-        final createdAtStr = habitRow?['created_at'] as String?;
-        final cycleStart = calculateCycleStartDate(
-          scheduleType: scheduleType,
-          now: now,
-          createdAtStr: createdAtStr,
-        );
+        if (targetDate != null) {
+          await db.execute(
+            'DELETE FROM habit_logs WHERE habit_id = ? AND log_date = ?',
+            [habitId, targetDate],
+          );
+          await db.execute(
+            "DELETE FROM logs WHERE id = ? OR (task_id = ? AND event_type = 'habit_completed' AND id = ?)",
+            [logEventId, habitId, logEventId],
+          );
+        } else {
+          final habitRow = await db.getOptional('SELECT schedule_type, created_at FROM habits WHERE id = ?', [habitId]);
+          final scheduleType = (habitRow?['schedule_type'] as String?) ?? 'daily';
+          final createdAtStr = habitRow?['created_at'] as String?;
+          final cycleStart = calculateCycleStartDate(
+            scheduleType: scheduleType,
+            now: now,
+            createdAtStr: createdAtStr,
+          );
 
-        await db.execute(
-          'DELETE FROM habit_logs WHERE habit_id = ? AND log_date >= ?',
-          [habitId, cycleStart],
-        );
-        await db.execute(
-          "DELETE FROM logs WHERE id = ? OR (task_id = ? AND event_type = 'habit_completed' AND timestamp >= ?)",
-          [logEventId, habitId, cycleStart],
-        );
+          await db.execute(
+            'DELETE FROM habit_logs WHERE habit_id = ? AND log_date >= ?',
+            [habitId, cycleStart],
+          );
+          await db.execute(
+            "DELETE FROM logs WHERE id = ? OR (task_id = ? AND event_type = 'habit_completed' AND timestamp >= ?)",
+            [logEventId, habitId, cycleStart],
+          );
+        }
 
         await db.execute('UPDATE habits SET updated_at = ? WHERE id = ?', [nowUtc, habitId]);
       } catch (e) {

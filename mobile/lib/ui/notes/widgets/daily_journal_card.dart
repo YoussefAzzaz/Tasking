@@ -112,7 +112,7 @@ class DailyJournalCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -181,7 +181,7 @@ class DailyJournalCard extends StatelessWidget {
                   : 'Capture timeline milestones, key wins, blockers, and reflections.',
               style: const TextStyle(color: AxisColors.textDim, fontSize: 11),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             InkWell(
               onTap: onStartNewJournal,
               borderRadius: BorderRadius.circular(8),

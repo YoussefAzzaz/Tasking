@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/task_repository.dart';
+import '../../../../domain/calendar_scheduler.dart';
 import '../../../common/axis_markdown_viewer.dart';
 import '../../core/task_checklist_mixin.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
@@ -51,6 +52,43 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
   void initState() {
     super.initState();
     _currentTask = widget.initialTask;
+  }
+
+  Future<void> _moveTaskTime(BuildContext context) async {
+    final parsedMin = _currentTask.dueTime != null
+        ? CalendarScheduler.parseTimeToMinutes(_currentTask.dueTime!)
+        : null;
+    final initial = parsedMin != null && parsedMin < 24 * 60
+        ? TimeOfDay(hour: parsedMin ~/ 60, minute: parsedMin % 60)
+        : TimeOfDay.now();
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (context, child) {
+        return Theme(
+          data: AxisTheme.dark.copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AxisColors.primary,
+              onPrimary: AxisColors.textHigh,
+              surface: AxisColors.surfaceHigh,
+              onSurface: AxisColors.textHigh,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      final h = picked.hour.toString().padLeft(2, '0');
+      final m = picked.minute.toString().padLeft(2, '0');
+      final newTime = '$h:$m';
+      final updated = _currentTask.copyWith(dueTime: newTime);
+      setState(() => _currentTask = updated);
+      await TaskRepository().updateTask(updated);
+      widget.onTaskUpdated?.call(updated);
+    }
   }
 
   @override
@@ -359,6 +397,27 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
                       borderColor: AxisColors.secondary.withValues(alpha: 0.35),
                       onPressed: () => ShareTaskSheet.show(context, _currentTask),
                     ),
+                  GhostButton(
+                    label: isArabic ? 'نقل الوقت' : 'Move Time',
+                    icon: Icons.access_time_rounded,
+                    onPressed: () => _moveTaskTime(context),
+                  ),
+                  GhostButton(
+                    label: isArabic ? 'تعديل' : 'Edit',
+                    icon: Icons.edit_outlined,
+                    onPressed: () async {
+                      final nav = Navigator.of(context);
+                      await QuickTaskDialog.show(
+                        context,
+                        taskToEdit: _currentTask,
+                        onTaskUpdated: (updated) {
+                          if (mounted) setState(() => _currentTask = updated);
+                          widget.onTaskUpdated?.call(updated);
+                        },
+                      );
+                      if (context.mounted) nav.pop();
+                    },
+                  ),
                   GhostButton(
                     label: isArabic ? 'إغلاق' : 'Close',
                     onPressed: () => Navigator.of(context).pop(),

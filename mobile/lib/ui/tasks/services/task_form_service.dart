@@ -46,10 +46,29 @@ class TaskFormService {
     required DateTime? selectedDate,
     required int? estimateMin,
     required List<Project> existingProjects,
+    String? dueTime,
+    DateTime? referenceTime,
   }) async {
-    final effectiveDate = selectedDate ?? DateTime.now();
-    final dueDateStr = DateFormat('yyyy-MM-dd').format(effectiveDate);
+    final now = referenceTime ?? DateTime.now();
+    final String? dueDateStr = selectedDate != null
+        ? DateFormat('yyyy-MM-dd').format(selectedDate)
+        : null;
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    final isToday = dueDateStr != null && dueDateStr == todayStr;
     final effectiveDuration = CalendarScheduler.sanitizeDuration(estimateMin);
+
+    final String? effectiveDueTime;
+    if (dueDateStr == null) {
+      effectiveDueTime = null;
+    } else if (dueTime != null && dueTime.trim().isNotEmpty) {
+      effectiveDueTime = dueTime.trim();
+    } else if (taskToEdit != null) {
+      effectiveDueTime = taskToEdit.dueTime;
+    } else if (isToday) {
+      effectiveDueTime = CalendarScheduler.defaultTodayTaskTimeString(now);
+    } else {
+      effectiveDueTime = null;
+    }
 
     final allTags = Set<String>.from(selectedTags);
     if (additionalTag.trim().isNotEmpty) {
@@ -91,7 +110,6 @@ class TaskFormService {
     }
 
     if (taskToEdit != null) {
-      final previousDueDate = taskToEdit.dueDate;
       final updated = taskToEdit.copyWith(
         title: title,
         notes: notes.isEmpty ? null : notes,
@@ -103,21 +121,17 @@ class TaskFormService {
         tags: allTags.isEmpty ? null : allTags.join(','),
         clearTags: allTags.isEmpty,
         dueDate: dueDateStr,
-        clearDueDate: false,
+        clearDueDate: dueDateStr == null,
+        dueTime: effectiveDueTime,
+        clearDueTime: effectiveDueTime == null,
         estimateMin: effectiveDuration,
         clearEstimateMin: false,
       );
       await _taskRepo.updateTask(updated);
-      await scheduleDayTasksInRepository(dueDateStr);
-      if (previousDueDate != null &&
-          previousDueDate.isNotEmpty &&
-          previousDueDate != dueDateStr) {
-        await scheduleDayTasksInRepository(previousDueDate);
-      }
       return updated;
     }
 
-    final task = Task(
+    final rawNewTask = Task(
       id: IdGenerator.generateDeterministicId(
           'task_${DateTime.now().microsecondsSinceEpoch}_$title'),
       title: title,
@@ -126,17 +140,68 @@ class TaskFormService {
       projectId: project,
       tags: allTags.isEmpty ? null : allTags.join(','),
       dueDate: dueDateStr,
+      dueTime: effectiveDueTime,
       estimateMin: effectiveDuration,
     );
 
-    await _taskRepo.addTask(task);
-    await scheduleDayTasksInRepository(dueDateStr);
-    return task;
+    // If task has no due date, it is an unscheduled task that does not appear on the calendar or today's schedule
+    if (dueDateStr == null) {
+      await _taskRepo.addTask(rawNewTask);
+      return rawNewTask;
+    }
+
+    try {
+      final allTasks = await _taskRepo.getTasks();
+      final existingDayTasks = allTasks
+          .where((t) => t.dueDate == dueDateStr && !t.isCompleted)
+          .toList();
+
+      final habits = await _habitRepo
+          .watchHabits()
+          .first
+          .timeout(const Duration(seconds: 2), onTimeout: () => const <Habit>[]);
+      final habitBlocks = CalendarScheduler.buildDailyHabitBlocks(habits);
+
+      List<Prayer> prayers = const [];
+      try {
+        prayers = await _prayerRepo
+            .watchPrayers()
+            .first
+            .timeout(const Duration(seconds: 2), onTimeout: () => const <Prayer>[]);
+      } catch (_) {}
+      final prayerBlocks = CalendarScheduler.buildDailyPrayerBlocks(prayers);
+
+      final scheduled = CalendarScheduler.scheduleNewTaskForDay(
+        dateStr: dueDateStr,
+        existingDayTasks: existingDayTasks,
+        newTask: rawNewTask,
+        habitBlocks: habitBlocks,
+        prayerBlocks: prayerBlocks,
+        referenceTime: now,
+      );
+
+      final finalNewTask = scheduled.firstWhere((t) => t.id == rawNewTask.id);
+      await _taskRepo.addTask(finalNewTask);
+
+      // Update any lower-priority existing tasks that were moved down:
+      for (final t in scheduled) {
+        if (t.id != finalNewTask.id) {
+          final orig = existingDayTasks.where((e) => e.id == t.id).firstOrNull;
+          if (orig == null || orig.dueTime != t.dueTime) {
+            await _taskRepo.updateTask(t);
+          }
+        }
+      }
+      return finalNewTask;
+    } catch (_) {
+      await _taskRepo.addTask(rawNewTask);
+      return rawNewTask;
+    }
   }
 
   /// Auto-sorts and packs incomplete tasks on [dateStr] by priority
   /// (`P1 -> P2 -> P3`) while avoiding active daily habit slots.
-  Future<void> scheduleDayTasksInRepository(String dateStr) async {
+  Future<void> scheduleDayTasksInRepository(String dateStr, [DateTime? referenceTime]) async {
     if (!_isInitialized()) return;
     try {
       final allTasks = await _taskRepo.getTasks();
@@ -165,6 +230,7 @@ class TaskFormService {
         dayTasks: dayTasks,
         habitBlocks: habitBlocks,
         prayerBlocks: prayerBlocks,
+        referenceTime: referenceTime,
       );
 
       final origById = {for (final t in dayTasks) t.id: t};

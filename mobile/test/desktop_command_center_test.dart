@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:axis/core/theme.dart';
@@ -14,6 +15,8 @@ import 'package:axis/ui/desktop/widgets/ghost_button.dart';
 import 'package:axis/ui/desktop/dialogs/quick_task_dialog.dart';
 import 'package:axis/ui/notes/widgets/note_format_toolbar.dart';
 import 'package:axis/ui/desktop/widgets/desktop_card.dart';
+import 'package:axis/ui/desktop/screens/profile/desktop_badge_card.dart';
+import 'package:axis/ui/notes/widgets/daily_journal_card.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -258,6 +261,24 @@ void main() {
 
       // Daily Journal Card is present directly on Command Deck
       expect(find.text('DAILY JOURNAL'), findsOneWidget);
+
+      // Verify Command Deck reorganized layout:
+      // 1. Habit loops is under execution stream with the same width
+      final execPos = tester.getTopLeft(find.byType(ExecutionStreamCard));
+      final habitPos = tester.getTopLeft(find.byType(CommandDeckHabitLoopsCard));
+      final execSize = tester.getSize(find.byType(ExecutionStreamCard));
+      final habitSize = tester.getSize(find.byType(CommandDeckHabitLoopsCard));
+      expect(execPos.dx, equals(habitPos.dx));
+      expect(execSize.width, equals(habitSize.width));
+      expect(execPos.dy, lessThan(habitPos.dy));
+
+      // 2. 15m macro slots is under prayer telemetry with today's journal next to it
+      final prayerPos = tester.getTopLeft(find.byType(CommandDeckPrayerTelemetryCard));
+      final macroPos = tester.getTopLeft(find.byType(MacroSlotsCard));
+      final journalPos = tester.getTopLeft(find.byType(DailyJournalCard));
+      expect(prayerPos.dy, lessThan(macroPos.dy));
+      expect(macroPos.dy, equals(journalPos.dy));
+      expect(macroPos.dx, lessThan(journalPos.dx));
     });
 
     testWidgets('Prayer & Habits screen has New Habit button without extra text plus and scrollable habits', (tester) async {
@@ -487,6 +508,94 @@ void main() {
       expect(prayerSize.height, equals(xpSize.height));
       expect(prayerSize.height, equals(nextPrayerSize.height));
       expect(prayerSize.width, equals(habitSize.width));
+    });
+
+    testWidgets('Profile & Settings screen has redesigned desktop badges card with category filters and desktop dialog', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(buildDesktopApp());
+      await tester.pumpAndSettle();
+
+      // Navigate to Profile & Settings screen
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProfileSettingsScreen), findsOneWidget);
+      expect(find.byType(DesktopMasteryBadgesCard), findsOneWidget);
+
+      // Section header exists with UNLOCKED telemetry chip & Showroom button
+      expect(find.text('OPERATOR MASTERY BADGES'), findsOneWidget);
+      expect(find.text('Showroom ↗'), findsOneWidget);
+
+      // Category filter pills are rendered in the desktop badges section
+      expect(find.text('All'), findsWidgets);
+      expect(find.text('Execution'), findsWidgets);
+      expect(find.text('Unlocked Only'), findsOneWidget);
+
+      // Redesigned desktop badge cards are rendered
+      expect(find.byType(DesktopBadgeCard), findsWidgets);
+
+      // Tapping a desktop badge card opens DesktopBadgeDetailDialog
+      await tester.ensureVisible(find.byType(DesktopBadgeCard).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DesktopBadgeCard).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('MASTERY TIER ROADMAP'), findsOneWidget);
+      expect(find.byIcon(Icons.close_rounded), findsWidgets);
+
+      // Close dialog
+      await tester.tap(find.byIcon(Icons.close_rounded).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('MASTERY TIER ROADMAP'), findsNothing);
+    });
+
+    testWidgets('Command Deck DailyJournalCard matches MacroSlotsCard height and habits/badges scroll smoothly without crashing', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AxisTheme.dark,
+          home: const Scaffold(
+            body: DesktopCommandCenter(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check height equality between MacroSlotsCard and DailyJournalCard
+      final macroBox = tester.renderObject<RenderBox>(find.byType(MacroSlotsCard));
+      final journalBox = tester.renderObject<RenderBox>(find.byType(DailyJournalCard));
+      expect(journalBox.size.height, closeTo(macroBox.size.height, 1.0));
+
+      // Scroll over habit loops card with mouse wheel
+      final habitsFinder = find.byType(CommandDeckHabitLoopsCard);
+      expect(habitsFinder, findsOneWidget);
+      final habitCenter = tester.getCenter(habitsFinder);
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(pointer.hover(habitCenter));
+      await tester.pump();
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+      await tester.pumpAndSettle();
+
+      // Navigate to Profile screen and scroll over badges card with mouse wheel
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.pumpAndSettle();
+
+      final badgesFinder = find.byType(DesktopMasteryBadgesCard);
+      expect(badgesFinder, findsOneWidget);
+      await tester.ensureVisible(badgesFinder);
+      await tester.pumpAndSettle();
+
+      final badgesCenter = tester.getCenter(badgesFinder);
+      await tester.sendEventToBinding(pointer.hover(badgesCenter));
+      await tester.pump();
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+      await tester.pumpAndSettle();
     });
   });
 }

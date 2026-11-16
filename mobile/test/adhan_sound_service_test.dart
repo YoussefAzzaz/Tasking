@@ -5,37 +5,34 @@ import 'package:audioplayers/audioplayers.dart';
 
 void main() {
   group('AdhanSoundService & Sound Options Tests', () {
-    test('Default famous adhans catalog contains canonical Makkah, Madinah, and Alafasy with Takbeerat tags', () {
+    test('Default famous adhans catalog contains canonical Makkah, Madinah, and Alafasy', () {
       final list = AdhanSoundService.kFamousAdhans;
       expect(list, isNotEmpty);
 
+      final alafasy = list.firstWhere((s) => s.id == 'alafasy');
+      expect(alafasy.name, contains('Alafasy'));
+      expect(alafasy.isBundled, isTrue);
+      expect(alafasy.assetPath, equals('assets/audio/adhan_alafasy.mp3'));
+
       final makkah = list.firstWhere((s) => s.id == 'makkah');
       expect(makkah.name, contains('Makkah'));
-      expect(makkah.description, contains('Takbeerat'));
       expect(makkah.isBundled, isTrue);
       expect(makkah.assetPath, equals('assets/audio/adhan_makkah.mp3'));
 
       final madinah = list.firstWhere((s) => s.id == 'madinah');
       expect(madinah.name, contains('Madinah'));
-      expect(madinah.description, contains('Takbeerat'));
       expect(madinah.isBundled, isTrue);
       expect(madinah.assetPath, equals('assets/audio/adhan_madinah.mp3'));
-
-      final alafasy = list.firstWhere((s) => s.id == 'alafasy');
-      expect(alafasy.name, contains('Alafasy'));
-      expect(alafasy.description, contains('Takbeerat'));
-      expect(alafasy.isBundled, isTrue);
-      expect(alafasy.assetPath, equals('assets/audio/adhan_alafasy.mp3'));
     });
 
     test('getActiveAudioSource resolves AssetSource for bundled sounds', () {
       final service = AdhanSoundService();
-      final makkah = AdhanSoundService.kFamousAdhans.first;
-      service.selectedSoundNotifier.value = makkah;
+      final alafasy = AdhanSoundService.kFamousAdhans.firstWhere((s) => s.id == 'alafasy');
+      service.selectedSoundNotifier.value = alafasy;
 
       final source = service.getActiveAudioSource();
       expect(source, isA<AssetSource>());
-      expect((source as AssetSource).path, equals('audio/adhan_makkah.mp3'));
+      expect((source as AssetSource).path, equals('audio/adhan_alafasy.mp3'));
     });
 
     test('getActiveAudioSource falls back cleanly without crash', () {
@@ -55,7 +52,7 @@ void main() {
 
       final source = service.getActiveAudioSource();
       expect(source, isA<AssetSource>());
-      expect((source as AssetSource).path, equals('audio/adhan_makkah.mp3'));
+      expect((source as AssetSource).path, equals('audio/adhan_alafasy.mp3'));
     });
 
     test('AdhanSoundOption copyWith preserves fields correctly', () {
@@ -79,7 +76,7 @@ void main() {
       expect(sliced.length, greaterThan(10000));
     });
 
-    test('All bundled adhans exist and are cropped to ~15-16.5s (< 300KB)', () async {
+    test('All bundled adhans exist and have valid offline audio data', () async {
       final files = [
         'assets/audio/adhan_makkah.mp3',
         'assets/audio/adhan_madinah.mp3',
@@ -90,8 +87,8 @@ void main() {
         final file = File(f);
         expect(file.existsSync(), isTrue, reason: '$f must exist in assets');
         final bytes = await file.readAsBytes();
-        // File size should be cropped (under 300KB)
-        expect(bytes.length, lessThan(300 * 1024), reason: '$f must be cropped to first part');
+        expect(bytes.isNotEmpty, isTrue, reason: '$f must contain valid audio bytes');
+        expect(bytes.length, greaterThan(100 * 1024), reason: '$f must be complete audio');
       }
     });
 

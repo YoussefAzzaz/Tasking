@@ -4,6 +4,7 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/mastery_badge_repository.dart';
+import 'package:axis/ui/desktop/screens/profile/desktop_badge_card.dart';
 import 'package:axis/ui/me/widgets/me_sections.dart';
 
 /// Full-screen dedicated Mastery Badges showroom & trophy room.
@@ -53,12 +54,16 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
 
   void _showBadgeDetail(MasteryBadgeData badge) {
     HapticFeedback.selectionClick();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => BadgeDetailSheet(badge: badge),
-    );
+    if (MediaQuery.sizeOf(context).width >= 600) {
+      DesktopBadgeDetailDialog.show(context, badge: badge);
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => BadgeDetailSheet(badge: badge),
+      );
+    }
   }
 
   List<MasteryBadgeData> get _filteredBadges {
@@ -440,22 +445,39 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
                       ),
                     )
                   else
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 0.95,
-                      ),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final badge = filtered[index];
-                        return MasteryBadgeTile(
-                          badge: badge,
-                          onTap: () => _showBadgeDetail(badge),
+                    Builder(
+                      builder: (context) {
+                        final isDesktop = MediaQuery.sizeOf(context).width >= 600;
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: isDesktop
+                              ? const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  mainAxisExtent: 74,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                )
+                              : const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  mainAxisSpacing: 10,
+                                  crossAxisSpacing: 10,
+                                  childAspectRatio: 0.95,
+                                ),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final badge = filtered[index];
+                            if (isDesktop) {
+                              return DesktopBadgeCard(
+                                badge: badge,
+                                onTap: () => _showBadgeDetail(badge),
+                              );
+                            }
+                            return MasteryBadgeTile(
+                              badge: badge,
+                              onTap: () => _showBadgeDetail(badge),
+                            );
+                          },
                         );
                       },
                     ),

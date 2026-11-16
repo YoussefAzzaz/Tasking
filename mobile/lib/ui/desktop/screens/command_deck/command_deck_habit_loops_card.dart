@@ -25,6 +25,14 @@ class CommandDeckHabitLoopsCard extends StatefulWidget {
 }
 
 class _CommandDeckHabitLoopsCardState extends State<CommandDeckHabitLoopsCard> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isArabic = AppLocalizations.of(context).isArabic;
@@ -67,10 +75,12 @@ class _CommandDeckHabitLoopsCardState extends State<CommandDeckHabitLoopsCard> {
                 return StreamBuilder<List<Habit>>(
                   stream: HabitRepository().watchHabits(),
                   builder: (context, snapshot) {
-                    final rawHabits = List<Habit>.from(
-                      (snapshot.data ?? []).where((h) => h.isEnabled),
+                    final habits = List<Habit>.from(
+                      (snapshot.data ?? []).where((h) =>
+                          h.isEnabled &&
+                          !HabitRepository.isPrayerIdentifier(h.id) &&
+                          (h.scheduleType.isEmpty || h.scheduleType.toLowerCase().trim() == 'daily')),
                     )..sort(HabitRepository.compareByTime);
-                    final habits = rawHabits.take(4).toList();
                     if (habits.isEmpty) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -85,16 +95,22 @@ class _CommandDeckHabitLoopsCardState extends State<CommandDeckHabitLoopsCard> {
                       );
                     }
 
-                    return GridView.builder(
-                      padding: EdgeInsets.zero,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisExtent: 64,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemCount: habits.length,
-                      itemBuilder: (context, i) {
+                    return Scrollbar(
+                      controller: _scrollController,
+                      thumbVisibility: true,
+                      child: GridView.builder(
+                        controller: _scrollController,
+                        primary: false,
+                        padding: const EdgeInsetsDirectional.only(end: 8.0),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisExtent: 64,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                        itemCount: habits.length,
+                        itemBuilder: (context, i) {
                         final h = habits[i];
                         final catColor = HabitCategoryRepository().resolveHabitCategoryColor(h, categories);
 
@@ -176,9 +192,10 @@ class _CommandDeckHabitLoopsCardState extends State<CommandDeckHabitLoopsCard> {
                           ),
                         );
                       },
-                    );
-                  },
-                );
+                    ),
+                  );
+                },
+              );
               },
             ),
           ),

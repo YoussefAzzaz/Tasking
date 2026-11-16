@@ -129,13 +129,13 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
           const CommandDeckStatsRow(),
           const SizedBox(height: DesktopLayout.sectionSpacing),
 
-          // 2-Column Main Deck Split (Left flex 6, Right flex 4)
+          // 2-Column Main Deck Split (Left flex 5, Right flex 6)
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  flex: 6,
+                  flex: 5,
                   child: Column(
                     children: [
                       Expanded(
@@ -145,6 +145,25 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
                       ),
                       const SizedBox(height: DesktopLayout.sectionSpacing),
                       Expanded(
+                        child: CommandDeckHabitLoopsCard(
+                          onNavigateToTab: widget.onNavigateToTab,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: DesktopLayout.sectionSpacing),
+                Expanded(
+                  flex: 6,
+                  child: Column(
+                    children: [
+                      const Expanded(
+                        flex: 4,
+                        child: CommandDeckPrayerTelemetryCard(),
+                      ),
+                      const SizedBox(height: DesktopLayout.sectionSpacing),
+                      Expanded(
+                        flex: 5,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -155,28 +174,20 @@ class _CommandDeckScreenState extends State<CommandDeckScreen> {
                             ),
                             const SizedBox(width: DesktopLayout.sectionSpacing),
                             Expanded(
-                              child: SingleChildScrollView(
-                                child: _buildDailyJournalCard(),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  return SingleChildScrollView(
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        minHeight: constraints.maxHeight,
+                                      ),
+                                      child: _buildDailyJournalCard(),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: DesktopLayout.sectionSpacing),
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    children: [
-                      const Expanded(
-                        child: CommandDeckPrayerTelemetryCard(),
-                      ),
-                      const SizedBox(height: DesktopLayout.sectionSpacing),
-                      Expanded(
-                        child: CommandDeckHabitLoopsCard(
-                          onNavigateToTab: widget.onNavigateToTab,
                         ),
                       ),
                       const SizedBox(height: DesktopLayout.sectionSpacing),

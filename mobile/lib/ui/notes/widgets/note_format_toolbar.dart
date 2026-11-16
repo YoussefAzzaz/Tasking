@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
@@ -195,17 +194,8 @@ class NoteFormatToolbar extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AxisColors.borderSubtle),
       ),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          dragDevices: {
-            PointerDeviceKind.touch,
-            PointerDeviceKind.mouse,
-            PointerDeviceKind.trackpad,
-            PointerDeviceKind.stylus,
-          },
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -336,7 +326,6 @@ class NoteFormatToolbar extends StatelessWidget {
             ),
           ],
         ),
-      ),
       ),
     );
   }
