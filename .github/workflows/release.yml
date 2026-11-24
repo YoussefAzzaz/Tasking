@@ -38,6 +38,13 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Create debug keystore if missing
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
@@ -69,6 +76,13 @@ jobs:
         with:
           channel: 'stable'
           cache: true
+
+      - name: Create debug keystore if missing
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Install dependencies
         working-directory: mobile

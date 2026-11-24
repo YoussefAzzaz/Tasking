@@ -32,7 +32,27 @@ android {
                 }
                 storePassword = keystoreProperties.getProperty("storePassword")
             } else {
-                initWith(signingConfigs.getByName("debug"))
+                val debugConfig = signingConfigs.getByName("debug")
+                val defaultKeystore = debugConfig.storeFile
+                if (defaultKeystore != null && !defaultKeystore.exists()) {
+                    defaultKeystore.parentFile?.mkdirs()
+                    try {
+                        ProcessBuilder(
+                            "keytool", "-genkey", "-v",
+                            "-keystore", defaultKeystore.absolutePath,
+                            "-storepass", "android",
+                            "-alias", "androiddebugkey",
+                            "-keypass", "android",
+                            "-keyalg", "RSA",
+                            "-keysize", "2048",
+                            "-validity", "10000",
+                            "-dname", "CN=Android Debug,O=Android,C=US"
+                        ).start().waitFor()
+                    } catch (e: Exception) {
+                        println("Warning: could not auto-generate debug keystore: ${e.message}")
+                    }
+                }
+                initWith(debugConfig)
             }
         }
     }
