@@ -1,5 +1,6 @@
 import 'package:adhan_dart/adhan_dart.dart' hide Prayer;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:axis/core/router.dart';
 import 'package:axis/core/widget_navigation_service.dart';
 import 'package:axis/data/app_widget_sync_service.dart';
 import 'package:axis/data/habit_repository.dart';
@@ -290,6 +291,11 @@ void main() {
       expect(svc.resolveInitialAuthenticatedRoute(), '/habits');
       expect(svc.launchedFromWidget, isFalse);
       expect(svc.resolveInitialAuthenticatedRoute(), '/today');
+    });
+
+    test('GoRouter configuration recognizes /prayers alias without route exception', () {
+      final matchList = router.configuration.findMatch(Uri.parse('/prayers'));
+      expect(matchList.isError, isFalse);
     });
   });
 }

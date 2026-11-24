@@ -18,8 +18,8 @@ class DesktopUpdateCard extends StatefulWidget {
 
 class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
   late final AppUpdateService _service;
-  String _versionStr = '1.2.0';
-  int _buildNumber = 12;
+  String _versionStr = '1.3.1';
+  int _buildNumber = 26;
   bool _isChecking = false;
 
   @override
@@ -55,6 +55,21 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
           updateInfo: update,
           currentVersion: _versionStr,
           updateService: _service,
+        );
+      } else if (_service.lastErrorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AxisColors.surfaceLowest,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: AxisColors.priorityHigh, width: 1),
+            ),
+            content: Text(
+              isAr ? 'تعذر التحقق من التحديثات على الشبكة الحالية' : 'Unable to check for updates on current network',
+              style: GoogleFonts.spaceGrotesk(color: AxisColors.priorityHigh, fontSize: 12),
+            ),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

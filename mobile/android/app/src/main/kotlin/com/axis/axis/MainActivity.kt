@@ -19,11 +19,55 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val SETTINGS_CHANNEL = "com.axis.axis/settings"
+    private val UPDATER_CHANNEL = "com.axis.axis/updater"
     private var settingsChannel: MethodChannel? = null
+    private var updaterChannel: MethodChannel? = null
     private var pendingAdhanPayload: Map<String, String>? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val updater = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UPDATER_CHANNEL)
+        updaterChannel = updater
+        updater.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "fetchJson" -> {
+                    val url = call.argument<String>("url")
+                    val headers = call.argument<Map<String, String>>("headers")
+                    if (url.isNullOrBlank()) {
+                        result.error("INVALID_ARGS", "Missing url", null)
+                    } else {
+                        NativeUpdateDownloader.fetchJson(applicationContext, url, headers, result)
+                    }
+                }
+                "downloadFile" -> {
+                    val url = call.argument<String>("url")
+                    val destPath = call.argument<String>("destinationPath")
+                    val expectedSize = (call.argument<Number>("expectedSize"))?.toLong() ?: 0L
+                    if (url.isNullOrBlank() || destPath.isNullOrBlank()) {
+                        result.error("INVALID_ARGS", "Missing url or destinationPath", null)
+                    } else {
+                        NativeUpdateDownloader.downloadFile(
+                            context = applicationContext,
+                            urlStr = url,
+                            destinationPath = destPath,
+                            expectedSize = expectedSize,
+                            onProgress = { receivedBytes, totalBytes ->
+                                updaterChannel?.invokeMethod(
+                                    "onDownloadProgress",
+                                    mapOf(
+                                        "receivedBytes" to receivedBytes,
+                                        "totalBytes" to totalBytes,
+                                    ),
+                                )
+                            },
+                            result = result,
+                        )
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SETTINGS_CHANNEL)
         settingsChannel = channel
         channel.setMethodCallHandler { call, result ->

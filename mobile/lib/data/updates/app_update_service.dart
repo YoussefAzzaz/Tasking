@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
@@ -59,9 +61,12 @@ class AppUpdateService {
   AppUpdateService._internal({
     http.Client? httpClient,
     this.githubRepo = 'YoussefAzzaz/Tasking',
-  }) : _httpClient = httpClient ?? http.Client();
+  }) : _customHttpClient = httpClient;
 
   static final AppUpdateService _instance = AppUpdateService._internal();
+  static const MethodChannel _updaterChannel = MethodChannel('com.axis.axis/updater');
+  static bool _nativeHandlerRegistered = false;
+
   factory AppUpdateService({
     http.Client? httpClient,
     String githubRepo = 'YoussefAzzaz/Tasking',
@@ -75,7 +80,7 @@ class AppUpdateService {
     return _instance;
   }
 
-  final http.Client _httpClient;
+  final http.Client? _customHttpClient;
   final String githubRepo;
 
   final ValueNotifier<UpdateInfo?> availableUpdateNotifier =
@@ -87,6 +92,40 @@ class AppUpdateService {
   String? _cachedCurrentVersion;
   int? _cachedCurrentBuildNumber;
   String? _dismissedVersion;
+  String? lastErrorMessage;
+  Future<UpdateInfo?>? _inFlightCheck;
+  void Function(int receivedBytes, int totalBytes)? _nativeProgressCallback;
+
+  bool get _usesCustomClient => _customHttpClient != null;
+  bool get _useNativeAndroidHttp =>
+      !_usesCustomClient && !kIsWeb && Platform.isAndroid;
+
+  void _ensureNativeProgressHandler() {
+    if (_nativeHandlerRegistered) return;
+    try {
+      _updaterChannel.setMethodCallHandler((call) async {
+        if (call.method == 'onDownloadProgress') {
+          final args = call.arguments;
+          if (args is Map) {
+            final received = (args['receivedBytes'] as num?)?.toInt() ?? 0;
+            final total = (args['totalBytes'] as num?)?.toInt() ?? 0;
+            _instance._nativeProgressCallback?.call(received, total);
+          }
+        }
+      });
+      _nativeHandlerRegistered = true;
+    } catch (_) {
+      // Safe fallback in pure Dart test environments without platform bindings
+    }
+  }
+
+  http.Client _acquireClient() {
+    if (_customHttpClient != null) return _customHttpClient;
+    final ioClient = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15)
+      ..idleTimeout = const Duration(seconds: 5);
+    return IOClient(ioClient);
+  }
 
   String get currentPlatform {
     if (kIsWeb) return 'web';
@@ -117,8 +156,8 @@ class AppUpdateService {
       );
     } catch (_) {
       // Fallback to pubspec default if PackageInfo unavailable in testing
-      _cachedCurrentVersion ??= '1.2.0';
-      _cachedCurrentBuildNumber ??= 12;
+      _cachedCurrentVersion ??= '1.3.1';
+      _cachedCurrentBuildNumber ??= 26;
       return SemanticVersion.parse(_cachedCurrentVersion!, _cachedCurrentBuildNumber);
     }
   }
@@ -130,38 +169,41 @@ class AppUpdateService {
   }
 
   /// Checks GitHub Releases for a newer version.
-  Future<UpdateInfo?> checkForUpdate({bool force = false}) async {
-    if (isCheckingNotifier.value) return availableUpdateNotifier.value;
+  Future<UpdateInfo?> checkForUpdate({bool force = false}) {
+    final existing = _inFlightCheck;
+    if (existing != null) {
+      return existing;
+    }
+    final future = _performCheckForUpdate(force: force);
+    _inFlightCheck = future;
+    future.whenComplete(() {
+      if (identical(_inFlightCheck, future)) {
+        _inFlightCheck = null;
+      }
+    });
+    return future;
+  }
+
+  Future<UpdateInfo?> _performCheckForUpdate({required bool force}) async {
     isCheckingNotifier.value = true;
+    lastErrorMessage = null;
 
     try {
       final currentVer = await getInstalledVersion();
-      final url = Uri.parse(
-        'https://api.github.com/repos/$githubRepo/releases/latest',
-      );
+      final url = 'https://api.github.com/repos/$githubRepo/releases/latest';
+      final payload = await _fetchReleaseJsonBody(url);
 
-      final response = await _httpClient.get(
-        url,
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'Axis-App-Updater',
-        },
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode != 200) {
-        debugPrint('[AppUpdateService] GitHub releases response: ${response.statusCode}');
-        isCheckingNotifier.value = false;
+      if (payload == null) {
         return null;
       }
 
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(payload) as Map<String, dynamic>;
       final update = UpdateInfo.fromGitHubRelease(
         json,
         targetPlatform: currentPlatform,
       );
 
       if (update == null) {
-        isCheckingNotifier.value = false;
         return null;
       }
 
@@ -172,26 +214,79 @@ class AppUpdateService {
 
       if (isNewer) {
         availableUpdateNotifier.value = update;
-        isCheckingNotifier.value = false;
         return update;
       } else {
         if (force) {
           availableUpdateNotifier.value = null;
         }
-        isCheckingNotifier.value = false;
         return null;
       }
     } catch (e) {
+      lastErrorMessage = e.toString();
       debugPrint('[AppUpdateService] Error checking for updates: $e');
-      isCheckingNotifier.value = false;
       return null;
+    } finally {
+      isCheckingNotifier.value = false;
     }
   }
 
-  /// Downloads the release file with real-time progress callbacks.
+  Future<String?> _fetchReleaseJsonBody(String urlStr) async {
+    const headers = <String, String>{
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Axis-App-Updater',
+      'Connection': 'close',
+    };
+
+    if (_useNativeAndroidHttp) {
+      try {
+        final res = await _updaterChannel
+            .invokeMapMethod<String, dynamic>('fetchJson', {
+              'url': urlStr,
+              'headers': headers,
+            })
+            .timeout(const Duration(seconds: 35));
+        if (res != null) {
+          final statusCode = (res['statusCode'] as num?)?.toInt() ?? 0;
+          if (statusCode != 200) {
+            lastErrorMessage = 'HTTP $statusCode';
+            debugPrint('[AppUpdateService] GitHub releases response: $statusCode');
+            return null;
+          }
+          return res['body'] as String?;
+        }
+      } on MissingPluginException {
+        // Fall back to Dart HTTP client when platform channel is absent (tests)
+      } on PlatformException catch (e) {
+        lastErrorMessage = e.message ?? 'Network error';
+        debugPrint('[AppUpdateService] Native update check error: ${e.message}');
+        return null;
+      }
+    }
+
+    final client = _acquireClient();
+    try {
+      final response = await client
+          .get(Uri.parse(urlStr), headers: headers)
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode != 200) {
+        lastErrorMessage = 'HTTP ${response.statusCode}';
+        debugPrint('[AppUpdateService] GitHub releases response: ${response.statusCode}');
+        return null;
+      }
+      return response.body;
+    } finally {
+      if (!_usesCustomClient) {
+        client.close();
+      }
+    }
+  }
+
+  /// Downloads the release file with real-time progress callbacks and stalled-stream recovery.
   Future<File?> downloadUpdate(
     UpdateInfo update, {
     void Function(double progress, int received, int total)? onProgress,
+    Duration chunkTimeout = const Duration(seconds: 25),
   }) async {
     if (update.downloadUrl.isEmpty) {
       downloadProgressNotifier.value = const UpdateDownloadProgress(
@@ -210,18 +305,98 @@ class AppUpdateService {
         percentage: 0.0,
       );
 
+      final cacheDir = await getTemporaryDirectory();
+      final fileExtension = _resolveExtension(update.downloadUrl, currentPlatform);
+      final filename = 'axis-update-v${update.version}$fileExtension';
+      final saveFile = File(p.join(cacheDir.path, filename));
+
+      if (_useNativeAndroidHttp) {
+        try {
+          _ensureNativeProgressHandler();
+          _nativeProgressCallback = (received, total) {
+            final effectiveTotal = total > 0 ? total : initialTotal;
+            final percent = effectiveTotal > 0
+                ? (received / effectiveTotal).clamp(0.0, 1.0)
+                : 0.0;
+            downloadProgressNotifier.value = UpdateDownloadProgress(
+              status: UpdateDownloadStatus.downloading,
+              receivedBytes: received,
+              totalBytes: effectiveTotal,
+              percentage: percent,
+            );
+            onProgress?.call(percent, received, effectiveTotal);
+          };
+
+          final res = await _updaterChannel.invokeMapMethod<String, dynamic>(
+            'downloadFile',
+            {
+              'url': update.downloadUrl,
+              'destinationPath': saveFile.path,
+              'expectedSize': initialTotal,
+            },
+          );
+          _nativeProgressCallback = null;
+
+          if (res != null) {
+            final receivedBytes = (res['receivedBytes'] as num?)?.toInt() ?? 0;
+            final totalBytes = (res['totalBytes'] as num?)?.toInt() ?? receivedBytes;
+            final outPath = res['path'] as String? ?? saveFile.path;
+            downloadProgressNotifier.value = UpdateDownloadProgress(
+              status: UpdateDownloadStatus.completed,
+              receivedBytes: receivedBytes,
+              totalBytes: totalBytes,
+              percentage: 1.0,
+              savedFilePath: outPath,
+            );
+            return File(outPath);
+          }
+        } on MissingPluginException {
+          _nativeProgressCallback = null;
+          // Fall back to Dart streaming download below
+        } on PlatformException catch (e) {
+          _nativeProgressCallback = null;
+          throw Exception(e.message ?? 'Download failed over current network');
+        }
+      }
+
+      return await _downloadWithDartHttp(
+        update: update,
+        saveFile: saveFile,
+        onProgress: onProgress,
+        chunkTimeout: chunkTimeout,
+      );
+    } catch (e) {
+      debugPrint('[AppUpdateService] Error downloading update: $e');
+      downloadProgressNotifier.value = UpdateDownloadProgress(
+        status: UpdateDownloadStatus.failed,
+        error: e.toString(),
+      );
+      return null;
+    }
+  }
+
+  Future<File> _downloadWithDartHttp({
+    required UpdateInfo update,
+    required File saveFile,
+    void Function(double progress, int received, int total)? onProgress,
+    required Duration chunkTimeout,
+  }) async {
+    final client = _acquireClient();
+    try {
       String currentUrl = update.downloadUrl;
       http.StreamedResponse? response;
 
-      // Follow redirects explicitly up to 5 times (GitHub releases redirect to S3 / Azure Blob)
-      final client = _httpClient;
-      for (int redirectCount = 0; redirectCount < 5; redirectCount++) {
+      // Follow redirects explicitly up to 8 times (GitHub releases redirect to release-assets / Azure)
+      for (int redirectCount = 0; redirectCount < 8; redirectCount++) {
         final request = http.Request('GET', Uri.parse(currentUrl));
         request.followRedirects = false;
         request.headers['User-Agent'] = 'Axis-App-Updater';
         request.headers['Accept'] = '*/*';
+        request.headers['Accept-Encoding'] = 'identity';
+        request.headers['Connection'] = 'close';
 
-        final streamed = await client.send(request).timeout(const Duration(seconds: 25));
+        final streamed =
+            await client.send(request).timeout(const Duration(seconds: 25));
         if (streamed.statusCode == 301 ||
             streamed.statusCode == 302 ||
             streamed.statusCode == 303 ||
@@ -242,17 +417,12 @@ class AppUpdateService {
         throw Exception('Server returned HTTP ${response?.statusCode ?? "no response"}');
       }
 
-      final totalBytes = (response.contentLength != null && response.contentLength! > 0)
-          ? response.contentLength!
-          : (update.fileSizeBytes ?? 0);
+      final totalBytes =
+          (response.contentLength != null && response.contentLength! > 0)
+              ? response.contentLength!
+              : (update.fileSizeBytes ?? 0);
       int receivedBytes = 0;
 
-      final cacheDir = await getTemporaryDirectory();
-      final fileExtension = _resolveExtension(update.downloadUrl, currentPlatform);
-      final filename = 'axis-update-v${update.version}$fileExtension';
-      final saveFile = File(p.join(cacheDir.path, filename));
-
-      // Overwrite if existing
       if (await saveFile.exists()) {
         await saveFile.delete();
       }
@@ -267,7 +437,19 @@ class AppUpdateService {
       );
 
       try {
-        await for (final chunk in response.stream) {
+        final timedStream = response.stream.timeout(
+          chunkTimeout,
+          onTimeout: (eventSink) {
+            eventSink.addError(
+              TimeoutException(
+                'Download stalled on current network. Retry or use Browser.',
+              ),
+            );
+            eventSink.close();
+          },
+        );
+
+        await for (final chunk in timedStream) {
           sink.add(chunk);
           receivedBytes += chunk.length;
 
@@ -289,22 +471,30 @@ class AppUpdateService {
         await sink.close();
       }
 
+      if (receivedBytes <= 0) {
+        throw Exception('Downloaded package is empty (0 bytes).');
+      }
+      if (response.contentLength != null &&
+          response.contentLength! > 0 &&
+          receivedBytes < response.contentLength!) {
+        throw Exception(
+          'Incomplete download ($receivedBytes / ${response.contentLength} bytes).',
+        );
+      }
+
       downloadProgressNotifier.value = UpdateDownloadProgress(
         status: UpdateDownloadStatus.completed,
         receivedBytes: receivedBytes,
-        totalBytes: totalBytes,
+        totalBytes: totalBytes > 0 ? totalBytes : receivedBytes,
         percentage: 1.0,
         savedFilePath: saveFile.path,
       );
 
       return saveFile;
-    } catch (e) {
-      debugPrint('[AppUpdateService] Error downloading update: $e');
-      downloadProgressNotifier.value = UpdateDownloadProgress(
-        status: UpdateDownloadStatus.failed,
-        error: e.toString(),
-      );
-      return null;
+    } finally {
+      if (!_usesCustomClient) {
+        client.close();
+      }
     }
   }
 

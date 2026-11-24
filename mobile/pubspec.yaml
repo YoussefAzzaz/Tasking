@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # Axis release cadence rule: increment patch from x.y.0 through x.y.10, then
 # roll minor on the next release after x.y.10 (e.g., 1.2.10 -> 1.3.0; keep 1.3.x until 1.3.10).
-version: 1.3.0+25
+version: 1.3.1+26
 
 environment:
   sdk: ^3.13.4
@@ -142,7 +142,7 @@ msix_config:
   publisher_display_name: Axis Productivity
   identity_name: com.axis.tasking
   publisher: CN=Axis
-  msix_version: 1.3.0.0
+  msix_version: 1.3.1.0
   logo_path: assets/logo.png
   capabilities:
     - internetClient

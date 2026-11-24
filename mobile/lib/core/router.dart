@@ -35,6 +35,11 @@ final router = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: _computeInitialLocation(),
   refreshListenable: AuthService().authStateNotifier,
+  onException: (context, state, routerInstance) {
+    final hasSession = AuthService().hasActiveSession;
+    final widgetRoute = WidgetNavigationService.routeFromUri(state.uri);
+    routerInstance.go(hasSession ? (widgetRoute ?? '/today') : '/auth');
+  },
   redirect: (context, state) {
     final auth = AuthService();
     final isAuthenticated = auth.isAuthenticated;
@@ -46,6 +51,9 @@ final router = GoRouter(
 
     if (!hasSession && !isAuthRoute) {
       return '/auth';
+    }
+    if (hasSession && state.matchedLocation == '/prayers') {
+      return '/today';
     }
     // Only redirect away from /auth if the user has an actual authenticated cloud account.
     // Local guests MUST be allowed to open /auth to sign in or register!
@@ -129,6 +137,10 @@ final router = GoRouter(
     GoRoute(
       path: '/debug/adhan-alarm',
       builder: (context, state) => const AdhanAlarmDebugScreen(),
+    ),
+    GoRoute(
+      path: '/prayers',
+      redirect: (context, state) => AuthService().hasActiveSession ? '/today' : '/auth',
     ),
   ],
 );

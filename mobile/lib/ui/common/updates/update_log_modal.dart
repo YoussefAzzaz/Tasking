@@ -8,8 +8,8 @@ import 'package:axis/core/l10n/app_localizations.dart';
 class UpdateLogModal extends StatelessWidget {
   const UpdateLogModal({
     super.key,
-    this.currentVersion = '1.3.0',
-    this.buildNumber = 25,
+    this.currentVersion = '1.3.1',
+    this.buildNumber = 26,
     this.onCheckForUpdates,
   });
 
@@ -19,8 +19,8 @@ class UpdateLogModal extends StatelessWidget {
 
   static Future<void> show(
     BuildContext context, {
-    String currentVersion = '1.3.0',
-    int buildNumber = 25,
+    String currentVersion = '1.3.1',
+    int buildNumber = 26,
     VoidCallback? onCheckForUpdates,
   }) {
     return showDialog<void>(
@@ -39,6 +39,26 @@ class UpdateLogModal extends StatelessWidget {
     final isAr = context.isArabic;
 
     const categories = <_UpdateCategory>[
+      _UpdateCategory(
+        icon: Icons.wifi_tethering_rounded,
+        color: Color(0xFF10B981), // Emerald
+        titleEn: 'Reliability & Widget Fixes (v1.3.1)',
+        titleAr: 'إصلاحات الموثوقية والودجات (v1.3.1)',
+        items: [
+          _UpdateItem(
+            titleEn: 'Wi-Fi OTA Update Downloader & Timeout Recovery',
+            titleAr: 'إصلاح تحميل التحديثات عبر الواي فاي',
+            descEn: 'Switched Android update checks and APK downloads to native OS active-network HTTP connections with read timeouts so Wi-Fi downloads never hang.',
+            descAr: 'اعتماد اتصال الشبكة النشطة لنظام أندرويد في فحص وتحميل التحديثات مع مهلة للانقطاع لمنع التوقف أثناء التحميل عبر الواي فاي.',
+          ),
+          _UpdateItem(
+            titleEn: 'Prayer Widget Direct Home Launch',
+            titleAr: 'إصلاح فتح ودجت مواقيت الصلاة',
+            descEn: 'Fixed prayer widget tap URI and added /prayers router guard so tapping always lands smoothly on the main Today screen.',
+            descAr: 'إصلاح رابط ودجت مواقيت الصلاة وحماية مسار التوجيه ليفتح التطبيق مباشرة على الشاشة الرئيسية دون أخطاء.',
+          ),
+        ],
+      ),
       _UpdateCategory(
         icon: Icons.widgets_rounded,
         color: Color(0xFF00E5FF), // Electric Cyan

@@ -537,9 +537,16 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              icon: const Icon(Icons.download_rounded, size: 17),
+              icon: Icon(
+                progress.status == UpdateDownloadStatus.failed
+                    ? Icons.refresh_rounded
+                    : Icons.download_rounded,
+                size: 17,
+              ),
               label: Text(
-                isAr ? 'تحديث الآن' : 'UPDATE NOW',
+                progress.status == UpdateDownloadStatus.failed
+                    ? (isAr ? 'إعادة المحاولة' : 'RETRY UPDATE')
+                    : (isAr ? 'تحديث الآن' : 'UPDATE NOW'),
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,

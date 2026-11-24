@@ -17,7 +17,9 @@ class AdhanBootReceiver : BroadcastReceiver() {
                     AdhanKeepAliveService.startService(context)
                 } catch (_: Exception) {}
             }
+            WidgetUiHelper.broadcastWidgetUpdate(context, TodayTasksWidgetProvider::class.java)
+            WidgetUiHelper.broadcastWidgetUpdate(context, HabitStreakWidgetProvider::class.java)
+            WidgetUiHelper.broadcastWidgetUpdate(context, PrayerTimesWidgetProvider::class.java)
         }
     }
 }
-

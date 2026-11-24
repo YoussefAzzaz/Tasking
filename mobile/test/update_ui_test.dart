@@ -108,6 +108,29 @@ void main() {
       expect(find.byKey(const ValueKey('update_modal_install_button')), findsOneWidget);
       expect(find.text('Download complete! Tap Install to update.'), findsOneWidget);
     });
+
+    testWidgets('displays Retry Update action when download fails', (tester) async {
+      final service = AppUpdateService();
+      service.downloadProgressNotifier.value = const UpdateDownloadProgress(
+        status: UpdateDownloadStatus.failed,
+        error: 'Download stalled on current network.',
+      );
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          UpdateNoticeModal(
+            updateInfo: testUpdate,
+            currentVersion: '1.3.0',
+            updateService: service,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('update_modal_download_button')), findsOneWidget);
+      expect(find.text('RETRY UPDATE'), findsOneWidget);
+      expect(find.text('Download via browser directly'), findsOneWidget);
+    });
   });
 
   group('UpdateNoticeBanner Widget Tests', () {

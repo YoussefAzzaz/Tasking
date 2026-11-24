@@ -252,11 +252,11 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
                     }
                     setChronometer(R.id.widget_prayer_chronometer, chronoBase, null, true)
 
-                    // Fast launch to main screen (/today)
+                    // Fast launch directly to main screen (/today)
                     val pendingIntent = WidgetUiHelper.buildFastLaunchIntent(
                         context,
                         MainActivity::class.java,
-                        Uri.parse("axis://widget/prayers"),
+                        Uri.parse("axis://widget/today"),
                         WidgetUiHelper.REQ_LAUNCH_PRAYER_WIDGET,
                     )
                     setOnClickPendingIntent(R.id.widget_prayer_times_root, pendingIntent)

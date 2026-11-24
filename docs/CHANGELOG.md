@@ -4,6 +4,11 @@
 - Minor version increments only after reaching patch `.10`: `x.y.0` through `x.y.10` increment the patch digit, then roll over to `x.(y+1).0` (e.g., `1.2.10` -> `1.3.0`, staying on `1.3.x` until `1.3.10`, then `1.4.0`), encoded in `SemanticVersion.nextAxisReleaseVersion()`.
 - UI labels display only the semantic version (`v1.3.0`) without internal build numbers.
 
+## v1.3.1: Wi-Fi OTA Downloader & Prayer Widget Routing Fix
+- Added [NativeUpdateDownloader.kt](mobile/android/app/src/main/kotlin/com/axis/axis/NativeUpdateDownloader.kt) using Android's OS active network (`ConnectivityManager` + `HttpURLConnection`) with explicit connect/read timeouts, `Connection: close`, `Accept-Encoding: identity`, and retry fallback so update checks and APK downloads no longer stall over Wi-Fi.
+- Added per-chunk stream inactivity timeouts in [AppUpdateService](mobile/lib/data/updates/app_update_service.dart) and surfaced failed network checks in mobile/desktop update cards.
+- Fixed [PrayerTimesWidgetProvider.kt](mobile/android/app/src/main/kotlin/com/axis/axis/PrayerTimesWidgetProvider.kt) launch URI (`axis://widget/today`) and added `/prayers` + `onException` fallback in [router.dart](mobile/lib/core/router.dart) so tapping the prayer widget never hits a router error.
+
 ## v1.3.0: Widget Speed, Prayer Strip Layout & Me Screen Redesign
 - Sped up home-screen widget launches by removing the native splash immediately on widget entry, deferring background cleanup after DB/auth initialization, and bypassing `/splash` when an active session exists.
 - Updated prayer countdown logic (`computeNextPrayer`) to advance immediately once a prayer is marked prayed, sorted the 4x1 prayer strip left-to-right from Fajr (`الفجر`) to Isha (`العشاء`), formatted the Gregorian date in English (`Tue, 24 Nov`), and added separators between Chourok/Hijri and between prayers/next-prayer countdown.
