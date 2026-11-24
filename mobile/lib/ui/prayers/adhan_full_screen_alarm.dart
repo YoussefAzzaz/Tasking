@@ -6,6 +6,7 @@ import 'package:axis/core/router.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/ui/habits/widgets/fajr_alarm_dialog.dart';
 
 /// Full-screen Adhan alarm overlay that fills the entire screen
 /// when a prayer time arrives — even over the lock screen.
@@ -183,6 +184,71 @@ class _AdhanFullScreenAlarmState extends State<AdhanFullScreenAlarm>
     await _dismiss();
   }
 
+  bool get _isFajr => widget.prayerName.trim().toLowerCase().contains('fajr');
+
+  void _openFajrWakeUpChallenge() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => FajrAlarmDialog(
+        onAlarmDismissed: () {
+          _dismiss();
+        },
+      ),
+    );
+  }
+
+  Future<void> _handleMarkDone() async {
+    if (_isFajr) {
+      final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF0F172A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: AxisColors.borderSubtle),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.wb_twilight_rounded, color: AxisColors.secondary, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isArabic ? 'تأكيد صلاة الفجر' : 'Confirm Fajr Prayer',
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            isArabic
+                ? 'هل استيقظت تماماً وأديت صلاة الفجر؟'
+                : 'Confirm that you are fully awake and have completed the Fajr prayer.',
+            style: const TextStyle(color: AxisColors.textMuted, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(isArabic ? 'إلغاء' : 'Cancel', style: const TextStyle(color: AxisColors.textDim)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AxisColors.success,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(isArabic ? 'نعم، استيقظت وأديتها' : 'Yes, Awake & Prayed'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    await _dismissAndMarkDone();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
@@ -193,9 +259,9 @@ class _AdhanFullScreenAlarmState extends State<AdhanFullScreenAlarm>
     final displayName = isArabic ? widget.prayerNameAr : widget.prayerName;
 
     return PopScope(
-      canPop: true,
+      canPop: !_isFajr,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) {
+        if (didPop && !_isFajr) {
           AdhanAlarmService().dismissAdhan(
             prayerName: widget.prayerName,
             prayerId: widget.prayerId,
@@ -356,39 +422,69 @@ class _AdhanFullScreenAlarmState extends State<AdhanFullScreenAlarm>
 
                       const Spacer(flex: 3),
 
-                      // Dismiss button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton.icon(
-                          onPressed: _dismiss,
-                          icon: const Icon(Icons.close_rounded, size: 22),
-                          label: Text(
-                            isArabic ? 'إغلاق الأذان' : 'Dismiss Adhan',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: prayerColor.withValues(alpha: 0.2),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                color: prayerColor.withValues(alpha: 0.5),
+                      // Dismiss / Wake-Up button
+                      if (_isFajr)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton.icon(
+                            onPressed: _openFajrWakeUpChallenge,
+                            icon: const Icon(Icons.psychology_rounded, size: 24, color: Colors.amber),
+                            label: Text(
+                              isArabic ? 'تحدي الاستيقاظ لإيقاف المنبه' : 'Wake Up Challenge to Stop Alarm',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
                               ),
                             ),
-                            elevation: 0,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.28),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: const BorderSide(
+                                  color: Color(0xFFEF4444),
+                                  width: 1.5,
+                                ),
+                              ),
+                              elevation: 0,
+                            ),
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton.icon(
+                            onPressed: _dismiss,
+                            icon: const Icon(Icons.close_rounded, size: 22),
+                            label: Text(
+                              isArabic ? 'إغلاق الأذان' : 'Dismiss Adhan',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: prayerColor.withValues(alpha: 0.2),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: prayerColor.withValues(alpha: 0.5),
+                                ),
+                              ),
+                              elevation: 0,
+                            ),
                           ),
                         ),
-                      ),
                       const SizedBox(height: 12),
 
                       // Mark as done + dismiss
                       TextButton.icon(
-                        onPressed: _dismissAndMarkDone,
+                        onPressed: _handleMarkDone,
                         icon: Icon(
                           Icons.check_circle_rounded,
                           size: 18,

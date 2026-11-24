@@ -886,11 +886,21 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
     );
   }
 
+  static Color _prayerColor(String raw) {
+    final code = raw.trim().toLowerCase();
+    if (code.contains('fajr')) return const Color(0xFF06B6D4); // Dawn Cyan
+    if (code.contains('dhuhr')) return const Color(0xFFF59E0B); // Solar Amber
+    if (code.contains('asr')) return const Color(0xFFF97316); // Sunset Orange
+    if (code.contains('maghrib')) return const Color(0xFFEF4444); // Crimson Dusk
+    if (code.contains('isha')) return const Color(0xFF8B5CF6); // Night Violet
+    return const Color(0xFF06B6D4);
+  }
+
   Widget _buildMobilePrayerBlock(String dateStr, CalendarPrayerBlock block) {
     final top = (block.startMinute / 60.0) * _hourHeight;
     final height = math.max((block.durationMin / 60.0) * _hourHeight, 20.0);
     final isDone = _isPrayerDone(dateStr, block);
-    const color = AxisColors.tertiary;
+    final color = _prayerColor(block.prayer.prayerCode);
 
     return Positioned(
       top: top,
@@ -947,7 +957,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
     final top = (block.startMinute / 60.0) * _hourHeight;
     final height = math.max((block.durationMin / 60.0) * _hourHeight, 20.0);
     final isDone = _isHabitDone(dateStr, block);
-    final color = _habitColor(block.habit.color);
+    const color = Color(0xFF3B82F6); // Dedicated Blue color for habits
 
     return Positioned(
       top: top,
@@ -1110,7 +1120,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
           title: p.prayer.name,
           subtitle: isAr ? 'صلاة إسلامية يومية' : 'Daily Islamic Prayer',
           icon: Icons.mosque_rounded,
-          color: AxisColors.tertiary,
+          color: _prayerColor(p.prayer.prayerCode),
           isCompleted: _isPrayerDone(dateStr, p),
           onTap: () => _togglePrayerForDate(dateStr, p),
         ),
@@ -1120,7 +1130,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
           title: h.habit.name,
           subtitle: isAr ? 'عادة يومية محمية' : 'Daily Habit Routine',
           icon: Icons.loop_rounded,
-          color: _habitColor(h.habit.color),
+          color: const Color(0xFF3B82F6), // Blue for habits
           isCompleted: _isHabitDone(dateStr, h),
           onTap: () => _toggleHabitForDate(dateStr, h),
         ),
@@ -1294,18 +1304,6 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
       default:
         return 'P3';
     }
-  }
-
-  Color _habitColor(String? hex) {
-    if (hex != null && hex.isNotEmpty) {
-      try {
-        final clean = hex.replaceAll('#', '');
-        if (clean.length == 6) {
-          return Color(int.parse('0xFF$clean'));
-        }
-      } catch (_) {}
-    }
-    return AxisColors.success;
   }
 
   static String _weekdayVeryShortName(int weekday, bool isArabic) {

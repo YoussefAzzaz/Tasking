@@ -4,6 +4,7 @@ import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/updates/app_update_service.dart';
 import '../../../common/updates/update_notice_modal.dart';
+import '../../../common/updates/update_log_modal.dart';
 
 /// Cyber-styled software update telemetry card for Desktop Profile & Settings.
 class DesktopUpdateCard extends StatefulWidget {
@@ -91,96 +92,180 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
     }
   }
 
+  void _showUpdateLog() {
+    UpdateLogModal.show(
+      context,
+      currentVersion: _versionStr,
+      buildNumber: _buildNumber,
+      onCheckForUpdates: _handleCheckForUpdates,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAr = context.isArabic;
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AxisColors.surfaceLowest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AxisColors.borderSubtle),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AxisColors.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.system_update_rounded,
-              color: AxisColors.primary,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: _showUpdateLog,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AxisColors.surfaceLowest,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AxisColors.borderSubtle),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               children: [
-                Text(
-                  isAr ? 'إصدار سطح المكتب والتحديثات' : 'DESKTOP RELEASE & SYSTEM UPDATES',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                    color: AxisColors.textHigh,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AxisColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.system_update_rounded,
+                    color: AxisColors.primary,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  'Axis System Engine v$_versionStr (Build $_buildNumber) • Platform: ${_service.currentPlatform.toUpperCase()}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    color: AxisColors.textDim,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              isAr ? 'إصدار سطح المكتب والتحديثات' : 'DESKTOP RELEASE & SYSTEM UPDATES',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                                color: AxisColors.textHigh,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AxisColors.tertiary.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AxisColors.tertiary.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              isAr ? 'سجل التحديثات ↗' : 'Update Log ↗',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: AxisColors.tertiary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Axis System Engine v$_versionStr (Build $_buildNumber) • ${_service.currentPlatform.toUpperCase()}',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 10.5,
+                          color: AxisColors.textDim,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          // Check for Updates Button
-          InkWell(
-            key: const ValueKey('desktop_check_for_updates_button'),
-            onTap: _isChecking ? null : _handleCheckForUpdates,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              decoration: BoxDecoration(
-                color: AxisColors.primary.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AxisColors.primary.withValues(alpha: 0.4)),
-              ),
-              child: _isChecking
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AxisColors.primarySoft,
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                // Update Log Button
+                Expanded(
+                  child: TextButton.icon(
+                    key: const ValueKey('desktop_view_update_log_button'),
+                    onPressed: _showUpdateLog,
+                    icon: const Icon(Icons.history_rounded, size: 14, color: AxisColors.tertiary),
+                    label: Text(
+                      isAr ? 'سجل التحديثات' : 'Update Log',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: AxisColors.tertiary,
                       ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.refresh_rounded, size: 16, color: AxisColors.primarySoft),
-                        const SizedBox(width: 8),
-                        Text(
-                          isAr ? 'فحص التحديثات' : 'Check for Updates',
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AxisColors.primarySoft,
-                          ),
-                        ),
-                      ],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      backgroundColor: AxisColors.tertiary.withValues(alpha: 0.08),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: AxisColors.tertiary.withValues(alpha: 0.25)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Check for Updates Button
+                Expanded(
+                  child: InkWell(
+                    key: const ValueKey('desktop_check_for_updates_button'),
+                    onTap: _isChecking ? null : _handleCheckForUpdates,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AxisColors.primary.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AxisColors.primary.withValues(alpha: 0.4)),
+                      ),
+                      child: _isChecking
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AxisColors.primarySoft,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.refresh_rounded, size: 14, color: AxisColors.primarySoft),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    isAr ? 'فحص التحديثات' : 'Check for Updates',
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: AxisColors.primarySoft,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1222,7 +1222,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
   Widget _buildPrayerBlockWidget(String dateStr, CalendarPrayerBlock block) {
     final top = (block.startMinute / 60.0) * _hourHeight;
     final height = math.max((block.durationMin / 60.0) * _hourHeight, 22.0);
-    const prayerColor = AxisColors.tertiary; // Emerald accent
+    final prayerColor = _prayerColor(block.prayer.prayerCode);
     final isDone = _isPrayerDone(dateStr, block);
 
     return Positioned(
@@ -1279,7 +1279,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                     color: prayerColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text(
+                  child: Text(
                     '15m',
                     style: TextStyle(
                       color: prayerColor,
@@ -1299,7 +1299,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
   Widget _buildHabitBlockWidget(String dateStr, CalendarHabitBlock block) {
     final top = (block.startMinute / 60.0) * _hourHeight;
     final height = math.max((block.durationMin / 60.0) * _hourHeight, 22.0);
-    final habitColor = _parseHabitColor(block.habit.color);
+    const habitColor = Color(0xFF3B82F6); // Dedicated Blue color for habits
     final isDone = _isHabitDone(dateStr, block);
 
     return Positioned(
@@ -1660,6 +1660,17 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     );
   }
 
+  static Color _prayerColor(String code) {
+    return switch (code.toLowerCase().trim()) {
+      'fajr' => const Color(0xFF06B6D4), // Dawn Cyan
+      'dhuhr' => const Color(0xFFF59E0B), // Solar Amber
+      'asr' => const Color(0xFFF97316), // Sunset Orange
+      'maghrib' => const Color(0xFFEF4444), // Crimson Dusk
+      'isha' => const Color(0xFF8B5CF6), // Night Violet
+      _ => const Color(0xFF06B6D4),
+    };
+  }
+
   static IconData _prayerIcon(String code) {
     return switch (code.toLowerCase().trim()) {
       'fajr' => Icons.wb_twilight_rounded,
@@ -1687,19 +1698,6 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
       3 => 'P3',
       _ => 'P-',
     };
-  }
-
-  static Color _parseHabitColor(String hex) {
-    try {
-      final clean = hex.replaceAll('#', '');
-      if (clean.length == 6) {
-        return Color(int.parse('FF$clean', radix: 16));
-      }
-      if (clean.length == 8) {
-        return Color(int.parse(clean, radix: 16));
-      }
-    } catch (_) {}
-    return AxisColors.success;
   }
 
   static String _weekdayShortName(int weekday, bool isArabic) {

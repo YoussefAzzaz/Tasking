@@ -88,8 +88,8 @@ class NotificationController {
       FocusSessionService().startTimer();
     } else if (key == 'ACTION_STOP') {
       FocusSessionService().resetTimer();
-    } else if (key == 'DISMISS_FAJR_ALARM') {
-      AdhanAlarmService().dismissAdhan(prayerName: 'Fajr', prayerId: 'fajr');
+    } else if (key == 'WAKE_UP_CHALLENGE' || key == 'DISMISS_FAJR_ALARM') {
+      AdhanAlarmService().triggerFajrWakeUpModal();
     } else if (channelKey != null && channelKey.startsWith('fajr_alarm_channel')) {
       unawaited(() async {
         if (await AdhanAlarmService().isAdhanHandledOrDismissedToday('fajr') ||
@@ -187,7 +187,7 @@ class NotificationController {
     } else {
       // Running in headless background isolate without main thread port
       try {
-        if (key == 'DISMISS_FAJR_ALARM' || (channelKey != null && channelKey.startsWith('fajr_alarm_channel'))) {
+        if (key == 'WAKE_UP_CHALLENGE' || key == 'DISMISS_FAJR_ALARM' || (channelKey != null && channelKey.startsWith('fajr_alarm_channel'))) {
           await AdhanAlarmService().dismissAdhan(prayerName: 'Fajr', prayerId: 'fajr');
         } else if (key == 'DISMISS_ADHAN') {
           await AdhanAlarmService().dismissAdhan(

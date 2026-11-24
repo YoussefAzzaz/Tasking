@@ -119,53 +119,6 @@ class AdhanKeepAliveService : Service() {
                 pendingFlags,
             )
 
-            // Post notification
-            try {
-                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                if (nm != null) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                        nm.getNotificationChannel(WAKEUP_CHANNEL_ID) == null
-                    ) {
-                        val ch = NotificationChannel(
-                            WAKEUP_CHANNEL_ID,
-                            "Adhan Screen Wakeup",
-                            NotificationManager.IMPORTANCE_HIGH,
-                        ).apply {
-                            description = "Adhan notification at prayer time"
-                            setSound(null, null)
-                            enableVibration(false)
-                            setShowBadge(false)
-                            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                        }
-                        nm.createNotificationChannel(ch)
-                    }
-
-                    val title = "Adhan: ${prayerName ?: "Prayer"}"
-                    val body = if (!prayerTime.isNullOrEmpty()) {
-                        "It is time for ${prayerName ?: "Prayer"} ($prayerTime)"
-                    } else {
-                        "Time for prayer"
-                    }
-
-                    val notifBuilder = NotificationCompat.Builder(context, WAKEUP_CHANNEL_ID)
-                        .setSmallIcon(R.mipmap.ic_launcher)
-                        .setContentTitle(title)
-                        .setContentText(body)
-                        .setPriority(NotificationCompat.PRIORITY_MAX)
-                        .setCategory(NotificationCompat.CATEGORY_ALARM)
-                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                        .setOngoing(false)
-                        .setAutoCancel(true)
-                        .setSilent(true)
-                        .setContentIntent(fullScreenPendingIntent)
-
-                    // Always attach fullScreenIntent so lock screen wakes directly to the Adhan activity
-                    notifBuilder.setFullScreenIntent(fullScreenPendingIntent, true)
-
-                    nm.notify(WAKEUP_NOTIFICATION_ID, notifBuilder.build())
-                }
-            } catch (_: Exception) {}
-
             // Acquire wake lock to keep CPU awake while Flutter & Adhan screen render
             try {
                 @Suppress("DEPRECATION")
@@ -183,6 +136,47 @@ class AdhanKeepAliveService : Service() {
                 context.startActivity(launchIntent)
             } catch (_: Exception) {
                 try {
+                    val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                    if (nm != null) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                            nm.getNotificationChannel(WAKEUP_CHANNEL_ID) == null
+                        ) {
+                            val ch = NotificationChannel(
+                                WAKEUP_CHANNEL_ID,
+                                "Adhan Screen Wakeup",
+                                NotificationManager.IMPORTANCE_HIGH,
+                            ).apply {
+                                description = "Adhan notification at prayer time"
+                                setSound(null, null)
+                                enableVibration(false)
+                                setShowBadge(false)
+                                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                            }
+                            nm.createNotificationChannel(ch)
+                        }
+
+                        val title = "Adhan: ${prayerName ?: "Prayer"}"
+                        val body = if (!prayerTime.isNullOrEmpty()) {
+                            "It is time for ${prayerName ?: "Prayer"} ($prayerTime)"
+                        } else {
+                            "Time for prayer"
+                        }
+
+                        val notifBuilder = NotificationCompat.Builder(context, WAKEUP_CHANNEL_ID)
+                            .setSmallIcon(R.mipmap.ic_launcher)
+                            .setContentTitle(title)
+                            .setContentText(body)
+                            .setPriority(NotificationCompat.PRIORITY_MAX)
+                            .setCategory(NotificationCompat.CATEGORY_ALARM)
+                            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                            .setOngoing(false)
+                            .setAutoCancel(true)
+                            .setSilent(true)
+                            .setContentIntent(fullScreenPendingIntent)
+                            .setFullScreenIntent(fullScreenPendingIntent, true)
+
+                        nm.notify(WAKEUP_NOTIFICATION_ID, notifBuilder.build())
+                    }
                     fullScreenPendingIntent.send()
                 } catch (_: Exception) {}
             }

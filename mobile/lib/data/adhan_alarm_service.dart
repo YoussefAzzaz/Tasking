@@ -852,28 +852,13 @@ class AdhanAlarmService {
       }
     }
 
-    // 2. Schedule persistent Fajr Wake-Up Alarm (+1 minute after Fajr)
-    if (_fajrAlarmEnabled && prayers.isNotEmpty) {
-      final fajr = prayers.firstWhere(
-        (p) => p.sortOrder == 1,
-        orElse: () => prayers.first,
-      );
-      final fajrDoneToday = await isPrayerCompletedToday('fajr');
-      final fajrAlarmTime = fajr.time.add(const Duration(minutes: 1));
-      if (!fajrDoneToday && fajrAlarmTime.isAfter(now)) {
-        await _scheduleFajrWakeUpAlarm(fajrAlarmTime, fajr.formattedTime);
-      } else {
+    // 2. Clear any legacy Fajr duplicate +1 min alarms (Fajr adhan itself serves as the un-dismissible waking alarm)
+    if (isSupportedPlatform) {
+      try {
         await AwesomeNotifications().cancel(9991);
         await AwesomeNotifications().cancelSchedule(9991);
         await AwesomeNotifications().dismiss(9991);
-        final tomorrowFajr = tomorrowByOrder[1];
-        if (tomorrowFajr != null) {
-          await _scheduleFajrWakeUpAlarm(
-            tomorrowFajr.time.add(const Duration(minutes: 1)),
-            tomorrowFajr.formattedTime,
-          );
-        }
-      }
+      } catch (_) {}
     }
   }
 
@@ -887,17 +872,20 @@ class AdhanAlarmService {
     try {
       await AwesomeNotifications().cancel(notifId);
 
+      final isFajr = prayer.sortOrder == 1;
       final activeSound = AdhanSoundService().currentSound;
-      final targetChannel = activeSound.id == 'alafasy'
-          ? 'prayer_adhan_channel_alafasy'
-          : 'prayer_adhan_channel';
+      final targetChannel = isFajr
+          ? (activeSound.id == 'alafasy' ? 'fajr_alarm_channel_alafasy' : 'fajr_alarm_channel')
+          : (activeSound.id == 'alafasy' ? 'prayer_adhan_channel_alafasy' : 'prayer_adhan_channel');
 
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
           id: notifId,
           channelKey: targetChannel,
-          title: 'Adhan: ${prayer.name}',
-          body: 'It is now time for ${prayer.name} (${prayer.formattedTime}).',
+          title: isFajr ? 'Fajr Wake-Up Adhan' : 'Adhan: ${prayer.name}',
+          body: isFajr
+              ? 'Prayer is better than sleep. Complete the wake-up verification to stop the alarm.'
+              : 'It is now time for ${prayer.name} (${prayer.formattedTime}).',
           notificationLayout: NotificationLayout.Default,
           category: NotificationCategory.Alarm,
           wakeUpScreen: true,
@@ -905,7 +893,7 @@ class AdhanAlarmService {
           autoDismissible: false,
           locked: true,
           payload: {
-            'type': 'adhan',
+            'type': isFajr ? 'fajr_alarm' : 'adhan',
             'prayer_id': prayer.id,
             'prayer_name': prayer.name,
             'prayer_name_ar': _prayerNameArabic[prayer.name] ?? prayer.name,
@@ -914,8 +902,8 @@ class AdhanAlarmService {
         ),
         actionButtons: [
           NotificationActionButton(
-            key: 'DISMISS_ADHAN',
-            label: 'Dismiss',
+            key: isFajr ? 'WAKE_UP_CHALLENGE' : 'DISMISS_ADHAN',
+            label: isFajr ? 'Wake Up Challenge' : 'Dismiss',
             actionType: ActionType.Default,
           ),
           NotificationActionButton(
@@ -948,61 +936,6 @@ class AdhanAlarmService {
       );
     } catch (e) {
       debugPrint('Error scheduling Adhan notification for ${prayer.name}: $e');
-    }
-  }
-
-  /// Schedules the persistent Fajr Wake-Up Alarm exactly 1 min after Fajr Adhan
-  Future<void> _scheduleFajrWakeUpAlarm(DateTime alarmTime, String adhanTimeStr) async {
-    const notifId = 9991;
-
-    try {
-      await AwesomeNotifications().cancel(notifId);
-      await AwesomeNotifications().cancelSchedule(notifId);
-
-      final activeSound = AdhanSoundService().currentSound;
-      final targetChannel = activeSound.id == 'alafasy'
-          ? 'fajr_alarm_channel_alafasy'
-          : 'fajr_alarm_channel';
-
-      await AwesomeNotifications().createNotification(
-        content: NotificationContent(
-          id: notifId,
-          channelKey: targetChannel,
-          title: 'Fajr Wake-Up Alarm',
-          body: 'Prayer is better than sleep. Complete the wake-up verification to stop the alarm.',
-          notificationLayout: NotificationLayout.BigText,
-          category: NotificationCategory.Alarm,
-          wakeUpScreen: true,
-          fullScreenIntent: true,
-          autoDismissible: false,
-          locked: true,
-          payload: {
-            'type': 'fajr_alarm',
-            'adhan_time': adhanTimeStr,
-          },
-        ),
-        actionButtons: [
-          NotificationActionButton(
-            key: 'DISMISS_FAJR_ALARM',
-            label: 'Wake Up & Stop Alarm',
-            actionType: ActionType.Default,
-          ),
-        ],
-        schedule: NotificationCalendar(
-          year: alarmTime.year,
-          month: alarmTime.month,
-          day: alarmTime.day,
-          hour: alarmTime.hour,
-          minute: alarmTime.minute,
-          second: 0,
-          millisecond: 0,
-          repeats: false,
-          allowWhileIdle: true,
-          preciseAlarm: true,
-        ),
-      );
-    } catch (e) {
-      debugPrint('Error scheduling Fajr alarm: $e');
     }
   }
 
@@ -1086,6 +1019,8 @@ class AdhanAlarmService {
     } catch (_) {}
   }
 
+  static final Map<String, DateTime> _recentTriggers = {};
+
   /// Triggers the full-screen Adhan alarm overlay for any of the 5 prayers.
   /// Shows the prayer name, time, plays the adhan sound, and provides
   /// Dismiss and Mark-as-Prayed buttons.
@@ -1098,6 +1033,16 @@ class AdhanAlarmService {
     String? prayerTime,
     BuildContext? context,
   }) {
+    final code = canonicalPrayerCode(prayerId ?? prayerName) ?? prayerName.toLowerCase();
+    final now = DateTime.now();
+    final lastTime = _recentTriggers[code];
+    if (lastTime != null && now.difference(lastTime).inSeconds < 12) {
+      debugPrint('[AdhanAlarmService] Deduping duplicate adhan trigger for $code within 12s');
+      return;
+    }
+    _recentTriggers[code] = now;
+    if (isFullScreenAlarmShowing) return;
+
     unawaited(_triggerAdhanIfPending(
       prayerName: prayerName,
       prayerId: prayerId,

@@ -96,6 +96,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
+      // For Fajr, the anti-sleep verification dialog requires confirmation
+      expect(find.text('Yes, Awake & Prayed'), findsOneWidget);
+      await tester.tap(find.text('Yes, Awake & Prayed'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
       // Verify overlay is closed
       expect(find.text('Fajr'), findsNothing);
       expect(find.text('Home Screen'), findsOneWidget);
