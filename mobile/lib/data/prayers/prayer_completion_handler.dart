@@ -162,6 +162,7 @@ class PrayerCompletionHandler {
       StatsRepository().invalidateStats();
       await syncGlobalUserLevel();
       AppWidgetSyncService().syncHabitStreak();
+      AppWidgetSyncService().syncPrayerTimes();
     } catch (e) {
       debugPrint('[PrayerCompletionHandler] Error toggling prayer: $e');
     }

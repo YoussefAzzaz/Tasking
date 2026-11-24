@@ -8,8 +8,8 @@ import 'package:axis/core/l10n/app_localizations.dart';
 class UpdateLogModal extends StatelessWidget {
   const UpdateLogModal({
     super.key,
-    this.currentVersion = '1.2.9',
-    this.buildNumber = 23,
+    this.currentVersion = '1.2.10',
+    this.buildNumber = 24,
     this.onCheckForUpdates,
   });
 
@@ -19,8 +19,8 @@ class UpdateLogModal extends StatelessWidget {
 
   static Future<void> show(
     BuildContext context, {
-    String currentVersion = '1.2.9',
-    int buildNumber = 23,
+    String currentVersion = '1.2.10',
+    int buildNumber = 24,
     VoidCallback? onCheckForUpdates,
   }) {
     return showDialog<void>(
@@ -39,6 +39,26 @@ class UpdateLogModal extends StatelessWidget {
     final isAr = context.isArabic;
 
     const categories = <_UpdateCategory>[
+      _UpdateCategory(
+        icon: Icons.widgets_rounded,
+        color: Color(0xFF00E5FF), // Electric Cyan
+        titleEn: 'Android Home Screen Widgets (v1.2.10)',
+        titleAr: 'إضافات الشاشة الرئيسية لأندرويد (v1.2.10)',
+        items: [
+          _UpdateItem(
+            titleEn: 'Horizontal Arabic Prayer Times Widget (4×1)',
+            titleAr: 'ودجت مواقيت الصلاة الأفقي بالعربية (4×1)',
+            descEn: 'Two-layer horizontal widget displaying Hijri & Gregorian dates, current time, Sunrise on top, and all 5 Arabic prayers with live countdown timer in Noto Naskh Arabic font.',
+            descAr: 'ودجت أفقي من طبقتين يعرض التاريخ الهجري والميلادي والساعة ووقت الشروق في الأعلى، والصلوات الخمس بالخط العربي الأنيق مع تمييز الصلاة الحالية ومؤقت تنازلي للصلاة القادمة.',
+          ),
+          _UpdateItem(
+            titleEn: 'Upgraded Today Tasks & Habit Streak Widgets',
+            titleAr: 'ترقية ودجت مهام اليوم وسلسلة العادات',
+            descEn: 'Added Hijri date, priority color dots, overdue pills, strikethrough completion, habit color indicators, gradient streak badges, active-only habit filtering, and direct tap navigation to Habits.',
+            descAr: 'إضافة التاريخ الهجري، ونقاط ألوان الأولوية والعادات، وتمييز المهام المتأخرة والمكتملة، واستبعاد العادات الموقفة مؤقتاً، والانتقال المباشر لصفحة العادات.',
+          ),
+        ],
+      ),
       _UpdateCategory(
         icon: Icons.mosque_rounded,
         color: Color(0xFF06B6D4), // Cyan

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
+import 'package:axis/core/widget_navigation_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/ui/prayers/adhan_full_screen_alarm.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -98,7 +99,9 @@ class _SplashScreenState extends State<SplashScreen>
       }
       final adhan = AdhanAlarmService().activeAdhanInfo;
       if (AuthService().hasActiveSession) {
-        context.go('/today');
+        final targetRoute =
+            WidgetNavigationService().resolveInitialAuthenticatedRoute();
+        context.go(targetRoute);
         unawaited(AuthService().tryAutoLoginOrSync());
       } else {
         context.go('/auth');

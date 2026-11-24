@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:window_manager/window_manager.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
+import 'package:axis/core/widget_navigation_service.dart';
 import 'package:axis/core/desktop_scroll_behavior.dart';
 import 'package:axis/core/config/app_config.dart';
 import 'package:axis/data/powersync_db.dart';
@@ -76,6 +77,7 @@ Future<void> main() async {
     await openDatabase();
     await AuthService().init();
     await LocaleService().init();
+    await WidgetNavigationService().init();
     unawaited(UserProfileRepository().getProfile());
   } catch (e, stack) {
     debugPrint('[Startup] Error initializing database or auth: $e\n$stack');
@@ -192,6 +194,7 @@ class _AxisAppState extends State<AxisApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       AwesomeNotifications().setGlobalBadgeCounter(0).catchError((_) {});
+      unawaited(AppWidgetSyncService().syncAll());
       _triggerAutoUpdateCheck();
     }
   }

@@ -13,6 +13,9 @@ class AdhanWakeupReceiver : BroadcastReceiver() {
         val prayerNameAr = intent.getStringExtra(AdhanKeepAliveService.EXTRA_PRAYER_NAME_AR)
         val prayerTime = intent.getStringExtra(AdhanKeepAliveService.EXTRA_PRAYER_TIME)
 
+        // Keep horizontal Prayer Times home screen widget in sync when Adhan transitions
+        WidgetUiHelper.broadcastWidgetUpdate(context, PrayerTimesWidgetProvider::class.java)
+
         // Ensure the foreground keep-alive service processes the wakeup cleanly & launches MainActivity
         val serviceIntent = Intent(context, AdhanKeepAliveService::class.java).apply {
             action = AdhanKeepAliveService.ACTION_TRIGGER_ADHAN_ALARM

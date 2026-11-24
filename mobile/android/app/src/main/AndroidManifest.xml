@@ -64,7 +64,8 @@
         <!-- Today Tasks Home Screen Widget -->
         <receiver
             android:name=".TodayTasksWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="Axis • Today Tasks">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -76,13 +77,27 @@
         <!-- Habit Daily Streak Home Screen Widget -->
         <receiver
             android:name=".HabitStreakWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="Axis • Habit Streak">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/habit_streak_widget_info" />
+        </receiver>
+
+        <!-- Horizontal Arabic Prayer Times Home Screen Widget -->
+        <receiver
+            android:name=".PrayerTimesWidgetProvider"
+            android:exported="true"
+            android:label="Axis • مواقيت الصلاة">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/prayer_times_widget_info" />
         </receiver>
 
         <!-- Persistent Adhan Guardian Foreground Service -->

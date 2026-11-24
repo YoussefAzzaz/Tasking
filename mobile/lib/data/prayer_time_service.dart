@@ -200,6 +200,16 @@ class PrayerTimeService with WidgetsBindingObserver {
     );
   }
 
+  /// Calculates the astronomical Sunrise time for the provided date using resolved coordinates
+  Future<DateTime> calculateSunriseForDate(DateTime date) async {
+    final coords = await resolveCoordinates();
+    return _calculator.calculateSunrise(
+      coordinates: coords,
+      date: date,
+      country: _currentCountry,
+    );
+  }
+
   /// Returns the next upcoming prayer relative to current local time
   Future<PrayerItem?> getNextPrayer([DateTime? currentTime]) async {
     final target = currentTime ?? DateTime.now();
@@ -249,7 +259,7 @@ class PrayerTimeService with WidgetsBindingObserver {
       await AdhanAlarmService().scheduleAllPrayers(prayerItems);
 
       // Synchronize home screen widgets
-      AppWidgetSyncService().syncHabitStreak();
+      AppWidgetSyncService().syncAll();
 
       // Ensure daily prayer status for today is synced
       unawaited(DailyPrayerStatusRepository().syncMyDailyPrayerStatus());
@@ -269,7 +279,7 @@ class PrayerTimeService with WidgetsBindingObserver {
     final uid = userId ?? currentUserId;
     await _repository.resetPrayers(uid);
     await DailyPrayerStatusRepository().resetDailyPrayerStatusForToday(uid);
-    AppWidgetSyncService().syncHabitStreak();
+    AppWidgetSyncService().syncAll();
   }
 
   /// Toggles completion of a single prayer and awards/reverts EXP without recreating any records.

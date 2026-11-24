@@ -102,6 +102,54 @@ class PrayerCalculator {
     ];
   }
 
+  /// Calculates local astronomical Sunrise time for the given coordinates and date.
+  DateTime calculateSunrise({
+    required Coordinates coordinates,
+    required DateTime date,
+    CalculationParameters? parameters,
+    String country = '',
+  }) {
+    final params = parameters ?? getOptimalParameters(country, date.timeZoneOffset.inHours);
+    final prayerTimes = PrayerTimes(
+      coordinates: coordinates,
+      date: date,
+      calculationParameters: params,
+      precision: false,
+    );
+    return prayerTimes.sunrise.toLocal();
+  }
+
+  /// Returns the currently active obligatory prayer code ('fajr', 'dhuhr', 'asr', 'maghrib', 'isha')
+  /// or 'sunrise' during the post-sunrise window before Dhuhr.
+  String determineCurrentPrayerCode(
+    List<PrayerItem> prayers,
+    DateTime sunrise, [
+    DateTime? currentTime,
+  ]) {
+    if (prayers.length < 5) return 'fajr';
+    final now = currentTime ?? DateTime.now();
+    final fajr = prayers[0].time;
+    final dhuhr = prayers[1].time;
+    final asr = prayers[2].time;
+    final maghrib = prayers[3].time;
+    final isha = prayers[4].time;
+
+    if (now.isBefore(fajr)) {
+      return 'isha';
+    } else if (now.isBefore(sunrise)) {
+      return 'fajr';
+    } else if (now.isBefore(dhuhr)) {
+      return 'sunrise';
+    } else if (now.isBefore(asr)) {
+      return 'dhuhr';
+    } else if (now.isBefore(maghrib)) {
+      return 'asr';
+    } else if (now.isBefore(isha)) {
+      return 'maghrib';
+    }
+    return 'isha';
+  }
+
   /// Calculates Great Circle Qibla bearing towards the Kaaba in Mecca
   double calculateQiblaBearing(double latitude, double longitude) {
     return QiblaService().calculateQiblaBearing(latitude, longitude);

@@ -6,5 +6,6 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_today_tasks"
+    android:previewImage="@drawable/widget_preview_today_tasks"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

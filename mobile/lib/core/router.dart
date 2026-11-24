@@ -12,6 +12,7 @@ import 'package:axis/ui/auth/auth_screen.dart';
 import 'package:axis/ui/calendar/calendar_screen.dart';
 import 'package:axis/ui/debug/adhan_alarm_debug_screen.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/core/widget_navigation_service.dart';
 import 'package:axis/ui/shell/app_shell.dart';
 
 export 'package:axis/ui/shell/app_shell.dart';
@@ -40,7 +41,7 @@ final router = GoRouter(
     // Only redirect away from /auth if the user has an actual authenticated cloud account.
     // Local guests MUST be allowed to open /auth to sign in or register!
     if (isAuthenticated && isAuthRoute) {
-      return '/today';
+      return WidgetNavigationService().resolveInitialAuthenticatedRoute();
     }
     return null;
   },
