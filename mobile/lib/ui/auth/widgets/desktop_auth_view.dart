@@ -146,6 +146,44 @@ class DesktopAuthView extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 20),
 
+                                // Session Expired Notice when redirected due to deprecated/expired token
+                                if (AuthService().isSessionExpired) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: AxisColors.danger.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: AxisColors.danger.withValues(alpha: 0.45),
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.warning_amber_rounded,
+                                          color: AxisColors.danger,
+                                          size: 22,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            isArabic
+                                                ? 'انتهت صلاحية جلستك. يرجى تسجيل الدخول مجدداً لاستئناف المزامنة.'
+                                                : 'Your session has expired. Please log in again to resume synchronization.',
+                                            style: GoogleFonts.spaceGrotesk(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AxisColors.textHigh,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+
                                 // Error Banner if present
                                 if (errorMessage != null) ...[
                                   AuthErrorBanner(errorMessage: errorMessage!),

@@ -54,7 +54,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 
     if (session == null || session.isExpired || isSigningOut?.call() == true) {
       if (isSigningOut?.call() != true) {
-        AuthService().sessionExpiredNotifier.value = true;
+        unawaited(AuthService().handleSessionExpired(reason: 'fetchCredentials: No active/valid authenticated session'));
       }
       if (!_loggedNoSession) {
         _loggedNoSession = true;
@@ -467,7 +467,7 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 
     if (session == null || user == null || uid.isEmpty || session.isExpired) {
       if (isSigningOut?.call() != true) {
-        AuthService().sessionExpiredNotifier.value = true;
+        unawaited(AuthService().handleSessionExpired(reason: 'uploadData: Session expired or invalid user'));
       }
       debugPrint('[PowerSync SupabaseConnector] No authenticated user or session expired; deferring upload.');
       throw CredentialsException('Not logged in or session expired');
@@ -569,8 +569,11 @@ class SupabaseConnector extends PowerSyncBackendConnector {
       } on AuthException catch (e) {
         debugPrint('[PowerSync SupabaseConnector] AuthException [${e.statusCode}]: ${e.message}');
         if (e.statusCode == '401' || e.statusCode == '403') {
-          AuthService().sessionExpiredNotifier.value = true;
-          unawaited(AuthService().trySilentReAuthWithSavedCredentials());
+          unawaited(AuthService().trySilentReAuthWithSavedCredentials().then((ok) {
+            if (!ok) {
+              AuthService().handleSessionExpired(reason: 'AuthException ${e.statusCode}: ${e.message}');
+            }
+          }));
           if (client.auth.currentSession?.refreshToken != null) {
             try {
               await client.auth.refreshSession();

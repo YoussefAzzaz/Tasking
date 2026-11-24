@@ -26,6 +26,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/core/bloc/blocs.dart';
+import 'package:axis/data/updates/app_update_service.dart';
+import 'package:axis/ui/common/updates/update_notice_modal.dart';
 import 'dart:async';
 
 Future<void> main() async {
@@ -99,6 +101,7 @@ Future<void> main() async {
   // Check if app was woken up from terminated state by a notification action / fullScreenIntent
   WidgetsBinding.instance.addPostFrameCallback((_) {
     NotificationController.checkInitialNotificationAction();
+    AdhanAlarmService().checkPendingNativeAdhanLaunch();
     AwesomeNotifications().setGlobalBadgeCounter(0).catchError((_) {});
   });
 
@@ -174,6 +177,9 @@ class _AxisAppState extends State<AxisApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _triggerAutoUpdateCheck();
+    });
   }
 
   @override
@@ -186,6 +192,28 @@ class _AxisAppState extends State<AxisApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       AwesomeNotifications().setGlobalBadgeCounter(0).catchError((_) {});
+      _triggerAutoUpdateCheck();
+    }
+  }
+
+  Future<void> _triggerAutoUpdateCheck() async {
+    try {
+      final update = await AppUpdateService().checkForUpdate();
+      if (update != null && mounted) {
+        final currentVer = await AppUpdateService().getInstalledVersion();
+        if (!mounted) return;
+        if (update.shouldPrompt(
+          currentVersion: currentVer.toString(),
+          currentBuildNumber: currentVer.buildNumber,
+        )) {
+          final ctx = rootNavigatorKey.currentContext;
+          if (ctx != null && ctx.mounted) {
+            UpdateNoticeModal.show(ctx, updateInfo: update);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[AutoUpdate] Error during auto update check: $e');
     }
   }
 

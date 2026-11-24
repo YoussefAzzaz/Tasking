@@ -87,6 +87,13 @@ class AxisStorage {
     return File(p.join(prefDir.path, 'reading_preferences.json'));
   }
 
+  /// File for cached user credentials: `<Documents>/axis/preferences/last_saved_credentials.json`
+  static Future<File> getLastSavedCredentialsFile() async {
+    await ensureInitializedAndMigrated();
+    final prefDir = await getPreferencesDirectory();
+    return File(p.join(prefDir.path, 'last_saved_credentials.json'));
+  }
+
   /// Directory for notifications state: `<Documents>/axis/notifications/`
   static Future<Directory> getNotificationsDirectory() async {
     final root = await getAxisRootDirectory();

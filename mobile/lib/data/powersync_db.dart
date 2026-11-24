@@ -387,13 +387,8 @@ Future<void> openDatabase() async {
             return;
           }
         }
-        // If recovery failed, mark session as expired
-        AuthService().sessionExpiredNotifier.value = true;
-        if (db.connected || db.currentStatus.connecting) {
-          try {
-            await db.disconnect();
-          } catch (_) {}
-        }
+        // If recovery failed, mark session as expired and redirect out
+        unawaited(AuthService().handleSessionExpired(reason: 'Supabase token refresh failed'));
       } else if (event == AuthChangeEvent.signedOut) {
         AuthService().sessionExpiredNotifier.value = false;
         setCachedUserId('');
@@ -465,7 +460,7 @@ Future<void> openDatabase() async {
             return;
           }
         }
-        AuthService().sessionExpiredNotifier.value = true;
+        unawaited(AuthService().handleSessionExpired(reason: 'Sync error unrecoverable'));
       }());
     }
   }
@@ -764,7 +759,7 @@ Future<void> ensurePowerSyncConnected({bool forceReconnect = false}) async {
       await purgeForeignUserData();
       await syncGlobalUserLevel();
     } else if (session != null && session.isExpired) {
-      AuthService().sessionExpiredNotifier.value = true;
+      unawaited(AuthService().handleSessionExpired(reason: 'Expired session in ensurePowerSyncConnected'));
     }
   } catch (e) {
     debugPrint('[PowerSync] ensurePowerSyncConnected error: $e');

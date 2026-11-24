@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:axis/core/storage/axis_storage.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
@@ -97,8 +99,65 @@ class AuthService {
   Stream<AuthState> get authStateChanges =>
       _client?.auth.onAuthStateChange ?? const Stream.empty();
 
+  Map<String, String>? _cachedPersistentCredentials;
+
+  /// Loads cached credentials from the persistent axis storage directory
+  Future<Map<String, String>?> loadPersistentCredentials() async {
+    if (_cachedPersistentCredentials != null) return _cachedPersistentCredentials;
+    try {
+      final file = await AxisStorage.getLastSavedCredentialsFile();
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        if (content.isNotEmpty) {
+          final data = jsonDecode(content) as Map<String, dynamic>;
+          final email = data['email'] as String? ?? '';
+          final enc = data['encrypted_password'] as String? ?? '';
+          final displayName = data['display_name'] as String? ?? '';
+          if (email.isNotEmpty && enc.isNotEmpty) {
+            _cachedPersistentCredentials = {
+              'email': email,
+              'encrypted_password': enc,
+              'display_name': displayName,
+            };
+            return _cachedPersistentCredentials;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[AuthService] Error reading persistent credentials: $e');
+    }
+    return null;
+  }
+
+  /// Persists credentials to axis storage for quick login across sessions
+  Future<void> savePersistentCredentials({
+    required String email,
+    required String plainPassword,
+    String? displayName,
+  }) async {
+    try {
+      final enc = SecureCredentialVault.encryptPassword(plainPassword);
+      final data = {
+        'email': email.trim(),
+        'encrypted_password': enc,
+        'display_name': displayName ?? '',
+        'saved_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      _cachedPersistentCredentials = {
+        'email': email.trim(),
+        'encrypted_password': enc,
+        'display_name': displayName ?? '',
+      };
+      final file = await AxisStorage.getLastSavedCredentialsFile();
+      await file.writeAsString(jsonEncode(data), flush: true);
+    } catch (e) {
+      debugPrint('[AuthService] Error persisting credentials: $e');
+    }
+  }
+
   /// Initialize and load saved local auth session from SQLite
   Future<void> init() async {
+    await loadPersistentCredentials();
     if (!isDatabaseInitialized) return;
     try {
       final row = await db.getOptional(
@@ -150,17 +209,22 @@ class AuthService {
 
   /// Whether encrypted credentials exist in local cache for re-authentication
   bool get hasSavedCredentials {
-    final enc = _lastSavedSession?['encrypted_password'] as String?;
-    final email = _lastSavedSession?['email'] as String?;
+    final enc = (_lastSavedSession?['encrypted_password'] as String?) ??
+        _cachedPersistentCredentials?['encrypted_password'];
+    final email = (_lastSavedSession?['email'] as String?) ??
+        _cachedPersistentCredentials?['email'];
     return enc != null && enc.isNotEmpty && email != null && email.isNotEmpty;
   }
 
   /// Returns the cached email if any
-  String? get savedEmail => _lastSavedSession?['email'] as String?;
+  String? get savedEmail =>
+      (_lastSavedSession?['email'] as String?) ??
+      _cachedPersistentCredentials?['email'];
 
   /// Attempts to recover the decrypted plain password from the secure vault
   String? getDecryptedPassword() {
-    final enc = _lastSavedSession?['encrypted_password'] as String?;
+    final enc = (_lastSavedSession?['encrypted_password'] as String?) ??
+        _cachedPersistentCredentials?['encrypted_password'];
     if (enc == null || enc.isEmpty) return null;
     return SecureCredentialVault.decryptPassword(enc);
   }
@@ -184,6 +248,11 @@ class AuthService {
     if (plainPassword != null && plainPassword.isNotEmpty) {
       encryptedPassword = SecureCredentialVault.encryptPassword(plainPassword);
       passwordHash = SecureCredentialVault.hashPassword(plainPassword);
+      unawaited(savePersistentCredentials(
+        email: email,
+        plainPassword: plainPassword,
+        displayName: displayName,
+      ));
     }
 
     _lastSavedSession = {
@@ -230,7 +299,7 @@ class AuthService {
     }
   }
 
-  /// Clear the local auth session from memory and SQLite
+  /// Clear the local auth session from memory and SQLite (preserves persistent quick login credentials)
   Future<void> clearLocalSession() async {
     _lastSavedSession = null;
     setCachedUserId('');
@@ -246,10 +315,21 @@ class AuthService {
   }
 
   /// Clears saved credentials from local storage and memory while keeping user session
-  Future<void> clearSavedCredentials() async {
+  Future<void> clearSavedCredentials({bool forgetAccount = false}) async {
     if (_lastSavedSession != null) {
       _lastSavedSession!['encrypted_password'] = null;
       _lastSavedSession!['password_hash'] = null;
+    }
+    if (forgetAccount) {
+      _cachedPersistentCredentials = null;
+      try {
+        final file = await AxisStorage.getLastSavedCredentialsFile();
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        debugPrint('[AuthService] Error deleting persistent credentials file: $e');
+      }
     }
     if (isDatabaseInitialized) {
       try {
@@ -259,6 +339,28 @@ class AuthService {
         );
       } catch (e) {
         debugPrint('[AuthService] Error clearing saved credentials: $e');
+      }
+    }
+  }
+
+  /// Handles expired or deprecated sync token: clears active cloud session,
+  /// disconnects PowerSync, preserves persistent credentials for quick login,
+  /// triggers GoRouter redirect to /auth, and notifies UI.
+  Future<void> handleSessionExpired({String? reason}) async {
+    debugPrint('[AuthService] Handling expired / deprecated session: $reason');
+    sessionExpiredNotifier.value = true;
+    authStateNotifier.value = false;
+    _lastSavedSession = null;
+    setCachedUserId('');
+
+    if (isDatabaseInitialized) {
+      try {
+        await db.disconnect();
+      } catch (_) {}
+      try {
+        await db.execute('DELETE FROM local_auth_session WHERE id = ?', ['active_session']);
+      } catch (e) {
+        debugPrint('[AuthService] Error clearing local auth session on expiration: $e');
       }
     }
   }

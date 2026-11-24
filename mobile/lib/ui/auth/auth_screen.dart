@@ -52,6 +52,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
 
   Future<void> _populateSavedCredentials() async {
     final auth = AuthService();
+    await auth.loadPersistentCredentials();
     if (!auth.hasSavedCredentials && isDatabaseInitialized) {
       await auth.init();
     }

@@ -153,6 +153,13 @@ class UpdateInfo {
         : DateTime.now();
 
     final semver = SemanticVersion.parse(tagName);
+    int remoteBuildNumber = semver.buildNumber;
+    if (remoteBuildNumber == 0) {
+      final buildMatch = RegExp(r'\+(\d+)').firstMatch('$name $tagName $body');
+      if (buildMatch != null) {
+        remoteBuildNumber = int.tryParse(buildMatch.group(1)!) ?? 0;
+      }
+    }
     final assets = (json['assets'] as List<dynamic>?) ?? [];
 
     String? matchedUrl;
@@ -210,7 +217,7 @@ class UpdateInfo {
 
     return UpdateInfo(
       version: '${semver.major}.${semver.minor}.${semver.patch}',
-      buildNumber: semver.buildNumber,
+      buildNumber: remoteBuildNumber,
       releaseName: name,
       releaseNotes: body,
       publishedAt: publishedAt,
