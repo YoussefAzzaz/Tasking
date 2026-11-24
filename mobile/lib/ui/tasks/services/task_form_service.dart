@@ -151,8 +151,8 @@ class TaskFormService {
       return rawNewTask;
     }
 
-    if (!displaceConflicting) {
-      // Preserve existing tasks completely - new task takes rawNewTask.dueTime without shifting any existing tasks
+    if (!displaceConflicting && dueTime != null) {
+      // Preserve existing tasks completely when user explicitly specified a time without displacing existing tasks
       await _taskRepo.addTask(rawNewTask);
       return rawNewTask;
     }
@@ -181,14 +181,26 @@ class TaskFormService {
       final startMin = CalendarScheduler.parseTimeToMinutes(effectiveDueTime) ??
           (isToday ? CalendarScheduler.defaultTodayTaskStartMinute(now) : CalendarScheduler.defaultDayStartMinutes);
 
-      final scheduled = CalendarScheduler.displaceConflictingTask(
-        dateStr: dueDateStr,
-        existingDayTasks: existingDayTasks,
-        incomingTask: rawNewTask,
-        targetStartMinute: startMin,
-        habitBlocks: habitBlocks,
-        prayerBlocks: prayerBlocks,
-      );
+      final List<Task> scheduled;
+      if (displaceConflicting) {
+        scheduled = CalendarScheduler.displaceConflictingTask(
+          dateStr: dueDateStr,
+          existingDayTasks: existingDayTasks,
+          incomingTask: rawNewTask,
+          targetStartMinute: startMin,
+          habitBlocks: habitBlocks,
+          prayerBlocks: prayerBlocks,
+        );
+      } else {
+        scheduled = CalendarScheduler.scheduleNewTaskForDay(
+          dateStr: dueDateStr,
+          existingDayTasks: existingDayTasks,
+          newTask: rawNewTask,
+          habitBlocks: habitBlocks,
+          prayerBlocks: prayerBlocks,
+          referenceTime: now,
+        );
+      }
 
       final finalNewTask = scheduled.firstWhere((t) => t.id == rawNewTask.id);
       await _taskRepo.addTask(finalNewTask);

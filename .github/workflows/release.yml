@@ -38,11 +38,17 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create debug keystore if missing
+      - name: Restore release keystore and environment
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          ENV_CONTENT: ${{ secrets.RELEASE_ENV }}
         run: |
-          mkdir -p ~/.android
-          if [ ! -f ~/.android/debug.keystore ]; then
-            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            mkdir -p mobile/android/app
+            echo "$KEYSTORE_BASE64" | base64 -d > mobile/android/app/axis-release.jks
+          fi
+          if [ -n "$ENV_CONTENT" ]; then
+            echo "$ENV_CONTENT" > mobile/.env
           fi
 
       - name: Install dependencies
@@ -51,7 +57,7 @@ jobs:
 
       - name: Build APK
         working-directory: mobile
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define-from-file=.env
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -77,11 +83,12 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create debug keystore if missing
+      - name: Restore environment
+        env:
+          ENV_CONTENT: ${{ secrets.RELEASE_ENV }}
         run: |
-          mkdir -p ~/.android
-          if [ ! -f ~/.android/debug.keystore ]; then
-            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          if [ -n "$ENV_CONTENT" ]; then
+            echo "$ENV_CONTENT" > mobile/.env
           fi
 
       - name: Install dependencies
@@ -90,7 +97,7 @@ jobs:
 
       - name: Build Linux Bundle
         working-directory: mobile
-        run: flutter build linux --release
+        run: flutter build linux --release --dart-define-from-file=.env
 
       - name: Package Linux tarball
         run: |

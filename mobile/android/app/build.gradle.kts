@@ -20,39 +20,61 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePropertiesFile = rootProject.file("key.properties")
-            if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
-                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-                val storeFilePath = keystoreProperties.getProperty("storeFile")
-                if (storeFilePath != null) {
-                    storeFile = file(storeFilePath)
-                }
-                storePassword = keystoreProperties.getProperty("storePassword")
-            } else {
-                val debugConfig = signingConfigs.getByName("debug")
-                val defaultKeystore = debugConfig.storeFile
-                if (defaultKeystore != null && !defaultKeystore.exists()) {
-                    defaultKeystore.parentFile?.mkdirs()
-                    try {
-                        ProcessBuilder(
-                            "keytool", "-genkey", "-v",
-                            "-keystore", defaultKeystore.absolutePath,
-                            "-storepass", "android",
-                            "-alias", "androiddebugkey",
-                            "-keypass", "android",
-                            "-keyalg", "RSA",
-                            "-keysize", "2048",
-                            "-validity", "10000",
-                            "-dname", "CN=Android Debug,O=Android,C=US"
-                        ).start().waitFor()
-                    } catch (e: Exception) {
-                        println("Warning: could not auto-generate debug keystore: ${e.message}")
+            val envFile = rootProject.file("../.env")
+            val keyPropsFile = rootProject.file("key.properties")
+            val props = Properties()
+
+            if (envFile.exists()) {
+                envFile.forEachLine { line ->
+                    val trimmed = line.trim()
+                    if (trimmed.isNotEmpty() && !trimmed.startsWith("#") && trimmed.contains("=")) {
+                        val key = trimmed.substringBefore("=").trim()
+                        val value = trimmed.substringAfter("=").trim().removeSurrounding("\"").removeSurrounding("'")
+                        props[key] = value
                     }
                 }
-                initWith(debugConfig)
+            }
+
+            if (keyPropsFile.exists()) {
+                FileInputStream(keyPropsFile).use { props.load(it) }
+            }
+
+            val storeFilePath = props.getProperty("KEYSTORE_PATH")
+                ?: props.getProperty("storeFile")
+                ?: System.getenv("KEYSTORE_PATH")
+                ?: System.getenv("ANDROID_STORE_FILE")
+                ?: "axis-release.jks"
+
+            val resolvedStoreFile = if (file(storeFilePath).isAbsolute) {
+                file(storeFilePath)
+            } else {
+                val inApp = file(storeFilePath)
+                if (inApp.exists()) inApp else rootProject.file("app/$storeFilePath")
+            }
+
+            val resolvedKeyAlias = props.getProperty("KEY_ALIAS")
+                ?: props.getProperty("keyAlias")
+                ?: System.getenv("KEY_ALIAS")
+                ?: System.getenv("ANDROID_KEY_ALIAS")
+
+            val resolvedStorePassword = props.getProperty("KEYSTORE_PASSWORD")
+                ?: props.getProperty("storePassword")
+                ?: System.getenv("KEYSTORE_PASSWORD")
+                ?: System.getenv("ANDROID_STORE_PASSWORD")
+
+            val resolvedKeyPassword = props.getProperty("KEY_PASSWORD")
+                ?: props.getProperty("keyPassword")
+                ?: System.getenv("KEY_PASSWORD")
+                ?: System.getenv("ANDROID_KEY_PASSWORD")
+
+            if (resolvedStoreFile.exists() && !resolvedKeyAlias.isNullOrEmpty() && !resolvedStorePassword.isNullOrEmpty()) {
+                storeFile = resolvedStoreFile
+                keyAlias = resolvedKeyAlias
+                storePassword = resolvedStorePassword
+                keyPassword = resolvedKeyPassword ?: resolvedStorePassword
+            } else {
+                // Fallback to debug config if release keystore or credentials are not configured
+                initWith(signingConfigs.getByName("debug"))
             }
         }
     }
