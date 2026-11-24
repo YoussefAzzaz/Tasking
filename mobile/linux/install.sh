@@ -15,10 +15,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MOBILE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ROOT_DIR="$(cd "${MOBILE_DIR}/.." && pwd)"
 
-BUNDLE_DIR="${MOBILE_DIR}/build/linux/x64/release/bundle"
-EXECUTABLE="${BUNDLE_DIR}/axis"
-MASTER_LOGO_PNG="${ROOT_DIR}/Logo.png"
-MASTER_LOGO_SVG="${ROOT_DIR}/axis_logo.svg"
+# Resolve executable and master logo locations adaptively
+if [ -f "${SCRIPT_DIR}/axis" ]; then
+  # Running from within a standalone/release bundle
+  BUNDLE_DIR="${SCRIPT_DIR}"
+  EXECUTABLE="${BUNDLE_DIR}/axis"
+  MASTER_LOGO_PNG="${BUNDLE_DIR}/com.axis.axis.png"
+  [ -f "${MASTER_LOGO_PNG}" ] || MASTER_LOGO_PNG="${BUNDLE_DIR}/data/flutter_assets/assets/logo.png"
+  MASTER_LOGO_SVG="${BUNDLE_DIR}/com.axis.axis.svg"
+else
+  # Running from source repository
+  BUNDLE_DIR="${MOBILE_DIR}/build/linux/x64/release/bundle"
+  EXECUTABLE="${BUNDLE_DIR}/axis"
+  MASTER_LOGO_PNG="${SCRIPT_DIR}/com.axis.axis.png"
+  [ -f "${MASTER_LOGO_PNG}" ] || MASTER_LOGO_PNG="${ROOT_DIR}/Logo.png"
+  [ -f "${MASTER_LOGO_PNG}" ] || MASTER_LOGO_PNG="${MOBILE_DIR}/assets/logo.png"
+  MASTER_LOGO_SVG="${SCRIPT_DIR}/com.axis.axis.svg"
+  [ -f "${MASTER_LOGO_SVG}" ] || MASTER_LOGO_SVG="${ROOT_DIR}/axis_logo.svg"
+fi
 
 APP_ID="com.axis.axis"
 DESKTOP_DIR="${HOME}/.local/share/applications"
@@ -50,8 +64,9 @@ mkdir -p "${DESKTOP_DIR}"
 mkdir -p "${ICON_BASE_DIR}"
 
 # 1. Install standard hicolor icons
-echo "==> Generating and installing icon sizes (16x16 to 512x512 + SVG)..."
-python3 - <<EOF
+echo "==> Installing icon sizes (16x16 to 512x512 + SVG)..."
+if command -v python3 >/dev/null 2>&1 && python3 -c "import PIL" >/dev/null 2>&1; then
+  python3 - <<EOF
 import os
 from PIL import Image
 
@@ -75,6 +90,21 @@ if os.path.exists(svg_path):
     with open(svg_path, "r") as src, open(os.path.join(scalable_dir, f"{app_id}.svg"), "w") as dst:
         dst.write(src.read())
 EOF
+else
+  # Direct copy fallback if PIL is unavailable
+  if [ -f "${MASTER_LOGO_PNG}" ]; then
+    for s in 16 24 32 48 64 128 256 512; do
+      target_dir="${ICON_BASE_DIR}/${s}x${s}/apps"
+      mkdir -p "${target_dir}"
+      cp -f "${MASTER_LOGO_PNG}" "${target_dir}/${APP_ID}.png"
+    done
+  fi
+  if [ -f "${MASTER_LOGO_SVG}" ]; then
+    scalable_dir="${ICON_BASE_DIR}/scalable/apps"
+    mkdir -p "${scalable_dir}"
+    cp -f "${MASTER_LOGO_SVG}" "${scalable_dir}/${APP_ID}.svg"
+  fi
+fi
 
 # 2. Generate and install desktop file
 echo "==> Writing ${DESKTOP_DIR}/${APP_ID}.desktop..."
@@ -109,4 +139,5 @@ fi
 echo "==> Done! AXIS is now available in your Ubuntu Applications menu with its official icon."
 echo "    Launcher: ${DESKTOP_DIR}/${APP_ID}.desktop"
 echo "    Binary:   ${EXECUTABLE}"
+
 

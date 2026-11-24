@@ -1,6 +1,7 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <sys/stat.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -46,6 +47,102 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+// Ensures the application launcher entry and desktop icons are installed in
+// ~/.local/share/applications and ~/.local/share/icons/hicolor so Axis is always
+// listed with its official icon in the GNOME / Ubuntu "Show Applications" menu.
+static void ensure_desktop_integration(const gchar* exe_path, const gchar* exe_dir) {
+  if (exe_path == nullptr || exe_dir == nullptr) {
+    return;
+  }
+
+  const gchar* data_home = g_get_user_data_dir();
+  if (data_home == nullptr) {
+    return;
+  }
+
+  // 1. Ensure desktop entry exists in ~/.local/share/applications/com.axis.axis.desktop
+  g_autofree gchar* apps_dir = g_build_filename(data_home, "applications", nullptr);
+  g_mkdir_with_parents(apps_dir, 0755);
+
+  g_autofree gchar* desktop_path = g_build_filename(apps_dir, "com.axis.axis.desktop", nullptr);
+  gboolean needs_desktop_write = TRUE;
+
+  if (g_file_test(desktop_path, G_FILE_TEST_EXISTS)) {
+    gchar* existing_content = nullptr;
+    if (g_file_get_contents(desktop_path, &existing_content, nullptr, nullptr)) {
+      if (strstr(existing_content, exe_path) != nullptr) {
+        needs_desktop_write = FALSE;
+      }
+      g_free(existing_content);
+    }
+  }
+
+  if (needs_desktop_write) {
+    gchar* desktop_content = g_strdup_printf(
+        "[Desktop Entry]\n"
+        "Version=1.0\n"
+        "Type=Application\n"
+        "Name=Axis\n"
+        "GenericName=Productivity Cockpit\n"
+        "Comment=Next-generation personal productivity cockpit, task matrix, and habit tracker\n"
+        "Exec=%s\n"
+        "Icon=com.axis.axis\n"
+        "Terminal=false\n"
+        "Categories=Office;ProjectManagement;\n"
+        "Keywords=Task;Todo;Axis;Productivity;Habits;Calendar;Cockpit;\n"
+        "StartupWMClass=com.axis.axis\n"
+        "StartupNotify=true\n",
+        exe_path);
+    g_file_set_contents(desktop_path, desktop_content, -1, nullptr);
+    g_free(desktop_content);
+    chmod(desktop_path, 0755);
+  }
+
+  // 2. Ensure high-resolution icons are installed in ~/.local/share/icons/hicolor/
+  g_autofree gchar* source_png = g_build_filename(exe_dir, "com.axis.axis.png", nullptr);
+  if (!g_file_test(source_png, G_FILE_TEST_EXISTS)) {
+    g_free(source_png);
+    source_png = g_build_filename(exe_dir, "data", "flutter_assets", "assets", "logo.png", nullptr);
+  }
+
+  if (g_file_test(source_png, G_FILE_TEST_EXISTS)) {
+    const gchar* icon_sizes[] = {"512x512", "256x256", "128x128", "64x64", "48x48", "32x32", "16x16"};
+    gchar* img_data = nullptr;
+    gsize img_len = 0;
+    if (g_file_get_contents(source_png, &img_data, &img_len, nullptr)) {
+      for (const char* sz : icon_sizes) {
+        g_autofree gchar* icon_dir = g_build_filename(data_home, "icons", "hicolor", sz, "apps", nullptr);
+        g_mkdir_with_parents(icon_dir, 0755);
+        g_autofree gchar* dest_icon = g_build_filename(icon_dir, "com.axis.axis.png", nullptr);
+        if (!g_file_test(dest_icon, G_FILE_TEST_EXISTS)) {
+          g_file_set_contents(dest_icon, img_data, img_len, nullptr);
+        }
+      }
+      g_free(img_data);
+    }
+  }
+
+  // Copy scalable SVG icon if bundled
+  g_autofree gchar* source_svg = g_build_filename(exe_dir, "com.axis.axis.svg", nullptr);
+  if (g_file_test(source_svg, G_FILE_TEST_EXISTS)) {
+    g_autofree gchar* svg_dir = g_build_filename(data_home, "icons", "hicolor", "scalable", "apps", nullptr);
+    g_mkdir_with_parents(svg_dir, 0755);
+    g_autofree gchar* dest_svg = g_build_filename(svg_dir, "com.axis.axis.svg", nullptr);
+    if (!g_file_test(dest_svg, G_FILE_TEST_EXISTS)) {
+      gchar* svg_data = nullptr;
+      gsize svg_len = 0;
+      if (g_file_get_contents(source_svg, &svg_data, &svg_len, nullptr)) {
+        g_file_set_contents(dest_svg, svg_data, svg_len, nullptr);
+        g_free(svg_data);
+      }
+    }
+  }
+
+  if (needs_desktop_write) {
+    g_spawn_command_line_async("update-desktop-database ~/.local/share/applications", nullptr);
+  }
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
@@ -88,12 +185,21 @@ static void my_application_activate(GApplication* application) {
   g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
   if (exe_path != nullptr) {
     g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
-    g_autofree gchar* icon_path = g_build_filename(
-        exe_dir, "data", "flutter_assets", "assets", "logo.png", nullptr);
+
+    // Prefer high-resolution bundled icon, fallback to Flutter assets logo
+    g_autofree gchar* icon_path = g_build_filename(exe_dir, "com.axis.axis.png", nullptr);
+    if (!g_file_test(icon_path, G_FILE_TEST_EXISTS)) {
+      g_free(icon_path);
+      icon_path = g_build_filename(
+          exe_dir, "data", "flutter_assets", "assets", "logo.png", nullptr);
+    }
     if (g_file_test(icon_path, G_FILE_TEST_EXISTS)) {
       gtk_window_set_icon_from_file(window, icon_path, nullptr);
       gtk_window_set_default_icon_from_file(icon_path, nullptr);
     }
+
+    // Ensure desktop entry and icons are registered in the "Show Applications" menu
+    ensure_desktop_integration(exe_path, exe_dir);
   }
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();

@@ -121,10 +121,47 @@ install(CODE "
 install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
   DESTINATION "${INSTALL_BUNDLE_DATA_DIR}" COMPONENT Runtime)
 
-# Copy desktop entry into the bundle directory.
+# Copy desktop entry, icons, and installer into the bundle directory.
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/com.axis.axis.desktop"
   DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/com.axis.axis.png")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/com.axis.axis.png"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/com.axis.axis.svg")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/com.axis.axis.svg"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/install.sh")
+  install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/install.sh"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+endif()
+
+# Automatically register AXIS into the user's desktop application menu on build
+install(CODE "
+  set(INSTALLER_SCRIPT \"${CMAKE_CURRENT_SOURCE_DIR}/install.sh\")
+  if(EXISTS \"\${INSTALLER_SCRIPT}\")
+    message(STATUS \"==> Registering Axis in Show Applications menu...\")
+    execute_process(
+      COMMAND bash \"\${INSTALLER_SCRIPT}\"
+      RESULT_VARIABLE REG_RES
+      OUTPUT_VARIABLE REG_OUT
+      ERROR_VARIABLE REG_ERR
+    )
+    if(REG_RES EQUAL 0)
+      message(STATUS \"==> Axis desktop entry successfully registered.\")
+    else()
+      message(WARNING \"==> Failed to register desktop entry: \${REG_ERR}\")
+    endif()
+  endif()
+" COMPONENT Runtime)
 
 # Install the AOT library on non-Debug builds only.
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
