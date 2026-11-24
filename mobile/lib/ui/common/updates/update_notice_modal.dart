@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/updates/app_update_service.dart';
@@ -68,6 +69,18 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
   void _dismiss() {
     _service.dismissUpdate(widget.updateInfo.version);
     Navigator.of(context).pop();
+  }
+
+  Future<void> _openInBrowser() async {
+    final url = widget.updateInfo.downloadUrl.isNotEmpty
+        ? widget.updateInfo.downloadUrl
+        : 'https://github.com/${_service.githubRepo}/releases/latest';
+    try {
+      final uri = Uri.parse(url);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('[UpdateNoticeModal] Error launching browser download: $e');
+    }
   }
 
   String _formatBytes(int bytes) {
@@ -371,7 +384,9 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${_formatBytes(progress.receivedBytes)} / ${_formatBytes(progress.totalBytes)}',
+                progress.totalBytes > 0
+                    ? '${_formatBytes(progress.receivedBytes)} / ${_formatBytes(progress.totalBytes)}'
+                    : _formatBytes(progress.receivedBytes),
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 10,
                   color: AxisColors.textDim,
@@ -427,19 +442,45 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AxisColors.priorityHigh.withValues(alpha: 0.3)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, color: AxisColors.priorityHigh, size: 16),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                progress.error ?? (isAr ? 'فشل التحميل' : 'Download failed. Tap retry.'),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 11,
-                  color: AxisColors.priorityHigh,
+            Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: AxisColors.priorityHigh, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    progress.error ?? (isAr ? 'فشل التحميل' : 'Download failed. Tap retry or open in browser.'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 11,
+                      color: AxisColors.priorityHigh,
+                    ),
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: _openInBrowser,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.open_in_browser_rounded, size: 13, color: AxisColors.primarySoft),
+                  const SizedBox(width: 4),
+                  Text(
+                    isAr ? 'التحميل من المتصفح مباشرة' : 'Download via browser directly',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: AxisColors.primarySoft,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -455,72 +496,102 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
     UpdateInfo info,
     UpdateDownloadProgress progress,
   ) {
+    final showBrowser = progress.status != UpdateDownloadStatus.completed;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          if (!info.isMandatory && progress.status != UpdateDownloadStatus.downloading)
-            TextButton(
-              key: const ValueKey('update_modal_dismiss_button'),
-              onPressed: _dismiss,
+          // Direct browser download action
+          if (showBrowser)
+            TextButton.icon(
+              key: const ValueKey('update_modal_browser_button'),
+              onPressed: _openInBrowser,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                foregroundColor: AxisColors.primarySoft,
               ),
-              child: Text(
-                isAr ? 'لاحقاً' : 'LATER',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AxisColors.textDim,
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
-
-          // Primary Button
-          if (progress.status == UpdateDownloadStatus.completed)
-            ElevatedButton.icon(
-              key: const ValueKey('update_modal_install_button'),
-              onPressed: _installDownloaded,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AxisColors.tertiary,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              icon: const Icon(Icons.install_mobile_rounded, size: 16),
+              icon: const Icon(Icons.open_in_browser_rounded, size: 16),
               label: Text(
-                isAr ? 'تثبيت التحديث' : 'INSTALL NOW',
+                isAr ? 'المتصفح' : 'BROWSER',
                 style: GoogleFonts.spaceGrotesk(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             )
-          else if (progress.status == UpdateDownloadStatus.downloading)
-            const SizedBox.shrink()
           else
-            ElevatedButton.icon(
-              key: const ValueKey('update_modal_download_button'),
-              onPressed: _startDownload,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: info.isMandatory ? AxisColors.priorityHigh : AxisColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              icon: const Icon(Icons.download_rounded, size: 16),
-              label: Text(
-                isAr ? 'تحديث الآن' : 'UPDATE NOW',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
+            const SizedBox.shrink(),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!info.isMandatory && progress.status != UpdateDownloadStatus.downloading)
+                TextButton(
+                  key: const ValueKey('update_modal_dismiss_button'),
+                  onPressed: _dismiss,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  ),
+                  child: Text(
+                    isAr ? 'لاحقاً' : 'LATER',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AxisColors.textDim,
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              const SizedBox(width: 8),
+
+              // Primary Button
+              if (progress.status == UpdateDownloadStatus.completed)
+                ElevatedButton.icon(
+                  key: const ValueKey('update_modal_install_button'),
+                  onPressed: _installDownloaded,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AxisColors.tertiary,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.install_mobile_rounded, size: 16),
+                  label: Text(
+                    isAr ? 'تثبيت التحديث' : 'INSTALL NOW',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                )
+              else if (progress.status == UpdateDownloadStatus.downloading)
+                const SizedBox.shrink()
+              else
+                ElevatedButton.icon(
+                  key: const ValueKey('update_modal_download_button'),
+                  onPressed: _startDownload,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: info.isMandatory ? AxisColors.priorityHigh : AxisColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.download_rounded, size: 16),
+                  label: Text(
+                    isAr ? 'تحديث الآن' : 'UPDATE NOW',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

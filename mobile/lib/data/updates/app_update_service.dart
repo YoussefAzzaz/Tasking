@@ -202,19 +202,49 @@ class AppUpdateService {
     }
 
     try {
-      downloadProgressNotifier.value = const UpdateDownloadProgress(
+      final initialTotal = update.fileSizeBytes ?? 0;
+      downloadProgressNotifier.value = UpdateDownloadProgress(
         status: UpdateDownloadStatus.downloading,
+        receivedBytes: 0,
+        totalBytes: initialTotal,
+        percentage: 0.0,
       );
 
-      final request = http.Request('GET', Uri.parse(update.downloadUrl));
-      request.headers['User-Agent'] = 'Axis-App-Updater';
-      final response = await _httpClient.send(request);
+      String currentUrl = update.downloadUrl;
+      http.StreamedResponse? response;
 
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Server returned HTTP ${response.statusCode}');
+      // Follow redirects explicitly up to 5 times (GitHub releases redirect to S3 / Azure Blob)
+      final client = _httpClient;
+      for (int redirectCount = 0; redirectCount < 5; redirectCount++) {
+        final request = http.Request('GET', Uri.parse(currentUrl));
+        request.followRedirects = false;
+        request.headers['User-Agent'] = 'Axis-App-Updater';
+        request.headers['Accept'] = '*/*';
+
+        final streamed = await client.send(request).timeout(const Duration(seconds: 25));
+        if (streamed.statusCode == 301 ||
+            streamed.statusCode == 302 ||
+            streamed.statusCode == 303 ||
+            streamed.statusCode == 307 ||
+            streamed.statusCode == 308) {
+          final location = streamed.headers['location'];
+          await streamed.stream.drain();
+          if (location != null && location.isNotEmpty) {
+            currentUrl = Uri.parse(currentUrl).resolve(location).toString();
+            continue;
+          }
+        }
+        response = streamed;
+        break;
       }
 
-      final totalBytes = response.contentLength ?? update.fileSizeBytes ?? 0;
+      if (response == null || response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Server returned HTTP ${response?.statusCode ?? "no response"}');
+      }
+
+      final totalBytes = (response.contentLength != null && response.contentLength! > 0)
+          ? response.contentLength!
+          : (update.fileSizeBytes ?? 0);
       int receivedBytes = 0;
 
       final cacheDir = await getTemporaryDirectory();
@@ -229,25 +259,35 @@ class AppUpdateService {
 
       final sink = saveFile.openWrite();
 
-      await for (final chunk in response.stream) {
-        sink.add(chunk);
-        receivedBytes += chunk.length;
+      downloadProgressNotifier.value = UpdateDownloadProgress(
+        status: UpdateDownloadStatus.downloading,
+        receivedBytes: 0,
+        totalBytes: totalBytes,
+        percentage: 0.0,
+      );
 
-        final percent = totalBytes > 0
-            ? (receivedBytes / totalBytes).clamp(0.0, 1.0)
-            : 0.0;
+      try {
+        await for (final chunk in response.stream) {
+          sink.add(chunk);
+          receivedBytes += chunk.length;
 
-        downloadProgressNotifier.value = UpdateDownloadProgress(
-          status: UpdateDownloadStatus.downloading,
-          receivedBytes: receivedBytes,
-          totalBytes: totalBytes,
-          percentage: percent,
-        );
-        onProgress?.call(percent, receivedBytes, totalBytes);
+          final percent = totalBytes > 0
+              ? (receivedBytes / totalBytes).clamp(0.0, 1.0)
+              : 0.0;
+
+          downloadProgressNotifier.value = UpdateDownloadProgress(
+            status: UpdateDownloadStatus.downloading,
+            receivedBytes: receivedBytes,
+            totalBytes: totalBytes,
+            percentage: percent,
+          );
+          onProgress?.call(percent, receivedBytes, totalBytes);
+        }
+
+        await sink.flush();
+      } finally {
+        await sink.close();
       }
-
-      await sink.flush();
-      await sink.close();
 
       downloadProgressNotifier.value = UpdateDownloadProgress(
         status: UpdateDownloadStatus.completed,
