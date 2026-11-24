@@ -5,12 +5,11 @@ import 'package:logging/logging.dart';
 import 'package:powersync/powersync.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:axis/domain/gamification_engine.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/core/config/app_config.dart';
+import 'package:axis/core/storage/axis_storage.dart';
 import 'package:axis/domain/domain_events.dart';
 
 // Re-export modular components for clean architecture and 100% backwards compatibility
@@ -233,8 +232,7 @@ void _cleanupConflictingLegacyTables(String path) {
 
 Future<void> openDatabase() async {
   if (_dbInitialized) return;
-  final dir = await getApplicationDocumentsDirectory();
-  final path = p.join(dir.path, 'axis_powersync.db');
+  final path = await AxisStorage.getDatabasePath();
 
   _cleanupConflictingLegacyTables(path);
 

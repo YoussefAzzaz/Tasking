@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:axis/core/storage/axis_storage.dart';
 import 'package:axis/data/powersync_db.dart';
 
 /// Native Windows Desktop File & Storage Service.
@@ -16,8 +17,12 @@ class DesktopFileService {
   /// Gets the formatted size of the local SQLite database file.
   Future<String> getLocalDatabaseSize() async {
     try {
-      final docDir = await getApplicationDocumentsDirectory();
-      var dbFile = File(p.join(docDir.path, 'axis_powersync.db'));
+      final dbPath = await AxisStorage.getDatabasePath();
+      var dbFile = File(dbPath);
+      if (!await dbFile.exists()) {
+        final docDir = await getApplicationDocumentsDirectory();
+        dbFile = File(p.join(docDir.path, 'axis_powersync.db'));
+      }
       if (!await dbFile.exists()) {
         final appSupport = await getApplicationSupportDirectory();
         dbFile = File(p.join(appSupport.path, 'axis_local.db'));
@@ -75,12 +80,8 @@ class DesktopFileService {
       }
 
       if (savePath == null) {
-        // Fallback to Documents/Axis_Vault folder
-        final docDir = await getApplicationDocumentsDirectory();
-        final vaultDir = Directory(p.join(docDir.path, 'Axis_Vault'));
-        if (!await vaultDir.exists()) {
-          await vaultDir.create(recursive: true);
-        }
+        // Fallback to Documents/axis/vault folder
+        final vaultDir = await AxisStorage.getVaultDirectory();
         savePath = p.join(vaultDir.path, defaultFileName);
         final file = File(savePath);
         await file.writeAsBytes(bytes);
@@ -127,11 +128,7 @@ class DesktopFileService {
       }
 
       if (savePath == null) {
-        final docDir = await getApplicationDocumentsDirectory();
-        final vaultDir = Directory(p.join(docDir.path, 'Axis_Vault'));
-        if (!await vaultDir.exists()) {
-          await vaultDir.create(recursive: true);
-        }
+        final vaultDir = await AxisStorage.getVaultDirectory();
         savePath = p.join(vaultDir.path, defaultFileName);
         final file = File(savePath);
         await file.writeAsBytes(bytes);
@@ -165,11 +162,7 @@ class DesktopFileService {
   /// Opens the Windows File Explorer to the local app documents directory.
   Future<void> openLocalVaultFolder() async {
     try {
-      final docDir = await getApplicationDocumentsDirectory();
-      final vaultDir = Directory(p.join(docDir.path, 'Axis_Vault'));
-      if (!await vaultDir.exists()) {
-        await vaultDir.create(recursive: true);
-      }
+      final vaultDir = await AxisStorage.getVaultDirectory();
       if (Platform.isWindows) {
         await Process.run('explorer.exe', [vaultDir.path]);
       }

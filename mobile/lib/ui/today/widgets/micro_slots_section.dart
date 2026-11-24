@@ -185,8 +185,8 @@ class MicroSlotsSection extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               context.isArabic
-                                  ? 'المهام ذات الأوقات المحددة أو التقديرات القصيرة ستظهر هنا.'
-                                  : 'Tasks with scheduled times or short estimates appear here.',
+                                  ? 'تظهر هنا مهام اليوم التي يستغرق إنجازها 15 دقيقة أو أقل.'
+                                  : 'Today\'s tasks with estimates of 15 minutes or less appear here.',
                               style: const TextStyle(
                                 color: AxisColors.textMuted,
                                 fontSize: 11,

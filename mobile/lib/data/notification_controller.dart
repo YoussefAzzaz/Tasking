@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/widgets.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/core/router.dart';
-import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized, currentUserId;
+import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized, currentUserId, openDatabase;
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/ui/prayers/adhan_full_screen_alarm.dart';
@@ -159,6 +159,17 @@ class NotificationController {
   @pragma("vm:entry-point")
   static Future<void> onActionReceivedMethod(
       ReceivedAction receivedAction) async {
+    try {
+      await AwesomeNotifications().decrementGlobalBadgeCounter();
+    } catch (_) {}
+
+    // Dismiss notification from system tray on action click
+    if (receivedAction.id != null) {
+      try {
+        await AwesomeNotifications().dismiss(receivedAction.id!);
+      } catch (_) {}
+    }
+
     final key = receivedAction.buttonKeyPressed;
     final channelKey = receivedAction.channelKey;
     final payload = receivedAction.payload;
@@ -184,16 +195,17 @@ class NotificationController {
             prayerId: payload?['prayer_id'],
           );
         } else if (key == 'MARK_DONE' && payload != null) {
-          if (isDatabaseInitialized) {
-            final prayerId = payload['prayer_id'];
-            if (prayerId != null) {
-              await PrayerTimeService().togglePrayer(prayerId, true);
-            }
-            final habitId = payload['habit_id'];
-            if (habitId != null) {
-              await HabitRepository().toggleHabit(habitId, true);
-              await HabitNotificationService().onHabitCompletedToday(habitId);
-            }
+          if (!isDatabaseInitialized) {
+            await openDatabase();
+          }
+          final prayerId = payload['prayer_id'];
+          if (prayerId != null) {
+            await PrayerTimeService().togglePrayer(prayerId, true);
+          }
+          final habitId = payload['habit_id'];
+          if (habitId != null) {
+            await HabitRepository().toggleHabit(habitId, true);
+            await HabitNotificationService().onHabitCompletedToday(habitId);
           }
           await AdhanAlarmService().dismissAdhan(
             prayerName: payload['prayer_name'],
@@ -312,6 +324,11 @@ class NotificationController {
   @pragma("vm:entry-point")
   static Future<void> onDismissActionReceivedMethod(
       ReceivedAction receivedAction) async {
+    // Decrement badge count when user swipes away a notification
+    try {
+      await AwesomeNotifications().decrementGlobalBadgeCounter();
+    } catch (_) {}
+
     // Handle swipe dismiss of notification
     final channelKey = receivedAction.channelKey;
     if ((channelKey != null && channelKey.startsWith('prayer_adhan_channel')) ||

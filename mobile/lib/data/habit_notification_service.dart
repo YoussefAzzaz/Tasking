@@ -531,7 +531,8 @@ class HabitNotificationService {
         NotificationActionButton(
           key: 'MARK_DONE',
           label: 'Mark as Completed',
-          actionType: ActionType.Default,
+          actionType: ActionType.SilentBackgroundAction,
+          autoDismissible: true,
         ),
         NotificationActionButton(
           key: 'OPEN_HABITS',

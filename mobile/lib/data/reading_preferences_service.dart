@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:axis/core/storage/axis_storage.dart';
 
 /// Centralized service managing reading font size preferences across viewing screens
 /// (Notes, Journals, and Task descriptions) on mobile.
@@ -78,8 +77,7 @@ class ReadingPreferencesService {
 
   Future<void> init() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/reading_preferences.json');
+      final file = await AxisStorage.getReadingPreferencesFile();
       if (await file.exists()) {
         final content = await file.readAsString();
         final map = jsonDecode(content) as Map<String, dynamic>;
@@ -95,8 +93,7 @@ class ReadingPreferencesService {
 
   Future<void> _persistScale(double scale) async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/reading_preferences.json');
+      final file = await AxisStorage.getReadingPreferencesFile();
       await file.writeAsString(jsonEncode({'fontScale': scale}));
     } catch (_) {
       // Fallback for mock/test environments

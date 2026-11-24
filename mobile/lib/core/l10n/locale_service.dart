@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:axis/core/storage/axis_storage.dart';
 
 /// Centralized service managing language and locale preferences across Axis
 /// on mobile and desktop platforms. Defaults to Arabic ('ar') per workspace requirement.
@@ -23,8 +22,7 @@ class LocaleService {
   /// Initializes the saved locale preference from local storage.
   Future<void> init() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/app_locale_preference.json');
+      final file = await AxisStorage.getLocaleFile();
       if (await file.exists()) {
         final content = await file.readAsString();
         final map = jsonDecode(content) as Map<String, dynamic>;
@@ -58,8 +56,7 @@ class LocaleService {
 
   Future<void> _persist(String code) async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/app_locale_preference.json');
+      final file = await AxisStorage.getLocaleFile();
       await file.writeAsString(jsonEncode({'languageCode': code}));
     } catch (_) {
       // Non-blocking fallback for tests/sandboxes

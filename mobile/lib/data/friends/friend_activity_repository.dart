@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:axis/core/storage/axis_storage.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/user_profile_repository.dart';
@@ -21,8 +20,7 @@ class FriendActivityRepository {
   Future<void> _ensureDismissedLoaded() async {
     if (_dismissedLoaded) return;
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/dismissed_notifications.json');
+      final file = await AxisStorage.getDismissedNotificationsFile();
       if (await file.exists()) {
         final content = await file.readAsString();
         final list = (jsonDecode(content) as List?)?.cast<String>();
@@ -38,8 +36,7 @@ class FriendActivityRepository {
 
   Future<void> _persistDismissedLogIds() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/dismissed_notifications.json');
+      final file = await AxisStorage.getDismissedNotificationsFile();
       await file.writeAsString(jsonEncode(_dismissedLogIds.toList()));
     } catch (_) {}
   }

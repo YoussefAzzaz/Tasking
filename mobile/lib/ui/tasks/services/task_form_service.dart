@@ -48,6 +48,7 @@ class TaskFormService {
     required List<Project> existingProjects,
     String? dueTime,
     DateTime? referenceTime,
+    bool displaceConflicting = false,
   }) async {
     final now = referenceTime ?? DateTime.now();
     final String? dueDateStr = selectedDate != null
@@ -150,6 +151,12 @@ class TaskFormService {
       return rawNewTask;
     }
 
+    if (!displaceConflicting) {
+      // Preserve existing tasks completely - new task takes rawNewTask.dueTime without shifting any existing tasks
+      await _taskRepo.addTask(rawNewTask);
+      return rawNewTask;
+    }
+
     try {
       final allTasks = await _taskRepo.getTasks();
       final existingDayTasks = allTasks
@@ -171,13 +178,16 @@ class TaskFormService {
       } catch (_) {}
       final prayerBlocks = CalendarScheduler.buildDailyPrayerBlocks(prayers);
 
-      final scheduled = CalendarScheduler.scheduleNewTaskForDay(
+      final startMin = CalendarScheduler.parseTimeToMinutes(effectiveDueTime) ??
+          (isToday ? CalendarScheduler.defaultTodayTaskStartMinute(now) : CalendarScheduler.defaultDayStartMinutes);
+
+      final scheduled = CalendarScheduler.displaceConflictingTask(
         dateStr: dueDateStr,
         existingDayTasks: existingDayTasks,
-        newTask: rawNewTask,
+        incomingTask: rawNewTask,
+        targetStartMinute: startMin,
         habitBlocks: habitBlocks,
         prayerBlocks: prayerBlocks,
-        referenceTime: now,
       );
 
       final finalNewTask = scheduled.firstWhere((t) => t.id == rawNewTask.id);

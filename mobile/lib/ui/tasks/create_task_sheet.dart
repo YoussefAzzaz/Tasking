@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -14,7 +15,11 @@ import 'package:axis/ui/tasks/widgets/task_description_editor.dart';
 import 'package:axis/ui/tasks/widgets/task_date_picker_row.dart';
 import 'package:axis/ui/tasks/services/task_form_service.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
+import 'package:axis/ui/tasks/widgets/task_collision_dialog.dart';
 import 'package:axis/domain/calendar_scheduler.dart';
+import 'package:axis/data/habit_repository.dart';
+import 'package:axis/data/prayers/prayer_model.dart';
+import 'package:axis/data/prayers/prayer_repository.dart';
 
 export 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 export 'package:axis/ui/tasks/widgets/project_selector_field.dart';
@@ -300,9 +305,86 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     });
 
     try {
-      final dueTimeStr = (_selectedDate != null && _selectedTime != null)
+      final now = DateTime.now();
+      final String? dueDateStr = _selectedDate != null
+          ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+          : null;
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final isToday = dueDateStr != null && dueDateStr == todayStr;
+
+      String? dueTimeStr = (_selectedDate != null && _selectedTime != null)
           ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
           : null;
+
+      if (dueTimeStr == null && isToday && widget.taskToEdit == null) {
+        dueTimeStr = CalendarScheduler.defaultTodayTaskTimeString(now);
+      }
+
+      bool displaceConflicting = false;
+
+      // When creating a new task (not editing) that has a scheduled date & time:
+      if (widget.taskToEdit == null && dueDateStr != null && dueTimeStr != null) {
+        final startMin = CalendarScheduler.parseTimeToMinutes(dueTimeStr);
+        if (startMin != null) {
+          final allTasks = await TaskRepository().getTasks();
+          final effectiveDuration = CalendarScheduler.sanitizeDuration(_estimateMin);
+
+          final conflicting = CalendarScheduler.findConflictingTask(
+            dateStr: dueDateStr,
+            startMinute: startMin,
+            durationMin: effectiveDuration,
+            existingTasks: allTasks,
+          );
+
+          if (conflicting != null && mounted) {
+            // Collision with another task detected (only tasks, not habits)!
+            final habits = await HabitRepository().watchHabits().first.timeout(
+              const Duration(seconds: 1),
+              onTimeout: () => const <Habit>[],
+            );
+            final habitBlocks = CalendarScheduler.buildDailyHabitBlocks(habits);
+            List<Prayer> prayers = const [];
+            try {
+              prayers = await PrayerRepository().watchPrayers().first.timeout(
+                const Duration(seconds: 1),
+                onTimeout: () => const <Prayer>[],
+              );
+            } catch (_) {}
+            final prayerBlocks = CalendarScheduler.buildDailyPrayerBlocks(prayers);
+
+            final nextSlotMin = CalendarScheduler.findNextAvailableMinute(
+              dateStr: dueDateStr,
+              searchFromMinute: startMin,
+              durationMin: effectiveDuration,
+              existingTasks: allTasks,
+              habitBlocks: habitBlocks,
+              prayerBlocks: prayerBlocks,
+            );
+            final nextSlotStr = CalendarScheduler.formatMinutes(nextSlotMin);
+
+            if (!mounted) return;
+            final choice = await TaskCollisionDialog.show(
+              context: context,
+              newTaskTitle: title,
+              conflictingTaskTitle: conflicting.title,
+              requestedTime: dueTimeStr,
+              nextAvailableTime: nextSlotStr,
+            );
+
+            if (choice == null || choice == TaskCollisionChoice.cancel) {
+              if (mounted) {
+                setState(() => _saving = false);
+              }
+              return;
+            } else if (choice == TaskCollisionChoice.moveNewTask) {
+              dueTimeStr = nextSlotStr;
+              displaceConflicting = false;
+            } else if (choice == TaskCollisionChoice.moveExistingTask) {
+              displaceConflicting = true;
+            }
+          }
+        }
+      }
 
       final savedTask = await TaskFormService().saveTask(
         taskToEdit: widget.taskToEdit,
@@ -318,6 +400,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
         estimateMin: _estimateMin,
         existingProjects: _existingProjects,
         dueTime: dueTimeStr,
+        displaceConflicting: displaceConflicting,
       );
 
       if (mounted) {

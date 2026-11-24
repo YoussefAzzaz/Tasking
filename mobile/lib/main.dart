@@ -24,6 +24,7 @@ import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/core/l10n/locale_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/core/bloc/blocs.dart';
 import 'dart:async';
 
@@ -98,6 +99,7 @@ Future<void> main() async {
   // Check if app was woken up from terminated state by a notification action / fullScreenIntent
   WidgetsBinding.instance.addPostFrameCallback((_) {
     NotificationController.checkInitialNotificationAction();
+    AwesomeNotifications().setGlobalBadgeCounter(0).catchError((_) {});
   });
 
   // Launch non-critical background services asynchronously without blocking UI startup
@@ -160,8 +162,32 @@ Future<void> _initBackgroundServices() async {
   ], eagerError: false);
 }
 
-class AxisApp extends StatelessWidget {
+class AxisApp extends StatefulWidget {
   const AxisApp({super.key});
+
+  @override
+  State<AxisApp> createState() => _AxisAppState();
+}
+
+class _AxisAppState extends State<AxisApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AwesomeNotifications().setGlobalBadgeCounter(0).catchError((_) {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

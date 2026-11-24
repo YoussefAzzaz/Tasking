@@ -747,6 +747,94 @@ abstract final class CalendarScheduler {
     );
   }
 
+  /// Checks whether a task scheduled on [dateStr] starting at [startMinute] with [durationMin]
+  /// collides with any other active task on that date.
+  /// Strictly checks only tasks (never habits or prayers).
+  static Task? findConflictingTask({
+    required String dateStr,
+    required int startMinute,
+    required int durationMin,
+    required List<Task> existingTasks,
+    String? excludeTaskId,
+  }) {
+    final endMinute = startMinute + durationMin;
+    for (final other in existingTasks) {
+      if (other.isCompleted) continue;
+      if (excludeTaskId != null && other.id == excludeTaskId) continue;
+      if (other.dueDate != dateStr) continue;
+      final oStart = parseTimeToMinutes(other.dueTime);
+      if (oStart == null) continue;
+      final oDur = sanitizeDuration(other.estimateMin);
+      final oEnd = oStart + oDur;
+      if (startMinute < oEnd && endMinute > oStart) {
+        return other;
+      }
+    }
+    return null;
+  }
+
+  /// Finds the next available contiguous start minute on [dateStr] starting from [searchFromMinute]
+  /// for a task of [durationMin] that does not collide with any existing task, habit block, or prayer block.
+  static int findNextAvailableMinute({
+    required String dateStr,
+    required int searchFromMinute,
+    required int durationMin,
+    required List<Task> existingTasks,
+    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarPrayerBlock> prayerBlocks = const [],
+    int dayEndMinute = 24 * 60,
+  }) {
+    final blocked = <({int start, int end})>[
+      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
+      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
+      for (final t in existingTasks)
+        if (!t.isCompleted && t.dueDate == dateStr && t.dueTime != null)
+          if (parseTimeToMinutes(t.dueTime) != null)
+            (
+              start: parseTimeToMinutes(t.dueTime)!,
+              end: parseTimeToMinutes(t.dueTime)! + sanitizeDuration(t.estimateMin),
+            ),
+    ]..sort((a, b) => a.start.compareTo(b.start));
+
+    var cur = searchFromMinute.clamp(0, dayEndMinute - durationMin);
+    var moved = true;
+    while (moved && cur + durationMin <= dayEndMinute) {
+      moved = false;
+      final curEnd = cur + durationMin;
+      for (final b in blocked) {
+        if (cur < b.end && curEnd > b.start) {
+          cur = b.end;
+          moved = true;
+          break;
+        }
+      }
+    }
+    return cur.clamp(0, dayEndMinute - durationMin);
+  }
+
+  /// Displaces conflicting tasks forward into the next empty spot while [incomingTask] takes [targetStartMinute].
+  static List<Task> displaceConflictingTask({
+    required String dateStr,
+    required List<Task> existingDayTasks,
+    required Task incomingTask,
+    required int targetStartMinute,
+    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarPrayerBlock> prayerBlocks = const [],
+  }) {
+    final forcedHighPriorityTask = incomingTask.copyWith(priority: 1);
+    final result = resolveCollisionPlacement(
+      dateStr: dateStr,
+      existingDayTasks: existingDayTasks,
+      incomingTask: forcedHighPriorityTask,
+      targetStartMinute: targetStartMinute,
+      habitBlocks: habitBlocks,
+      prayerBlocks: prayerBlocks,
+    );
+    return result
+        .map((t) => t.id == incomingTask.id ? t.copyWith(priority: incomingTask.priority) : t)
+        .toList();
+  }
+
   /// Packs any unscheduled tasks into open slots on [dateStr] while keeping
   /// all tasks with existing `dueTime` at their exact slots without reordering.
   static List<Task> packTasksPreservingExplicitTimes({

@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:axis/core/storage/axis_storage.dart';
 import 'package:axis/data/powersync_db.dart';
 
 /// Represents a selectable Adhan notification sound option (bundled, downloadable, or user-custom).
@@ -241,11 +241,7 @@ class AdhanSoundService {
       final rawBytes = bytesBuilder.toBytes();
       final croppedBytes = sliceMp3Bytes(rawBytes, targetDuration: 45.0);
 
-      final docsDir = await getApplicationDocumentsDirectory();
-      final audioDir = Directory('${docsDir.path}/custom_adhan_sounds');
-      if (!await audioDir.exists()) {
-        await audioDir.create(recursive: true);
-      }
+      final audioDir = await AxisStorage.getAdhanSoundsDirectory();
 
       final destPath = '${audioDir.path}/adhan_${sound.id}_short.mp3';
       await File(destPath).writeAsBytes(croppedBytes);
@@ -333,11 +329,7 @@ class AdhanSoundService {
       final originalPath = file.path;
       if (originalPath == null) return null;
 
-      final docsDir = await getApplicationDocumentsDirectory();
-      final audioDir = Directory('${docsDir.path}/custom_adhan_sounds');
-      if (!await audioDir.exists()) {
-        await audioDir.create(recursive: true);
-      }
+      final audioDir = await AxisStorage.getAdhanSoundsDirectory();
 
       final fileName = file.name;
       final destPath = '${audioDir.path}/custom_${DateTime.now().millisecondsSinceEpoch}_$fileName';

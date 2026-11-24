@@ -241,9 +241,8 @@ class _TodayScreenState extends State<TodayScreen> {
           final isToday = t.dueDate != null &&
               (t.dueDate == todayStr || t.dueDate!.startsWith(todayStr));
           if (!isToday) return false;
-          if (t.dueTime != null && t.dueTime!.isNotEmpty) return true;
-          if (t.estimateMin != null && t.estimateMin! <= 30) return true;
-          return false;
+          final estimate = t.estimateMin;
+          return estimate != null && estimate > 0 && estimate <= 15;
         }).toList();
 
         return SingleChildScrollView(
