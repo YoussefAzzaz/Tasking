@@ -7,7 +7,6 @@ import android.net.Uri
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
-import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
 import org.json.JSONArray
 
@@ -161,10 +160,11 @@ class TodayTasksWidgetProvider : HomeWidgetProvider() {
                         setViewVisibility(R.id.widget_tasks_empty_container, View.VISIBLE)
                     }
 
-                    val pendingIntent = HomeWidgetLaunchIntent.getActivity(
+                    val pendingIntent = WidgetUiHelper.buildFastLaunchIntent(
                         context,
                         MainActivity::class.java,
                         Uri.parse("axis://widget/today"),
+                        WidgetUiHelper.REQ_LAUNCH_TODAY_WIDGET,
                     )
                     setOnClickPendingIntent(R.id.widget_today_tasks_root, pendingIntent)
                 }

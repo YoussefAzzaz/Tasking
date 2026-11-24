@@ -31,13 +31,18 @@ void main() {
       final scaffold = tester.widget<Scaffold>(scaffoldFinder.first);
       expect(scaffold.backgroundColor, equals(AxisColors.canvasBase));
 
-      // 2. Verify AppBar with Back Button and Title
+      // 2. Verify AppBar with Back Button, Title, and Sign Out action in top bar (replacing cloud icon)
       expect(find.byType(AppBar), findsOneWidget);
       expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsOneWidget);
       expect(find.text('ME'), findsOneWidget);
+      expect(find.byKey(const ValueKey('me_top_sign_out_button')), findsOneWidget);
 
-      // 3. Verify UserProfileCard rendered
+      // 3. Verify UserProfileCard rendered above Connected Cloud Account card
       expect(find.byType(UserProfileCard), findsOneWidget);
+      expect(find.byType(MeCloudAccountCard), findsOneWidget);
+      final profileDy = tester.getTopLeft(find.byType(UserProfileCard)).dy;
+      final cloudDy = tester.getTopLeft(find.byType(MeCloudAccountCard)).dy;
+      expect(cloudDy, greaterThan(profileDy));
 
       // 4. Verify Mastery Badges Section rendered
       expect(find.byType(MasteryBadgesSection), findsOneWidget);
@@ -54,8 +59,8 @@ void main() {
       expect(find.text('English'), findsOneWidget);
       expect(find.text('العربية'), findsOneWidget);
 
-      // 7. Verify bottom action button exists without throws
-      expect(find.byIcon(Icons.login_rounded), findsNothing); // Or login/logout depending on guest
+      // 8. Verify login icon is absent when authenticated/default
+      expect(find.byIcon(Icons.login_rounded), findsNothing);
     });
 
     testWidgets('UserProfileCard displays friend code and calculates level progress', (tester) async {

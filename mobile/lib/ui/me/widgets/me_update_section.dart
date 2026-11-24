@@ -7,6 +7,8 @@ import 'package:axis/ui/common/updates/update_notice_modal.dart';
 import 'package:axis/ui/common/updates/update_log_modal.dart';
 
 /// Cyber-styled software update and telemetry card for the Me Screen.
+/// Redesigned into an airy two-tier layout showing version only (without build numbers)
+/// and dedicated action pills for Update Log & Check Updates.
 class MeUpdateSection extends StatefulWidget {
   const MeUpdateSection({super.key, this.updateService});
 
@@ -18,8 +20,8 @@ class MeUpdateSection extends StatefulWidget {
 
 class _MeUpdateSectionState extends State<MeUpdateSection> {
   late final AppUpdateService _service;
-  String _versionStr = '1.2.0';
-  int _buildNumber = 12;
+  String _versionStr = '1.3.0';
+  int _buildNumber = 25;
   bool _isChecking = false;
 
   @override
@@ -106,81 +108,74 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
     }
   }
 
+  void _openUpdateLog() {
+    UpdateLogModal.show(
+      context,
+      currentVersion: _versionStr,
+      buildNumber: _buildNumber,
+      onCheckForUpdates: _handleCheckForUpdates,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAr = context.isArabic;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: InkWell(
-        onTap: () {
-          UpdateLogModal.show(
-            context,
-            currentVersion: _versionStr,
-            buildNumber: _buildNumber,
-            onCheckForUpdates: _handleCheckForUpdates,
-          );
-        },
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AxisColors.surfaceLowest,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AxisColors.borderSubtle),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AxisColors.surfaceLowest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AxisColors.borderSubtle),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Tier 1: Spacious Icon + Title + Version Badge
+            InkWell(
+              onTap: _openUpdateLog,
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(7),
+                    padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
-                      color: AxisColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
+                      color: AxisColors.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AxisColors.primary.withValues(alpha: 0.25)),
                     ),
                     child: const Icon(
                       Icons.system_update_rounded,
-                      color: AxisColors.primary,
-                      size: 18,
+                      color: AxisColors.primarySoft,
+                      size: 19,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                isAr ? 'إصدار النظام والتحديثات' : 'SYSTEM VERSION & UPDATES',
-                                style: GoogleFonts.spaceGrotesk(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.8,
-                                  color: AxisColors.textHigh,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '↗',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 11,
-                                color: AxisColors.tertiary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
                         Text(
-                          'v$_versionStr+build.$_buildNumber • ${isAr ? 'اضغط لعرض السجل' : 'Tap for update log'}',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10.5,
+                          isAr ? 'إصدار النظام والتحديثات' : 'SYSTEM VERSION & UPDATES',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: isAr ? 0.0 : 0.7,
+                            color: AxisColors.textHigh,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          isAr
+                              ? 'استعراض الميزات أو التحقق من الإصدارات'
+                              : 'View changelog or check releases',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 11,
                             color: AxisColors.textDim,
                           ),
                           maxLines: 1,
@@ -189,48 +184,96 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
                       ],
                     ),
                   ),
-                  // Check for updates button
-                  InkWell(
-                    key: const ValueKey('me_check_for_updates_button'),
-                    onTap: _isChecking ? null : _handleCheckForUpdates,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: AxisColors.surfaceHigh.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AxisColors.borderSubtle),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AxisColors.tertiary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AxisColors.tertiary.withValues(alpha: 0.35)),
+                    ),
+                    child: Text(
+                      'v$_versionStr',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AxisColors.tertiary,
                       ),
-                      child: _isChecking
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AxisColors.primarySoft,
-                              ),
-                            )
-                          : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.refresh_rounded, size: 14, color: AxisColors.primarySoft),
-                                const SizedBox(width: 6),
-                                Text(
-                                  isAr ? 'فحص التحديثات' : 'Check Updates',
-                                  style: GoogleFonts.spaceGrotesk(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AxisColors.primarySoft,
-                                  ),
-                                ),
-                              ],
-                            ),
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 14),
+            const Divider(color: AxisColors.borderSubtle, height: 1),
+            const SizedBox(height: 14),
+
+            // Tier 2: Uncrowded, Balanced Two-Button Row
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('me_view_update_log_button'),
+                    onPressed: _openUpdateLog,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AxisColors.tertiary,
+                      backgroundColor: AxisColors.tertiary.withValues(alpha: 0.08),
+                      side: BorderSide(color: AxisColors.tertiary.withValues(alpha: 0.3)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.history_rounded, size: 15),
+                    label: Text(
+                      isAr ? 'سجل التحديثات' : 'Update Log',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    key: const ValueKey('me_check_for_updates_button'),
+                    onPressed: _isChecking ? null : _handleCheckForUpdates,
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: AxisColors.primary.withValues(alpha: 0.18),
+                      foregroundColor: AxisColors.primarySoft,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(color: AxisColors.primary.withValues(alpha: 0.4)),
+                      ),
+                    ),
+                    icon: _isChecking
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AxisColors.primarySoft,
+                            ),
+                          )
+                        : const Icon(Icons.refresh_rounded, size: 15),
+                    label: Text(
+                      isAr ? 'فحص التحديثات' : 'Check Updates',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

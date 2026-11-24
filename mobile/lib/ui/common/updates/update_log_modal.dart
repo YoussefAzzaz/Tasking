@@ -8,8 +8,8 @@ import 'package:axis/core/l10n/app_localizations.dart';
 class UpdateLogModal extends StatelessWidget {
   const UpdateLogModal({
     super.key,
-    this.currentVersion = '1.2.10',
-    this.buildNumber = 24,
+    this.currentVersion = '1.3.0',
+    this.buildNumber = 25,
     this.onCheckForUpdates,
   });
 
@@ -19,8 +19,8 @@ class UpdateLogModal extends StatelessWidget {
 
   static Future<void> show(
     BuildContext context, {
-    String currentVersion = '1.2.10',
-    int buildNumber = 24,
+    String currentVersion = '1.3.0',
+    int buildNumber = 25,
     VoidCallback? onCheckForUpdates,
   }) {
     return showDialog<void>(
@@ -42,20 +42,26 @@ class UpdateLogModal extends StatelessWidget {
       _UpdateCategory(
         icon: Icons.widgets_rounded,
         color: Color(0xFF00E5FF), // Electric Cyan
-        titleEn: 'Android Home Screen Widgets (v1.2.10)',
-        titleAr: 'إضافات الشاشة الرئيسية لأندرويد (v1.2.10)',
+        titleEn: 'Home Screen Widgets & UX (v1.3.0)',
+        titleAr: 'ودجات الشاشة الرئيسية وتجربة الاستخدام (v1.3.0)',
         items: [
           _UpdateItem(
             titleEn: 'Horizontal Arabic Prayer Times Widget (4×1)',
             titleAr: 'ودجت مواقيت الصلاة الأفقي بالعربية (4×1)',
-            descEn: 'Two-layer horizontal widget displaying Hijri & Gregorian dates, current time, Sunrise on top, and all 5 Arabic prayers with live countdown timer in Noto Naskh Arabic font.',
-            descAr: 'ودجت أفقي من طبقتين يعرض التاريخ الهجري والميلادي والساعة ووقت الشروق في الأعلى، والصلوات الخمس بالخط العربي الأنيق مع تمييز الصلاة الحالية ومؤقت تنازلي للصلاة القادمة.',
+            descEn: 'Sorted left-to-right starting with Fajr, English date alongside Arabic Hijri date, separated Chourok time, active prayer glow, and live next-prayer timer.',
+            descAr: 'ترتيب الصلوات من اليسار لليمين بدءاً بالفجر، عرض التاريخ الميلادي بالإنجليزية والتاريخ الهجري بالعربية مع فصل وقت الشروق ومؤقت الصلاة القادمة.',
           ),
           _UpdateItem(
-            titleEn: 'Upgraded Today Tasks & Habit Streak Widgets',
-            titleAr: 'ترقية ودجت مهام اليوم وسلسلة العادات',
-            descEn: 'Added Hijri date, priority color dots, overdue pills, strikethrough completion, habit color indicators, gradient streak badges, active-only habit filtering, and direct tap navigation to Habits.',
-            descAr: 'إضافة التاريخ الهجري، ونقاط ألوان الأولوية والعادات، وتمييز المهام المتأخرة والمكتملة، واستبعاد العادات الموقفة مؤقتاً، والانتقال المباشر لصفحة العادات.',
+            titleEn: 'Instant Widget App Launch & Direct Habits Routing',
+            titleAr: 'دخول فوري من الودجت وفتح صفحة العادات مباشرة',
+            descEn: 'Bypassed splash delay when launching from home screen widgets and enabled direct navigation to Habits.',
+            descAr: 'تسريع الدخول من ودجات الشاشة الرئيسية والانتقال الفوري إلى صفحة العادات عند النقر على ودجت العادات.',
+          ),
+          _UpdateItem(
+            titleEn: 'Spacious Me Screen & Version Cadence',
+            titleAr: 'تحسين تصميم شاشة الملف الشخصي وسجل التحديثات',
+            descEn: 'Relocated Sign Out to the top bar, moved cloud sync status under Profile, and redesigned Update Log modals with clean version-only badges.',
+            descAr: 'نقل زر تسجيل الخروج للشريط العلوي وحالة السحابة أسفل الملف الشخصي، مع إعادة تنسيق بطاقة وقائمة التحديثات بوضوح أكبر.',
           ),
         ],
       ),
@@ -108,42 +114,14 @@ class UpdateLogModal extends StatelessWidget {
       _UpdateCategory(
         icon: Icons.auto_stories_rounded,
         color: Color(0xFF10B981), // Emerald
-        titleEn: 'Daily Journal Serenity',
-        titleAr: 'تصميم مريح وهادئ لليوميات اليومية',
+        titleEn: 'Daily Journal & Desktop Refinements',
+        titleAr: 'تصميم اليوميات وتحسينات سطح المكتب',
         items: [
           _UpdateItem(
-            titleEn: 'Clutter-Free Mindful Dashboard Card',
-            titleAr: 'بطاقة يوميات هادئة وخالية من التشتت',
-            descEn: 'Streamlined design removing visual noise and multi-layered buttons in favor of a relaxing, inviting reflection space.',
-            descAr: 'إعادة تصميم بطاقة اليوميات لتكون هادئة ومريحة للعين وخالية من الضجيج والأزرار المتراكمة، مع الحفاظ على جاذبيتها.',
-          ),
-        ],
-      ),
-      _UpdateCategory(
-        icon: Icons.desktop_mac_rounded,
-        color: Color(0xFF8B5CF6), // Violet
-        titleEn: 'Desktop Profile Refinements',
-        titleAr: 'تحسينات واجهة سطح المكتب',
-        items: [
-          _UpdateItem(
-            titleEn: 'Compact Update Telemetry Placement',
-            titleAr: 'إعادة تنظيم بطاقة الإصدار والتحديثات',
-            descEn: 'Moved the update card directly alongside Mastery Badges, matching the task tags & labels column width.',
-            descAr: 'نقل بطاقة التحديثات بجانب بطاقة أوسمة الإتقان وجعلها بنفس عرض بطاقة وسوم وعلامات المهام استغلالاً للمساحة.',
-          ),
-        ],
-      ),
-      _UpdateCategory(
-        icon: Icons.system_update_rounded,
-        color: Color(0xFFF59E0B), // Amber
-        titleEn: 'Over-The-Air Update Engine',
-        titleAr: 'محرك التحديثات الفورية والتحميل',
-        items: [
-          _UpdateItem(
-            titleEn: 'HTTP 302 Redirect Streaming Fix',
-            titleAr: 'إصلاح تدفق التحميل والتوجيه السحابي',
-            descEn: 'Resolved 0B/0B download stalls from GitHub Releases with automatic cloud redirect extraction and direct browser fallback.',
-            descAr: 'إصلاح توقف تحميل حزمة التحديث عند 0 بايت عبر معالجة التوجيه السحابي التلقائي وإضافة خيار التحميل من المتصفح.',
+            titleEn: 'Clutter-Free Mindful Journal & Compact Desktop Card',
+            titleAr: 'بطاقة يوميات هادئة وتحسينات بطاقة التحديثات',
+            descEn: 'Streamlined daily reflection card, aligned desktop release placement, and reliable GitHub redirect OTA downloads.',
+            descAr: 'تبسيط بطاقة اليوميات لتكون مريحة للعين، وتحسين ترتيب بطاقات سطح المكتب وتدفق التحديثات التلقائية.',
           ),
         ],
       ),
@@ -151,9 +129,9 @@ class UpdateLogModal extends StatelessWidget {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 720),
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 720),
         decoration: BoxDecoration(
           color: const Color(0xFF090E17),
           borderRadius: BorderRadius.circular(20),
@@ -172,11 +150,12 @@ class UpdateLogModal extends StatelessWidget {
           children: [
             // ── Header ──────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
+              padding: const EdgeInsets.fromLTRB(18, 16, 12, 14),
               decoration: const BoxDecoration(
                 border: Border(bottom: BorderSide(color: AxisColors.borderSubtle)),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(9),
@@ -185,7 +164,7 @@ class UpdateLogModal extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AxisColors.primary.withValues(alpha: 0.35)),
                     ),
-                    child: const Icon(Icons.history_rounded, color: AxisColors.primarySoft, size: 20),
+                    child: const Icon(Icons.history_rounded, color: AxisColors.primarySoft, size: 19),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -194,27 +173,31 @@ class UpdateLogModal extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              isAr ? 'سجل تحديثات النظام' : 'SYSTEM UPDATE LOG',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.0,
-                                color: AxisColors.textHigh,
+                            Flexible(
+                              child: Text(
+                                isAr ? 'سجل التحديثات' : 'UPDATE LOG',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: isAr ? 0.0 : 0.8,
+                                  color: AxisColors.textHigh,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AxisColors.tertiary.withValues(alpha: 0.16),
+                                color: AxisColors.tertiary.withValues(alpha: 0.14),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: AxisColors.tertiary.withValues(alpha: 0.4)),
+                                border: Border.all(color: AxisColors.tertiary.withValues(alpha: 0.38)),
                               ),
                               child: Text(
-                                'v$currentVersion+$buildNumber',
+                                'v$currentVersion',
                                 style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.bold,
                                   color: AxisColors.tertiary,
                                 ),
@@ -222,11 +205,13 @@ class UpdateLogModal extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           isAr
-                              ? 'جميع التحسينات والميزات المكتملة والمفعلة في هذا الإصدار'
-                              : 'All completed updates & enhancements active in this release',
+                              ? 'التحسينات والميزات المفعلة في الإصدار الحالي'
+                              : 'Improvements & features active in this release',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.spaceGrotesk(
                             fontSize: 11,
                             color: AxisColors.textDim,
@@ -237,6 +222,7 @@ class UpdateLogModal extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 20, color: AxisColors.textDim),
+                    visualDensity: VisualDensity.compact,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -246,63 +232,56 @@ class UpdateLogModal extends StatelessWidget {
             // ── Scrollable Body ──────────────────────────────────────
             Flexible(
               child: ListView.separated(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(16),
                 itemCount: categories.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 14),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, catIndex) {
                   final cat = categories[catIndex];
                   return Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AxisColors.surfaceLowest.withValues(alpha: 0.6),
+                      color: AxisColors.surfaceLowest.withValues(alpha: 0.65),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: cat.color.withValues(alpha: 0.2)),
+                      border: Border.all(color: cat.color.withValues(alpha: 0.22)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Category Header
                         Row(
                           children: [
                             Icon(cat.icon, size: 16, color: cat.color),
                             const SizedBox(width: 8),
-                            Text(
-                              isAr ? cat.titleAr : cat.titleEn,
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: cat.color,
-                                letterSpacing: 0.5,
+                            Expanded(
+                              child: Text(
+                                isAr ? cat.titleAr : cat.titleEn,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: cat.color,
+                                  letterSpacing: isAr ? 0.0 : 0.3,
+                                ),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
-                        // Category Items
                         ...cat.items.map((item) {
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  margin: const EdgeInsets.only(top: 2),
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AxisColors.tertiary.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: AxisColors.tertiary.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Text(
-                                    isAr ? 'مكتمل ✓' : 'DONE ✓',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 8.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: AxisColors.tertiary,
-                                    ),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 14,
+                                    color: AxisColors.tertiary.withValues(alpha: 0.9),
                                   ),
                                 ),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,18 +289,18 @@ class UpdateLogModal extends StatelessWidget {
                                       Text(
                                         isAr ? item.titleAr : item.titleEn,
                                         style: GoogleFonts.spaceGrotesk(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
                                           color: AxisColors.textHigh,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 3),
                                       Text(
                                         isAr ? item.descAr : item.descEn,
                                         style: GoogleFonts.spaceGrotesk(
-                                          fontSize: 10.5,
+                                          fontSize: 11,
                                           color: AxisColors.textMuted,
-                                          height: 1.35,
+                                          height: 1.4,
                                         ),
                                       ),
                                     ],
@@ -338,53 +317,84 @@ class UpdateLogModal extends StatelessWidget {
               ),
             ),
 
-            // ── Footer ───────────────────────────────────────────────
+            // ── Footer (Mobile-First, Zero Cramping) ───────────────────
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: AxisColors.borderSubtle)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.verified_rounded, size: 14, color: AxisColors.tertiary),
                       const SizedBox(width: 6),
-                      Text(
-                        isAr ? 'الإصدار الحالي مثبت ومفعّل' : 'Current build active & verified',
-                        style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
+                      Flexible(
+                        child: Text(
+                          isAr
+                              ? 'الإصدار الحالي مثبت ومفعّل (v$currentVersion)'
+                              : 'Current version active & verified (v$currentVersion)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 11,
+                            color: AxisColors.textDim,
+                          ),
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
                   Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (onCheckForUpdates != null)
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            onCheckForUpdates!();
-                          },
-                          icon: const Icon(Icons.refresh_rounded, size: 14, color: AxisColors.primarySoft),
-                          label: Text(
-                            isAr ? 'فحص التحديثات' : 'Check for Updates',
-                            style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.bold, color: AxisColors.primarySoft),
+                      if (onCheckForUpdates != null) ...[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              onCheckForUpdates!();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AxisColors.primarySoft,
+                              backgroundColor: AxisColors.primary.withValues(alpha: 0.1),
+                              side: BorderSide(color: AxisColors.primary.withValues(alpha: 0.35)),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.refresh_rounded, size: 15),
+                            label: Text(
+                              isAr ? 'فحص التحديثات' : 'Check Updates',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AxisColors.surfaceHigh,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: Text(
-                          isAr ? 'إغلاق' : 'Close',
-                          style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.bold),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: AxisColors.surfaceHigh,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(
+                            isAr ? 'إغلاق' : 'Close',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ],

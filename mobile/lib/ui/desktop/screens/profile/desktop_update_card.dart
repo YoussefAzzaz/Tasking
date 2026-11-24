@@ -173,7 +173,7 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Axis System Engine v$_versionStr (Build $_buildNumber) • ${_service.currentPlatform.toUpperCase()}',
+                        'Axis System Engine v$_versionStr • ${_service.currentPlatform.toUpperCase()}',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 10.5,
                           color: AxisColors.textDim,

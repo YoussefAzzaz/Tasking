@@ -67,6 +67,30 @@ class SemanticVersion implements Comparable<SemanticVersion> {
   bool operator >=(SemanticVersion other) => compareTo(other) >= 0;
   bool operator <=(SemanticVersion other) => compareTo(other) <= 0;
 
+  /// User-facing version string without internal build number (e.g., `1.3.0`).
+  String get displayVersion => '$major.$minor.$patch';
+
+  /// Computes the next Axis release version using the 10-patch rollover cadence:
+  /// keeps [minor] unchanged from `x.y.0` through `x.y.10`, then upgrades to
+  /// `x.(y+1).0` after `x.y.10` (e.g., `1.2.10 -> 1.3.0`, `1.3.10 -> 1.4.0`).
+  SemanticVersion nextAxisReleaseVersion() {
+    final nextBuild = buildNumber > 0 ? buildNumber + 1 : 0;
+    if (patch >= 10) {
+      return SemanticVersion(
+        major: major,
+        minor: minor + 1,
+        patch: 0,
+        buildNumber: nextBuild,
+      );
+    }
+    return SemanticVersion(
+      major: major,
+      minor: minor,
+      patch: patch + 1,
+      buildNumber: nextBuild,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

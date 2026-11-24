@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.widget.RemoteViews
-import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
 import java.util.Calendar
 
@@ -17,6 +16,7 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
     private data class PrayerSlot(
         val code: String,
         val arabicName: String,
+        val remainingLabel: String,
         val defaultTime: String,
         val colorHex: Int,
         val activeBgRes: Int,
@@ -34,6 +34,7 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
             PrayerSlot(
                 code = "fajr",
                 arabicName = "الفجر",
+                remainingLabel = "متبقي للفجر",
                 defaultTime = "05:30",
                 colorHex = 0xFF06B6D4.toInt(),
                 activeBgRes = R.drawable.widget_prayer_active_fajr,
@@ -45,6 +46,7 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
             PrayerSlot(
                 code = "dhuhr",
                 arabicName = "الظهر",
+                remainingLabel = "متبقي للظهر",
                 defaultTime = "12:45",
                 colorHex = 0xFFF59E0B.toInt(),
                 activeBgRes = R.drawable.widget_prayer_active_dhuhr,
@@ -56,6 +58,7 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
             PrayerSlot(
                 code = "asr",
                 arabicName = "العصر",
+                remainingLabel = "متبقي للعصر",
                 defaultTime = "15:45",
                 colorHex = 0xFFF97316.toInt(),
                 activeBgRes = R.drawable.widget_prayer_active_asr,
@@ -67,6 +70,7 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
             PrayerSlot(
                 code = "maghrib",
                 arabicName = "المغرب",
+                remainingLabel = "متبقي للمغرب",
                 defaultTime = "18:20",
                 colorHex = 0xFFEF4444.toInt(),
                 activeBgRes = R.drawable.widget_prayer_active_maghrib,
@@ -78,6 +82,7 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
             PrayerSlot(
                 code = "isha",
                 arabicName = "العشاء",
+                remainingLabel = "متبقي للعشاء",
                 defaultTime = "19:45",
                 colorHex = 0xFF8B5CF6.toInt(),
                 activeBgRes = R.drawable.widget_prayer_active_isha,
@@ -115,11 +120,12 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
         val todayKey = WidgetUiHelper.todayKey()
         val syncDate = widgetData.getString("prayer_widget_date_key", "") ?: ""
 
-        val gregorianAr = if (syncDate == todayKey) {
-            widgetData.getString("prayer_widget_gregorian", null)
+        // Non-Hijri date is strictly non-Arabic (e.g. "Tue, 24 Nov")
+        val gregorianDate = if (syncDate == todayKey) {
+            widgetData.getString("prayer_widget_gregorian_en", null)
         } else {
             null
-        } ?: WidgetUiHelper.arabicGregorianDate()
+        } ?: WidgetUiHelper.englishCompactGregorianDate()
 
         val hijriAr = if (syncDate == todayKey) {
             widgetData.getString("prayer_widget_hijri", null)
@@ -140,7 +146,6 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
         val tomorrowFajrMillis = parseTimeMillisToday(tomorrowFajrStr, dayOffset = 1)
             ?: (todayMillis[0] + 86_400_000L)
 
-        // Compute current active prayer window & upcoming prayer target
         val fajrMs = todayMillis[0]
         val dhuhrMs = todayMillis[1]
         val asrMs = todayMillis[2]
@@ -150,7 +155,7 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
         val currentCode: String
         val nextSlot: PrayerSlot
         val nextTargetMillis: Long
-        var transitionMillis: Long
+        val transitionMillis: Long
 
         when {
             now < fajrMs -> {
@@ -203,7 +208,7 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
         appWidgetIds.forEach { widgetId ->
             try {
                 val views = RemoteViews(context.packageName, R.layout.widget_prayer_times).apply {
-                    setTextViewText(R.id.widget_prayer_gregorian, gregorianAr)
+                    setTextViewText(R.id.widget_prayer_gregorian, gregorianDate)
                     setTextViewText(R.id.widget_prayer_hijri, hijriAr)
                     setTextViewText(R.id.widget_prayer_sunrise, "الشروق $sunriseTime")
 
@@ -238,20 +243,21 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
                         }
                     }
 
-                    // Configure Upcoming Prayer Countdown Pill
+                    // Configure Upcoming Prayer Countdown Pill (setCountDown before start)
                     setInt(R.id.widget_prayer_timer_box, "setBackgroundResource", nextSlot.timerBgRes)
-                    setTextViewText(R.id.widget_prayer_next_label, "${nextSlot.arabicName} بعد")
+                    setTextViewText(R.id.widget_prayer_next_label, nextSlot.remainingLabel)
                     setTextColor(R.id.widget_prayer_next_label, nextSlot.colorHex)
-                    setChronometer(R.id.widget_prayer_chronometer, chronoBase, null, true)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         setChronometerCountDown(R.id.widget_prayer_chronometer, true)
                     }
+                    setChronometer(R.id.widget_prayer_chronometer, chronoBase, null, true)
 
-                    // Tap opens main screen (/today)
-                    val pendingIntent = HomeWidgetLaunchIntent.getActivity(
+                    // Fast launch to main screen (/today)
+                    val pendingIntent = WidgetUiHelper.buildFastLaunchIntent(
                         context,
                         MainActivity::class.java,
                         Uri.parse("axis://widget/prayers"),
+                        WidgetUiHelper.REQ_LAUNCH_PRAYER_WIDGET,
                     )
                     setOnClickPendingIntent(R.id.widget_prayer_times_root, pendingIntent)
                 }
@@ -261,7 +267,6 @@ class PrayerTimesWidgetProvider : HomeWidgetProvider() {
             }
         }
 
-        // Auto-refresh at exact next prayer/sunrise transition and midnight
         WidgetUiHelper.scheduleTransitionUpdate(
             context,
             PrayerTimesWidgetProvider::class.java,

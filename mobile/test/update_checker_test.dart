@@ -43,6 +43,26 @@ void main() {
       expect(v120b13 > v120b12, isTrue);
       expect(v120b12 < v120b13, isTrue);
     });
+
+    test('nextAxisReleaseVersion enforces 10-patch rollover rule and omits build in displayVersion', () {
+      final v1210 = SemanticVersion.parse('1.2.10+24');
+      expect(v1210.displayVersion, '1.2.10');
+
+      final v130 = v1210.nextAxisReleaseVersion();
+      expect(v130.displayVersion, '1.3.0');
+      expect(v130.buildNumber, 25);
+
+      var cur = v130;
+      for (int p = 1; p <= 10; p++) {
+        cur = cur.nextAxisReleaseVersion();
+        expect(cur.minor, 3);
+        expect(cur.patch, p);
+      }
+      expect(cur.displayVersion, '1.3.10');
+
+      final v140 = cur.nextAxisReleaseVersion();
+      expect(v140.displayVersion, '1.4.0');
+    });
   });
 
   group('UpdateInfo Unit Tests', () {

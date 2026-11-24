@@ -466,8 +466,8 @@ Future<void> openDatabase() async {
   }
 
   await HabitRepository.ensureStateLoaded();
-  await purgeForeignUserData();
-  await syncGlobalUserLevel();
+  unawaited(purgeForeignUserData());
+  unawaited(syncGlobalUserLevel());
 }
 
 Future<void> initCustomLocalTables() async {

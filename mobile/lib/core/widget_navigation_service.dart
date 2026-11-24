@@ -18,10 +18,12 @@ class WidgetNavigationService {
           defaultTargetPlatform == TargetPlatform.iOS);
 
   String? _pendingRoute;
+  bool _launchedFromWidget = false;
   StreamSubscription<Uri?>? _clickSub;
   bool _initialized = false;
 
   String? get pendingRoute => _pendingRoute;
+  bool get launchedFromWidget => _launchedFromWidget;
 
   /// Resolves an app route from a home-screen widget launch [Uri].
   static String? routeFromUri(Uri? uri) {
@@ -49,8 +51,9 @@ class WidgetNavigationService {
 
   /// Stores a pending route for unit testing or deferred redirect handling.
   @visibleForTesting
-  void setPendingRouteForTesting(String? route) {
+  void setPendingRouteForTesting(String? route, {bool launchedFromWidget = false}) {
     _pendingRoute = route;
+    _launchedFromWidget = launchedFromWidget;
   }
 
   /// Initializes cold-start check and listens to warm widget tap events.
@@ -63,6 +66,7 @@ class WidgetNavigationService {
       final route = routeFromUri(initialUri);
       if (route != null) {
         _pendingRoute = route;
+        _launchedFromWidget = true;
       }
     } catch (e) {
       if (e is! MissingPluginException) {
@@ -75,6 +79,7 @@ class WidgetNavigationService {
       _clickSub = HomeWidget.widgetClicked.listen((uri) {
         final route = routeFromUri(uri);
         if (route == null) return;
+        _launchedFromWidget = true;
         _pendingRoute = route;
         _navigateImmediatelyIfReady();
       });
@@ -89,8 +94,6 @@ class WidgetNavigationService {
     if (!AuthService().hasActiveSession) return;
     try {
       final location = router.routerDelegate.currentConfiguration.uri.path;
-      // If still on /splash, let SplashScreen consume _pendingRoute after its transition.
-      if (location == '/splash') return;
       final target = consumePendingRoute();
       if (target != null && location != target) {
         router.go(target);
@@ -108,11 +111,15 @@ class WidgetNavigationService {
   }
 
   /// Returns the target route for an authenticated user (pending widget route or `/today`).
-  String resolveInitialAuthenticatedRoute() => consumePendingRoute() ?? '/today';
+  String resolveInitialAuthenticatedRoute() {
+    _launchedFromWidget = false;
+    return consumePendingRoute() ?? '/today';
+  }
 
   Future<void> dispose() async {
     await _clickSub?.cancel();
     _clickSub = null;
     _initialized = false;
+    _launchedFromWidget = false;
   }
 }

@@ -283,10 +283,12 @@ void main() {
       expect(WidgetNavigationService.routeFromUri(null), isNull);
     });
 
-    test('Pending widget route is consumed once and falls back to /today', () {
+    test('Pending widget route is consumed once and resets launchedFromWidget flag', () {
       final svc = WidgetNavigationService();
-      svc.setPendingRouteForTesting('/habits');
+      svc.setPendingRouteForTesting('/habits', launchedFromWidget: true);
+      expect(svc.launchedFromWidget, isTrue);
       expect(svc.resolveInitialAuthenticatedRoute(), '/habits');
+      expect(svc.launchedFromWidget, isFalse);
       expect(svc.resolveInitialAuthenticatedRoute(), '/today');
     });
   });

@@ -76,8 +76,10 @@ Future<void> main() async {
   try {
     await openDatabase();
     await AuthService().init();
-    await LocaleService().init();
-    await WidgetNavigationService().init();
+    await Future.wait([
+      LocaleService().init(),
+      WidgetNavigationService().init(),
+    ]);
     unawaited(UserProfileRepository().getProfile());
   } catch (e, stack) {
     debugPrint('[Startup] Error initializing database or auth: $e\n$stack');
@@ -179,6 +181,9 @@ class _AxisAppState extends State<AxisApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS) && WidgetNavigationService().launchedFromWidget) {
+      FlutterNativeSplash.remove();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _triggerAutoUpdateCheck();
     });

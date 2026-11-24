@@ -7,7 +7,6 @@ import android.net.Uri
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
-import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
 import org.json.JSONArray
 
@@ -159,10 +158,11 @@ class HabitStreakWidgetProvider : HomeWidgetProvider() {
                     }
 
                     // Deep-link directly to /habits when tapped
-                    val pendingIntent = HomeWidgetLaunchIntent.getActivity(
+                    val pendingIntent = WidgetUiHelper.buildFastLaunchIntent(
                         context,
                         MainActivity::class.java,
                         Uri.parse("axis://widget/habits"),
+                        WidgetUiHelper.REQ_LAUNCH_HABITS_WIDGET,
                     )
                     setOnClickPendingIntent(R.id.widget_habit_streak_root, pendingIntent)
                 }

@@ -162,7 +162,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('SYSTEM VERSION & UPDATES'), findsOneWidget);
-      expect(find.textContaining('1.2.0'), findsOneWidget);
+      expect(find.text('v1.2.0'), findsOneWidget);
+      expect(find.textContaining('build.'), findsNothing);
+      expect(find.byKey(const ValueKey('me_view_update_log_button')), findsOneWidget);
       expect(find.byKey(const ValueKey('me_check_for_updates_button')), findsOneWidget);
     });
 

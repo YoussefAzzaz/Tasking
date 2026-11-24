@@ -177,8 +177,9 @@ class PrayerCalculator {
     }
     parsed.sort((a, b) => a.value.compareTo(b.value));
 
-    // Check if any prayer is "DUE NOW" (within 20 minutes after its adan)
+    // Check if any incomplete prayer is "DUE NOW" (within 20 minutes after its adan)
     for (final entry in parsed) {
+      if (entry.key.isDone) continue;
       final diffMin = now.difference(entry.value).inMinutes;
       if (diffMin >= 0 && diffMin <= 20) {
         return (

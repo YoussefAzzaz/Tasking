@@ -21,10 +21,19 @@ export 'package:axis/ui/shell/floating_focus_session_bar.dart';
 /// Global navigator key for presenting system-wide dialogs and alarms
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Computes the initial route, skipping splash animation when opened from a home screen widget.
+String _computeInitialLocation() {
+  final widgetNav = WidgetNavigationService();
+  if (widgetNav.launchedFromWidget && AuthService().hasActiveSession) {
+    return widgetNav.resolveInitialAuthenticatedRoute();
+  }
+  return '/splash';
+}
+
 /// GoRouter configuration with IndexedStack state persistence
 final router = GoRouter(
   navigatorKey: rootNavigatorKey,
-  initialLocation: '/splash',
+  initialLocation: _computeInitialLocation(),
   refreshListenable: AuthService().authStateNotifier,
   redirect: (context, state) {
     final auth = AuthService();

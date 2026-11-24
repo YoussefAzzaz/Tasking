@@ -1,5 +1,7 @@
 package com.axis.axis
 
+import android.app.Activity
+import android.app.ActivityOptions
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -9,31 +11,22 @@ import android.content.Intent
 import android.graphics.Color
 import android.icu.util.Calendar as IcuCalendar
 import android.icu.util.IslamicCalendar
+import android.net.Uri
 import android.os.Build
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.StrikethroughSpan
 import android.util.Log
+import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 internal object WidgetUiHelper {
-    private val ARABIC_GREGORIAN_MONTHS = arrayOf(
-        "يناير",
-        "فبراير",
-        "مارس",
-        "أبريل",
-        "مايو",
-        "يونيو",
-        "يوليو",
-        "أغسطس",
-        "سبتمبر",
-        "أكتوبر",
-        "نوفمبر",
-        "ديسمبر",
-    )
+    const val REQ_LAUNCH_TODAY_WIDGET = 3101
+    const val REQ_LAUNCH_HABITS_WIDGET = 3102
+    const val REQ_LAUNCH_PRAYER_WIDGET = 3103
 
     private val ARABIC_HIJRI_MONTHS = arrayOf(
         "محرم",
@@ -70,11 +63,42 @@ internal object WidgetUiHelper {
     fun englishShortGregorianDate(): String =
         SimpleDateFormat("EEE, MMM d", Locale.US).format(Date()).uppercase(Locale.US)
 
-    fun arabicGregorianDate(): String {
-        val cal = Calendar.getInstance()
-        val day = cal.get(Calendar.DAY_OF_MONTH)
-        val monthIdx = cal.get(Calendar.MONTH).coerceIn(0, 11)
-        return "$day ${ARABIC_GREGORIAN_MONTHS[monthIdx]}"
+    fun englishCompactGregorianDate(): String =
+        SimpleDateFormat("EEE, d MMM", Locale.US).format(Date())
+
+    fun <T : Activity> buildFastLaunchIntent(
+        context: Context,
+        activityClass: Class<T>,
+        uri: Uri,
+        requestCode: Int,
+    ): PendingIntent {
+        val intent = Intent(context, activityClass).apply {
+            data = uri
+            action = HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        var piFlags = PendingIntent.FLAG_UPDATE_CURRENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            piFlags = piFlags or PendingIntent.FLAG_IMMUTABLE
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            return PendingIntent.getActivity(context, requestCode, intent, piFlags)
+        }
+
+        val options = ActivityOptions.makeBasic()
+        if (Build.VERSION.SDK_INT >= 35) {
+            options.setPendingIntentCreatorBackgroundActivityStartMode(
+                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED,
+            )
+        } else {
+            options.pendingIntentBackgroundActivityStartMode =
+                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+        }
+        return PendingIntent.getActivity(context, requestCode, intent, piFlags, options.toBundle())
     }
 
     fun hijriDateString(arabic: Boolean, includeYear: Boolean): String {

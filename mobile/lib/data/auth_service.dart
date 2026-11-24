@@ -200,7 +200,7 @@ class AuthService {
           DateTime.now().toUtc().toIso8601String(),
         ]);
       }
-      await purgeForeignUserData();
+      unawaited(purgeForeignUserData());
       authStateNotifier.value = hasActiveSession;
     } catch (e) {
       debugPrint('[AuthService] Error reading local auth session: $e');

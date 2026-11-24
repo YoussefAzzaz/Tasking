@@ -1,5 +1,15 @@
 # AXIS: Changelog
 
+## Versioning Policy (10-Patch Rollover)
+- Minor version increments only after reaching patch `.10`: `x.y.0` through `x.y.10` increment the patch digit, then roll over to `x.(y+1).0` (e.g., `1.2.10` -> `1.3.0`, staying on `1.3.x` until `1.3.10`, then `1.4.0`), encoded in `SemanticVersion.nextAxisReleaseVersion()`.
+- UI labels display only the semantic version (`v1.3.0`) without internal build numbers.
+
+## v1.3.0: Widget Speed, Prayer Strip Layout & Me Screen Redesign
+- Sped up home-screen widget launches by removing the native splash immediately on widget entry, deferring background cleanup after DB/auth initialization, and bypassing `/splash` when an active session exists.
+- Updated prayer countdown logic (`computeNextPrayer`) to advance immediately once a prayer is marked prayed, sorted the 4x1 prayer strip left-to-right from Fajr (`الفجر`) to Isha (`العشاء`), formatted the Gregorian date in English (`Tue, 24 Nov`), and added separators between Chourok/Hijri and between prayers/next-prayer countdown.
+- Moved the Sign Out / Sign In action into the mobile Me screen top app bar (replacing the cloud icon) and placed the cloud connection status card directly beneath the user profile card.
+- Redesigned the mobile update card, update log modal, and OTA notice modal buttons to avoid cramping and hide internal build numbers.
+
 ## S12: Unified Flutter Desktop Command Center & C# Deprecation
 - Implemented high-density Desktop Command Center natively in Flutter (`mobile/lib/ui/desktop/`).
 - Added Command Deck, Projects & Tasks Matrix, 3-Column Notes Vault, Focus Timers Cockpit, Prayer & Habits Telemetry, and Omnibar (`Ctrl+K`).

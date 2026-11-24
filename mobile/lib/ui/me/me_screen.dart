@@ -9,8 +9,6 @@ import 'package:axis/data/user_profile_repository.dart';
 import 'package:axis/data/habit_category_repository.dart';
 import 'package:axis/data/note_category_repository.dart';
 import 'package:axis/data/tag_repository.dart';
-import 'package:axis/data/network_service.dart';
-import 'package:axis/ui/common/sync_status_modal.dart';
 import 'package:axis/ui/me/widgets/user_profile_card.dart';
 import 'package:axis/ui/me/widgets/habit_categories_section.dart';
 import 'package:axis/ui/me/widgets/note_categories_section.dart';
@@ -316,21 +314,54 @@ class _MeScreenState extends State<MeScreen> {
         ),
         centerTitle: true,
         actions: [
-          ValueListenableBuilder<bool>(
-            valueListenable: NetworkService().isOnlineNotifier,
-            builder: (context, isOnline, _) {
-              return IconButton(
-                icon: Icon(
-                  isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-                  color: isOnline ? AxisColors.tertiary : AxisColors.warning,
-                  size: 20,
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 8),
+            child: Tooltip(
+              message: isGuest
+                  ? (l10n.isArabic ? 'تسجيل الدخول' : 'Sign In')
+                  : (l10n.isArabic ? 'تسجيل الخروج' : 'Sign Out'),
+              child: InkWell(
+                key: const ValueKey('me_top_sign_out_button'),
+                onTap: isGuest
+                    ? () => context.go('/auth')
+                    : () => showMeConfirmSignOutDialog(context),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (isGuest ? AxisColors.primary : AxisColors.error)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: (isGuest ? AxisColors.primary : AxisColors.error)
+                          .withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isGuest ? Icons.login_rounded : Icons.logout_rounded,
+                        color: isGuest ? AxisColors.primarySoft : AxisColors.error,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        isGuest
+                            ? (l10n.isArabic ? 'دخول' : 'Sign In')
+                            : (l10n.isArabic ? 'خروج' : 'Sign Out'),
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isGuest ? AxisColors.primarySoft : AxisColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                tooltip: l10n.isArabic ? 'حالة المزامنة' : 'Sync Status',
-                onPressed: () => SyncStatusModal.show(context),
-              );
-            },
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
         ],
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
@@ -345,16 +376,6 @@ class _MeScreenState extends State<MeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (isGuest) ...[
-                MeGuestBanner(
-                  onExitGuest: () => showMeConfirmExitGuestModeDialog(context),
-                ),
-                const SizedBox(height: 16),
-              ] else ...[
-                MeCloudAccountCard(auth: auth),
-                const SizedBox(height: 16),
-              ],
-
               // User Profile Card with Edit Action & Avatar Picker
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -371,6 +392,17 @@ class _MeScreenState extends State<MeScreen> {
                   onSaveProfile: _saveProfile,
                 ),
               ),
+
+              const SizedBox(height: 16),
+
+              // Connected Cloud Account / Guest check card placed directly under Profile
+              if (isGuest) ...[
+                MeGuestBanner(
+                  onExitGuest: () => showMeConfirmExitGuestModeDialog(context),
+                ),
+              ] else ...[
+                MeCloudAccountCard(auth: auth),
+              ],
 
               const SizedBox(height: 24),
 
@@ -431,15 +463,7 @@ class _MeScreenState extends State<MeScreen> {
               // System Version & Updates Section
               const MeUpdateSection(),
 
-              const SizedBox(height: 32),
-
-              // Streamlined, Premium Cyber Sign Out or Sign In Button at Bottom
-              MeSessionActionButton(
-                isGuest: isGuest,
-                onTap: isGuest ? () => context.go('/auth') : () => showMeConfirmSignOutDialog(context),
-              ),
-
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
             ],
           ),
         ),

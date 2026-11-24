@@ -619,13 +619,13 @@ class AppWidgetSyncService {
 
       final hijri = HijriDate.fromGregorian(now);
       final hijriAr = hijri.formatArabic(includeYear: true, includeSuffix: false);
-      final gregorianAr = formatArabicGregorianDate(now);
+      final gregorianEn = DateFormat('EEE, d MMM').format(now);
       final cleanCity = await _resolveCityName();
 
       await HomeWidget.saveWidgetData<String>(
           'prayer_widget_date_key', todayStr);
       await HomeWidget.saveWidgetData<String>(
-          'prayer_widget_gregorian', gregorianAr);
+          'prayer_widget_gregorian_en', gregorianEn);
       await HomeWidget.saveWidgetData<String>('prayer_widget_hijri', hijriAr);
       await HomeWidget.saveWidgetData<String>(
           'prayer_widget_sunrise', sunrise24);
