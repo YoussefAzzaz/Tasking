@@ -28,6 +28,7 @@ Thumbs.db
 *~
 .temp/
 supabase/.temp/
+supabase/.branches/
 
 # Python cache (used in helper scripts & skills)
 __pycache__/
@@ -35,18 +36,36 @@ __pycache__/
 *$py.class
 *.pyc
 
-# Environment & Secrets
+# Environment, Signing & Secrets
 .env
 .env.*
+*.env
 !.env.example
+key.properties
+*.jks
+*.keystore
+*.pfx
+*.p12
+*.cer
+*.snk
 
 # Agent Workspace & Cache
 .agents/
 
-# Flutter / Dart / Build Artifacts
+# Flutter / Dart / Build & Release Artifacts
 .dart_tool/
 .pub-cache/
 .pub/
 /build/
 **/build/
 /coverage/
+/artifacts/
+/axis-linux-x64.tar.gz
+/axis-windows-x64.zip
+*.apk
+*.aab
+*.ipa
+*.msix
+*.appx
+*.appxbundle
+*.AppImage

@@ -15,3 +15,13 @@ x86/
 *.[Cc]ache
 # but keep track of directories ending in .cache
 !*.[Cc]ache/
+
+# Visual Studio & CMake local build/signing artifacts
+.vs/
+out/
+CMakeSettings.json
+CMakeUserPresets.json
+*.msix
+*.pfx
+*.cer
+*.pdb

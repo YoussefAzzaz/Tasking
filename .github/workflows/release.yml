@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release Tag (e.g. v1.2.1)'
+        description: 'Release Tag (e.g. v1.3.0)'
         required: true
-        default: 'v1.2.1'
+        default: 'v1.3.0'
       changelog:
         description: 'Release notes / changelog'
         required: false
@@ -24,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -48,7 +48,7 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 -d > mobile/android/app/axis-release.jks
           fi
           if [ -n "$ENV_CONTENT" ]; then
-            echo "$ENV_CONTENT" > mobile/.env
+            printf '%s\n' "$ENV_CONTENT" > mobile/.env
           fi
 
       - name: Install dependencies
@@ -60,7 +60,7 @@ jobs:
         run: flutter build apk --release --dart-define-from-file=.env
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: axis-android-apk
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Linux build dependencies
         run: |
@@ -88,7 +88,7 @@ jobs:
           ENV_CONTENT: ${{ secrets.RELEASE_ENV }}
         run: |
           if [ -n "$ENV_CONTENT" ]; then
-            echo "$ENV_CONTENT" > mobile/.env
+            printf '%s\n' "$ENV_CONTENT" > mobile/.env
           fi
 
       - name: Install dependencies
@@ -104,48 +104,94 @@ jobs:
           tar -czf axis-linux-x64.tar.gz -C mobile/build/linux/x64/release/bundle .
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: axis-linux-tarball
           path: axis-linux-x64.tar.gz
 
+  build-windows:
+    name: Build Windows Desktop
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Restore environment
+        env:
+          ENV_CONTENT: ${{ secrets.RELEASE_ENV }}
+        run: |
+          if (-not [string]::IsNullOrEmpty($env:ENV_CONTENT)) {
+            $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+            [System.IO.File]::WriteAllText("$PWD\mobile\.env", $env:ENV_CONTENT, $utf8NoBom)
+          }
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Build Windows Desktop
+        working-directory: mobile
+        run: flutter build windows --release --dart-define-from-file=.env
+
+      - name: Package Windows ZIP
+        run: Compress-Archive -Path "mobile\build\windows\x64\runner\Release\*" -DestinationPath "axis-windows-x64.zip" -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: axis-windows-zip
+          path: axis-windows-x64.zip
+
   publish-release:
     name: Publish Release to GitHub
-    needs: [build-android, build-linux]
+    needs: [build-android, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download Android APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: axis-android-apk
           path: artifacts/
 
       - name: Download Linux tarball
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: axis-linux-tarball
+          path: artifacts/
+
+      - name: Download Windows ZIP
+        uses: actions/download-artifact@v8
+        with:
+          name: axis-windows-zip
           path: artifacts/
 
       - name: Prepare assets
         id: prepare
         run: |
-          TAG="${{ github.ref_name }}"
-          if [ -z "$TAG" ] || [ "$TAG" = "main" ]; then
-            TAG="${{ inputs.tag }}"
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${{ github.ref_name }}"
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          
+
           CLEAN_VER="${TAG#v}"
           mv artifacts/app-release.apk "artifacts/axis-v${CLEAN_VER}-android.apk"
           mv artifacts/axis-linux-x64.tar.gz "artifacts/axis-v${CLEAN_VER}-linux-x64.tar.gz"
-          
+          mv artifacts/axis-windows-x64.zip "artifacts/axis-v${CLEAN_VER}-windows-x64.zip"
+
           cd artifacts && sha256sum axis-v* > SHA256SUMS.txt
 
       - name: Create or Update GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.prepare.outputs.tag }}
           name: Axis ${{ steps.prepare.outputs.tag }}
@@ -153,8 +199,10 @@ jobs:
           files: |
             artifacts/axis-v*-android.apk
             artifacts/axis-v*-linux-x64.tar.gz
+            artifacts/axis-v*-windows-x64.zip
             artifacts/SHA256SUMS.txt
           draft: false
           prerelease: false
+          overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
