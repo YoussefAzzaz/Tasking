@@ -4,6 +4,7 @@ import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:axis/core/config/app_config.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/data/powersync_db.dart' show isSigningIn;
 import 'payload_sanitizer.dart';
 
 /// PowerSync backend connector bridging local SQLite CRUD mutations to Supabase REST / Postgres
@@ -23,44 +24,31 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
-    if (isSigningOut?.call() == true) {
+    if (isSigningOut?.call() == true || isSigningIn) {
       return null;
     }
 
     final client = Supabase.instance.client;
     var session = client.auth.currentSession;
-    if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
-      try {
-        final res = await client.auth.refreshSession();
-        session = res.session;
-      } catch (e) {
-        debugPrint('[PowerSync SupabaseConnector] fetchCredentials session refresh error: $e');
-        // Transient network reconnection retry upon waking from idle
-        try {
-          await Future.delayed(const Duration(milliseconds: 600));
-          final resRetry = await client.auth.refreshSession();
-          session = resRetry.session;
-        } catch (_) {}
-      }
-    }
 
-    // 1. Guard against unauthenticated session or expired session
+    // 1. Refresh or recover expired/missing session via centralized offline-safe pipeline.
+    // Never marks session expired when offline or encountering transient network errors.
     if (session == null || session.isExpired) {
-      final reAuthOk = await AuthService().trySilentReAuthWithSavedCredentials();
-      if (reAuthOk) {
-        session = client.auth.currentSession;
+      final result = await AuthService().refreshOrRecoverSession(
+        timeout: const Duration(seconds: 8),
+      );
+      if (result != SessionRefreshResult.valid || isSigningOut?.call() == true || isSigningIn) {
+        if (!_loggedNoSession) {
+          _loggedNoSession = true;
+          _lastLoggedCredUserId = null;
+          debugPrint('[PowerSync SupabaseConnector] fetchCredentials: Session unavailable ($result). Pausing sync.');
+        }
+        return null;
       }
+      session = client.auth.currentSession;
     }
 
-    if (session == null || session.isExpired || isSigningOut?.call() == true) {
-      if (isSigningOut?.call() != true) {
-        unawaited(AuthService().handleSessionExpired(reason: 'fetchCredentials: No active/valid authenticated session'));
-      }
-      if (!_loggedNoSession) {
-        _loggedNoSession = true;
-        _lastLoggedCredUserId = null;
-        debugPrint('[PowerSync SupabaseConnector] fetchCredentials: No active/valid authenticated session. Pausing sync.');
-      }
+    if (session == null || session.isExpired || isSigningOut?.call() == true || isSigningIn) {
       return null;
     }
 
@@ -437,38 +425,30 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 
   @override
   Future<void> uploadData(PowerSyncDatabase database) async {
-    if (isSigningOut?.call() == true) {
-      throw CredentialsException('Signing out; deferring upload.');
+    if (isSigningOut?.call() == true || isSigningIn) {
+      throw CredentialsException('Signing in or out; deferring upload.');
     }
 
     final client = Supabase.instance.client;
 
     // 1. Ensure authenticated session BEFORE taking any transaction from the CRUD queue.
-    // If unauthenticated or expired, defer without popping so transactions remain cleanly queued.
+    // If offline or expired, defer without popping so transactions remain cleanly queued.
     var session = client.auth.currentSession;
-    if (session != null && session.isExpired && session.refreshToken != null && session.refreshToken!.isNotEmpty) {
-      try {
-        final res = await client.auth.refreshSession();
-        session = res.session;
-      } catch (e) {
-        debugPrint('[PowerSync SupabaseConnector] Token refresh error before upload: $e');
+    if (session == null || session.isExpired) {
+      final result = await AuthService().refreshOrRecoverSession(
+        timeout: const Duration(seconds: 8),
+      );
+      if (result != SessionRefreshResult.valid || isSigningOut?.call() == true || isSigningIn) {
+        debugPrint('[PowerSync SupabaseConnector] Session unavailable ($result); deferring upload.');
+        throw CredentialsException('Offline or session unavailable; deferring upload');
       }
+      session = client.auth.currentSession;
     }
 
     final user = client.auth.currentUser;
     final uid = user?.id ?? (getCurrentUserId != null ? getCurrentUserId!() : '');
 
     if (session == null || user == null || uid.isEmpty || session.isExpired) {
-      final reAuthOk = await AuthService().trySilentReAuthWithSavedCredentials();
-      if (reAuthOk) {
-        session = client.auth.currentSession;
-      }
-    }
-
-    if (session == null || user == null || uid.isEmpty || session.isExpired) {
-      if (isSigningOut?.call() != true) {
-        unawaited(AuthService().handleSessionExpired(reason: 'uploadData: Session expired or invalid user'));
-      }
       debugPrint('[PowerSync SupabaseConnector] No authenticated user or session expired; deferring upload.');
       throw CredentialsException('Not logged in or session expired');
     }
@@ -568,17 +548,8 @@ class SupabaseConnector extends PowerSyncBackendConnector {
         await transaction.complete();
       } on AuthException catch (e) {
         debugPrint('[PowerSync SupabaseConnector] AuthException [${e.statusCode}]: ${e.message}');
-        if (e.statusCode == '401' || e.statusCode == '403') {
-          unawaited(AuthService().trySilentReAuthWithSavedCredentials().then((ok) {
-            if (!ok) {
-              AuthService().handleSessionExpired(reason: 'AuthException ${e.statusCode}: ${e.message}');
-            }
-          }));
-          if (client.auth.currentSession?.refreshToken != null) {
-            try {
-              await client.auth.refreshSession();
-            } catch (_) {}
-          }
+        if (AuthService.isPermanentAuthError(e)) {
+          unawaited(AuthService().refreshOrRecoverSession());
         }
         // Do NOT complete transaction; let PowerSync retry
         rethrow;

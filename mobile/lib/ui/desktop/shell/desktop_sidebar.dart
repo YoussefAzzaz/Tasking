@@ -378,10 +378,13 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                     ],
                   ),
                 );
-                if (confirm == true) {
-                  await AuthService().signOut();
+                if (confirm == true && mounted) {
+                  final router = GoRouter.maybeOf(context);
+                  try {
+                    await AuthService().signOut();
+                  } catch (_) {}
                   if (mounted) {
-                    context.go('/auth');
+                    router?.go('/auth');
                   }
                 }
               },

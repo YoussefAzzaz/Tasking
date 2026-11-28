@@ -18,8 +18,8 @@ class DesktopUpdateCard extends StatefulWidget {
 
 class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
   late final AppUpdateService _service;
-  String _versionStr = '1.3.2';
-  int _buildNumber = 27;
+  String _versionStr = '1.3.3';
+  int _buildNumber = 28;
   bool _isChecking = false;
 
   @override

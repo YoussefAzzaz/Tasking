@@ -201,11 +201,13 @@ class _AxisHeaderState extends State<AxisHeader> {
                                           AnimatedDefaultTextStyle(
                                             duration: const Duration(milliseconds: 300),
                                             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                                      color: isSessionExpired
+                                                      color: (isOnline && isSessionExpired)
                                                           ? AxisColors.danger
-                                                          : (isGuest
-                                                              ? const Color(0xFFF59E0B)
-                                                              : (isOnline ? AxisColors.textMuted : AxisColors.warning)),
+                                                          : (!isOnline
+                                                              ? AxisColors.warning
+                                                              : (isGuest
+                                                                  ? const Color(0xFFF59E0B)
+                                                                  : AxisColors.textMuted)),
                                                       fontSize: 10,
                                                       fontWeight: FontWeight.bold,
                                                       letterSpacing: 0.5,
@@ -213,14 +215,14 @@ class _AxisHeaderState extends State<AxisHeader> {
                                                 const TextStyle(),
                                             child: Text(label),
                                           ),
-                                          if (isGuest || isSessionExpired) ...[
+                                          if (isGuest || (isOnline && isSessionExpired)) ...[
                                             const SizedBox(width: 2),
                                             Icon(
                                               context.isArabic
                                                   ? Icons.arrow_back_ios_rounded
                                                   : Icons.arrow_forward_ios_rounded,
                                               size: 8,
-                                              color: isSessionExpired
+                                              color: (isOnline && isSessionExpired)
                                                   ? AxisColors.danger
                                                   : const Color(0xFFF59E0B),
                                             ),

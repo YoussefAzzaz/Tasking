@@ -199,12 +199,16 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                         const Divider(height: 18, color: AxisColors.borderSubtle),
                         _buildDiagnosticRow(
                           label: isArabic ? 'مصادقة Supabase' : 'Supabase Authentication',
-                          status: auth.isSessionExpired
-                              ? (isArabic ? 'انتهت الجلسة' : 'EXPIRED')
-                              : (auth.isAuthenticated
-                                  ? (isArabic ? 'تمت المصادقة' : 'AUTHENTICATED')
-                                  : (isGuest ? (isArabic ? 'ضيف (غير متصل)' : 'GUEST (OFFLINE)') : (isArabic ? 'غير مصادق' : 'UNAUTHENTICATED'))),
-                          isGood: auth.isAuthenticated && !auth.isSessionExpired,
+                          status: (!isOnline && auth.isAuthenticated)
+                              ? (isArabic ? 'غير متصل (محلي)' : 'OFFLINE (LOCAL)')
+                              : (isOnline && auth.isSessionExpired)
+                                  ? (isArabic ? 'انتهت الجلسة' : 'EXPIRED')
+                                  : (auth.isAuthenticated
+                                      ? (isArabic ? 'تمت المصادقة' : 'AUTHENTICATED')
+                                      : (isGuest
+                                          ? (isArabic ? 'ضيف (غير متصل)' : 'GUEST (OFFLINE)')
+                                          : (isArabic ? 'غير مصادق' : 'UNAUTHENTICATED'))),
+                          isGood: auth.isAuthenticated && (!isOnline || !auth.isSessionExpired),
                           icon: Icons.shield_outlined,
                         ),
                       ],
@@ -237,7 +241,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                     ),
                   ],
                   const SizedBox(height: 18),
-                  if (auth.isSessionExpired) ...[
+                  if (isOnline && auth.isSessionExpired) ...[
                     ElevatedButton.icon(
                       onPressed: () async {
                         setState(() {
@@ -246,7 +250,9 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                         });
                         final navigator = Navigator.of(context);
                         final router = GoRouter.of(context);
-                        final ok = await AuthService().trySilentReAuthWithSavedCredentials();
+                        final ok = await AuthService().trySilentReAuthWithSavedCredentials(
+                          timeout: const Duration(seconds: 6),
+                        );
                         if (ok) {
                           await ensurePowerSyncConnected();
                           if (mounted) {

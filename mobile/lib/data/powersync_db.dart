@@ -49,11 +49,15 @@ final ValueNotifier<int> globalUserLevel = ValueNotifier<int>(1);
 
 bool _isConnectingPowerSync = false;
 bool _isSigningOut = false;
+bool _isSigningIn = false;
 DateTime? _lastCredentialsRecoveryAt;
 bool _isSyncingUserLevel = false;
 
 bool get isSigningOut => _isSigningOut;
 void setSigningOut(bool value) => _isSigningOut = value;
+
+bool get isSigningIn => _isSigningIn;
+void setSigningIn(bool value) => _isSigningIn = value;
 
 bool get isPowerSyncConnectedOrConnecting =>
     _dbInstance != null &&
@@ -63,12 +67,12 @@ bool get isPowerSyncConnectedOrConnecting =>
 
 Future<void> connectPowerSyncSafely([SupabaseConnector? customConnector]) async {
   final instance = _dbInstance;
-  if (_isSigningOut || instance == null || isPowerSyncConnectedOrConnecting) return;
+  if (_isSigningOut || _isSigningIn || instance == null || isPowerSyncConnectedOrConnecting) return;
   _isConnectingPowerSync = true;
   try {
     if (instance.currentStatus.anyError != null && !instance.connected) {
       try {
-        await instance.disconnect();
+        await instance.disconnect().timeout(const Duration(seconds: 3));
       } catch (_) {}
     }
     await instance.connect(
@@ -261,7 +265,7 @@ Future<void> openDatabase() async {
   bool? wasConnected;
   String? lastErrorKey;
   db.statusStream.listen((status) {
-    if (_isSigningOut) return;
+    if (_isSigningOut || _isSigningIn) return;
 
     if (status.anyError != null) {
       final errKey = '${status.downloadError}|${status.uploadError}';
@@ -273,9 +277,9 @@ Future<void> openDatabase() async {
       if (dlErr.contains('CredentialsException') || dlErr.contains('Not logged in')) {
         final now = DateTime.now();
         if (_lastCredentialsRecoveryAt == null ||
-            now.difference(_lastCredentialsRecoveryAt!) > const Duration(seconds: 10)) {
+            now.difference(_lastCredentialsRecoveryAt!) > const Duration(seconds: 15)) {
           _lastCredentialsRecoveryAt = now;
-          debugPrint('[PowerSync] Detected CredentialsException in statusStream. Attempting automatic session recovery...');
+          debugPrint('[PowerSync] Detected CredentialsException in statusStream. Attempting offline-safe session recovery...');
           unawaited(ensurePowerSyncConnected(forceReconnect: true));
         }
       }
@@ -335,72 +339,67 @@ Future<void> openDatabase() async {
   // PowerSync runs 100% locally with SQLite for full offline-first functionality.
   // We only engage remote sync streaming when an active authenticated session exists.
   try {
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
-      if (_isSigningOut) return;
-      final session = data.session;
-      final event = data.event;
-      if (session != null && !session.isExpired) {
-        AuthService().sessionExpiredNotifier.value = false;
-        final previousUid = _cachedUserId;
-        final newUid = session.user.id;
-        if (previousUid.isNotEmpty &&
-            previousUid != 'local_guest' &&
-            previousUid != newUid) {
-          try {
-            await db.disconnectAndClear();
-          } catch (e) {
-            debugPrint('[PowerSync] disconnectAndClear on user switch notice: $e');
+    Supabase.instance.client.auth.onAuthStateChange.listen(
+      (data) async {
+        if (_isSigningOut || _isSigningIn) return;
+        final session = data.session;
+        final event = data.event;
+        if (session != null && !session.isExpired) {
+          AuthService().sessionExpiredNotifier.value = false;
+          AuthService().sessionExpiredDismissedNotifier.value = false;
+          final previousUid = _cachedUserId;
+          final newUid = session.user.id;
+          if (previousUid.isNotEmpty &&
+              previousUid != 'local_guest' &&
+              previousUid != newUid) {
+            try {
+              await db.disconnectAndClear().timeout(const Duration(seconds: 5));
+            } catch (e) {
+              debugPrint('[PowerSync] disconnectAndClear on user switch notice: $e');
+            }
           }
-        }
-        setCachedUserId(newUid);
-        connectPowerSyncSafely(connector);
-        await purgeForeignUserData();
-        await syncGlobalUserLevel();
-      } else if (session != null && session.isExpired) {
-        setCachedUserId(session.user.id);
-        if (session.refreshToken != null && session.refreshToken!.isNotEmpty) {
-          try {
-            final res = await Supabase.instance.client.auth.refreshSession();
-            final refreshed = res.session;
+          setCachedUserId(newUid);
+          unawaited(connectPowerSyncSafely(connector));
+          unawaited(purgeForeignUserData());
+          unawaited(syncGlobalUserLevel());
+        } else if (session != null && session.isExpired) {
+          setCachedUserId(session.user.id);
+          final result = await AuthService().refreshOrRecoverSession();
+          if (result == SessionRefreshResult.valid && !_isSigningOut && !_isSigningIn) {
+            final refreshed = Supabase.instance.client.auth.currentSession;
             if (refreshed != null && !refreshed.isExpired) {
               setCachedUserId(refreshed.user.id);
-              AuthService().sessionExpiredNotifier.value = false;
-              connectPowerSyncSafely(connector);
-              await purgeForeignUserData();
-              await syncGlobalUserLevel();
-              return;
+              unawaited(connectPowerSyncSafely(connector));
+              unawaited(purgeForeignUserData());
+              unawaited(syncGlobalUserLevel());
             }
-          } catch (e) {
-            debugPrint('[PowerSync] Auth refresh on state change notice: $e');
           }
-        }
-        // Try silent re-authentication with cached credentials
-        final recovered = await AuthService().trySilentReAuthWithSavedCredentials();
-        if (recovered) {
-          final refreshed = Supabase.instance.client.auth.currentSession;
-          if (refreshed != null && !refreshed.isExpired) {
-            setCachedUserId(refreshed.user.id);
+        } else if (event == AuthChangeEvent.signedOut) {
+          if (data.signOutReason == SignOutReason.sessionExpired) {
+            // GoTrue explicitly received a permanent server rejection on refresh.
+            // Delegate to refreshOrRecoverSession which handles silent re-auth or marks expired
+            // (and never marks expired if offline).
+            unawaited(AuthService().refreshOrRecoverSession());
+          } else {
             AuthService().sessionExpiredNotifier.value = false;
-            connectPowerSyncSafely(connector);
-            await purgeForeignUserData();
-            await syncGlobalUserLevel();
-            return;
+            AuthService().sessionExpiredDismissedNotifier.value = false;
+            setCachedUserId('');
+            if (db.connected || db.currentStatus.connecting) {
+              try {
+                await db.disconnect().timeout(const Duration(seconds: 3));
+              } catch (e) {
+                debugPrint('[PowerSync] db.disconnect on auth change error: $e');
+              }
+            }
           }
         }
-        // If recovery failed, mark session as expired and redirect out
-        unawaited(AuthService().handleSessionExpired(reason: 'Supabase token refresh failed'));
-      } else if (event == AuthChangeEvent.signedOut) {
-        AuthService().sessionExpiredNotifier.value = false;
-        setCachedUserId('');
-        if (db.connected || db.currentStatus.connecting) {
-          try {
-            await db.disconnect();
-          } catch (e) {
-            debugPrint('[PowerSync] db.disconnect on auth change error: $e');
-          }
-        }
-      }
-    });
+      },
+      onError: (Object e, StackTrace _) {
+        // GoTrue emits retryable fetch exceptions on the auth stream when offline;
+        // swallow cleanly so they never become unhandled errors or false logouts.
+        debugPrint('[PowerSync] Supabase auth stream notice: $e');
+      },
+    );
   } catch (e) {
     debugPrint('[PowerSync] Supabase auth state change listener notice: $e');
   }
@@ -415,6 +414,7 @@ Future<void> openDatabase() async {
     setCachedUserId(startupSession.user.id);
     if (!startupSession.isExpired) {
       AuthService().sessionExpiredNotifier.value = false;
+      AuthService().sessionExpiredDismissedNotifier.value = false;
       unawaited(connectPowerSyncSafely(connector));
       if (!Platform.environment.containsKey('FLUTTER_TEST')) {
         unawaited(
@@ -426,41 +426,19 @@ Future<void> openDatabase() async {
       }
     } else {
       unawaited(() async {
-        if (startupSession!.refreshToken != null && startupSession.refreshToken!.isNotEmpty) {
-          try {
-            final res = await Supabase.instance.client.auth.refreshSession();
-            final refreshed = res.session;
-            if (refreshed != null && !refreshed.isExpired) {
-              setCachedUserId(refreshed.user.id);
-              AuthService().sessionExpiredNotifier.value = false;
-              connectPowerSyncSafely(connector);
-              await purgeForeignUserData();
-              await syncGlobalUserLevel();
-              if (!Platform.environment.containsKey('FLUTTER_TEST')) {
-                unawaited(FriendRepository().syncAllFriendData());
-              }
-              return;
-            }
-          } catch (e) {
-            debugPrint('[PowerSync] Startup session refresh notice: $e');
-          }
-        }
-        final recovered = await AuthService().trySilentReAuthWithSavedCredentials();
-        if (recovered) {
+        final result = await AuthService().refreshOrRecoverSession();
+        if (result == SessionRefreshResult.valid && !_isSigningOut && !_isSigningIn) {
           final refreshed = Supabase.instance.client.auth.currentSession;
           if (refreshed != null && !refreshed.isExpired) {
             setCachedUserId(refreshed.user.id);
-            AuthService().sessionExpiredNotifier.value = false;
-            connectPowerSyncSafely(connector);
-            await purgeForeignUserData();
-            await syncGlobalUserLevel();
+            unawaited(connectPowerSyncSafely(connector));
+            unawaited(purgeForeignUserData());
+            unawaited(syncGlobalUserLevel());
             if (!Platform.environment.containsKey('FLUTTER_TEST')) {
               unawaited(FriendRepository().syncAllFriendData());
             }
-            return;
           }
         }
-        unawaited(AuthService().handleSessionExpired(reason: 'Sync error unrecoverable'));
       }());
     }
   }
@@ -722,44 +700,34 @@ Future<void> resetAllData() async {
 
 /// Verifies whether PowerSync is currently connected and reconnects if credentials exist.
 Future<void> ensurePowerSyncConnected({bool forceReconnect = false}) async {
-  if (!_dbInitialized || _isSigningOut) return;
+  if (!_dbInitialized || _isSigningOut || _isSigningIn) return;
   try {
     final client = Supabase.instance.client;
     var session = client.auth.currentSession;
-    if (session != null && session.isExpired) {
-      if (session.refreshToken != null && session.refreshToken!.isNotEmpty) {
-        try {
-          final res = await client.auth.refreshSession();
-          session = res.session;
-        } catch (e) {
-          debugPrint('[PowerSync] ensurePowerSyncConnected refresh notice: $e');
-        }
+    if (session == null || session.isExpired) {
+      final result = await AuthService().refreshOrRecoverSession();
+      if (result != SessionRefreshResult.valid || _isSigningOut || _isSigningIn) {
+        return;
       }
-      if (session == null || session.isExpired) {
-        final recovered = await AuthService().trySilentReAuthWithSavedCredentials();
-        if (recovered) {
-          session = client.auth.currentSession;
-        }
-      }
+      session = client.auth.currentSession;
     }
     if (session != null && !session.isExpired) {
       AuthService().sessionExpiredNotifier.value = false;
+      AuthService().sessionExpiredDismissedNotifier.value = false;
       setCachedUserId(session.user.id);
       final hasSyncError = db.currentStatus.anyError != null;
       if (forceReconnect || hasSyncError) {
         if (db.connected || db.currentStatus.connecting) {
           try {
-            await db.disconnect();
+            await db.disconnect().timeout(const Duration(seconds: 3));
           } catch (_) {}
         }
         await connectPowerSyncSafely();
       } else {
         await connectPowerSyncSafely();
       }
-      await purgeForeignUserData();
-      await syncGlobalUserLevel();
-    } else if (session != null && session.isExpired) {
-      unawaited(AuthService().handleSessionExpired(reason: 'Expired session in ensurePowerSyncConnected'));
+      unawaited(purgeForeignUserData());
+      unawaited(syncGlobalUserLevel());
     }
   } catch (e) {
     debugPrint('[PowerSync] ensurePowerSyncConnected error: $e');

@@ -114,13 +114,18 @@ Future<void> main() async {
 }
 
 Future<void> _initBackgroundServices() async {
+  // 0. Start connectivity monitoring immediately so offline launches detect offline fast
+  NetworkService().startMonitoring();
+
   // 1. Asynchronous auto-sync without blocking cold launch
   unawaited(() async {
     try {
       if (AuthService().hasActiveSession) {
         await AuthService().tryAutoLoginOrSync();
         await ensurePowerSyncConnected();
-        await FriendRepository().syncAllFriendData();
+        if (NetworkService().isOnline) {
+          await FriendRepository().syncAllFriendData();
+        }
       }
     } catch (e) {
       debugPrint('[Background] Startup auth & friend sync notice: $e');
@@ -136,7 +141,6 @@ Future<void> _initBackgroundServices() async {
 
   // 3. Parallel background service inits once notification channels are verified active
   await Future.wait<void>([
-    Future(() => NetworkService().startMonitoring()),
     Future(
       () => AdhanAlarmService().init().catchError((e) {
         debugPrint('[Background] AdhanAlarmService init error: $e');

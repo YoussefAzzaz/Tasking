@@ -320,58 +320,78 @@ class MeSessionActionButton extends StatelessWidget {
 /// Displays confirmation dialog to sign out of the active Supabase account.
 void showMeConfirmSignOutDialog(BuildContext context) {
   final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+  final router = GoRouter.maybeOf(context);
   HapticFeedback.lightImpact();
   showDialog(
     context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: AxisColors.surfaceLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AxisColors.borderPrimary),
-      ),
-      title: Text(
-        isArabic ? 'تسجيل الخروج؟' : 'Sign Out?',
-        style: const TextStyle(color: AxisColors.textHigh, fontWeight: FontWeight.bold),
-      ),
-      content: Text(
-        isArabic
-            ? 'هل أنت متأكد من رغبتك في تسجيل الخروج؟ تظل بياناتك السحابية محفوظة بأمان وستتم مزامنتها تلقائياً عند تسجيل الدخول التالي.'
-            : 'Are you sure you want to sign out? Your cloud data remains securely saved and will sync automatically upon your next sign-in.',
-        style: const TextStyle(color: AxisColors.textMuted, fontSize: 13),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(
-            isArabic ? 'إلغاء' : 'Cancel',
-            style: const TextStyle(color: AxisColors.textDim),
+    barrierDismissible: true,
+    builder: (ctx) {
+      bool isSigningOutNow = false;
+      return StatefulBuilder(
+        builder: (dialogCtx, setDlgState) => AlertDialog(
+          backgroundColor: AxisColors.surfaceLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: AxisColors.borderPrimary),
           ),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AxisColors.error,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+          title: Text(
+            isArabic ? 'تسجيل الخروج؟' : 'Sign Out?',
+            style: const TextStyle(color: AxisColors.textHigh, fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            isArabic
+                ? 'هل أنت متأكد من رغبتك في تسجيل الخروج؟ تظل بياناتك السحابية محفوظة بأمان وستتم مزامنتها تلقائياً عند تسجيل الدخول التالي.'
+                : 'Are you sure you want to sign out? Your cloud data remains securely saved and will sync automatically upon your next sign-in.',
+            style: const TextStyle(color: AxisColors.textMuted, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSigningOutNow ? null : () => Navigator.pop(dialogCtx),
+              child: Text(
+                isArabic ? 'إلغاء' : 'Cancel',
+                style: const TextStyle(color: AxisColors.textDim),
+              ),
             ),
-          ),
-          onPressed: () async {
-            Navigator.pop(ctx);
-            try {
-              await AuthService().signOut();
-            } catch (_) {}
-            if (!context.mounted) return;
-            context.go('/auth');
-          },
-          child: Text(
-            isArabic ? 'تسجيل الخروج' : 'Sign Out',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AxisColors.error,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: isSigningOutNow
+                  ? null
+                  : () async {
+                      setDlgState(() => isSigningOutNow = true);
+                      try {
+                        await AuthService().signOut();
+                      } catch (_) {}
+                      if (dialogCtx.mounted) {
+                        Navigator.pop(dialogCtx);
+                      }
+                      router?.go('/auth');
+                    },
+              child: isSigningOutNow
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      isArabic ? 'تسجيل الخروج' : 'Sign Out',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
-          ),
+          ],
         ),
-      ],
-    ),
+      );
+    },
   );
 }
 

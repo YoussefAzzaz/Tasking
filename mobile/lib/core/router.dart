@@ -55,9 +55,10 @@ final router = GoRouter(
     if (hasSession && state.matchedLocation == '/prayers') {
       return '/today';
     }
-    // Only redirect away from /auth if the user has an actual authenticated cloud account.
-    // Local guests MUST be allowed to open /auth to sign in or register!
-    if (isAuthenticated && isAuthRoute) {
+    // Only redirect away from /auth if the user has an actual authenticated cloud account
+    // whose session is NOT expired. Local guests and users with expired tokens MUST be
+    // allowed to open /auth to re-authenticate, switch accounts, or sign in!
+    if (isAuthenticated && !auth.isSessionExpired && isAuthRoute) {
       return WidgetNavigationService().resolveInitialAuthenticatedRoute();
     }
     return null;

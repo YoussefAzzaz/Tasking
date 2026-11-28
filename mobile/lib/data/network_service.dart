@@ -21,11 +21,12 @@ class NetworkService with WidgetsBindingObserver {
   bool _isChecking = false;
   bool _observerRegistered = false;
   int _consecutiveFailures = 0;
+  bool _hasCompletedInitialCheck = false;
 
   /// Checks reachability to Supabase and general internet.
   /// Returns true if verified online, false otherwise.
   Future<bool> checkSupabaseConnectivity({
-    Duration timeout = const Duration(seconds: 6),
+    Duration timeout = const Duration(seconds: 4),
   }) async {
     if (_isChecking) return isOnline;
     _isChecking = true;
@@ -38,7 +39,7 @@ class NetworkService with WidgetsBindingObserver {
       final host = uri.host.isNotEmpty ? uri.host : 'hzyvdkgdkxbxooatrzwy.supabase.co';
       final port = (uri.hasPort && uri.port != 0) ? uri.port : 443;
 
-      // 1. Primary: DNS address resolution to the Supabase backend host
+      // 1. Primary: Fast DNS address resolution to the Supabase backend host
       try {
         final addresses = await InternetAddress.lookup(host).timeout(timeout);
         if (addresses.isNotEmpty && addresses.first.rawAddress.isNotEmpty) {
@@ -46,40 +47,56 @@ class NetworkService with WidgetsBindingObserver {
         }
       } catch (_) {}
 
-      // 2. Secondary: Active HTTPS REST heartbeat to Supabase with anon key
+      // 2. Fallback probes run in parallel with tight timeout so offline startup detects offline fast
       if (!connected) {
-        try {
-          final client = HttpClient()..connectionTimeout = timeout;
-          final request = await client.getUrl(Uri.parse('$url/rest/v1/user_profiles?select=id&limit=1'));
-          request.headers.add('apikey', AppConfig.supabaseAnonKey);
-          final response = await request.close().timeout(timeout);
-          client.close(force: true);
-          connected = response.statusCode > 0;
-        } catch (_) {}
-      }
-
-      // 3. Tertiary: Fallback raw socket connect
-      if (!connected) {
-        Socket? socket;
-        try {
-          socket = await Socket.connect(host, port, timeout: timeout);
-          connected = true;
-        } catch (_) {
-        } finally {
-          try {
-            socket?.destroy();
-          } catch (_) {}
-        }
-      }
-
-      // 4. Quaternary: General internet fallback (e.g. if Supabase DNS is slow)
-      if (!connected) {
-        try {
-          final fallbackLookup = await InternetAddress.lookup('google.com').timeout(timeout);
-          if (fallbackLookup.isNotEmpty && fallbackLookup.first.rawAddress.isNotEmpty) {
-            connected = true;
-          }
-        } catch (_) {}
+        final fallbackTimeout = timeout < const Duration(seconds: 3)
+            ? timeout
+            : const Duration(seconds: 3);
+        final results = await Future.wait<bool>([
+          // Active HTTPS REST heartbeat to Supabase
+          () async {
+            HttpClient? client;
+            try {
+              client = HttpClient()..connectionTimeout = fallbackTimeout;
+              final request = await client
+                  .getUrl(Uri.parse('$url/rest/v1/user_profiles?select=id&limit=1'))
+                  .timeout(fallbackTimeout);
+              request.headers.add('apikey', AppConfig.supabaseAnonKey);
+              final response = await request.close().timeout(fallbackTimeout);
+              return response.statusCode > 0;
+            } catch (_) {
+              return false;
+            } finally {
+              try {
+                client?.close(force: true);
+              } catch (_) {}
+            }
+          }(),
+          // Raw socket connect
+          () async {
+            Socket? socket;
+            try {
+              socket = await Socket.connect(host, port, timeout: fallbackTimeout);
+              return true;
+            } catch (_) {
+              return false;
+            } finally {
+              try {
+                socket?.destroy();
+              } catch (_) {}
+            }
+          }(),
+          // General internet DNS fallback
+          () async {
+            try {
+              final fallbackLookup = await InternetAddress.lookup('google.com').timeout(fallbackTimeout);
+              return fallbackLookup.isNotEmpty && fallbackLookup.first.rawAddress.isNotEmpty;
+            } catch (_) {
+              return false;
+            }
+          }(),
+        ]);
+        connected = results.any((ok) => ok);
       }
     } catch (_) {
       connected = false;
@@ -91,6 +108,7 @@ class NetworkService with WidgetsBindingObserver {
 
     if (connected) {
       _consecutiveFailures = 0;
+      _hasCompletedInitialCheck = true;
       isOnlineNotifier.value = true;
       if (!previousState) {
         debugPrint('[NetworkService] Reconnected to cloud backend -> ONLINE. Reconnecting sync.');
@@ -98,8 +116,11 @@ class NetworkService with WidgetsBindingObserver {
       }
     } else {
       _consecutiveFailures++;
-      // Require 2 consecutive failed attempts before transitioning to OFFLINE to ignore transient jitter
-      if (_consecutiveFailures >= 2) {
+      // On initial startup check, reflect offline immediately so offline cold launches
+      // don't pretend to be online for 15-30s. Once previously confirmed online,
+      // require 2 consecutive failures to ignore transient jitter.
+      if (!_hasCompletedInitialCheck || _consecutiveFailures >= 2) {
+        _hasCompletedInitialCheck = true;
         isOnlineNotifier.value = false;
         if (previousState) {
           debugPrint('[NetworkService] Backend unreachable -> OFFLINE. Operating with local SQLite.');

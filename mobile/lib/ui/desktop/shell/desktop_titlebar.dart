@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:powersync/powersync.dart' show SyncStatus;
@@ -453,10 +454,13 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
                                       cursor: SystemMouseCursors.click,
                                       child: GestureDetector(
                                         onTap: () {
-                                          if (isExpired) {
+                                          if (isOnline && isExpired) {
+                                            final router = GoRouter.maybeOf(context);
                                             AuthService().trySilentReAuthWithSavedCredentials().then((ok) {
                                               if (ok) {
                                                 ensurePowerSyncConnected(forceReconnect: true);
+                                              } else {
+                                                router?.go('/auth');
                                               }
                                             });
                                             return;

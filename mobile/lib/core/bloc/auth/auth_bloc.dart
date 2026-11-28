@@ -22,7 +22,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   void _syncAuthState() {
-    if (!isClosed) {
+    if (!isClosed && state is! AuthLoading) {
       add(const AuthCheckRequested());
     }
   }

@@ -52,24 +52,22 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
 
   Future<void> _populateSavedCredentials() async {
     final auth = AuthService();
-    await auth.loadPersistentCredentials();
-    if (!auth.hasSavedCredentials && isDatabaseInitialized) {
+    await auth.loadPersistentCredentials(forceReload: true);
+    if (auth.savedEmail == null && isDatabaseInitialized) {
       await auth.init();
     }
-    if (auth.hasSavedCredentials) {
-      final savedEmail = auth.savedEmail;
-      final savedPass = auth.getDecryptedPassword();
-      if (mounted) {
-        setState(() {
-          _rememberMe = true;
-          if (savedEmail != null && savedEmail.isNotEmpty && _emailCtrl.text.isEmpty) {
-            _emailCtrl.text = savedEmail;
-          }
-          if (savedPass != null && savedPass.isNotEmpty && _passwordCtrl.text.isEmpty) {
-            _passwordCtrl.text = savedPass;
-          }
-        });
-      }
+    final savedEmail = auth.savedEmail;
+    final savedPass = auth.getDecryptedPassword();
+    if (mounted && ((savedEmail != null && savedEmail.isNotEmpty) || (savedPass != null && savedPass.isNotEmpty))) {
+      setState(() {
+        _rememberMe = true;
+        if (savedEmail != null && savedEmail.isNotEmpty && _emailCtrl.text.isEmpty) {
+          _emailCtrl.text = savedEmail;
+        }
+        if (savedPass != null && savedPass.isNotEmpty && _passwordCtrl.text.isEmpty) {
+          _passwordCtrl.text = savedPass;
+        }
+      });
     }
   }
 
@@ -83,6 +81,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _submit() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -121,7 +120,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
               rememberMe: _rememberMe,
             ));
           }
-          await completer.future.timeout(const Duration(seconds: 15));
+          await completer.future.timeout(const Duration(seconds: 25));
         } finally {
           await sub?.cancel();
         }
@@ -176,7 +175,15 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           ? 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.'
           : 'Password must contain at least 6 characters.';
     }
-    if (err.contains('SocketException') || err.contains('Failed host lookup')) {
+    if (err.contains('TimeoutException') || err.toLowerCase().contains('timed out')) {
+      return isArabic
+          ? 'انتهت مهلة الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت والمحاولة مجدداً.'
+          : 'Connection timed out. Please check your internet connection and try again.';
+    }
+    if (err.contains('SocketException') ||
+        err.contains('Failed host lookup') ||
+        err.contains('ClientException') ||
+        err.contains('AuthRetryableFetchException')) {
       return isArabic
           ? 'الاتصال بالإنترنت غير متاح. اضغط على "المتابعة في وضع عدم الاتصال" للمتابعة.'
           : 'Network connection unavailable. Tap "Continue in Offline Mode" below to proceed offline.';

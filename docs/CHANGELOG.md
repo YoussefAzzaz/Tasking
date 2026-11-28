@@ -4,6 +4,11 @@
 - Minor version increments only after reaching patch `.10`: `x.y.0` through `x.y.10` increment the patch digit, then roll over to `x.(y+1).0` (e.g., `1.2.10` -> `1.3.0`, staying on `1.3.x` until `1.3.10`, then `1.4.0`), encoded in `SemanticVersion.nextAxisReleaseVersion()`.
 - UI labels display only the semantic version (`v1.3.0`) without internal build numbers.
 
+## v1.3.3: Offline Auth Resilience, Fast Logout & Session Banner Fix
+- Stopped offline launches with an expired JWT access token from falsely marking the session expired by separating network/retryable errors from server-confirmed auth rejections in [AuthService](mobile/lib/data/auth_service.dart), [PowerSync](mobile/lib/data/powersync_db.dart), [SupabaseConnector](mobile/lib/data/powersync/supabase_connector.dart), and [NetworkService](mobile/lib/data/network_service.dart).
+- Made [SessionExpiredBanner](mobile/lib/ui/shell/session_expired_banner.dart) auto-hide offline, added a dismiss button and working Log Out button, and updated [router.dart](mobile/lib/core/router.dart) so `/auth` is always reachable when a session is expired.
+- Made sign-out fast and timeout-bounded offline/online, preserved saved email & encrypted credentials across sign-outs for instant login screen pre-fill, and eliminated login/PowerSync race conditions that could stall or block sign-in.
+
 ## v1.3.2: Weekly Repeating Tasks & Non-Blocking Prayer/Habit Scheduling
 - Fixed task collision and scheduling in [CalendarScheduler](mobile/lib/domain/calendar_scheduler.dart), [CreateTaskSheet](mobile/lib/ui/tasks/create_task_sheet.dart), and [TaskFormService](mobile/lib/ui/tasks/services/task_form_service.dart) so habits and prayers never block, displace, or reschedule tasks away from their scheduled time.
 - Added weekly repeating tasks (`RRULE:FREQ=WEEKLY;BYDAY=...`) with interactive weekday pills in [TaskRecurrenceSelector](mobile/lib/ui/tasks/widgets/task_recurrence_selector.dart), `90m`/`120m` quick duration presets, multi-week calendar projection across mobile & desktop calendars, and automatic next-occurrence generation on completion in [TaskRepository](mobile/lib/data/task_repository.dart).

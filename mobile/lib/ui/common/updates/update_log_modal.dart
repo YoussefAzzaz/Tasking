@@ -8,8 +8,8 @@ import 'package:axis/core/l10n/app_localizations.dart';
 class UpdateLogModal extends StatelessWidget {
   const UpdateLogModal({
     super.key,
-    this.currentVersion = '1.3.2',
-    this.buildNumber = 27,
+    this.currentVersion = '1.3.3',
+    this.buildNumber = 28,
     this.onCheckForUpdates,
   });
 
@@ -19,8 +19,8 @@ class UpdateLogModal extends StatelessWidget {
 
   static Future<void> show(
     BuildContext context, {
-    String currentVersion = '1.3.2',
-    int buildNumber = 27,
+    String currentVersion = '1.3.3',
+    int buildNumber = 28,
     VoidCallback? onCheckForUpdates,
   }) {
     return showDialog<void>(
@@ -39,6 +39,32 @@ class UpdateLogModal extends StatelessWidget {
     final isAr = context.isArabic;
 
     const categories = <_UpdateCategory>[
+      _UpdateCategory(
+        icon: Icons.verified_user_rounded,
+        color: Color(0xFF06B6D4), // Cyan
+        titleEn: 'Offline Auth, Fast Sign-Out & Session Reliability (v1.3.3)',
+        titleAr: 'استقرار تسجيل الدخول دون إنترنت وتسجيل الخروج السريع (v1.3.3)',
+        items: [
+          _UpdateItem(
+            titleEn: 'Offline-Safe Sessions (No False Expiration Alerts)',
+            titleAr: 'جلسات آمنة دون إنترنت بدون تنبيهات انتهاء خاطئة',
+            descEn: 'Opening the app offline no longer flags your session as expired or wipes local state; cloud sync resumes seamlessly once back online.',
+            descAr: 'لم يعد فتح التطبيق بدون إنترنت يظهر تنبيه انتهاء الجلسة بشكل خاطئ، وتستأنف المزامنة تلقائياً فور عودة الاتصال.',
+          ),
+          _UpdateItem(
+            titleEn: 'Dismissible Session Alert & Working Log Out',
+            titleAr: 'إمكانية إغلاق التنبيه وإصلاح زر تسجيل الخروج',
+            descEn: 'Added a dismiss button and a working Log Out button to the session banner, and fixed the router loop that blocked opening the login screen.',
+            descAr: 'إضافة زر إغلاق وزر تسجيل خروج فعال للتنبيه وإصلاح مشكلة التوجيه التي كانت تمنع فتح شاشة تسجيل الدخول.',
+          ),
+          _UpdateItem(
+            titleEn: 'Fast Logout, Saved Credentials & Reliable Sign-In',
+            titleAr: 'تسجيل خروج فوري وحفظ البيانات وتسجيل دخول سريع',
+            descEn: 'Added strict timeouts to prevent slow/hung logouts and logins, preserved saved email & password across sign-outs, and eliminated sync race conditions.',
+            descAr: 'تسريع تسجيل الخروج والدخول ومنع التجمّد، وحفظ البريد الإلكتروني وكلمة المرور تلقائياً عند العودة لشاشة الدخول.',
+          ),
+        ],
+      ),
       _UpdateCategory(
         icon: Icons.event_repeat_rounded,
         color: Color(0xFF8B5CF6), // Violet
