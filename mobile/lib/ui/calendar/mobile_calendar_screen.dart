@@ -11,6 +11,7 @@ import 'package:axis/data/prayers/prayer_repository.dart';
 import 'package:axis/data/prayers/prayer_completion_handler.dart';
 import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized, db;
 import 'package:axis/domain/calendar_scheduler.dart';
+import 'package:axis/domain/recurrence_engine.dart';
 import 'package:axis/ui/tasks/create_task_sheet.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
 
@@ -161,17 +162,16 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
       CalendarScheduler.buildDailyPrayerBlocks(_effectivePrayers);
 
   List<Task> _tasksForDay(String dateStr) {
-    final raw = _tasks
-        .where((t) =>
-            t.dueDate == dateStr && (_showCompletedTasks || !t.isCompleted))
-        .toList();
+    final raw = CalendarScheduler.expandTasksForDate(
+      _tasks,
+      dateStr,
+      includeCompleted: _showCompletedTasks,
+    );
     if (raw.isEmpty) return const [];
 
     return CalendarScheduler.packTasksPreservingExplicitTimes(
       dateStr: dateStr,
       dayTasks: raw,
-      habitBlocks: _dailyHabitBlocks,
-      prayerBlocks: _dailyPrayerBlocks,
       includeCompleted: _showCompletedTasks,
     );
   }
@@ -276,7 +276,9 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
         task: task,
         onTaskUpdated: (updated) {
           setState(() {
-            final idx = _tasks.indexWhere((t) => t.id == updated.id);
+            final idx = _tasks.indexWhere(
+              (t) => t.id == updated.id || t.id == task.sourceTaskId,
+            );
             if (idx >= 0) {
               _tasks[idx] = updated;
             }
@@ -571,9 +573,11 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
         day.month == now.month &&
         day.day == now.day;
     final dateStr = CalendarScheduler.formatDate(day);
-    final tasksForThisDay = _tasks
-        .where((t) => t.dueDate == dateStr && (_showCompletedTasks || !t.isCompleted))
-        .length;
+    final tasksForThisDay = CalendarScheduler.expandTasksForDate(
+      _tasks,
+      dateStr,
+      includeCompleted: _showCompletedTasks,
+    ).length;
 
     return GestureDetector(
       key: ValueKey('mobile_calendar_day_$dateStr'),
@@ -1063,6 +1067,14 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
                 ),
                 const SizedBox(width: 4),
               ],
+              if (task.isRecurring) ...[
+                Icon(
+                  Icons.repeat_rounded,
+                  color: isDone ? AxisColors.tertiary : pColor,
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
+              ],
               Text(
                 pLabel,
                 style: GoogleFonts.jetBrainsMono(
@@ -1138,8 +1150,10 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
         _AgendaItem(
           startMinute: CalendarScheduler.parseTimeToMinutes(t.dueTime) ?? 8 * 60,
           title: t.title,
-          subtitle: '${_priorityLabel(t.priority)} · ${t.estimateMin ?? 15}m',
-          icon: Icons.task_alt_rounded,
+          subtitle: t.isRecurring
+              ? '${_priorityLabel(t.priority)} · ${t.estimateMin ?? 15}m · ${RecurrenceEngine.formatHumanReadable(t.recurrenceRule, isArabic: isAr)}'
+              : '${_priorityLabel(t.priority)} · ${t.estimateMin ?? 15}m',
+          icon: t.isRecurring ? Icons.repeat_rounded : Icons.task_alt_rounded,
           color: t.isCompleted ? AxisColors.tertiary : _priorityColor(t.priority),
           isCompleted: t.isCompleted,
           onTap: () => _openTaskDetail(t),

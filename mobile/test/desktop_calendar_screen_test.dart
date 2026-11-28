@@ -125,7 +125,7 @@ void main() {
       expect(blocks.first.durationMin, 15);
     });
 
-    test('buildDailyPrayerBlocks creates fixed 15-minute prayer slots and avoids overlapping tasks', () {
+    test('buildDailyPrayerBlocks creates fixed 15-minute prayer slots without rescheduling overlapping tasks', () {
       final defaultPrayers = PrayerRepository.defaultPrayers();
       final prayerBlocks = CalendarScheduler.buildDailyPrayerBlocks(defaultPrayers);
 
@@ -149,12 +149,11 @@ void main() {
         prayerBlocks: prayerBlocks,
         dayStartMin: 12 * 60 + 30, // 12:30
       );
-      // At 12:30, a 30m task would run 12:30-13:00 which collides with Dhuhr (12:45-13:00).
-      // So it must jump past Dhuhr and start at 13:00!
-      expect(packed.first.dueTime, '13:00');
+      // Prayers must NOT reschedule tasks: task stays at 12:30!
+      expect(packed.first.dueTime, '12:30');
     });
 
-    test('sortAndPackDayByPriority sorts P1 -> P2 -> P3 morning to night and skips daily habit slots', () {
+    test('sortAndPackDayByPriority sorts P1 -> P2 -> P3 morning to night without rescheduling for daily habits', () {
       final habitBlocks = CalendarScheduler.buildDailyHabitBlocks([
         Habit(
           id: 'h_morning',
@@ -179,11 +178,10 @@ void main() {
       );
 
       expect(packed.map((t) => t.id).toList(), ['t1', 't2', 't3']);
-      // t1 takes 08:00 - 08:15; then daily habit occupies 08:15 - 08:30;
-      // so t2 jumps past 08:30 and starts at 08:30 - 09:00; t3 starts at 09:00.
+      // Habits do not push tasks: t1 at 08:00-08:15, t2 at 08:15-08:45, t3 at 08:45-09:00.
       expect(packed[0].dueTime, '08:00');
-      expect(packed[1].dueTime, '08:30');
-      expect(packed[2].dueTime, '09:00');
+      expect(packed[1].dueTime, '08:15');
+      expect(packed[2].dueTime, '08:45');
     });
 
     test('reorderTaskWithinSameDay moves task to target slot without priority re-sorting and still avoids habits', () {
@@ -583,8 +581,8 @@ void main() {
           fakeTasks.store.firstWhere((t) => t.id == 'existing_p1');
       final scheduledNew = fakeTasks.store.firstWhere((t) => t.id == created.id);
       expect(scheduledP1.dueTime, '08:00');
-      // Skips 08:15-08:30 daily habit slot:
-      expect(scheduledNew.dueTime, '08:30');
+      // Habits do not push tasks: placed immediately after existing_p1 at 08:15!
+      expect(scheduledNew.dueTime, '08:15');
     });
 
     test('creating task with selectedDate: null creates task without dueDate or dueTime, not scheduled on calendar', () async {
@@ -680,12 +678,12 @@ void main() {
       expect(find.byKey(const ValueKey('calendar_habit_resize_h_daily')), findsNothing);
       expect(find.byKey(const ValueKey('calendar_prayer_resize_fajr')), findsNothing);
 
-      // P1 should appear vertically above daily habit and P3 below daily habit
+      // P1 should appear vertically above P3, and P3 is placed directly at 08:15 without being pushed by daily habit
       final p1Top = tester.getTopLeft(find.byKey(const ValueKey('calendar_task_t_p1'))).dy;
       final habitTop = tester.getTopLeft(find.byKey(const ValueKey('calendar_habit_2026-11-09_h_daily'))).dy;
       final p3Top = tester.getTopLeft(find.byKey(const ValueKey('calendar_task_t_p3'))).dy;
-      expect(p1Top, lessThan(habitTop));
-      expect(habitTop, lessThan(p3Top));
+      expect(p1Top, lessThan(p3Top));
+      expect(p3Top, equals(habitTop));
     });
 
     testWidgets('start-day, year, month, and day selectors update the visible week columns', (tester) async {

@@ -1,7 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/powersync_db.dart' show isDatabaseInitialized;
-import 'package:axis/data/prayers/prayer_model.dart';
 import 'package:axis/data/prayers/prayer_repository.dart';
 import 'package:axis/data/project_repository.dart';
 import 'package:axis/data/tag_repository.dart';
@@ -11,13 +10,12 @@ import 'package:axis/domain/id_generator.dart';
 
 /// Application service responsible for persisting task creations and updates,
 /// transparently auto-registering user-typed projects and tags, and
-/// auto-scheduling day tasks onto the calendar by priority.
+/// scheduling day tasks onto the calendar strictly against other tasks
+/// (never rescheduling due to habits or prayers).
 class TaskFormService {
   final ProjectRepository _projectRepo;
   final TagRepository _tagRepo;
   final TaskRepository _taskRepo;
-  final HabitRepository _habitRepo;
-  final PrayerRepository _prayerRepo;
   final bool Function() _isInitialized;
 
   TaskFormService({
@@ -30,8 +28,6 @@ class TaskFormService {
   })  : _projectRepo = projectRepo ?? ProjectRepository(),
         _tagRepo = tagRepo ?? TagRepository(),
         _taskRepo = taskRepo ?? TaskRepository(),
-        _habitRepo = habitRepo ?? HabitRepository(),
-        _prayerRepo = prayerRepo ?? PrayerRepository(),
         _isInitialized = isInitialized ?? (() => isDatabaseInitialized);
 
   /// Validates and saves a task (create or update).
@@ -47,6 +43,9 @@ class TaskFormService {
     required int? estimateMin,
     required List<Project> existingProjects,
     String? dueTime,
+    String? recurrenceRule,
+    String? recurrenceMode,
+    bool clearRecurrence = false,
     DateTime? referenceTime,
     bool displaceConflicting = false,
   }) async {
@@ -70,6 +69,11 @@ class TaskFormService {
     } else {
       effectiveDueTime = null;
     }
+
+    final cleanRule = (clearRecurrence || recurrenceRule == null || recurrenceRule.trim().isEmpty)
+        ? null
+        : recurrenceRule.trim();
+    final cleanMode = cleanRule != null ? (recurrenceMode ?? 'fixed') : null;
 
     final allTags = Set<String>.from(selectedTags);
     if (additionalTag.trim().isNotEmpty) {
@@ -111,7 +115,15 @@ class TaskFormService {
     }
 
     if (taskToEdit != null) {
+      final targetId = taskToEdit.sourceTaskId ?? taskToEdit.id;
+      final resolvedDueDate = taskToEdit.sourceTaskId != null &&
+              dueDateStr == taskToEdit.dueDate &&
+              !clearRecurrence
+          ? taskToEdit.dueDate
+          : dueDateStr;
       final updated = taskToEdit.copyWith(
+        id: targetId,
+        clearSourceTaskId: true,
         title: title,
         notes: notes.isEmpty ? null : notes,
         clearNotes: notes.isEmpty,
@@ -121,12 +133,20 @@ class TaskFormService {
         clearProjectId: project == null,
         tags: allTags.isEmpty ? null : allTags.join(','),
         clearTags: allTags.isEmpty,
-        dueDate: dueDateStr,
-        clearDueDate: dueDateStr == null,
+        dueDate: resolvedDueDate,
+        clearDueDate: resolvedDueDate == null,
         dueTime: effectiveDueTime,
         clearDueTime: effectiveDueTime == null,
         estimateMin: effectiveDuration,
         clearEstimateMin: false,
+        recurrenceRule: clearRecurrence
+            ? null
+            : (cleanRule ?? taskToEdit.recurrenceRule),
+        clearRecurrenceRule: clearRecurrence,
+        recurrenceMode: clearRecurrence
+            ? null
+            : (cleanMode ?? taskToEdit.recurrenceMode),
+        clearRecurrenceMode: clearRecurrence,
       );
       await _taskRepo.updateTask(updated);
       return updated;
@@ -143,6 +163,8 @@ class TaskFormService {
       dueDate: dueDateStr,
       dueTime: effectiveDueTime,
       estimateMin: effectiveDuration,
+      recurrenceRule: cleanRule,
+      recurrenceMode: cleanMode,
     );
 
     // If task has no due date, it is an unscheduled task that does not appear on the calendar or today's schedule
@@ -159,27 +181,16 @@ class TaskFormService {
 
     try {
       final allTasks = await _taskRepo.getTasks();
-      final existingDayTasks = allTasks
-          .where((t) => t.dueDate == dueDateStr && !t.isCompleted)
-          .toList();
-
-      final habits = await _habitRepo
-          .watchHabits()
-          .first
-          .timeout(const Duration(seconds: 2), onTimeout: () => const <Habit>[]);
-      final habitBlocks = CalendarScheduler.buildDailyHabitBlocks(habits);
-
-      List<Prayer> prayers = const [];
-      try {
-        prayers = await _prayerRepo
-            .watchPrayers()
-            .first
-            .timeout(const Duration(seconds: 2), onTimeout: () => const <Prayer>[]);
-      } catch (_) {}
-      final prayerBlocks = CalendarScheduler.buildDailyPrayerBlocks(prayers);
+      final existingDayTasks = CalendarScheduler.expandTasksForDate(
+        allTasks,
+        dueDateStr,
+        includeCompleted: false,
+      );
 
       final startMin = CalendarScheduler.parseTimeToMinutes(effectiveDueTime) ??
-          (isToday ? CalendarScheduler.defaultTodayTaskStartMinute(now) : CalendarScheduler.defaultDayStartMinutes);
+          (isToday
+              ? CalendarScheduler.defaultTodayTaskStartMinute(now)
+              : CalendarScheduler.defaultDayStartMinutes);
 
       final List<Task> scheduled;
       if (displaceConflicting) {
@@ -188,16 +199,12 @@ class TaskFormService {
           existingDayTasks: existingDayTasks,
           incomingTask: rawNewTask,
           targetStartMinute: startMin,
-          habitBlocks: habitBlocks,
-          prayerBlocks: prayerBlocks,
         );
       } else {
         scheduled = CalendarScheduler.scheduleNewTaskForDay(
           dateStr: dueDateStr,
           existingDayTasks: existingDayTasks,
           newTask: rawNewTask,
-          habitBlocks: habitBlocks,
-          prayerBlocks: prayerBlocks,
           referenceTime: now,
         );
       }
@@ -205,9 +212,9 @@ class TaskFormService {
       final finalNewTask = scheduled.firstWhere((t) => t.id == rawNewTask.id);
       await _taskRepo.addTask(finalNewTask);
 
-      // Update any lower-priority existing tasks that were moved down:
+      // Update any lower-priority concrete existing tasks that were moved down:
       for (final t in scheduled) {
-        if (t.id != finalNewTask.id) {
+        if (t.id != finalNewTask.id && !t.isProjectedOccurrence) {
           final orig = existingDayTasks.where((e) => e.id == t.id).firstOrNull;
           if (orig == null || orig.dueTime != t.dueTime) {
             await _taskRepo.updateTask(t);
@@ -222,26 +229,11 @@ class TaskFormService {
   }
 
   /// Auto-sorts and packs incomplete tasks on [dateStr] by priority
-  /// (`P1 -> P2 -> P3`) while avoiding active daily habit slots.
+  /// (`P1 -> P2 -> P3`) without shifting for habits or prayers.
   Future<void> scheduleDayTasksInRepository(String dateStr, [DateTime? referenceTime]) async {
     if (!_isInitialized()) return;
     try {
       final allTasks = await _taskRepo.getTasks();
-      final habits = await _habitRepo
-          .watchHabits()
-          .first
-          .timeout(const Duration(seconds: 2), onTimeout: () => const <Habit>[]);
-      final habitBlocks = CalendarScheduler.buildDailyHabitBlocks(habits);
-
-      List<Prayer> prayers = const [];
-      try {
-        prayers = await _prayerRepo
-            .watchPrayers()
-            .first
-            .timeout(const Duration(seconds: 2), onTimeout: () => const <Prayer>[]);
-      } catch (_) {}
-      final prayerBlocks = CalendarScheduler.buildDailyPrayerBlocks(prayers);
-
       final dayTasks = allTasks
           .where((t) => t.dueDate == dateStr && !t.isCompleted)
           .toList();
@@ -250,8 +242,6 @@ class TaskFormService {
       final packed = CalendarScheduler.sortAndPackDayByPriority(
         dateStr: dateStr,
         dayTasks: dayTasks,
-        habitBlocks: habitBlocks,
-        prayerBlocks: prayerBlocks,
         referenceTime: referenceTime,
       );
 
@@ -268,4 +258,3 @@ class TaskFormService {
     } catch (_) {}
   }
 }
-

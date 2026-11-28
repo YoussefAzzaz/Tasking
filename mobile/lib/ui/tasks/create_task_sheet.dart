@@ -13,13 +13,12 @@ import 'package:axis/ui/tasks/widgets/task_duration_picker_sheet.dart';
 import 'package:axis/ui/tasks/widgets/task_priority_selector.dart';
 import 'package:axis/ui/tasks/widgets/task_description_editor.dart';
 import 'package:axis/ui/tasks/widgets/task_date_picker_row.dart';
+import 'package:axis/ui/tasks/widgets/task_recurrence_selector.dart';
 import 'package:axis/ui/tasks/services/task_form_service.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import 'package:axis/ui/tasks/widgets/task_collision_dialog.dart';
 import 'package:axis/domain/calendar_scheduler.dart';
-import 'package:axis/data/habit_repository.dart';
-import 'package:axis/data/prayers/prayer_model.dart';
-import 'package:axis/data/prayers/prayer_repository.dart';
+import 'package:axis/domain/recurrence_engine.dart';
 
 export 'package:axis/ui/tasks/widgets/task_form_widgets.dart';
 export 'package:axis/ui/tasks/widgets/project_selector_field.dart';
@@ -28,6 +27,7 @@ export 'package:axis/ui/tasks/widgets/task_duration_picker_sheet.dart';
 export 'package:axis/ui/tasks/widgets/task_priority_selector.dart';
 export 'package:axis/ui/tasks/widgets/task_description_editor.dart';
 export 'package:axis/ui/tasks/widgets/task_date_picker_row.dart';
+export 'package:axis/ui/tasks/widgets/task_recurrence_selector.dart';
 export 'package:axis/ui/tasks/services/task_form_service.dart';
 
 /// Modal bottom sheet for structured manual task creation and editing
@@ -77,6 +77,9 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
   DateTime? _selectedDate = DateTime.now();
   TimeOfDay? _selectedTime;
   int _estimateMin = 15;
+  bool _isWeekly = false;
+  Set<int> _weeklyDays = {};
+  String? _otherRecurrenceRule;
   bool _saving = false;
   String? _errorText;
 
@@ -125,6 +128,17 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
       _estimateMin = (t.estimateMin != null && t.estimateMin! > 0)
           ? t.estimateMin!
           : 15;
+      if (t.recurrenceRule != null && t.recurrenceRule!.trim().isNotEmpty) {
+        if (RecurrenceEngine.isWeeklyRule(t.recurrenceRule)) {
+          _isWeekly = true;
+          _weeklyDays = RecurrenceEngine.parseWeeklyDays(
+            t.recurrenceRule,
+            fallbackDate: _selectedDate ?? now,
+          );
+        } else {
+          _otherRecurrenceRule = t.recurrenceRule!.trim();
+        }
+      }
     } else if (widget.initialProject != null &&
         widget.initialProject!.trim().isNotEmpty) {
       _selectedProject = widget.initialProject!.trim();
@@ -249,7 +263,16 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     );
 
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        if (_isWeekly) {
+          if (_weeklyDays.length <= 1) {
+            _weeklyDays = {picked.weekday};
+          } else {
+            _weeklyDays = {..._weeklyDays, picked.weekday};
+          }
+        }
+      });
     }
   }
 
@@ -292,6 +315,39 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
     }
   }
 
+  void _handleWeeklyChanged(bool enabled) {
+    final now = DateTime.now();
+    setState(() {
+      _isWeekly = enabled;
+      if (enabled) {
+        _otherRecurrenceRule = null;
+        if (_weeklyDays.isEmpty) {
+          _weeklyDays = {(_selectedDate ?? now).weekday};
+        }
+        _selectedDate = RecurrenceEngine.nextMatchingWeekdayDate(now, _weeklyDays);
+        _selectedTime ??= const TimeOfDay(hour: 8, minute: 30);
+      }
+    });
+  }
+
+  void _handleToggleWeekday(int weekday) {
+    final now = DateTime.now();
+    setState(() {
+      final next = Set<int>.from(_weeklyDays);
+      if (next.contains(weekday)) {
+        if (next.length > 1) {
+          next.remove(weekday);
+        }
+      } else {
+        // When switching from a single day, replace it if tapping another day?
+        // Allowing multi-select while toggling cleanly lets users pick 1 or multiple days:
+        next.add(weekday);
+      }
+      _weeklyDays = next;
+      _selectedDate = RecurrenceEngine.nextMatchingWeekdayDate(now, _weeklyDays);
+    });
+  }
+
   Future<void> _saveTask() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
@@ -306,13 +362,20 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
 
     try {
       final now = DateTime.now();
-      final String? dueDateStr = _selectedDate != null
-          ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+      DateTime? effectiveDate = _selectedDate;
+      if (_isWeekly && _weeklyDays.isNotEmpty) {
+        if (effectiveDate == null || !_weeklyDays.contains(effectiveDate.weekday)) {
+          effectiveDate = RecurrenceEngine.nextMatchingWeekdayDate(now, _weeklyDays);
+        }
+      }
+
+      final String? dueDateStr = effectiveDate != null
+          ? DateFormat('yyyy-MM-dd').format(effectiveDate)
           : null;
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
       final isToday = dueDateStr != null && dueDateStr == todayStr;
 
-      String? dueTimeStr = (_selectedDate != null && _selectedTime != null)
+      String? dueTimeStr = (effectiveDate != null && _selectedTime != null)
           ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
           : null;
 
@@ -320,9 +383,15 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
         dueTimeStr = CalendarScheduler.defaultTodayTaskTimeString(now);
       }
 
+      final String? recurrenceRule = _isWeekly
+          ? RecurrenceEngine.buildWeeklyRule(_weeklyDays)
+          : _otherRecurrenceRule;
+      final bool clearRecurrence = !_isWeekly && _otherRecurrenceRule == null;
+
       bool displaceConflicting = false;
 
       // When creating a new task (not editing) that has a scheduled date & time:
+      // Strictly check collisions against other tasks ONLY (never habits or prayers).
       if (widget.taskToEdit == null && dueDateStr != null && dueTimeStr != null) {
         final startMin = CalendarScheduler.parseTimeToMinutes(dueTimeStr);
         if (startMin != null) {
@@ -337,28 +406,11 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
           );
 
           if (conflicting != null && mounted) {
-            // Collision with another task detected (only tasks, not habits)!
-            final habits = await HabitRepository().watchHabits().first.timeout(
-              const Duration(seconds: 1),
-              onTimeout: () => const <Habit>[],
-            );
-            final habitBlocks = CalendarScheduler.buildDailyHabitBlocks(habits);
-            List<Prayer> prayers = const [];
-            try {
-              prayers = await PrayerRepository().watchPrayers().first.timeout(
-                const Duration(seconds: 1),
-                onTimeout: () => const <Prayer>[],
-              );
-            } catch (_) {}
-            final prayerBlocks = CalendarScheduler.buildDailyPrayerBlocks(prayers);
-
             final nextSlotMin = CalendarScheduler.findNextAvailableMinute(
               dateStr: dueDateStr,
               searchFromMinute: startMin,
               durationMin: effectiveDuration,
               existingTasks: allTasks,
-              habitBlocks: habitBlocks,
-              prayerBlocks: prayerBlocks,
             );
             final nextSlotStr = CalendarScheduler.formatMinutes(nextSlotMin);
 
@@ -396,10 +448,15 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
             : _selectedProject,
         selectedTags: _selectedTags,
         additionalTag: _tagInputController.text,
-        selectedDate: _selectedDate,
+        selectedDate: effectiveDate,
         estimateMin: _estimateMin,
         existingProjects: _existingProjects,
         dueTime: dueTimeStr,
+        recurrenceRule: recurrenceRule,
+        recurrenceMode: recurrenceRule != null
+            ? (widget.taskToEdit?.recurrenceMode ?? 'fixed')
+            : null,
+        clearRecurrence: clearRecurrence,
         displaceConflicting: displaceConflicting,
       );
 
@@ -486,6 +543,7 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
       onClearDate: () => setState(() {
         _selectedDate = null;
         _selectedTime = null;
+        _isWeekly = false;
       }),
       onPickDuration: _pickDuration,
       onClearDuration: () => setState(() => _estimateMin = 15),
@@ -494,16 +552,32 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
       onSelectQuickDate: (date) {
         setState(() {
           _selectedDate = date;
+          if (_isWeekly) {
+            _weeklyDays = {date.weekday};
+          }
           final now = DateTime.now();
           if (date.year == now.year && date.month == now.month && date.day == now.day) {
             final defMin = CalendarScheduler.defaultTodayTaskStartMinute(now);
-            _selectedTime = TimeOfDay(hour: defMin ~/ 60, minute: defMin % 60);
+            _selectedTime ??= TimeOfDay(hour: defMin ~/ 60, minute: defMin % 60);
           }
         });
       },
       selectedTime: _selectedTime,
       onPickTime: _pickTime,
       onClearTime: () => setState(() => _selectedTime = null),
+    );
+  }
+
+  Widget _buildRecurrenceField(BuildContext context) {
+    return TaskRecurrenceSelector(
+      isWeekly: _isWeekly,
+      selectedWeekdays: _weeklyDays,
+      onWeeklyChanged: _handleWeeklyChanged,
+      onToggleWeekday: _handleToggleWeekday,
+      otherRecurrenceRule: _otherRecurrenceRule,
+      onClearOtherRecurrence: () => setState(() => _otherRecurrenceRule = null),
+      selectedTime: _selectedTime,
+      estimateMin: _estimateMin,
     );
   }
 
@@ -585,6 +659,8 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
           const SizedBox(height: 18),
           _buildDatePickerRow(context),
           const SizedBox(height: 18),
+          _buildRecurrenceField(context),
+          const SizedBox(height: 18),
           _buildProjectField(context),
           const SizedBox(height: 18),
           _buildTagField(context),
@@ -640,6 +716,8 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                 _buildPriorityField(context),
                 const SizedBox(height: 18),
                 _buildDatePickerRow(context),
+                const SizedBox(height: 18),
+                _buildRecurrenceField(context),
                 const SizedBox(height: 18),
                 _buildProjectField(context),
                 const SizedBox(height: 18),
@@ -792,6 +870,8 @@ class _CreateTaskSheetState extends State<CreateTaskSheet> {
                           _buildPriorityField(context),
                           const SizedBox(height: 18),
                           _buildDatePickerRow(context),
+                          const SizedBox(height: 18),
+                          _buildRecurrenceField(context),
                           const SizedBox(height: 18),
                           _buildProjectField(context),
                           const SizedBox(height: 18),

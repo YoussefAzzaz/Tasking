@@ -185,7 +185,7 @@ void main() {
       expect(doneConflict, isNull);
     });
 
-    test('findNextAvailableMinute skips over both tasks, habits, and prayers', () {
+    test('findNextAvailableMinute skips over conflicting tasks and ignores habits and prayers', () {
       final existingTasks = [
         Task(
           id: 'task_1',
@@ -209,8 +209,8 @@ void main() {
 
       // Starting search from 09:00 for a 15 min task:
       // 09:00-09:30 is blocked by task_1
-      // 09:30-09:45 is blocked by habit_1
-      // Next available slot must be 09:45!
+      // 09:30-09:45 has habit_1, which must NOT block or push tasks!
+      // Next available slot must be 09:30!
       final nextMin = CalendarScheduler.findNextAvailableMinute(
         dateStr: testDate,
         searchFromMinute: 9 * 60,
@@ -219,8 +219,8 @@ void main() {
         habitBlocks: habitBlocks,
       );
 
-      expect(nextMin, 9 * 60 + 45); // 09:45
-      expect(CalendarScheduler.formatMinutes(nextMin), '09:45');
+      expect(nextMin, 9 * 60 + 30); // 09:30
+      expect(CalendarScheduler.formatMinutes(nextMin), '09:30');
     });
 
     test('displaceConflictingTask gives incoming task the requested slot and moves conflicting task', () {

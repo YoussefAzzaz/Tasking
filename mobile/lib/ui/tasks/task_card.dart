@@ -4,6 +4,7 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/domain/recurrence_engine.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 
 /// Full-height task card per DESIGN.md §Task Cards:
@@ -106,15 +107,30 @@ class TaskCard extends StatelessWidget {
                           PriorityChip(priority: task.priority!),
                         if (task.dueDate != null)
                           AxisChip(
-                            label: task.dueDate == 'today'
-                                ? (context.isArabic ? 'اليوم' : 'today')
-                                : (task.dueDate == 'tmr'
-                                    ? (context.isArabic ? 'غداً' : 'tmr')
-                                    : task.dueDate!),
+                            label: () {
+                              final baseDate = task.dueDate == 'today'
+                                  ? (context.isArabic ? 'اليوم' : 'today')
+                                  : (task.dueDate == 'tmr'
+                                      ? (context.isArabic ? 'غداً' : 'tmr')
+                                      : task.dueDate!);
+                              final time = task.dueTime?.trim() ?? '';
+                              return time.isNotEmpty ? '$baseDate · $time' : baseDate;
+                            }(),
                             dotColor: _dueDateColor(task.dueDate!),
                             backgroundColor: _dueDateColor(task.dueDate!)
                                 .withValues(alpha: 0.10),
                             textColor: _dueDateColor(task.dueDate!),
+                          ),
+                        if (task.isRecurring)
+                          AxisChip(
+                            label: RecurrenceEngine.formatHumanReadable(
+                              task.recurrenceRule,
+                              isArabic: context.isArabic,
+                            ),
+                            dotColor: AxisColors.success,
+                            backgroundColor:
+                                AxisColors.success.withValues(alpha: 0.12),
+                            textColor: AxisColors.success,
                           ),
                         ...tags.map((t) => AxisChip(
                           label: '@$t',
@@ -155,6 +171,7 @@ class TaskCard extends StatelessWidget {
       (t.senderUsername != null && t.senderUsername!.trim().isNotEmpty) ||
       t.priority != null ||
       t.dueDate != null ||
+      t.isRecurring ||
       (t.tags?.isNotEmpty ?? false);
 
   String _formatEstimate(int minutes, bool isArabic) {

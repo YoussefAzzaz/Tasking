@@ -10,6 +10,7 @@ import 'package:axis/data/sharing/companion_share_repository.dart';
 import 'package:axis/domain/id_generator.dart';
 import 'package:axis/domain/domain_events.dart';
 import 'package:axis/domain/auto_scheduler.dart';
+import 'package:axis/domain/recurrence_engine.dart';
 
 export 'package:axis/domain/auto_scheduler.dart';
 
@@ -33,6 +34,8 @@ class Task {
   final String? senderId;
   final String? senderUsername;
   final String? recipientUsername;
+  /// Non-null only for virtual projected recurring occurrences on future calendar dates.
+  final String? sourceTaskId;
 
   Task({
     required this.id,
@@ -53,6 +56,7 @@ class Task {
     this.senderId,
     this.senderUsername,
     this.recipientUsername,
+    this.sourceTaskId,
   });
 
   Task copyWith({
@@ -74,6 +78,7 @@ class Task {
     String? senderId,
     String? senderUsername,
     String? recipientUsername,
+    String? sourceTaskId,
     bool clearDueDate = false,
     bool clearDueTime = false,
     bool clearNotes = false,
@@ -83,6 +88,7 @@ class Task {
     bool clearRecurrenceRule = false,
     bool clearRecurrenceMode = false,
     bool clearPriority = false,
+    bool clearSourceTaskId = false,
   }) {
     return Task(
       id: id ?? this.id,
@@ -103,6 +109,7 @@ class Task {
       senderId: senderId ?? this.senderId,
       senderUsername: senderUsername ?? this.senderUsername,
       recipientUsername: recipientUsername ?? this.recipientUsername,
+      sourceTaskId: clearSourceTaskId ? null : (sourceTaskId ?? this.sourceTaskId),
     );
   }
 
@@ -232,6 +239,10 @@ class Task {
   }
 
   bool get isCompleted => status == 'done' || status == 'completed';
+  bool get isRecurring =>
+      recurrenceRule != null && recurrenceRule!.trim().isNotEmpty;
+  bool get isProjectedOccurrence =>
+      sourceTaskId != null && sourceTaskId!.trim().isNotEmpty;
   bool get isSharedTask =>
       isCollaborative ||
       (senderUsername != null && senderUsername!.trim().isNotEmpty);
@@ -481,7 +492,165 @@ class TaskRepository {
     return _watchTasksInternal(limit: limit, offset: offset);
   }
 
+  static bool _rollingOverRecurring = false;
+
+  /// Generates a deterministic ID for a spawned recurring task occurrence so
+  /// completing or syncing across devices never creates duplicate instances.
+  static String recurringInstanceId({
+    required String userId,
+    required String title,
+    required String recurrenceRule,
+    String? dueTime,
+    required String dueDate,
+  }) {
+    final normTitle = title.trim().toLowerCase();
+    final normRule = recurrenceRule.trim().toUpperCase();
+    final normTime = (dueTime ?? '').trim();
+    return IdGenerator.generateDeterministicId(
+      'rec_${userId}_${normTitle}_${normRule}_${normTime}_$dueDate',
+    );
+  }
+
+  /// Advances any missed fixed-schedule recurring tasks (`due_date < today`)
+  /// so the active upcoming/today occurrence is always present in SQLite.
+  Future<void> rolloverMissedRecurringTasks([DateTime? referenceDate]) async {
+    if (!isDatabaseInitialized || _rollingOverRecurring) return;
+    _rollingOverRecurring = true;
+    try {
+      final now = referenceDate ?? DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final yesterdayStr = DateFormat('yyyy-MM-dd').format(
+        DateTime(now.year, now.month, now.day - 1),
+      );
+      final uid = currentUserId;
+      final params = uid.isNotEmpty ? [uid, todayStr] : [todayStr];
+      final whereUser = uid.isNotEmpty ? 'user_id = ? AND ' : '';
+      final rows = await db.getAll('''
+        SELECT * FROM tasks
+        WHERE $whereUser status = 'todo'
+          AND recurrence_rule IS NOT NULL AND recurrence_rule != ''
+          AND COALESCE(recurrence_mode, 'fixed') != 'after_completion'
+          AND due_date IS NOT NULL AND due_date != '' AND due_date < ?
+          AND (deleted_at IS NULL OR deleted_at = '')
+      ''', params);
+
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+      for (final row in rows) {
+        final missedTask = Task.fromRow(row);
+        final rrule = missedTask.recurrenceRule?.trim() ?? '';
+        final due = missedTask.dueDate?.trim() ?? '';
+        if (rrule.isEmpty || due.isEmpty) continue;
+
+        final nextDue = RecurrenceEngine.calculateNextDueDate(
+          rrule,
+          'fixed',
+          due,
+          yesterdayStr,
+        );
+        if (nextDue.isEmpty || nextDue == due) continue;
+
+        final ownerId = missedTask.userId ?? uid;
+        await _insertOrReviveRecurringInstance(
+          sourceTask: missedTask,
+          ownerId: ownerId,
+          nextDueDate: nextDue,
+          nowUtc: nowUtc,
+        );
+
+        // Detach recurrence_rule from the past missed instance so only the
+        // current active occurrence carries the live recurrence schedule.
+        await db.execute(
+          'UPDATE tasks SET recurrence_rule = NULL, recurrence_mode = NULL, updated_at = ? WHERE id = ?',
+          [nowUtc, missedTask.id],
+        );
+      }
+    } catch (e) {
+      debugPrint('[TaskRepository] rolloverMissedRecurringTasks notice: $e');
+    } finally {
+      _rollingOverRecurring = false;
+    }
+  }
+
+  Future<void> _insertOrReviveRecurringInstance({
+    required Task sourceTask,
+    required String ownerId,
+    required String nextDueDate,
+    required String nowUtc,
+  }) async {
+    final rrule = sourceTask.recurrenceRule!.trim();
+    final mode = sourceTask.recurrenceMode ?? 'fixed';
+    final nextId = recurringInstanceId(
+      userId: ownerId,
+      title: sourceTask.title,
+      recurrenceRule: rrule,
+      dueTime: sourceTask.dueTime,
+      dueDate: nextDueDate,
+    );
+
+    final duplicateCheck = await db.getOptional('''
+      SELECT id FROM tasks
+      WHERE (id = ? OR (LOWER(TRIM(title)) = LOWER(TRIM(?)) AND due_date = ? AND recurrence_rule = ?))
+        AND (deleted_at IS NULL OR deleted_at = '')
+      LIMIT 1
+    ''', [nextId, sourceTask.title, nextDueDate, rrule]);
+
+    if (duplicateCheck != null) return;
+
+    final uncheckedNotes = RecurrenceEngine.uncheckMarkdownChecklists(sourceTask.notes);
+    final softDeleted = await db.getOptional(
+      'SELECT id FROM tasks WHERE id = ? LIMIT 1',
+      [nextId],
+    );
+
+    if (softDeleted != null) {
+      await db.execute('''
+        UPDATE tasks SET
+          user_id = ?, title = ?, notes = ?, status = 'todo', priority = ?,
+          project_id = ?, tags = ?, due_date = ?, due_time = ?, estimate_min = ?,
+          recurrence_rule = ?, recurrence_mode = ?, completed_at = NULL, deleted_at = NULL, updated_at = ?
+        WHERE id = ?
+      ''', [
+        ownerId,
+        sourceTask.title,
+        uncheckedNotes,
+        sourceTask.priority,
+        sourceTask.projectId,
+        sourceTask.tags,
+        nextDueDate,
+        sourceTask.dueTime,
+        sourceTask.estimateMin,
+        rrule,
+        mode,
+        nowUtc,
+        nextId,
+      ]);
+    } else {
+      await db.execute('''
+        INSERT INTO tasks (
+          id, user_id, title, notes, status, priority, project_id, tags,
+          due_date, due_time, estimate_min, recurrence_rule, recurrence_mode, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        nextId,
+        ownerId,
+        sourceTask.title,
+        uncheckedNotes,
+        sourceTask.priority,
+        sourceTask.projectId,
+        sourceTask.tags,
+        nextDueDate,
+        sourceTask.dueTime,
+        sourceTask.estimateMin,
+        rrule,
+        mode,
+        nowUtc,
+        nowUtc,
+      ]);
+    }
+  }
+
   Stream<List<Task>> _watchTasksInternal({int? limit, int? offset}) async* {
+    await rolloverMissedRecurringTasks();
     final uid = currentUserId;
     final hasJoin = await _hasShareJoinTables();
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
@@ -513,6 +682,7 @@ class TaskRepository {
   /// Fetches tasks directly from SQLite with optional limit and offset pagination.
   Future<List<Task>> getTasks({int? limit, int? offset}) async {
     if (!isDatabaseInitialized) return const [];
+    await rolloverMissedRecurringTasks();
     final uid = currentUserId;
     final hasJoin = await _hasShareJoinTables();
     final params = uid.isNotEmpty ? [uid] : <dynamic>[];
@@ -811,6 +981,26 @@ class TaskRepository {
           ''', [logId, uid, effectiveTask.id, xp, now, now, now]);
         }
         DomainEvents.emit(TaskCompletedEvent(effectiveTask.id, xp));
+
+        // Spawn next recurring task instance when completing a recurring task
+        if (effectiveTask.isRecurring &&
+            effectiveTask.dueDate != null &&
+            effectiveTask.dueDate!.trim().isNotEmpty) {
+          final nextDue = RecurrenceEngine.calculateNextDueDate(
+            effectiveTask.recurrenceRule!.trim(),
+            effectiveTask.recurrenceMode ?? 'fixed',
+            effectiveTask.dueDate!.trim(),
+            today,
+          );
+          if (nextDue.isNotEmpty && nextDue != effectiveTask.dueDate!.trim()) {
+            await _insertOrReviveRecurringInstance(
+              sourceTask: effectiveTask,
+              ownerId: uid,
+              nextDueDate: nextDue,
+              nowUtc: now,
+            );
+          }
+        }
       } else if (effectiveTask.status != 'done' && oldStatus == 'done') {
         final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
         final todayLogId = IdGenerator.generateDeterministicId('xp_task_${effectiveTask.id}_$today');
@@ -819,6 +1009,31 @@ class TaskRepository {
             : "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE id = ? OR (task_id = ? AND timestamp LIKE ?)";
         final deleteParams = uid.isNotEmpty ? [now, now, todayLogId, effectiveTask.id, '$today%', uid] : [now, now, todayLogId, effectiveTask.id, '$today%'];
         await db.execute(deleteQuery, deleteParams);
+
+        // Soft-delete the auto-spawned next todo occurrence if uncompleting a recurring task
+        if (effectiveTask.isRecurring &&
+            effectiveTask.dueDate != null &&
+            effectiveTask.dueDate!.trim().isNotEmpty) {
+          final nextDue = RecurrenceEngine.calculateNextDueDate(
+            effectiveTask.recurrenceRule!.trim(),
+            effectiveTask.recurrenceMode ?? 'fixed',
+            effectiveTask.dueDate!.trim(),
+            today,
+          );
+          if (nextDue.isNotEmpty && nextDue != effectiveTask.dueDate!.trim()) {
+            final nextId = recurringInstanceId(
+              userId: uid,
+              title: effectiveTask.title,
+              recurrenceRule: effectiveTask.recurrenceRule!.trim(),
+              dueTime: effectiveTask.dueTime,
+              dueDate: nextDue,
+            );
+            await db.execute(
+              "UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ? AND status = 'todo'",
+              [now, now, nextId],
+            );
+          }
+        }
       }
 
       if (effectiveTask.tags != null && effectiveTask.tags!.isNotEmpty) {
@@ -836,20 +1051,22 @@ class TaskRepository {
 
   Future<void> deleteTask(String id) async {
     if (!isDatabaseInitialized) return;
+    final projMatch = RegExp(r'^proj_(.+)_\d{4}-\d{2}-\d{2}$').firstMatch(id);
+    final targetId = projMatch != null ? projMatch.group(1)! : id;
     final uid = currentUserId;
     try {
       final nowUtc = DateTime.now().toUtc().toIso8601String();
       final deleteLogQuery = uid.isNotEmpty
           ? "UPDATE logs SET deleted_at = ?, updated_at = ? WHERE task_id = ? AND (user_id = ? OR user_id IS NULL OR user_id = '')"
           : 'UPDATE logs SET deleted_at = ?, updated_at = ? WHERE task_id = ?';
-      final deleteLogParams = uid.isNotEmpty ? [nowUtc, nowUtc, id, uid] : [nowUtc, nowUtc, id];
+      final deleteLogParams = uid.isNotEmpty ? [nowUtc, nowUtc, targetId, uid] : [nowUtc, nowUtc, targetId];
       await db.execute(deleteLogQuery, deleteLogParams);
 
       await db.execute(
         'UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?',
-        [nowUtc, nowUtc, id],
+        [nowUtc, nowUtc, targetId],
       );
-      await CompanionShareRepository().cancelSharesForTask(id);
+      await CompanionShareRepository().cancelSharesForTask(targetId);
 
       StatsRepository().invalidateStats();
       await syncGlobalUserLevel();
@@ -862,6 +1079,25 @@ class TaskRepository {
 
   /// Toggles task completion status, records XP gamification event, and invalidates stats.
   Future<void> toggleTaskStatus(Task task, bool isDone) async {
+    if (task.isProjectedOccurrence && task.dueDate != null) {
+      final uid = task.userId ?? currentUserId;
+      final concreteId = recurringInstanceId(
+        userId: uid,
+        title: task.title,
+        recurrenceRule: task.recurrenceRule ?? '',
+        dueTime: task.dueTime,
+        dueDate: task.dueDate!,
+      );
+      final concreteTask = task.copyWith(
+        id: concreteId,
+        clearSourceTaskId: true,
+        status: 'todo',
+      );
+      await addTask(concreteTask);
+      await updateTask(concreteTask.copyWith(status: isDone ? 'done' : 'todo'));
+      return;
+    }
+
     final updated = task.copyWith(
       status: isDone ? 'done' : 'todo',
     );

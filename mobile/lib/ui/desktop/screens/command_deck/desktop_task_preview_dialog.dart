@@ -5,6 +5,7 @@ import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/task_repository.dart';
 import '../../../../domain/calendar_scheduler.dart';
+import '../../../../domain/recurrence_engine.dart';
 import '../../../common/axis_markdown_viewer.dart';
 import '../../core/task_checklist_mixin.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
@@ -262,6 +263,15 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
                                           : '${_currentTask.estimateMin}m Estimate',
                                       color: AxisColors.primary,
                                       icon: Icons.timer_outlined,
+                                    ),
+                                  if (_currentTask.isRecurring)
+                                    TelemetryChip(
+                                      label: RecurrenceEngine.formatHumanReadable(
+                                        _currentTask.recurrenceRule,
+                                        isArabic: isArabic,
+                                      ),
+                                      color: AxisColors.tertiary,
+                                      icon: Icons.repeat_rounded,
                                     ),
                                   TelemetryChip(
                                     label: isDone

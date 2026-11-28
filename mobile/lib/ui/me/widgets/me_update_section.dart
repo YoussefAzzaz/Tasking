@@ -20,8 +20,8 @@ class MeUpdateSection extends StatefulWidget {
 
 class _MeUpdateSectionState extends State<MeUpdateSection> {
   late final AppUpdateService _service;
-  String _versionStr = '1.3.1';
-  int _buildNumber = 26;
+  String _versionStr = '1.3.2';
+  int _buildNumber = 27;
   bool _isChecking = false;
 
   @override

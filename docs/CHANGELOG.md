@@ -4,6 +4,10 @@
 - Minor version increments only after reaching patch `.10`: `x.y.0` through `x.y.10` increment the patch digit, then roll over to `x.(y+1).0` (e.g., `1.2.10` -> `1.3.0`, staying on `1.3.x` until `1.3.10`, then `1.4.0`), encoded in `SemanticVersion.nextAxisReleaseVersion()`.
 - UI labels display only the semantic version (`v1.3.0`) without internal build numbers.
 
+## v1.3.2: Weekly Repeating Tasks & Non-Blocking Prayer/Habit Scheduling
+- Fixed task collision and scheduling in [CalendarScheduler](mobile/lib/domain/calendar_scheduler.dart), [CreateTaskSheet](mobile/lib/ui/tasks/create_task_sheet.dart), and [TaskFormService](mobile/lib/ui/tasks/services/task_form_service.dart) so habits and prayers never block, displace, or reschedule tasks away from their scheduled time.
+- Added weekly repeating tasks (`RRULE:FREQ=WEEKLY;BYDAY=...`) with interactive weekday pills in [TaskRecurrenceSelector](mobile/lib/ui/tasks/widgets/task_recurrence_selector.dart), `90m`/`120m` quick duration presets, multi-week calendar projection across mobile & desktop calendars, and automatic next-occurrence generation on completion in [TaskRepository](mobile/lib/data/task_repository.dart).
+
 ## v1.3.1: Wi-Fi OTA Downloader & Prayer Widget Routing Fix
 - Added [NativeUpdateDownloader.kt](mobile/android/app/src/main/kotlin/com/axis/axis/NativeUpdateDownloader.kt) using Android's OS active network (`ConnectivityManager` + `HttpURLConnection`) with explicit connect/read timeouts, `Connection: close`, `Accept-Encoding: identity`, and retry fallback so update checks and APK downloads no longer stall over Wi-Fi.
 - Added per-chunk stream inactivity timeouts in [AppUpdateService](mobile/lib/data/updates/app_update_service.dart) and surfaced failed network checks in mobile/desktop update cards.

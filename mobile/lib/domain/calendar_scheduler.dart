@@ -1,6 +1,7 @@
 import '../data/habit_repository.dart';
 import '../data/prayers/prayer_model.dart';
 import '../data/task_repository.dart';
+import 'recurrence_engine.dart';
 
 /// Represents a daily habit time slot placed on the desktop calendar.
 class CalendarHabitBlock {
@@ -67,16 +68,15 @@ enum CalendarZoomLevel {
   });
 }
 
-/// Pure scheduling engine for the desktop Google-Calendar-style week view.
+/// Pure scheduling engine for the calendar and task scheduler.
 ///
 /// Handles:
-/// - Including active daily habits and Islamic prayers (duration is ALWAYS 15m and fixed).
+/// - Rendering active daily habits and Islamic prayers (duration is ALWAYS 15m and fixed).
 /// - Priority sorting (`P1 -> P2 -> P3`) from morning to night.
-/// - Packing tasks while avoiding all intervals occupied by daily habits and prayers.
-/// - Same-day drag reordering (preserves manual list order without priority
-///   re-sorting).
-/// - Cross-day moves and duration resizing (re-sorts affected days by
-///   priority automatically).
+/// - Task collision detection and placement strictly against other tasks (habits and prayers
+///   never push, block, or reschedule tasks).
+/// - Expanding weekly and recurring tasks onto matching future dates.
+/// - Same-day drag reordering, cross-day moves, and duration resizing.
 abstract final class CalendarScheduler {
   static const int defaultDayStartMinutes = 8 * 60; // 08:00
   static const int defaultHabitStartMinutes = 7 * 60; // 07:00
@@ -143,7 +143,6 @@ abstract final class CalendarScheduler {
   /// Returns the default start minute for a new task created today.
   ///
   /// Placed after the current time (+30 minutes), snapped to the next 15-minute mark.
-  /// For example, if created at 15:00 (3:00 PM), returns 930 (15:30 / 3:30 PM).
   static int defaultTodayTaskStartMinute([DateTime? referenceTime]) {
     final now = referenceTime ?? DateTime.now();
     final nowMinutes = now.hour * 60 + now.minute;
@@ -152,7 +151,6 @@ abstract final class CalendarScheduler {
     if (remainder != 0) {
       target += (15 - remainder);
     }
-    // If it's early morning before the day starts (before 08:00), default to 08:00
     if (target < defaultDayStartMinutes) {
       target = defaultDayStartMinutes;
     }
@@ -267,24 +265,84 @@ abstract final class CalendarScheduler {
     return blocks;
   }
 
-  /// Packs [orderedTasks] sequentially from [dayStartMin] on [dateStr], skipping
-  /// any time interval that overlaps a [CalendarHabitBlock] or [CalendarPrayerBlock].
+  /// Returns all tasks occurring on [dateStr], combining concrete tasks due on [dateStr]
+  /// with projected future occurrences of active fixed-schedule recurring tasks
+  /// (such as weekly classes/sessions).
+  static List<Task> expandTasksForDate(
+    List<Task> allTasks,
+    String dateStr, {
+    bool includeCompleted = true,
+  }) {
+    final concreteOnDate = <Task>[];
+    final concreteSeriesKeys = <String>{};
+
+    for (final t in allTasks) {
+      if (t.dueDate == dateStr) {
+        final rrule = t.recurrenceRule?.trim() ?? '';
+        if (rrule.isNotEmpty) {
+          concreteSeriesKeys.add(_recurringSeriesSignature(t));
+        }
+        if (includeCompleted || !t.isCompleted) {
+          concreteOnDate.add(t);
+        }
+      }
+    }
+
+    final projected = <Task>[];
+    final seenProjectedSeries = <String>{};
+
+    for (final t in allTasks) {
+      if (t.isCompleted) continue;
+      final rrule = t.recurrenceRule?.trim() ?? '';
+      if (rrule.isEmpty) continue;
+      if ((t.recurrenceMode ?? 'fixed') == 'after_completion') continue;
+      final anchor = t.dueDate?.trim() ?? '';
+      if (anchor.isEmpty || dateStr.compareTo(anchor) <= 0) continue;
+
+      final sig = _recurringSeriesSignature(t);
+      if (concreteSeriesKeys.contains(sig) || seenProjectedSeries.contains(sig)) {
+        continue;
+      }
+
+      if (RecurrenceEngine.occursOnDate(
+        rrule: rrule,
+        anchorDateStr: anchor,
+        targetDateStr: dateStr,
+      )) {
+        seenProjectedSeries.add(sig);
+        projected.add(
+          t.copyWith(
+            id: 'proj_${t.id}_$dateStr',
+            dueDate: dateStr,
+            sourceTaskId: t.sourceTaskId ?? t.id,
+          ),
+        );
+      }
+    }
+
+    return [...concreteOnDate, ...projected];
+  }
+
+  static String _recurringSeriesSignature(Task t) {
+    final title = t.title.trim().toLowerCase();
+    final rrule = (t.recurrenceRule ?? '').trim().toUpperCase();
+    final time = (t.dueTime ?? '').trim();
+    return '$title|$rrule|$time';
+  }
+
+  /// Packs [orderedTasks] sequentially from [dayStartMin] on [dateStr].
   ///
-  /// Preserves the exact order of [orderedTasks]. Completed tasks are excluded.
+  /// Preserves the exact order of [orderedTasks]. Habits and prayers never push
+  /// or reschedule tasks.
   static List<Task> packTasksForDay({
     required String dateStr,
     required List<Task> orderedTasks,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
     bool includeCompleted = true,
   }) {
-    final blockedIntervals = <({int start, int end})>[
-      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
-      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
-    ]..sort((a, b) => a.start.compareTo(b.start));
-
     final active = includeCompleted
         ? orderedTasks
         : orderedTasks.where((t) => !t.isCompleted).toList();
@@ -303,21 +361,6 @@ abstract final class CalendarScheduler {
       var slotStart = explicitTime ?? cursor;
       if (slotStart < cursor) {
         slotStart = cursor;
-      }
-
-      var adjusted = true;
-      while (adjusted) {
-        adjusted = false;
-        final slotEnd = slotStart + duration;
-        for (final block in blockedIntervals) {
-          if (slotStart < block.end && slotEnd > block.start) {
-            if (block.end < 24 * 60 - minTaskDurationMin) {
-              slotStart = block.end;
-              adjusted = true;
-            }
-            break;
-          }
-        }
       }
 
       final clampedStart = slotStart.clamp(0, 24 * 60 - minTaskDurationMin);
@@ -339,11 +382,11 @@ abstract final class CalendarScheduler {
   }
 
   /// Sorts incomplete tasks on [dateStr] by priority (`P1 -> P2 -> P3`) from
-  /// morning to night and packs them around daily habit and prayer blocks.
+  /// morning to night and packs them sequentially without shifting for habits or prayers.
   static List<Task> sortAndPackDayByPriority({
     required String dateStr,
     required List<Task> dayTasks,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
@@ -377,27 +420,20 @@ abstract final class CalendarScheduler {
     return packTasksForDay(
       dateStr: dateStr,
       orderedTasks: indexed.map((e) => e.value).toList(),
-      habitBlocks: habitBlocks,
-      prayerBlocks: prayerBlocks,
       dayStartMin: effectiveStart,
       referenceTime: referenceTime,
     );
   }
 
   /// Reorders [movedTaskId] within the SAME day ([dateStr]) based on
-  /// [targetDropMinute] using priority-aware forward collision resolution:
-  /// - If target slot is occupied and incoming task has strictly higher priority
-  ///   (e.g. P1 vs P2), incoming task takes the slot and the existing task moves
-  ///   to the next empty space.
-  /// - If priority is equal or lower, the existing task stays in its place and the
-  ///   moved task moves to the next empty space.
-  /// - Empty space before [targetDropMinute] is never used.
+  /// [targetDropMinute] using priority-aware forward collision resolution
+  /// strictly against other tasks (never habits or prayers).
   static List<Task> reorderTaskWithinSameDay({
     required String dateStr,
     required List<Task> currentDayTasks,
     required String movedTaskId,
     required int targetDropMinute,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
@@ -411,8 +447,6 @@ abstract final class CalendarScheduler {
       return packTasksForDay(
         dateStr: dateStr,
         orderedTasks: active,
-        habitBlocks: habitBlocks,
-        prayerBlocks: prayerBlocks,
         dayStartMin: dayStartMin,
         referenceTime: referenceTime,
         includeCompleted: includeCompleted,
@@ -428,71 +462,43 @@ abstract final class CalendarScheduler {
       existingDayTasks: remaining,
       incomingTask: movedTask,
       targetStartMinute: targetMin,
-      habitBlocks: habitBlocks,
-      prayerBlocks: prayerBlocks,
       dayStartMin: dayStartMin,
       minGapMinutes: 1,
     );
   }
 
   /// Resolves task placement on [dateStr] starting from [targetStartMinute]
-  /// using the calendar collision rules:
+  /// strictly against other tasks (never habits or prayers):
   /// 1. Searches strictly forward: never moves any task into empty space before [targetStartMinute].
   /// 2. If slot is occupied by a conflicting task:
-  ///    - Priority matters before creation time:
-  ///      If incoming task has higher priority (P1 vs P2):
+  ///    - If incoming task has strictly higher priority (P1 vs P2):
   ///      Incoming task takes the slot; conflicting task moves to the next empty space.
-  ///      If that next space is filled, recall the collision function with the same principle.
   ///    - If priority is the same or incoming has lower priority:
-  ///      The existing task stays in its place, and the incoming task moves to the next
-  ///      empty space. If that next space is filled, recall the collision function with the same principle.
-  /// 3. Skips over any blocked habit or prayer intervals.
+  ///      The existing task stays in its place, and the incoming task moves to the next empty space.
   static List<Task> resolveCollisionPlacement({
     required String dateStr,
     required List<Task> existingDayTasks,
     required Task incomingTask,
     required int targetStartMinute,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     int minGapMinutes = 0,
   }) {
-    final blockedIntervals = <({int start, int end})>[
-      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
-      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
-    ]..sort((a, b) => a.start.compareTo(b.start));
-
     final tasksMap = <String, Task>{
       for (final t in existingDayTasks)
-        if (!t.isCompleted && t.id != incomingTask.id && t.dueTime != null && t.dueTime!.trim().isNotEmpty)
+        if (!t.isCompleted &&
+            t.id != incomingTask.id &&
+            t.dueTime != null &&
+            t.dueTime!.trim().isNotEmpty)
           t.id: t,
     };
 
-    int skipBlocked(int startMin, int duration) {
-      var cur = startMin;
-      var adjusted = true;
-      while (adjusted && cur < 24 * 60 - minTaskDurationMin) {
-        adjusted = false;
-        final slotEnd = cur + duration;
-        for (final block in blockedIntervals) {
-          if (cur < block.end && slotEnd > block.start) {
-            if (block.end > cur && block.end < 24 * 60 - minTaskDurationMin) {
-              cur = block.end;
-              adjusted = true;
-              break;
-            }
-          }
-        }
-      }
-      return cur;
-    }
-
     void placeTask(Task task, int requestedMin) {
       final duration = sanitizeDuration(task.estimateMin);
-      var cur = skipBlocked(requestedMin, duration);
+      var cur = requestedMin.clamp(0, 24 * 60 - minTaskDurationMin);
 
       while (cur < 24 * 60 - minTaskDurationMin) {
-        cur = skipBlocked(cur, duration);
         final slotEnd = cur + duration;
 
         Task? conflicting;
@@ -505,7 +511,6 @@ abstract final class CalendarScheduler {
           final oDuration = sanitizeDuration(other.estimateMin);
           final oEnd = oStart + oDuration;
 
-          // Check if intervals overlap
           if (cur < oEnd && slotEnd > oStart) {
             conflicting = other;
             confEnd = oEnd;
@@ -514,7 +519,6 @@ abstract final class CalendarScheduler {
         }
 
         if (conflicting == null) {
-          // No collision! Place task at cur
           tasksMap[task.id] = task.copyWith(
             dueDate: dateStr,
             dueTime: formatMinutes(cur.clamp(0, 24 * 60 - minTaskDurationMin)),
@@ -525,10 +529,11 @@ abstract final class CalendarScheduler {
 
         final taskRank = priorityRank(task.priority);
         final confRank = priorityRank(conflicting.priority);
+        // Never displace a projected future recurring occurrence (keep fixed weekly slot intact)
+        final canDisplaceConflicting =
+            taskRank < confRank && conflicting.sourceTaskId == null;
 
-        if (taskRank < confRank) {
-          // Task has strictly higher priority (e.g. P1 vs P2):
-          // Task takes slot 'cur', and conflicting is displaced forward to next empty space!
+        if (canDisplaceConflicting) {
           tasksMap[task.id] = task.copyWith(
             dueDate: dateStr,
             dueTime: formatMinutes(cur.clamp(0, 24 * 60 - minTaskDurationMin)),
@@ -539,8 +544,6 @@ abstract final class CalendarScheduler {
           placeTask(conflicting, nextMin);
           return;
         } else {
-          // Conflicting has equal or higher priority:
-          // Conflicting stays in place; task moves to next space after conflicting:
           final nextMin = confEnd! + minGapMinutes;
           cur = nextMin;
         }
@@ -569,15 +572,12 @@ abstract final class CalendarScheduler {
   }
 
   /// Moves [movedTaskId] from its current day to [targetDateStr] and
-  /// automatically re-sorts both source and target days by priority
-  /// (`P1 -> P2 -> P3`).
-  ///
-  /// Returns the updated [Task] objects across affected days.
+  /// automatically re-sorts both source and target days by priority (`P1 -> P2 -> P3`).
   static List<Task> moveTaskToDay({
     required List<Task> allTasks,
     required String movedTaskId,
     required String targetDateStr,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     int? targetDropMinute,
@@ -607,8 +607,6 @@ abstract final class CalendarScheduler {
     final packedTarget = sortAndPackDayByPriority(
       dateStr: targetDateStr,
       dayTasks: targetDayTasks,
-      habitBlocks: habitBlocks,
-      prayerBlocks: prayerBlocks,
       dayStartMin: dayStartMin,
       referenceTime: referenceTime,
       includeCompleted: includeCompleted,
@@ -627,8 +625,6 @@ abstract final class CalendarScheduler {
       final packedSource = sortAndPackDayByPriority(
         dateStr: sourceDateStr,
         dayTasks: sourceDayTasks,
-        habitBlocks: habitBlocks,
-        prayerBlocks: prayerBlocks,
         dayStartMin: dayStartMin,
         referenceTime: referenceTime,
         includeCompleted: includeCompleted,
@@ -646,7 +642,7 @@ abstract final class CalendarScheduler {
     required List<Task> dayTasks,
     required String resizedTaskId,
     required int newEstimateMin,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     bool includeCompleted = true,
@@ -663,8 +659,6 @@ abstract final class CalendarScheduler {
     return sortAndPackDayByPriority(
       dateStr: dateStr,
       dayTasks: updatedDayTasks,
-      habitBlocks: habitBlocks,
-      prayerBlocks: prayerBlocks,
       dayStartMin: dayStartMin,
       includeCompleted: includeCompleted,
     );
@@ -676,53 +670,28 @@ abstract final class CalendarScheduler {
     return _orderByScheduledTime(tasks);
   }
 
-  /// Auto-schedules [newTask] on [dateStr] respecting priority and existing tasks:
-  ///
-  /// Rules:
-  /// 1. Reordering only happens for the newly created task (and directly conflicting
-  ///    lower-priority tasks pushed down), never reordering non-conflicting existing tasks.
-  /// 2. If [newTask] has an explicit [dueTime], it is placed at that time without reordering
-  ///    earlier or non-conflicting tasks.
-  /// 3. If [newTask] is created without a due time:
-  ///    - Baseline time is `defaultTodayTaskStartMinute(referenceTime)` for today,
-  ///      or [dayStartMin] (08:00) for other days.
-  ///    - If an existing task of equal or higher priority occupies the slot (e.g. existing P1 vs new P1),
-  ///      the newly created task is placed after the existing task.
-  ///    - If an existing task has lower priority (e.g. existing P2 at 08:00 vs new P1 at 08:00),
-  ///      the new task takes 08:00 and the P2 task is moved down after the P1 task.
-  ///    - If there is a P2 task at 09:00 and a P1 task is created at 10:00, the P2 task is
-  ///      NOT reordered after the P1 task.
-  /// 4. If any task is deleted, remaining tasks are left as they are.
+  /// Auto-schedules [newTask] on [dateStr] respecting priority and existing tasks,
+  /// without rescheduling for habits or prayers.
   static List<Task> scheduleNewTaskForDay({
     required String dateStr,
     required List<Task> existingDayTasks,
     required Task newTask,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
     bool includeCompleted = true,
   }) {
-    final blockedIntervals = <({int start, int end})>[
-      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
-      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
-    ]..sort((a, b) => a.start.compareTo(b.start));
-
-    // Active existing tasks on this date (excluding newTask):
     final activeExisting = existingDayTasks
         .where((t) => (includeCompleted || !t.isCompleted) && t.id != newTask.id)
         .toList();
 
-    // Map by ID for easy lookup and in-place updates, normalizing any task lacking dueTime:
     final tasksMap = <String, Task>{};
     var normCursor = dayStartMin;
     for (final t in activeExisting) {
       if (t.dueTime != null && t.dueTime!.trim().isNotEmpty) {
         tasksMap[t.id] = t;
       } else {
-        while (blockedIntervals.any((b) => normCursor < b.end && (normCursor + sanitizeDuration(t.estimateMin)) > b.start)) {
-          normCursor += 15;
-        }
         final normalized = t.copyWith(dueTime: formatMinutes(normCursor));
         tasksMap[t.id] = normalized;
         normCursor += sanitizeDuration(t.estimateMin);
@@ -741,14 +710,12 @@ abstract final class CalendarScheduler {
       existingDayTasks: tasksMap.values.toList(),
       incomingTask: newTask,
       targetStartMinute: candidateStart,
-      habitBlocks: habitBlocks,
-      prayerBlocks: prayerBlocks,
       dayStartMin: dayStartMin,
     );
   }
 
   /// Checks whether a task scheduled on [dateStr] starting at [startMinute] with [durationMin]
-  /// collides with any other active task on that date.
+  /// collides with any other active task (including weekly/recurring tasks) on that date.
   /// Strictly checks only tasks (never habits or prayers).
   static Task? findConflictingTask({
     required String dateStr,
@@ -758,10 +725,17 @@ abstract final class CalendarScheduler {
     String? excludeTaskId,
   }) {
     final endMinute = startMinute + durationMin;
-    for (final other in existingTasks) {
+    final dayTasks = expandTasksForDate(
+      existingTasks,
+      dateStr,
+      includeCompleted: false,
+    );
+    for (final other in dayTasks) {
       if (other.isCompleted) continue;
-      if (excludeTaskId != null && other.id == excludeTaskId) continue;
-      if (other.dueDate != dateStr) continue;
+      if (excludeTaskId != null &&
+          (other.id == excludeTaskId || other.sourceTaskId == excludeTaskId)) {
+        continue;
+      }
       final oStart = parseTimeToMinutes(other.dueTime);
       if (oStart == null) continue;
       final oDur = sanitizeDuration(other.estimateMin);
@@ -774,21 +748,29 @@ abstract final class CalendarScheduler {
   }
 
   /// Finds the next available contiguous start minute on [dateStr] starting from [searchFromMinute]
-  /// for a task of [durationMin] that does not collide with any existing task, habit block, or prayer block.
+  /// for a task of [durationMin] that does not collide with any existing task on that day.
+  /// Habits and prayers are never treated as collisions.
   static int findNextAvailableMinute({
     required String dateStr,
     required int searchFromMinute,
     required int durationMin,
     required List<Task> existingTasks,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayEndMinute = 24 * 60,
+    String? excludeTaskId,
   }) {
+    final dayTasks = expandTasksForDate(
+      existingTasks,
+      dateStr,
+      includeCompleted: false,
+    );
     final blocked = <({int start, int end})>[
-      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
-      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
-      for (final t in existingTasks)
-        if (!t.isCompleted && t.dueDate == dateStr && t.dueTime != null)
+      for (final t in dayTasks)
+        if (!t.isCompleted &&
+            (excludeTaskId == null ||
+                (t.id != excludeTaskId && t.sourceTaskId != excludeTaskId)) &&
+            t.dueTime != null)
           if (parseTimeToMinutes(t.dueTime) != null)
             (
               start: parseTimeToMinutes(t.dueTime)!,
@@ -813,12 +795,13 @@ abstract final class CalendarScheduler {
   }
 
   /// Displaces conflicting tasks forward into the next empty spot while [incomingTask] takes [targetStartMinute].
+  /// Habits and prayers never displace or reschedule tasks.
   static List<Task> displaceConflictingTask({
     required String dateStr,
     required List<Task> existingDayTasks,
     required Task incomingTask,
     required int targetStartMinute,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
   }) {
     final forcedHighPriorityTask = incomingTask.copyWith(priority: 1);
@@ -827,8 +810,6 @@ abstract final class CalendarScheduler {
       existingDayTasks: existingDayTasks,
       incomingTask: forcedHighPriorityTask,
       targetStartMinute: targetStartMinute,
-      habitBlocks: habitBlocks,
-      prayerBlocks: prayerBlocks,
     );
     return result
         .map((t) => t.id == incomingTask.id ? t.copyWith(priority: incomingTask.priority) : t)
@@ -837,10 +818,11 @@ abstract final class CalendarScheduler {
 
   /// Packs any unscheduled tasks into open slots on [dateStr] while keeping
   /// all tasks with existing `dueTime` at their exact slots without reordering.
+  /// Habits and prayers never block or shift task slots.
   static List<Task> packTasksPreservingExplicitTimes({
     required String dateStr,
     required List<Task> dayTasks,
-    required List<CalendarHabitBlock> habitBlocks,
+    List<CalendarHabitBlock> habitBlocks = const [],
     List<CalendarPrayerBlock> prayerBlocks = const [],
     int dayStartMin = defaultDayStartMinutes,
     DateTime? referenceTime,
@@ -850,11 +832,6 @@ abstract final class CalendarScheduler {
         ? dayTasks
         : dayTasks.where((t) => !t.isCompleted).toList();
     if (active.isEmpty) return const [];
-
-    final blockedIntervals = <({int start, int end})>[
-      for (final h in habitBlocks) (start: h.startMinute, end: h.endMinute),
-      for (final p in prayerBlocks) (start: p.startMinute, end: p.endMinute),
-    ]..sort((a, b) => a.start.compareTo(b.start));
 
     final now = referenceTime ?? DateTime.now();
     final isToday = dateStr == formatDate(now);
@@ -878,16 +855,6 @@ abstract final class CalendarScheduler {
       final duration = sanitizeDuration(task.estimateMin);
       var placed = false;
       while (!placed && cursor < 24 * 60 - minTaskDurationMin) {
-        var hitBlock = false;
-        for (final block in blockedIntervals) {
-          if (cursor < block.end && (cursor + duration) > block.start) {
-            cursor = block.end;
-            hitBlock = true;
-            break;
-          }
-        }
-        if (hitBlock) continue;
-
         var hitTask = false;
         for (final s in result) {
           final sStart = parseTimeToMinutes(s.dueTime) ?? dayStartMin;

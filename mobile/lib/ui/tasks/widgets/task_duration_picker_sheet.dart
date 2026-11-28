@@ -210,7 +210,7 @@ class _TaskDurationPickerSheetState extends State<TaskDurationPickerSheet> {
                 onPressed: current > 5
                     ? () {
                         setState(() {
-                          current = (current - 5).clamp(1, 360);
+                          current = (current - 5).clamp(1, 480);
                           controller.text = current.toString();
                         });
                       }
@@ -263,7 +263,7 @@ class _TaskDurationPickerSheetState extends State<TaskDurationPickerSheet> {
               IconButton.filledTonal(
                 onPressed: () {
                   setState(() {
-                    current = (current + 5).clamp(1, 360);
+                    current = (current + 5).clamp(1, 480);
                     controller.text = current.toString();
                   });
                 },
@@ -282,7 +282,7 @@ class _TaskDurationPickerSheetState extends State<TaskDurationPickerSheet> {
             spacing: 8,
             runSpacing: 8,
             alignment: WrapAlignment.center,
-            children: [5, 10, 15, 25, 30, 45, 60].map((m) {
+            children: [5, 10, 15, 25, 30, 45, 60, 90, 120].map((m) {
               final isSelected = current == m;
               final isMicroPreset = m <= 15;
               return ChoiceChip(

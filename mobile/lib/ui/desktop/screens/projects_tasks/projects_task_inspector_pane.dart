@@ -6,6 +6,7 @@ import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/focus_session_service.dart';
 import '../../../../data/task_repository.dart';
+import '../../../../domain/recurrence_engine.dart';
 import '../../../common/axis_markdown_viewer.dart';
 import '../../core/task_checklist_mixin.dart';
 import '../../dialogs/quick_task_dialog.dart';
@@ -177,6 +178,15 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                           color: AxisColors.primarySoft,
                         ),
                       if (task.priority != null) PriorityBadge(priority: task.priority),
+                      if (task.isRecurring)
+                        TelemetryChip(
+                          label: RecurrenceEngine.formatHumanReadable(
+                            task.recurrenceRule,
+                            isArabic: isArabic,
+                          ),
+                          color: AxisColors.tertiary,
+                          icon: Icons.repeat_rounded,
+                        ),
                       TelemetryChip(
                         label: isDone
                             ? (isArabic ? 'منتهية' : 'FINISHED')

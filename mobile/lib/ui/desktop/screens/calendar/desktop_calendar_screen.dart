@@ -197,9 +197,11 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
     List<CalendarHabitBlock> habitBlocks,
     List<CalendarPrayerBlock> prayerBlocks,
   ) {
-    final dayTasks = _tasks
-        .where((t) => t.dueDate == dateStr && (_showCompletedTasks || !t.isCompleted))
-        .toList();
+    final dayTasks = CalendarScheduler.expandTasksForDate(
+      _tasks,
+      dateStr,
+      includeCompleted: _showCompletedTasks,
+    );
     if (dayTasks.isEmpty) return const [];
 
     final allHaveDueTime = dayTasks.every((t) =>
@@ -1424,6 +1426,14 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                             ),
                             const SizedBox(width: 3),
                           ],
+                          if (task.isRecurring) ...[
+                            Icon(
+                              Icons.repeat_rounded,
+                              color: isDone ? AxisColors.tertiary : pColor,
+                              size: 10,
+                            ),
+                            const SizedBox(width: 3),
+                          ],
                           Text(
                             pLabel,
                             style: GoogleFonts.jetBrainsMono(
@@ -1468,6 +1478,14 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                                   Icons.check_circle_rounded,
                                   color: AxisColors.tertiary,
                                   size: 12,
+                                ),
+                                const SizedBox(width: 3),
+                              ],
+                              if (task.isRecurring) ...[
+                                Icon(
+                                  Icons.repeat_rounded,
+                                  color: isDone ? AxisColors.tertiary : pColor,
+                                  size: 11,
                                 ),
                                 const SizedBox(width: 3),
                               ],
@@ -1516,6 +1534,20 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
         ),
       ),
     );
+
+    if (task.isProjectedOccurrence) {
+      return Positioned(
+        key: ValueKey('calendar_task_${task.id}'),
+        top: top,
+        left: 3,
+        right: 3,
+        height: height,
+        child: GestureDetector(
+          onTap: () => _openTaskPreview(task),
+          child: blockCard,
+        ),
+      );
+    }
 
     return Positioned(
       key: ValueKey('calendar_task_${task.id}'),

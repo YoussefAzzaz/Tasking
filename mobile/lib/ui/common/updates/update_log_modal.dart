@@ -8,8 +8,8 @@ import 'package:axis/core/l10n/app_localizations.dart';
 class UpdateLogModal extends StatelessWidget {
   const UpdateLogModal({
     super.key,
-    this.currentVersion = '1.3.1',
-    this.buildNumber = 26,
+    this.currentVersion = '1.3.2',
+    this.buildNumber = 27,
     this.onCheckForUpdates,
   });
 
@@ -19,8 +19,8 @@ class UpdateLogModal extends StatelessWidget {
 
   static Future<void> show(
     BuildContext context, {
-    String currentVersion = '1.3.1',
-    int buildNumber = 26,
+    String currentVersion = '1.3.2',
+    int buildNumber = 27,
     VoidCallback? onCheckForUpdates,
   }) {
     return showDialog<void>(
@@ -39,6 +39,26 @@ class UpdateLogModal extends StatelessWidget {
     final isAr = context.isArabic;
 
     const categories = <_UpdateCategory>[
+      _UpdateCategory(
+        icon: Icons.event_repeat_rounded,
+        color: Color(0xFF8B5CF6), // Violet
+        titleEn: 'Weekly Repeating Tasks & Smart Collision Fix (v1.3.2)',
+        titleAr: 'المهام الأسبوعية المتكررة وإصلاح تعارض المواعيد (v1.3.2)',
+        items: [
+          _UpdateItem(
+            titleEn: 'Weekly Repeating Tasks (Day, Time & Duration)',
+            titleAr: 'المهام الأسبوعية المتكررة في أيام وأوقات محددة',
+            descEn: 'Schedule recurring weekly sessions (e.g. every Wednesday at 08:30 for 90 min) with 1-tap 90m/120m presets, multi-week calendar projection, and automatic next-week creation on completion.',
+            descAr: 'جدولة المهام والجلسات الأسبوعية المتكررة (مثل كل أربعاء الساعة 08:30 لمدة 90 دقيقة) مع خيارات سريعة 90د/120د وعرضها على جميع الأسابيع القادمة في التقويم.',
+          ),
+          _UpdateItem(
+            titleEn: 'Non-Blocking Habits & Prayers During Task Scheduling',
+            titleAr: 'عدم تأجيل المهام بسبب العادات أو الصلوات',
+            descEn: 'Fixed the task collision system so habits and prayers never push or reschedule tasks away from their chosen time.',
+            descAr: 'تحديث نظام التعارض بحيث تبقى المهام في وقتها المحدد تماماً دون إعادة جدولتها عند تداخلها مع عادة أو وقت صلاة.',
+          ),
+        ],
+      ),
       _UpdateCategory(
         icon: Icons.wifi_tethering_rounded,
         color: Color(0xFF10B981), // Emerald

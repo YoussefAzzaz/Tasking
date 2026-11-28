@@ -174,14 +174,15 @@ class TaskDatePickerRow extends StatelessWidget {
             ),
           ],
         ),
-        // Quick Duration Presets for 1-tap micro selection
+        // Quick Duration Presets for 1-tap micro & session selection
         const SizedBox(height: 8),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              for (final min in [5, 10, 15, 25, 30, 45, 60]) ...[
+              for (final min in [5, 10, 15, 25, 30, 45, 60, 90, 120]) ...[
                 InkWell(
+                  key: ValueKey('duration_preset_$min'),
                   onTap: () => onSelectEstimateMin(min),
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
@@ -271,6 +272,7 @@ class TaskDatePickerRow extends StatelessWidget {
         if (onPickTime != null) ...[
           const SizedBox(height: 8),
           InkWell(
+            key: const ValueKey('task_pick_time_button'),
             onTap: onPickTime,
             borderRadius: BorderRadius.circular(8),
             child: Container(

@@ -4,6 +4,7 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/domain/recurrence_engine.dart';
 import 'package:axis/ui/focus/focus_screen.dart';
 import 'package:axis/ui/tasks/create_task_sheet.dart';
 import 'package:axis/ui/common/axis_markdown_viewer.dart';
@@ -50,10 +51,11 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
   Future<void> _toggleDone() async {
     HapticFeedback.mediumImpact();
+    final nextDone = _task.status != 'done';
     final updated = _task.copyWith(
-      status: _task.status == 'done' ? 'todo' : 'done',
+      status: nextDone ? 'done' : 'todo',
     );
-    await _repo.updateTask(updated);
+    await _repo.toggleTaskStatus(_task, nextDone);
     setState(() => _task = updated);
     widget.onTaskUpdated?.call(updated);
   }
@@ -474,18 +476,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   }
 
   String _formatRecurrenceValue(String rule, bool isArabic) {
-    final clean = rule.replaceAll('RRULE:FREQ=', '').toLowerCase();
-    if (!isArabic) return clean;
-    switch (clean) {
-      case 'daily':
-        return 'يومي';
-      case 'weekly':
-        return 'أسبوعي';
-      case 'monthly':
-        return 'شهري';
-      default:
-        return clean;
-    }
+    return RecurrenceEngine.formatHumanReadable(rule, isArabic: isArabic);
   }
 }
 

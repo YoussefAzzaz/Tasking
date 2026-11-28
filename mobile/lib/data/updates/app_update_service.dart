@@ -156,8 +156,8 @@ class AppUpdateService {
       );
     } catch (_) {
       // Fallback to pubspec default if PackageInfo unavailable in testing
-      _cachedCurrentVersion ??= '1.3.1';
-      _cachedCurrentBuildNumber ??= 26;
+      _cachedCurrentVersion ??= '1.3.2';
+      _cachedCurrentBuildNumber ??= 27;
       return SemanticVersion.parse(_cachedCurrentVersion!, _cachedCurrentBuildNumber);
     }
   }

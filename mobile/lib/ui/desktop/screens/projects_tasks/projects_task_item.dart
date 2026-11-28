@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/task_repository.dart';
+import '../../../../domain/recurrence_engine.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../widgets/desktop_checkbox.dart';
 import '../../widgets/priority_badge.dart';
@@ -99,6 +100,7 @@ class ProjectsTaskItem extends StatelessWidget {
                     ),
                   ),
                   if (task.dueDate != null ||
+                      task.isRecurring ||
                       task.isCollaborative ||
                       cleanSender.isNotEmpty) ...[
                     const SizedBox(height: 3),
@@ -166,6 +168,37 @@ class ProjectsTaskItem extends StatelessWidget {
                               fontWeight: (isOverdue || isDone)
                                   ? FontWeight.w600
                                   : FontWeight.normal,
+                            ),
+                          ),
+                        if (task.isRecurring)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AxisColors.tertiary.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.repeat_rounded,
+                                  size: 9.5,
+                                  color: AxisColors.tertiary,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  RecurrenceEngine.formatHumanReadable(
+                                    task.recurrenceRule,
+                                    isArabic: isArabic,
+                                  ),
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AxisColors.tertiary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                       ],

@@ -69,11 +69,55 @@ class QuickAddParser {
       remaining = remaining.replaceRange(estimateMatch.start, estimateMatch.end, ' ');
     }
 
-    // 5. Recurrence (every day, every 3 days ac, every week, every month, every 2 weeks)
-    var recMatch = RegExp(
-      r'\bevery (day|week|month|(\d+)\s*(days?|weeks?|months?))( ac)?\b',
+    // 5. Recurrence (every wednesday, every day, every 3 days ac, every week, every month, every 2 weeks)
+    var weekdayRecMatch = RegExp(
+      r'\bevery ((?:(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(?:\s*,\s*|\s+and\s+)?)+)( ac)?\b',
       caseSensitive: false,
     ).firstMatch(remaining);
+    if (weekdayRecMatch != null) {
+      final rawDays = weekdayRecMatch.group(1)!.toLowerCase();
+      const map = {
+        'monday': 'MO',
+        'mon': 'MO',
+        'tuesday': 'TU',
+        'tues': 'TU',
+        'tue': 'TU',
+        'wednesday': 'WE',
+        'wed': 'WE',
+        'thursday': 'TH',
+        'thurs': 'TH',
+        'thur': 'TH',
+        'thu': 'TH',
+        'friday': 'FR',
+        'fri': 'FR',
+        'saturday': 'SA',
+        'sat': 'SA',
+        'sunday': 'SU',
+        'sun': 'SU',
+      };
+      final codes = <String>[];
+      for (final token in rawDays.split(RegExp(r'(?:\s*,\s*|\s+and\s+|\s+)'))) {
+        final code = map[token.trim()];
+        if (code != null && !codes.contains(code)) {
+          codes.add(code);
+        }
+      }
+      if (codes.isNotEmpty) {
+        final completionPart = (weekdayRecMatch.group(2) != null &&
+                weekdayRecMatch.group(2)!.trim().isNotEmpty)
+            ? ';COMPLETION=1'
+            : '';
+        result.recurrence = 'RRULE:FREQ=WEEKLY;BYDAY=${codes.join(',')}$completionPart';
+        remaining = remaining.replaceRange(weekdayRecMatch.start, weekdayRecMatch.end, ' ');
+      }
+    }
+
+    var recMatch = result.recurrence == null
+        ? RegExp(
+            r'\bevery (day|week|month|(\d+)\s*(days?|weeks?|months?))( ac)?\b',
+            caseSensitive: false,
+          ).firstMatch(remaining)
+        : null;
     if (recMatch != null) {
       final unit = (recMatch.group(3) ?? recMatch.group(1) ?? 'day').toLowerCase();
       String freq = 'DAILY';
