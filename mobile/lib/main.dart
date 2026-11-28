@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:window_manager/window_manager.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
+import 'package:axis/core/security/secure_credential_vault.dart';
 import 'package:axis/core/widget_navigation_service.dart';
 import 'package:axis/core/desktop_scroll_behavior.dart';
 import 'package:axis/core/config/app_config.dart';
@@ -75,6 +76,7 @@ Future<void> main() async {
   // Initialize local SQLite + Supabase connector
   try {
     await openDatabase();
+    await SecureCredentialVault.init();
     await AuthService().init();
     await Future.wait([
       LocaleService().init(),
@@ -132,20 +134,22 @@ Future<void> _initBackgroundServices() async {
     }
   }());
 
-  // 2. Deterministic notification engine initialization first
+  // 2. Initialize notification channels and saved Adhan preferences BEFORE
+  // scheduling prayers so PrayerTimeService never races AdhanSoundService.
   try {
     await FocusSessionService().init();
   } catch (e) {
     debugPrint('[Background] FocusSessionService/Notification init error: $e');
   }
 
-  // 3. Parallel background service inits once notification channels are verified active
+  try {
+    await AdhanAlarmService().init();
+  } catch (e) {
+    debugPrint('[Background] AdhanAlarmService init error: $e');
+  }
+
+  // 3. Parallel background service inits once notification & Adhan sound state are ready
   await Future.wait<void>([
-    Future(
-      () => AdhanAlarmService().init().catchError((e) {
-        debugPrint('[Background] AdhanAlarmService init error: $e');
-      }),
-    ),
     Future(
       () => PrayerTimeService().init().catchError((e) {
         debugPrint('[Background] PrayerTimeService init error: $e');
@@ -204,25 +208,34 @@ class _AxisAppState extends State<AxisApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       AwesomeNotifications().setGlobalBadgeCounter(0).catchError((_) {});
       unawaited(AppWidgetSyncService().syncAll());
-      _triggerAutoUpdateCheck();
+      _triggerAutoUpdateCheck(fromResume: true);
     }
   }
 
-  Future<void> _triggerAutoUpdateCheck() async {
+  Future<void> _triggerAutoUpdateCheck({bool fromResume = false}) async {
+    // Root-cause fix: Auto-update prompts previously ran in 3 separate widgets
+    // (AxisApp, AxisHeader, DesktopCommandCenter) plus every lifecycle resume,
+    // omitted `dismissedVersion` and `currentVersion`, and stacked dialogs.
+    // Centralize here with cooldown, dismissal/session gating, and real version.
+    final updateService = AppUpdateService();
+    if (fromResume && updateService.isAutoCheckOnCooldown) return;
+    if (UpdateNoticeModal.isShowing) return;
+
     try {
-      final update = await AppUpdateService().checkForUpdate();
-      if (update != null && mounted) {
-        final currentVer = await AppUpdateService().getInstalledVersion();
-        if (!mounted) return;
-        if (update.shouldPrompt(
-          currentVersion: currentVer.toString(),
-          currentBuildNumber: currentVer.buildNumber,
-        )) {
-          final ctx = rootNavigatorKey.currentContext;
-          if (ctx != null && ctx.mounted) {
-            UpdateNoticeModal.show(ctx, updateInfo: update);
-          }
-        }
+      final update = await updateService.checkForUpdate();
+      if (update == null || !mounted) return;
+      final currentVer = await updateService.getInstalledVersion();
+      if (!mounted) return;
+      if (!updateService.shouldAutoPrompt(update, currentVer)) return;
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx != null && ctx.mounted && !UpdateNoticeModal.isShowing) {
+        updateService.markAutoPrompted(update.version);
+        UpdateNoticeModal.show(
+          ctx,
+          updateInfo: update,
+          currentVersion: currentVer.displayVersion,
+          updateService: updateService,
+        );
       }
     } catch (e) {
       debugPrint('[AutoUpdate] Error during auto update check: $e');
@@ -274,82 +287,88 @@ class _AxisAppState extends State<AxisApp> with WidgetsBindingObserver {
   }
 }
 
-/// Global cyberpunk-themed error boundary widget that safely displays exceptions
-/// without crashing the application shell or showing an unstyled red screen.
+/// Global error boundary widget that safely displays exceptions without crashing
+/// the application shell or showing an unstyled red screen.
 class GlobalErrorWidget extends StatelessWidget {
   const GlobalErrorWidget({super.key, required this.details});
   final FlutterErrorDetails details;
 
   @override
   Widget build(BuildContext context) {
+    final isAr = Localizations.maybeLocaleOf(context)?.languageCode == 'ar';
     return Material(
       color: AxisColors.canvasBase,
-      child: Center(
-        child: Container(
-          width: 480,
-          padding: const EdgeInsets.all(24),
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AxisColors.surfaceLow,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AxisColors.borderGlass2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 20,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AxisColors.warning.withValues(alpha: 0.15),
-                  border: Border.all(color: AxisColors.warning.withValues(alpha: 0.3)),
+      child: Directionality(
+        textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+        child: Center(
+          child: Container(
+            width: 480,
+            padding: const EdgeInsets.all(24),
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AxisColors.surfaceLow,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AxisColors.borderGlass2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 20,
                 ),
-                child: const Icon(Icons.warning_amber_rounded, color: AxisColors.warning, size: 24),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'WORKSPACE ANOMALY DETECTED',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  color: AxisColors.textHigh,
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AxisColors.warning.withValues(alpha: 0.15),
+                    border: Border.all(color: AxisColors.warning.withValues(alpha: 0.3)),
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded, color: AxisColors.warning, size: 24),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                kDebugMode
-                    ? details.exceptionAsString()
-                    : 'A transient rendering issue occurred. Your data is safely stored in local SQLite.',
-                textAlign: TextAlign.center,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: AxisColors.textMuted),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () {
-                  try {
-                    router.go('/today');
-                  } catch (_) {}
-                },
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Reload Workspace'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AxisColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                const SizedBox(height: 16),
+                Text(
+                  isAr ? 'تم اكتشاف خلل مؤقت في الواجهة' : 'WORKSPACE ANOMALY DETECTED',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: AxisColors.textHigh,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  kDebugMode
+                      ? details.exceptionAsString()
+                      : (isAr
+                          ? 'حدث خطأ مؤقت في العرض. بياناتك محفوظة بأمان محلياً.'
+                          : 'A transient rendering issue occurred. Your data is safely stored in local SQLite.'),
+                  textAlign: TextAlign.center,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: AxisColors.textMuted),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    try {
+                      router.go('/today');
+                    } catch (_) {}
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: Text(isAr ? 'إعادة تحميل مساحة العمل' : 'Reload Workspace'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AxisColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

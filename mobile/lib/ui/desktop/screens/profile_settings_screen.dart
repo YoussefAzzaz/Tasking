@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../core/theme.dart';
 import '../../../core/l10n/app_localizations.dart';
@@ -330,7 +330,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             children: [
               Text(
                 isAr ? 'الإعدادات / ملف المشغل' : 'SETTINGS / OPERATOR PROFILE',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.0,
@@ -342,7 +342,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 isAr ? 'الحساب والتخصيص' : 'Account & Customization',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                   color: AxisColors.textHigh,
@@ -355,7 +355,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     : 'Manage operator credentials, database synchronization, and entity labels',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted),
+                style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted),
               ),
             ],
           ),

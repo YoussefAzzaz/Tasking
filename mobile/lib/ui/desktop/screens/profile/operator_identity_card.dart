@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/auth_service.dart';
@@ -36,7 +36,9 @@ class OperatorIdentityCard extends StatelessWidget {
     return ValueListenableBuilder<UserProfile>(
       valueListenable: UserProfileRepository().profileNotifier,
       builder: (context, profile, _) {
-        final email = AuthService().currentUser?.email ?? 'station.local@axis.node';
+        final email = AuthService().currentUser?.email ??
+            AuthService().savedEmail ??
+            (isAr ? 'حساب محلي' : 'Local / Offline');
 
         return DesktopCard(
           child: Column(
@@ -115,7 +117,7 @@ class OperatorIdentityCard extends StatelessWidget {
                           isAr
                               ? 'ارفع صورة JPG أو PNG أو WebP. تتم المزامنة تلقائياً مع السحابة والهاتف.'
                               : 'Upload JPG, PNG, or WebP. Automatically synced to cloud and mobile.',
-                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                          style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                         ),
                       ],
                     ),
@@ -156,7 +158,7 @@ class OperatorIdentityCard extends StatelessWidget {
                 ),
                 child: Text(
                   email,
-                  style: GoogleFonts.spaceGrotesk(fontSize: 12, color: AxisColors.textDim),
+                  style: AxisFonts.spaceGrotesk(fontSize: 12, color: AxisColors.textDim),
                 ),
               ),
             ],
@@ -171,7 +173,7 @@ class OperatorIdentityCard extends StatelessWidget {
       padding: const EdgeInsets.only(right: 2, left: 2),
       child: Text(
         label,
-        style: GoogleFonts.spaceGrotesk(
+        style: AxisFonts.spaceGrotesk(
           fontSize: 10,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
@@ -192,10 +194,10 @@ class OperatorIdentityCard extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
-        style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh),
+        style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
+          hintStyle: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
           filled: false,
           fillColor: Colors.transparent,
           border: InputBorder.none,

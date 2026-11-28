@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -122,7 +122,7 @@ class _PendingSharesSectionState extends State<PendingSharesSection> {
                                 isArabic
                                     ? 'وارد الأصحاب (مشاركات واردة)'
                                     : 'SHARED WITH YOU',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: isArabic ? 0.0 : 1.1,
@@ -344,7 +344,7 @@ class _DeclinedSharesBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   headerTitle,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: isArabic ? 0.0 : 1.0,
@@ -421,7 +421,7 @@ class _DeclinedSharesBanner extends StatelessWidget {
                         children: [
                           AutoDirectionText(
                             messageText,
-                            style: GoogleFonts.getFont(
+                            style: AxisFonts.getFont(
                               'Geist',
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -636,7 +636,7 @@ class _PendingShareCardState extends State<_PendingShareCard> {
                     Expanded(
                       child: RichText(
                         text: TextSpan(
-                          style: GoogleFonts.getFont('Geist',
+                          style: AxisFonts.getFont('Geist',
                               fontSize: 12, color: AxisColors.textHigh),
                           children: [
                             TextSpan(
@@ -711,7 +711,7 @@ class _PendingShareCardState extends State<_PendingShareCard> {
                     Expanded(
                       child: AutoDirectionText(
                         share.title,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
                           color: AxisColors.textHigh,
@@ -768,7 +768,7 @@ class _PendingShareCardState extends State<_PendingShareCard> {
                   const SizedBox(height: 4),
                   AutoDirectionText(
                     share.notes!.trim(),
-                    style: GoogleFonts.getFont('Geist',
+                    style: AxisFonts.getFont('Geist',
                         fontSize: 11, color: AxisColors.textDim),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -798,7 +798,7 @@ class _PendingShareCardState extends State<_PendingShareCard> {
                     icon: const Icon(Icons.visibility_outlined, size: 14),
                     label: Text(
                       isArabic ? 'معاينة التفاصيل' : 'Preview',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -838,7 +838,7 @@ class _PendingShareCardState extends State<_PendingShareCard> {
                                     const SizedBox(width: 4),
                                     Text(
                                       _acceptButtonText(share, isArabic),
-                                      style: GoogleFonts.spaceGrotesk(
+                                      style: AxisFonts.spaceGrotesk(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold),
                                     ),
@@ -861,7 +861,7 @@ class _PendingShareCardState extends State<_PendingShareCard> {
                         ),
                         child: Text(
                           isArabic ? 'رفض' : 'Decline',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                               fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -1077,7 +1077,7 @@ class SharedItemPreviewDialog extends StatelessWidget {
                       children: [
                         Text(
                           share.senderName,
-                          style: GoogleFonts.getFont(
+                          style: AxisFonts.getFont(
                             'Geist',
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -1134,7 +1134,7 @@ class SharedItemPreviewDialog extends StatelessWidget {
               // Title
               AutoDirectionText(
                 share.title,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                   color: AxisColors.textHigh,
@@ -1157,7 +1157,7 @@ class SharedItemPreviewDialog extends StatelessWidget {
                 isArabic
                     ? (share.isNote ? 'المحتوى' : 'الوصف')
                     : (share.isNote ? 'Content' : 'Description'),
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: isArabic ? 0.0 : 0.8,
@@ -1178,7 +1178,7 @@ class SharedItemPreviewDialog extends StatelessWidget {
                   child: AutoDirectionText(
                     displayDesc,
                     key: const ValueKey('shared_item_preview_description'),
-                    style: GoogleFonts.getFont(
+                    style: AxisFonts.getFont(
                       'Geist',
                       fontSize: 13,
                       height: 1.45,
@@ -1213,7 +1213,7 @@ class SharedItemPreviewDialog extends StatelessWidget {
                       ),
                       child: Text(
                         isArabic ? 'رفض' : 'Decline',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1240,7 +1240,7 @@ class SharedItemPreviewDialog extends StatelessWidget {
                       icon: const Icon(Icons.check_rounded, size: 17),
                       label: Text(
                         isArabic ? 'قبول' : 'Accept',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w800,
                         ),

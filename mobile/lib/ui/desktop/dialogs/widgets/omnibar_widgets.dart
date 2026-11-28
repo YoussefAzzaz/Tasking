@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../widgets/telemetry_chip.dart';
@@ -88,7 +88,7 @@ class _SearchItemRowState extends State<SearchItemRow> {
                     widget.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.getFont(
+                    style: AxisFonts.getFont(
                       'Geist',
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -100,7 +100,7 @@ class _SearchItemRowState extends State<SearchItemRow> {
                   const SizedBox(width: 8),
                   Text(
                     widget.subtitle!,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11,
                       color: AxisColors.textDim,
                     ),
@@ -144,7 +144,7 @@ class OmnibarFooter extends StatelessWidget {
         children: [
           Text(
             'Navigate',
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               fontSize: 10,
               color: AxisColors.textDim,
             ),
@@ -158,7 +158,7 @@ class OmnibarFooter extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             'Open',
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               fontSize: 10,
               color: AxisColors.textDim,
             ),
@@ -172,7 +172,7 @@ class OmnibarFooter extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             'Close',
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               fontSize: 10,
               color: AxisColors.textDim,
             ),

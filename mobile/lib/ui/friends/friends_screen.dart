@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -77,7 +77,8 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   }
 
   void _openAddCompanionSheet() {
-    final code = _profileRepo.profileNotifier.value.friendCode ?? 'AX-7842';
+    // Root cause: fell back to fake 'AX-7842' when profile friendCode was null.
+    final code = _profileRepo.resolveDisplayFriendCode();
     AddCompanionSheet.show(context, code);
   }
 
@@ -112,7 +113,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                 const SizedBox(width: 8),
                 Text(
                   l10n.friendNotifications,
-                  style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
+                  style: AxisFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
                 ),
                 const Spacer(),
                 TextButton(
@@ -120,7 +121,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                     _friendRepo.clearFriendNotifications();
                     Navigator.of(ctx).pop();
                   },
-                  child: Text(l10n.clearNotifications, style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim)),
+                  child: Text(l10n.clearNotifications, style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim)),
                 ),
               ],
             ),
@@ -132,7 +133,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                   final logs = snapshot.data ?? [];
                   if (logs.isEmpty) {
                     return Center(
-                      child: Text(l10n.noNotificationsYet, style: GoogleFonts.getFont('Geist', color: AxisColors.textDim)),
+                      child: Text(l10n.noNotificationsYet, style: AxisFonts.getFont('Geist', color: AxisColors.textDim)),
                     );
                   }
                   return ListView.separated(
@@ -155,7 +156,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                             child: Row(
                               children: [
                                 Expanded(
-                                  child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh)),
+                                  child: Text(log.title, style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh)),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.close_rounded, size: 16, color: AxisColors.textDim),
@@ -192,7 +193,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
         centerTitle: false,
         title: Text(
           l10n.companions,
-          style: GoogleFonts.spaceGrotesk(
+          style: AxisFonts.spaceGrotesk(
             fontSize: 22,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
@@ -272,7 +273,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                           l10n.circle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700),
+                          style: AxisFonts.spaceGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -291,7 +292,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                           l10n.todaysBoard,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700),
+                          style: AxisFonts.spaceGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],

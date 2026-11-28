@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -50,7 +50,7 @@ class JournalDeckStreakCalendar extends StatelessWidget {
                 children: [
                   Text(
                     isAr ? 'سجل اليوميات' : 'JOURNAL DECK',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: AxisColors.textMuted,
@@ -62,7 +62,7 @@ class JournalDeckStreakCalendar extends StatelessWidget {
                       const SizedBox(width: 2),
                       Text(
                         streakLabel,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: streak > 0 ? AxisColors.warning : AxisColors.textDim,
@@ -99,7 +99,7 @@ class JournalDeckStreakCalendar extends StatelessWidget {
                     child: Center(
                       child: Text(
                         '${day.day}',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 9,
                           fontWeight: isToday || hasNote ? FontWeight.w700 : FontWeight.w500,
                           color: isToday

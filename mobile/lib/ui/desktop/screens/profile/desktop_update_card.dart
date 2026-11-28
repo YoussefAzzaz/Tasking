@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/updates/app_update_service.dart';
@@ -18,8 +18,8 @@ class DesktopUpdateCard extends StatefulWidget {
 
 class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
   late final AppUpdateService _service;
-  String _versionStr = '1.3.3';
-  int _buildNumber = 28;
+  String _versionStr = '1.3.4';
+  int _buildNumber = 29;
   bool _isChecking = false;
 
   @override
@@ -67,7 +67,7 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
             ),
             content: Text(
               isAr ? 'تعذر التحقق من التحديثات على الشبكة الحالية' : 'Unable to check for updates on current network',
-              style: GoogleFonts.spaceGrotesk(color: AxisColors.priorityHigh, fontSize: 12),
+              style: AxisFonts.spaceGrotesk(color: AxisColors.priorityHigh, fontSize: 12),
             ),
           ),
         );
@@ -89,7 +89,7 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
                     isAr
                         ? 'تطبيق Axis محدّث إلى أحدث إصدار (v$_versionStr)'
                         : 'Axis Desktop is up to date (v$_versionStr)',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AxisColors.textHigh,
@@ -157,7 +157,7 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
                           Expanded(
                             child: Text(
                               isAr ? 'إصدار سطح المكتب والتحديثات' : 'DESKTOP RELEASE & SYSTEM UPDATES',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.8,
@@ -177,7 +177,7 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
                             ),
                             child: Text(
                               isAr ? 'سجل التحديثات ↗' : 'Update Log ↗',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: AxisColors.tertiary,
@@ -189,7 +189,7 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
                       const SizedBox(height: 2),
                       Text(
                         'Axis System Engine v$_versionStr • ${_service.currentPlatform.toUpperCase()}',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: AxisFonts.jetBrainsMono(
                           fontSize: 10.5,
                           color: AxisColors.textDim,
                         ),
@@ -212,7 +212,7 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
                     icon: const Icon(Icons.history_rounded, size: 14, color: AxisColors.tertiary),
                     label: Text(
                       isAr ? 'سجل التحديثات' : 'Update Log',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                         color: AxisColors.tertiary,
@@ -263,7 +263,7 @@ class _DesktopUpdateCardState extends State<DesktopUpdateCard> {
                                 Flexible(
                                   child: Text(
                                     isAr ? 'فحص التحديثات' : 'Check for Updates',
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: AxisFonts.spaceGrotesk(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
                                       color: AxisColors.primarySoft,

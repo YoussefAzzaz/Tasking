@@ -17,6 +17,9 @@ class AdhanBootReceiver : BroadcastReceiver() {
                     AdhanKeepAliveService.startService(context)
                 } catch (_: Exception) {}
             }
+            // Root-cause fix: Android wipes AlarmManager alarms on device reboot or app replacement,
+            // so restore all non-expired saved Adhan alarms immediately on boot.
+            AdhanAlarmStore.rescheduleSavedAlarms(context)
             WidgetUiHelper.broadcastWidgetUpdate(context, TodayTasksWidgetProvider::class.java)
             WidgetUiHelper.broadcastWidgetUpdate(context, HabitStreakWidgetProvider::class.java)
             WidgetUiHelper.broadcastWidgetUpdate(context, PrayerTimesWidgetProvider::class.java)

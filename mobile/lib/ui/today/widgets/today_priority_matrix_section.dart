@@ -3,6 +3,7 @@ import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
+import 'package:axis/domain/gamification_engine.dart';
 import 'package:axis/ui/tasks/create_task_sheet.dart';
 import 'package:axis/ui/tasks/task_detail_sheet.dart';
 import 'priority_task_card.dart';
@@ -163,9 +164,10 @@ class TodayPriorityMatrixSection extends StatelessWidget {
             final badge = task.priority == 1
                 ? (isArabic ? 'P1 حرجة' : 'P1 CRITICAL')
                 : (task.priority == 2 ? (isArabic ? 'P2 متوسطة' : 'P2 MEDIUM') : (isArabic ? 'P3 منخفضة' : 'P3 LOW'));
-            final xp = task.priority == 1
-                ? 75
-                : (task.priority == 2 ? 50 : 25);
+            final xp = GamificationEngine.taskCompletionXp(
+              priority: task.priority,
+              isOnTime: true,
+            );
             final tag = task.tags != null && task.tags!.isNotEmpty
                 ? '@${task.tags!.split(',').first.trim().replaceAll('@', '')}'
                 : (task.projectId != null ? '#${task.projectId}' : (isArabic ? 'مهمة' : 'Task'));

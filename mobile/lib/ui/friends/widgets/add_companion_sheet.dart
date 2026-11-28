@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -138,9 +138,9 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(l10n.addCompanion, style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: AxisColors.textHigh)),
+                        Text(l10n.addCompanion, style: AxisFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: AxisColors.textHigh)),
                         const SizedBox(height: 2),
-                        Text(l10n.addCompanionDesc, style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted)),
+                        Text(l10n.addCompanionDesc, style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted)),
                       ],
                     ),
                   ),
@@ -178,30 +178,33 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(l10n.yourFriendCode.toUpperCase(), style: GoogleFonts.spaceGrotesk(fontSize: 9.5, fontWeight: FontWeight.w700, letterSpacing: 0.9, color: AxisColors.textDim)),
+                          Text(l10n.yourFriendCode.toUpperCase(), style: AxisFonts.spaceGrotesk(fontSize: 9.5, fontWeight: FontWeight.w700, letterSpacing: 0.9, color: AxisColors.textDim)),
                           const SizedBox(height: 2),
+                          // Root cause: fell back to hardcoded fake 'AX-7842' when empty; show '---' and disable copy.
                           Text(
-                            widget.myFriendCode.isNotEmpty ? widget.myFriendCode : 'AX-7842',
-                            style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: AxisColors.primarySoft),
+                            widget.myFriendCode.trim().isNotEmpty ? widget.myFriendCode.trim() : '---',
+                            style: AxisFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: AxisColors.primarySoft),
                           ),
                         ],
                       ),
                     ),
                     ElevatedButton.icon(
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        Clipboard.setData(ClipboardData(text: widget.myFriendCode));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(l10n.copyCodeSuccess),
-                            backgroundColor: AxisColors.surfaceLow,
-                            behavior: SnackBarBehavior.floating,
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      },
+                      onPressed: (widget.myFriendCode.trim().isNotEmpty && widget.myFriendCode.trim() != '---')
+                          ? () {
+                              HapticFeedback.lightImpact();
+                              Clipboard.setData(ClipboardData(text: widget.myFriendCode.trim()));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(l10n.copyCodeSuccess),
+                                  backgroundColor: AxisColors.surfaceLow,
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          : null,
                       icon: const Icon(Icons.copy_rounded, size: 13),
-                      label: Text(l10n.copy, style: GoogleFonts.getFont('Geist', fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      label: Text(l10n.copy, style: AxisFonts.getFont('Geist', fontSize: 11.5, fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AxisColors.primary.withValues(alpha: 0.22),
                         foregroundColor: AxisColors.primarySoft,
@@ -221,12 +224,12 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
               TextField(
                 controller: _searchCtrl,
                 textCapitalization: TextCapitalization.characters,
-                style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh, fontSize: 15, fontWeight: FontWeight.w600),
+                style: AxisFonts.spaceGrotesk(color: AxisColors.textHigh, fontSize: 15, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   labelText: l10n.friendCode,
-                  labelStyle: GoogleFonts.getFont('Geist', color: AxisColors.textDim, fontSize: 13),
+                  labelStyle: AxisFonts.getFont('Geist', color: AxisColors.textDim, fontSize: 13),
                   hintText: l10n.searchCompanionHint,
-                  hintStyle: GoogleFonts.getFont('Geist', color: AxisColors.textDim.withValues(alpha: 0.6), fontSize: 13),
+                  hintStyle: AxisFonts.getFont('Geist', color: AxisColors.textDim.withValues(alpha: 0.6), fontSize: 13),
                   prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AxisColors.primarySoft),
                   suffixIcon: _isSearching
                       ? const Padding(
@@ -292,7 +295,7 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                                   _foundCandidate!.status == 'accepted'
                                       ? l10n.alreadyFriends
                                       : (_foundCandidate!.status == 'pending' ? l10n.requestAlreadyPending : l10n.candidateFound),
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                     color: _foundCandidate!.status == 'accepted' ? AxisColors.success : AxisColors.primarySoft,
@@ -304,7 +307,7 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                           const Spacer(),
                           Text(
                             _foundCandidate!.friendCode ?? '',
-                            style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AxisColors.textDim),
+                            style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AxisColors.textDim),
                           ),
                         ],
                       ),
@@ -322,7 +325,7 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(_foundCandidate!.name, style: GoogleFonts.spaceGrotesk(fontSize: 17, fontWeight: FontWeight.w800, color: AxisColors.textHigh)),
+                                Text(_foundCandidate!.name, style: AxisFonts.spaceGrotesk(fontSize: 17, fontWeight: FontWeight.w800, color: AxisColors.textHigh)),
                                 const SizedBox(height: 2),
                                 Row(
                                   children: [
@@ -331,13 +334,13 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                                       decoration: BoxDecoration(color: AxisColors.surfaceHigh, borderRadius: BorderRadius.circular(4)),
                                       child: Text(
                                         '${l10n.isArabic ? "المستوى" : "Lv."} ${_foundCandidate!.level}',
-                                        style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.warning),
+                                        style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.warning),
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    Text(_foundCandidate!.title, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim)),
+                                    Text(_foundCandidate!.title, style: AxisFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim)),
                                     const SizedBox(width: 8),
-                                    Text('• ${_foundCandidate!.totalXp} XP', style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim)),
+                                    Text('• ${_foundCandidate!.totalXp} XP', style: AxisFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim)),
                                   ],
                                 ),
                               ],
@@ -362,7 +365,7 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                       const Icon(Icons.info_outline_rounded, size: 20, color: AxisColors.warning),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(l10n.noCompanionFound, style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted)),
+                        child: Text(l10n.noCompanionFound, style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted)),
                       ),
                     ],
                   ),
@@ -428,7 +431,7 @@ class _AddCompanionSheetState extends State<AddCompanionSheet> {
                             const SizedBox(width: 8),
                             Text(
                               _foundCandidate != null ? l10n.sendRequestTo(_foundCandidate!.name) : l10n.sendConnectionRequest,
-                              style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+                              style: AxisFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.3),
                             ),
                           ],
                         ),

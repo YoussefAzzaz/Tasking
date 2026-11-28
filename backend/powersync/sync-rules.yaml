@@ -99,11 +99,24 @@ streams:
         FROM prayers
         WHERE user_id = auth.user_id()
 
-      # ── User Profiles (XP, Level & Friend Directory) ────────────────────────
+      # ── User Profiles (Own Profile & Active Companions/Share Partners) ───────
       - SELECT
           id, user_id, created_at, updated_at,
           name, title, avatar_color, avatar_url, total_xp, level, friend_code
         FROM user_profiles
+        WHERE user_id = auth.user_id()
+           OR user_id IN (
+             SELECT addressee_id FROM friendships WHERE requester_id = auth.user_id()
+           )
+           OR user_id IN (
+             SELECT requester_id FROM friendships WHERE addressee_id = auth.user_id()
+           )
+           OR user_id IN (
+             SELECT sender_id FROM companion_shares WHERE recipient_id = auth.user_id()
+           )
+           OR user_id IN (
+             SELECT recipient_id FROM companion_shares WHERE sender_id = auth.user_id()
+           )
 
       # ── Friendships (Mutual Connections) ───────────────────────────────────
       - SELECT
@@ -117,6 +130,14 @@ streams:
           streak_days, habits_done, habits_total, created_at, updated_at
         FROM daily_prayer_status
         WHERE user_id = auth.user_id()
+           OR user_id IN (
+             SELECT addressee_id FROM friendships
+             WHERE requester_id = auth.user_id() AND status = 'accepted'
+           )
+           OR user_id IN (
+             SELECT requester_id FROM friendships
+             WHERE addressee_id = auth.user_id() AND status = 'accepted'
+           )
 
       # ── Friend Activity Logs ────────────────────────────────────────────────
       - SELECT

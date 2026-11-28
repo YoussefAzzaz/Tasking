@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/focus_session_service.dart';
@@ -30,7 +30,7 @@ void showDesktopTaskSelectionDialog(BuildContext context) {
             children: [
               Text(
                 isAr ? 'ربط مهمة بجلسة التركيز' : 'ATTACH TASK TO FOCUS SESSION',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
@@ -48,7 +48,7 @@ void showDesktopTaskSelectionDialog(BuildContext context) {
                       return Center(
                         child: Text(
                           isAr ? 'لا توجد مهام نشطة حالياً.' : 'No active deliverables found.',
-                          style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                          style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                         ),
                       );
                     }
@@ -65,14 +65,14 @@ void showDesktopTaskSelectionDialog(BuildContext context) {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             title: Text(
                               t.title,
-                              style: GoogleFonts.spaceGrotesk(fontSize: 13, color: AxisColors.textHigh),
+                              style: AxisFonts.spaceGrotesk(fontSize: 13, color: AxisColors.textHigh),
                             ),
                             subtitle: t.notes != null && t.notes!.isNotEmpty
                                 ? Text(
                                     t.notes!,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted),
+                                    style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted),
                                   )
                                 : null,
                             onTap: () {

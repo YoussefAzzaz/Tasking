@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 /// Obsidian Kinetic design system — sourced directly from DESIGN.md
 class AxisColors {
@@ -68,73 +68,79 @@ class AxisTheme {
   static const List<String> _sansFallbacks = ['Roboto', 'Segoe UI', 'Arial', 'sans-serif'];
   static const List<String> _monoFallbacks = ['Courier New', 'monospace'];
 
-  static TextTheme _buildTextTheme() {
+  // Root cause: AxisTheme.light reused the dark TextTheme with near-white textHigh/textMuted
+  // colors on pale light backgrounds; parameterize foreground tones for light surfaces.
+  static TextTheme _buildTextTheme({bool isLight = false}) {
+    final primaryText = isLight ? const Color(0xFF0F172A) : AxisColors.textHigh;
+    final secondaryText = isLight ? const Color(0xFF475569) : AxisColors.textMuted;
+    final subtleText = isLight ? const Color(0xFF64748B) : AxisColors.textDim;
+
     return TextTheme(
       // headline-xl → displayLarge
-      displayLarge: GoogleFonts.spaceGrotesk(
+      displayLarge: AxisFonts.spaceGrotesk(
         fontSize: 40, fontWeight: FontWeight.w700,
         height: 48 / 40, letterSpacing: -1.2,
-        color: AxisColors.textHigh,
+        color: primaryText,
       ).copyWith(fontFamilyFallback: _sansFallbacks),
       // headline-lg → displayMedium
-      displayMedium: GoogleFonts.spaceGrotesk(
+      displayMedium: AxisFonts.spaceGrotesk(
         fontSize: 28, fontWeight: FontWeight.w600,
         height: 36 / 28, letterSpacing: -0.56,
-        color: AxisColors.textHigh,
+        color: primaryText,
       ).copyWith(fontFamilyFallback: _sansFallbacks),
       // headline-md → displaySmall
-      displaySmall: GoogleFonts.spaceGrotesk(
+      displaySmall: AxisFonts.spaceGrotesk(
         fontSize: 22, fontWeight: FontWeight.w600,
         height: 30 / 22, letterSpacing: -0.33,
-        color: AxisColors.textHigh,
+        color: primaryText,
       ).copyWith(fontFamilyFallback: _sansFallbacks),
       // title-lg → titleLarge
-      titleLarge: GoogleFonts.getFont('Geist',
+      titleLarge: AxisFonts.getFont('Geist',
         fontSize: 18, fontWeight: FontWeight.w600,
         height: 24 / 18, letterSpacing: -0.18,
-        color: AxisColors.textHigh,
+        color: primaryText,
       ).copyWith(fontFamilyFallback: _sansFallbacks),
       // title-md → titleMedium
-      titleMedium: GoogleFonts.getFont('Geist',
+      titleMedium: AxisFonts.getFont('Geist',
         fontSize: 16, fontWeight: FontWeight.w600,
         height: 22 / 16, letterSpacing: -0.16,
-        color: AxisColors.textHigh,
+        color: primaryText,
       ).copyWith(fontFamilyFallback: _sansFallbacks),
       // body-lg → bodyLarge
-      bodyLarge: GoogleFonts.getFont('Geist',
+      bodyLarge: AxisFonts.getFont('Geist',
         fontSize: 16, fontWeight: FontWeight.w400,
         height: 24 / 16,
-        color: AxisColors.textHigh,
+        color: primaryText,
       ).copyWith(fontFamilyFallback: _sansFallbacks),
       // body-md → bodyMedium
-      bodyMedium: GoogleFonts.getFont('Geist',
+      bodyMedium: AxisFonts.getFont('Geist',
         fontSize: 14, fontWeight: FontWeight.w400,
         height: 20 / 14,
-        color: AxisColors.textMuted,
+        color: secondaryText,
       ).copyWith(fontFamilyFallback: _sansFallbacks),
       // body-sm → bodySmall
-      bodySmall: GoogleFonts.getFont('Geist',
+      bodySmall: AxisFonts.getFont('Geist',
         fontSize: 12, fontWeight: FontWeight.w400,
         height: 16 / 12,
-        color: AxisColors.textDim,
+        color: subtleText,
       ).copyWith(fontFamilyFallback: _sansFallbacks),
       // label-lg → labelLarge
-      labelLarge: GoogleFonts.spaceMono(
+      labelLarge: AxisFonts.spaceMono(
         fontSize: 13, fontWeight: FontWeight.w700,
         height: 16 / 13, letterSpacing: 0.52,
-        color: AxisColors.textMuted,
+        color: secondaryText,
       ).copyWith(fontFamilyFallback: _monoFallbacks),
       // label-md → labelMedium
-      labelMedium: GoogleFonts.spaceMono(
+      labelMedium: AxisFonts.spaceMono(
         fontSize: 11, fontWeight: FontWeight.w600,
         height: 14 / 11, letterSpacing: 0.66,
-        color: AxisColors.textMuted,
+        color: secondaryText,
       ).copyWith(fontFamilyFallback: _monoFallbacks),
       // label-sm → labelSmall
-      labelSmall: GoogleFonts.spaceMono(
+      labelSmall: AxisFonts.spaceMono(
         fontSize: 10, fontWeight: FontWeight.w500,
         height: 12 / 10, letterSpacing: 0.8,
-        color: AxisColors.textDim,
+        color: subtleText,
       ).copyWith(fontFamilyFallback: _monoFallbacks),
     );
   }
@@ -162,7 +168,7 @@ class AxisTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AxisColors.surfaceHigh,
-        contentTextStyle: GoogleFonts.getFont(
+        contentTextStyle: AxisFonts.getFont(
           'Geist',
           fontSize: 13.5,
           fontWeight: FontWeight.w600,
@@ -206,7 +212,7 @@ class AxisTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AxisColors.primary, width: 1.5),
         ),
-        hintStyle: GoogleFonts.getFont('Geist',
+        hintStyle: AxisFonts.getFont('Geist',
           fontSize: 16, color: AxisColors.textDim),
       ),
     );
@@ -223,7 +229,7 @@ class AxisTheme {
       ),
       snackBarTheme: base.snackBarTheme.copyWith(
         backgroundColor: AxisColors.surfaceLowest,
-        contentTextStyle: GoogleFonts.getFont(
+        contentTextStyle: AxisFonts.getFont(
           'Geist',
           fontSize: 14,
           fontWeight: FontWeight.bold,
@@ -250,7 +256,7 @@ class AxisTheme {
 
   /// Clean light theme alternative
   static ThemeData get light {
-    final textTheme = _buildTextTheme();
+    final textTheme = _buildTextTheme(isLight: true);
     return ThemeData(
       brightness: Brightness.light,
       scaffoldBackgroundColor: const Color(0xFFF1F5F9),
@@ -271,7 +277,7 @@ class AxisTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: const Color(0xFF0F172A),
-        contentTextStyle: GoogleFonts.getFont(
+        contentTextStyle: AxisFonts.getFont(
           'Geist',
           fontSize: 13.5,
           fontWeight: FontWeight.w600,

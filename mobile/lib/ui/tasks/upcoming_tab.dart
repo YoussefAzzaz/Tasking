@@ -181,10 +181,9 @@ class _UpcomingTabState extends State<UpcomingTab> {
                                           ),
                                         ),
                                         const SizedBox(width: 4),
-                                        Icon(
-                                          context.isArabic
-                                              ? Icons.arrow_back_ios_rounded
-                                              : Icons.arrow_forward_ios_rounded,
+                                        // Root cause: arrow_forward_ios_rounded auto-mirrors in RTL; ternary flipped twice.
+                                        const Icon(
+                                          Icons.arrow_forward_ios_rounded,
                                           size: 11,
                                           color: AxisColors.error,
                                         ),
@@ -317,8 +316,7 @@ class UpcomingSection extends StatelessWidget {
                       ToggleTaskStatusRequested(task: task, isDone: checked),
                     );
                   } catch (_) {
-                    final updated = task.copyWith(status: checked ? 'done' : 'todo');
-                    await repo.updateTask(updated);
+                    await repo.toggleTaskStatus(task, checked);
                   }
                 },
                 onTap: () => showModalBottomSheet(

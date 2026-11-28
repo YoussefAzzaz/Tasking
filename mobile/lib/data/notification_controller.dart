@@ -9,6 +9,7 @@ import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
 import 'package:axis/ui/prayers/adhan_full_screen_alarm.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/data/prayers/adhan_notification_channels.dart';
 import 'package:axis/data/habit_repository.dart';
 import 'package:axis/data/habit_notification_service.dart';
 
@@ -223,66 +224,13 @@ class NotificationController {
   @pragma("vm:entry-point")
   static Future<void> onNotificationDisplayedMethod(
       ReceivedNotification receivedNotification) async {
-    if (receivedNotification.channelKey != null &&
-        receivedNotification.channelKey!.startsWith('fajr_alarm_channel')) {
-      final isDone = await AdhanAlarmService().isPrayerCompletedToday('fajr');
-      final isHandled = await AdhanAlarmService().isAdhanHandledOrDismissedToday('fajr');
-      if (isDone || isHandled) {
-        if (receivedNotification.id != null) {
-          await AwesomeNotifications().dismiss(receivedNotification.id!);
-          await AwesomeNotifications().cancel(receivedNotification.id!);
-          await AwesomeNotifications().cancelSchedule(receivedNotification.id!);
-        }
-        await AdhanAlarmService().stopAlarmSound();
-      }
-      return;
-    }
-
-    // When an Adhan notification is displayed (foreground or background),
-    // skip if already marked done or dismissed today; otherwise open AdhanFullScreenAlarm.
-    if (receivedNotification.channelKey != null &&
-        receivedNotification.channelKey!.startsWith('prayer_adhan_channel')) {
-      final payload = receivedNotification.payload;
-      final prayerName = payload?['prayer_name'];
-      final prayerId = payload?['prayer_id'];
-      final prayerTime = payload?['prayer_time'];
-      final lookup = (prayerId != null && prayerId.isNotEmpty)
-          ? prayerId
-          : (prayerName ?? '');
-      if (lookup.isNotEmpty &&
-          (await AdhanAlarmService().isPrayerCompletedToday(lookup) ||
-           await AdhanAlarmService().isAdhanHandledOrDismissedToday(lookup))) {
-        if (receivedNotification.id != null) {
-          await AwesomeNotifications().dismiss(receivedNotification.id!);
-          await AwesomeNotifications().cancel(receivedNotification.id!);
-          await AwesomeNotifications().cancelSchedule(receivedNotification.id!);
-        }
-        await AdhanAlarmService().stopAlarmSound();
-        return;
-      }
-      if (AdhanAlarmService.isAfterAdhanTime(
-        prayerTime: prayerTime,
-        prayerName: prayerName,
-      )) {
-        await AdhanAlarmService().stopAlarmSound();
-        return;
-      }
-      if (prayerName != null) {
-        final sendPort = IsolateNameServer.lookupPortByName('notification_action_port');
-        if (sendPort != null) {
-          sendPort.send({
-            'key': 'SHOW_ADHAN',
-            'channelKey': receivedNotification.channelKey ?? 'prayer_adhan_channel',
-            'payload': payload,
-          });
-        } else {
-          AdhanAlarmService().handleAdhanAction(
-            prayerName: prayerName,
-            prayerId: prayerId,
-            prayerTime: prayerTime,
-          );
-        }
-      }
+    // Root-cause fix: `fajr_alarm_channel*` previously returned early here without
+    // foregrounding or launching AdhanFullScreenAlarm, causing Fajr to behave
+    // differently from Dhuhr/Asr/Maghrib/Isha. Route all 5 Adhan channels uniformly.
+    if (AdhanNotificationChannels.isAnyAdhanChannel(
+      receivedNotification.channelKey,
+    )) {
+      await _handleAdhanNotificationDisplayed(receivedNotification);
       return;
     }
 
@@ -317,6 +265,58 @@ class NotificationController {
           receivedNotification.payload?['is_checkpoint'] == 'true';
       if (isCheckpoint) {
         unawaited(HabitNotificationService().refillQueue());
+      }
+    }
+  }
+
+  static Future<void> _handleAdhanNotificationDisplayed(
+      ReceivedNotification receivedNotification) async {
+    final isFajrChannel = AdhanNotificationChannels.isFajrAlarmChannel(
+      receivedNotification.channelKey,
+    );
+    final payload = receivedNotification.payload;
+    final prayerName = payload?['prayer_name'] ?? (isFajrChannel ? 'Fajr' : null);
+    final prayerId = payload?['prayer_id'];
+    final prayerTime = payload?['prayer_time'];
+    final lookup = (prayerId != null && prayerId.isNotEmpty)
+        ? prayerId
+        : (prayerName ?? (isFajrChannel ? 'fajr' : ''));
+
+    if (lookup.isNotEmpty &&
+        (await AdhanAlarmService().isPrayerCompletedToday(lookup) ||
+            await AdhanAlarmService().isAdhanHandledOrDismissedToday(lookup))) {
+      if (receivedNotification.id != null) {
+        await AwesomeNotifications().dismiss(receivedNotification.id!);
+        await AwesomeNotifications().cancel(receivedNotification.id!);
+        await AwesomeNotifications().cancelSchedule(receivedNotification.id!);
+      }
+      await AdhanAlarmService().stopAlarmSound();
+      return;
+    }
+
+    if (AdhanAlarmService.isAfterAdhanTime(
+      prayerTime: prayerTime,
+      prayerName: prayerName,
+    )) {
+      await AdhanAlarmService().stopAlarmSound();
+      return;
+    }
+
+    if (prayerName != null) {
+      final sendPort = IsolateNameServer.lookupPortByName('notification_action_port');
+      if (sendPort != null) {
+        sendPort.send({
+          'key': 'SHOW_ADHAN',
+          'channelKey': receivedNotification.channelKey ??
+              AdhanNotificationChannels.prayerDefault,
+          'payload': payload,
+        });
+      } else {
+        AdhanAlarmService().handleAdhanAction(
+          prayerName: prayerName,
+          prayerId: prayerId,
+          prayerTime: prayerTime,
+        );
       }
     }
   }

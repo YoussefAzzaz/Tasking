@@ -6,10 +6,12 @@ import 'package:axis/data/neural_sound_service.dart';
 import 'package:axis/domain/models/focus_session_config.dart';
 import 'package:axis/data/notification_controller.dart';
 import 'package:axis/data/focus/focus_notification_manager.dart';
+import 'package:axis/data/focus/focus_session_persistence.dart';
 
 export 'package:axis/data/notification_controller.dart';
 export 'package:axis/domain/models/focus_session_config.dart';
 export 'package:axis/data/focus/focus_notification_manager.dart';
+export 'package:axis/data/focus/focus_session_persistence.dart' show FocusYieldBreakdown;
 
 class FocusSessionService with WidgetsBindingObserver {
   static final FocusSessionService _instance = FocusSessionService._internal();
@@ -37,56 +39,94 @@ class FocusSessionService with WidgetsBindingObserver {
 
   FocusSessionConfig _config = const FocusSessionConfig();
   FocusSessionConfig get config => _config;
-
   Task? _attachedTask;
   Task? get attachedTask => _attachedTask;
-
   String _selectedSoundscape = 'Gentle Rain';
   String get selectedSoundscape => _selectedSoundscape;
-
   int _totalSeconds = 25 * 60;
   int get totalSeconds => _totalSeconds;
-
   int _remainingSeconds = 25 * 60;
   int get remainingSeconds => _remainingSeconds;
-
   bool _isBreak = false;
   bool get isBreak => _isBreak;
-
   int _completedCycles = 0;
   int get completedCycles => _completedCycles;
-
   bool _isRunning = false;
   bool get isRunning => _isRunning;
-
   bool _isSessionActive = false;
   bool get isSessionActive => _isSessionActive;
-
   DateTime? _targetEndTime;
   DateTime? get targetEndTime => _targetEndTime;
 
   Timer? _ticker;
 
-  final ValueNotifier<int> remainingSecondsNotifier =
-      ValueNotifier<int>(25 * 60);
-  final ValueNotifier<bool> isRunningNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> isSessionActiveNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> isBreakNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<int> completedCyclesNotifier = ValueNotifier<int>(0);
-  final ValueNotifier<Task?> attachedTaskNotifier = ValueNotifier<Task?>(null);
-  final ValueNotifier<String> soundscapeNotifier =
-      ValueNotifier<String>('Gentle Rain');
-  final ValueNotifier<FocusSessionConfig> configNotifier =
-      ValueNotifier<FocusSessionConfig>(const FocusSessionConfig());
+  final remainingSecondsNotifier = ValueNotifier<int>(25 * 60);
+  final isRunningNotifier = ValueNotifier<bool>(false);
+  final isSessionActiveNotifier = ValueNotifier<bool>(false);
+  final isBreakNotifier = ValueNotifier<bool>(false);
+  final completedCyclesNotifier = ValueNotifier<int>(0);
+  final attachedTaskNotifier = ValueNotifier<Task?>(null);
+  final soundscapeNotifier = ValueNotifier<String>('Gentle Rain');
+  final configNotifier = ValueNotifier<FocusSessionConfig>(const FocusSessionConfig());
 
-  final StreamController<int> _completionStreamController =
-      StreamController<int>.broadcast();
+  final _completionStreamController = StreamController<int>.broadcast();
   Stream<int> get onSessionCompleted => _completionStreamController.stream;
 
+  void _applyRestoredValues(FocusRestoredState resolved) {
+    _isBreak = resolved.isBreak;
+    isBreakNotifier.value = _isBreak;
+    _completedCycles = resolved.completedCycles;
+    completedCyclesNotifier.value = _completedCycles;
+    _totalSeconds = resolved.totalSeconds;
+    _selectedSoundscape = resolved.selectedSoundscape;
+    soundscapeNotifier.value = _selectedSoundscape;
+    _remainingSeconds = resolved.remainingSeconds;
+    remainingSecondsNotifier.value = _remainingSeconds;
+    _isSessionActive = resolved.isSessionActive;
+    isSessionActiveNotifier.value = _isSessionActive;
+    _isRunning = resolved.isRunning;
+    isRunningNotifier.value = _isRunning;
+    _targetEndTime = resolved.targetEndTime;
+  }
+
   Future<void> init() async {
+    await restorePersistedState();
     if (!isSupportedPlatform) return;
     NotificationController.initializeIsolateReceivePort();
     await _notificationManager.initNotifications();
+  }
+
+  /// Restores active/paused countdown state persisted before an OS process kill.
+  @visibleForTesting
+  Future<void> restorePersistedState() async {
+    final snapshot = await FocusSessionPersistence.load();
+    if (snapshot == null) return;
+    final resolved = FocusSessionPersistence.resolveSnapshot(snapshot);
+    if (!resolved.shouldRestore) return;
+    _applyRestoredValues(resolved);
+    if (resolved.expiredWhileKilled) {
+      await _onComplete();
+    } else if (_isRunning) {
+      _ticker?.cancel();
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    }
+  }
+
+  void _persistSnapshot() {
+    if (!_isSessionActive) {
+      unawaited(FocusSessionPersistence.clear());
+      return;
+    }
+    unawaited(FocusSessionPersistence.save(FocusSessionSnapshot(
+      isRunning: _isRunning,
+      isBreak: _isBreak,
+      isSessionActive: _isSessionActive,
+      completedCycles: _completedCycles,
+      totalSeconds: _totalSeconds,
+      remainingSeconds: _remainingSeconds,
+      targetEndTimeUtc: _targetEndTime,
+      selectedSoundscape: _selectedSoundscape,
+    )));
   }
 
   @override
@@ -149,12 +189,24 @@ class FocusSessionService with WidgetsBindingObserver {
     }
   }
 
+  void _haltRunningTicker() {
+    _isRunning = false;
+    isRunningNotifier.value = false;
+    _ticker?.cancel();
+    _ticker = null;
+    _targetEndTime = null;
+    _soundService.stop();
+  }
+
+  void _stageSeconds(int seconds) {
+    _totalSeconds = seconds;
+    _remainingSeconds = seconds;
+    remainingSecondsNotifier.value = seconds;
+  }
+
   void startTimer() {
     if (_remainingSeconds <= 0) {
-      _totalSeconds =
-          (_isBreak ? _config.shortBreakMinutes : _config.focusMinutes) * 60;
-      _remainingSeconds = _totalSeconds;
-      remainingSecondsNotifier.value = _remainingSeconds;
+      _stageSeconds((_isBreak ? _config.shortBreakMinutes : _config.focusMinutes) * 60);
     }
 
     _isRunning = true;
@@ -163,16 +215,12 @@ class FocusSessionService with WidgetsBindingObserver {
     isSessionActiveNotifier.value = true;
     _targetEndTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
 
-    if (_config.soundscapeAutoPlay) {
-      _soundService.play(_selectedSoundscape);
-    }
+    if (_config.soundscapeAutoPlay) _soundService.play(_selectedSoundscape);
 
     _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _tick();
-    });
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
 
-    // Update notification immediately on start
+    _persistSnapshot();
     _showPinnedNotification();
     if (_targetEndTime != null) {
       _notificationManager.scheduleCompletionNotification(
@@ -194,35 +242,25 @@ class FocusSessionService with WidgetsBindingObserver {
         _ticker?.cancel();
         _onComplete();
         return;
-      } else {
-        _remainingSeconds = diff;
-        remainingSecondsNotifier.value = _remainingSeconds;
       }
+      _remainingSeconds = diff;
+      remainingSecondsNotifier.value = diff;
+    } else if (_remainingSeconds > 0) {
+      _remainingSeconds--;
+      remainingSecondsNotifier.value = _remainingSeconds;
     } else {
-      if (_remainingSeconds > 0) {
-        _remainingSeconds--;
-        remainingSecondsNotifier.value = _remainingSeconds;
-      } else {
-        _ticker?.cancel();
-        _onComplete();
-        return;
-      }
+      _ticker?.cancel();
+      _onComplete();
+      return;
     }
 
-    // Throttle notification updates to prevent battery drain and IPC saturation.
-    // Full countdown is still updated every second in-app via remainingSecondsNotifier.
-    if (_remainingSeconds % 30 == 0 || _remainingSeconds <= 10) {
-      _showPinnedNotification();
-    }
+    if (_remainingSeconds % 30 == 0 || _remainingSeconds <= 10) _showPinnedNotification();
   }
 
   void pauseTimer() {
-    _isRunning = false;
-    isRunningNotifier.value = false;
-    _ticker?.cancel();
-    _targetEndTime = null;
-    _soundService.stop();
+    _haltRunningTicker();
     _notificationManager.cancelScheduledCompletion();
+    _persistSnapshot();
     _showPinnedNotification(isPaused: true);
   }
 
@@ -238,26 +276,18 @@ class FocusSessionService with WidgetsBindingObserver {
       );
     }
     remainingSecondsNotifier.value = _remainingSeconds;
-    if (_isRunning) {
-      _showPinnedNotification();
-    }
+    _persistSnapshot();
+    if (_isRunning) _showPinnedNotification();
   }
 
   void resetTimer({int? minutes, bool isBreak = false}) {
-    _isRunning = false;
-    isRunningNotifier.value = false;
+    _haltRunningTicker();
     _isSessionActive = false;
     isSessionActiveNotifier.value = false;
-    _ticker?.cancel();
-    _targetEndTime = null;
-    _soundService.stop();
     _isBreak = isBreak;
     isBreakNotifier.value = isBreak;
-    _totalSeconds =
-        (minutes ?? (_isBreak ? _config.shortBreakMinutes : _config.focusMinutes)) *
-            60;
-    _remainingSeconds = _totalSeconds;
-    remainingSecondsNotifier.value = _remainingSeconds;
+    _stageSeconds((minutes ?? (_isBreak ? _config.shortBreakMinutes : _config.focusMinutes)) * 60);
+    _persistSnapshot();
     _notificationManager.cancelNotification();
   }
 
@@ -267,20 +297,15 @@ class FocusSessionService with WidgetsBindingObserver {
         (_config.cyclesBeforeLongBreak > 0 &&
             _completedCycles > 0 &&
             (_completedCycles % _config.cyclesBeforeLongBreak == 0));
-    final breakMin = minutes ??
-        (useLong ? _config.longBreakMinutes : _config.shortBreakMinutes);
+    final breakMin = minutes ?? (useLong ? _config.longBreakMinutes : _config.shortBreakMinutes);
     resetTimer(minutes: breakMin, isBreak: true);
-    if (autoStart) {
-      startTimer();
-    }
+    if (autoStart) startTimer();
   }
 
   /// Sets up and starts or prepares a normal deep focus cycle.
   void startFocus({int? minutes, bool autoStart = false}) {
     resetTimer(minutes: minutes ?? _config.focusMinutes, isBreak: false);
-    if (autoStart) {
-      startTimer();
-    }
+    if (autoStart) startTimer();
   }
 
   /// Explicitly completes the current session cycle (for testing or manual completion triggers).
@@ -288,31 +313,22 @@ class FocusSessionService with WidgetsBindingObserver {
 
   /// Immediately terminates any active focus session, audio, notifications, and timer.
   void terminateSession() {
-    _isRunning = false;
-    isRunningNotifier.value = false;
+    _haltRunningTicker();
     _isSessionActive = false;
     isSessionActiveNotifier.value = false;
-    _ticker?.cancel();
-    _targetEndTime = null;
-    _soundService.stop();
     _attachedTask = null;
     attachedTaskNotifier.value = null;
     _isBreak = false;
     isBreakNotifier.value = false;
     _completedCycles = 0;
     completedCyclesNotifier.value = 0;
-    _totalSeconds = _config.focusMinutes * 60;
-    _remainingSeconds = _totalSeconds;
-    remainingSecondsNotifier.value = _remainingSeconds;
+    _stageSeconds(_config.focusMinutes * 60);
+    _persistSnapshot();
     _notificationManager.cancelNotification();
   }
 
   Future<void> _onComplete() async {
-    _isRunning = false;
-    isRunningNotifier.value = false;
-    _targetEndTime = null;
-    _soundService.stop();
-
+    _haltRunningTicker();
     final bool wasBreak = _isBreak;
 
     if (!wasBreak) {
@@ -320,60 +336,49 @@ class FocusSessionService with WidgetsBindingObserver {
       completedCyclesNotifier.value = _completedCycles;
 
       final completedFocusMin = _totalSeconds ~/ 60;
-      const xp = 113;
+      final xp = FocusYieldBreakdown.fromMinutes(
+        completedFocusMin > 0 ? completedFocusMin : _config.focusMinutes,
+      ).totalXp;
 
-      // Determine next break duration
       final bool nextIsLongBreak = _config.cyclesBeforeLongBreak > 0 &&
           (_completedCycles % _config.cyclesBeforeLongBreak == 0);
-      final breakMin = nextIsLongBreak
-          ? _config.longBreakMinutes
-          : _config.shortBreakMinutes;
+      final breakMin = nextIsLongBreak ? _config.longBreakMinutes : _config.shortBreakMinutes;
 
-      // Stage break session
       _isBreak = true;
       isBreakNotifier.value = true;
-      _totalSeconds = breakMin * 60;
-      _remainingSeconds = _totalSeconds;
-      remainingSecondsNotifier.value = _remainingSeconds;
+      _stageSeconds(breakMin * 60);
+      _persistSnapshot();
 
-      // Broadcast XP earned to listeners (positive value indicates focus session completed)
       _completionStreamController.add(xp);
-      _notificationManager.showCompletedNotification(
-        xp: xp,
-        isBreak: false,
-        attachedTask: _attachedTask,
-      );
+      _notificationManager.showCompletedNotification(xp: xp, isBreak: false, attachedTask: _attachedTask);
 
       try {
         await _focusRepo.logFocusSession(
           taskId: _attachedTask?.id,
-          durationMin:
-              completedFocusMin > 0 ? completedFocusMin : _config.focusMinutes,
+          durationMin: completedFocusMin > 0 ? completedFocusMin : _config.focusMinutes,
           xpEarned: xp,
         );
       } catch (e) {
         debugPrint('[FocusSessionService] Error logging session: $e');
       }
 
-      if (_config.autoStartBreaks) {
-        startTimer();
-      }
+      if (_config.autoStartBreaks) startTimer();
     } else {
-      // Break cycle completed — stage next normal deep focus session
       _isBreak = false;
       isBreakNotifier.value = false;
-      _totalSeconds = _config.focusMinutes * 60;
-      _remainingSeconds = _totalSeconds;
-      remainingSecondsNotifier.value = _remainingSeconds;
+      _stageSeconds(_config.focusMinutes * 60);
+      _persistSnapshot();
 
-      // Broadcast -1 to indicate break completed (no XP)
       _completionStreamController.add(-1);
-      _notificationManager.showCompletedNotification(
-        xp: 0,
-        isBreak: true,
-        attachedTask: _attachedTask,
-      );
+      _notificationManager.showCompletedNotification(xp: 0, isBreak: true, attachedTask: _attachedTask);
     }
+  }
+
+  /// Stops active tickers and sound playback without closing singleton broadcast notifiers.
+  void dispose() {
+    _ticker?.cancel();
+    _ticker = null;
+    _soundService.stop();
   }
 
   Future<void> _showPinnedNotification({bool isPaused = false}) async {

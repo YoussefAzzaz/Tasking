@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/mastery_badge_repository.dart';
@@ -28,7 +28,7 @@ class CompanionBadgesList extends StatelessWidget {
             const SizedBox(width: 7),
             Text(
               l10n.completedBadges.toUpperCase(),
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.9,
@@ -45,7 +45,7 @@ class CompanionBadgesList extends StatelessWidget {
               ),
               child: Text(
                 '${badges.length}',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   color: AxisColors.warning,
@@ -84,7 +84,7 @@ class CompanionBadgesList extends StatelessWidget {
                     children: [
                       Text(
                         l10n.noBadgesYet,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AxisColors.textHigh,
@@ -95,7 +95,7 @@ class CompanionBadgesList extends StatelessWidget {
                         l10n.isArabic
                             ? 'المواظبة على العادات والصلوات تفتح شارات التميز.'
                             : 'Completing daily habits, prayers, and streaks unlocks mastery badges.',
-                        style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                        style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                       ),
                     ],
                   ),
@@ -146,7 +146,7 @@ class CompanionBadgesList extends StatelessWidget {
                               Flexible(
                                 child: Text(
                                   badgeTitle,
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
                                     color: AxisColors.textHigh,
@@ -163,7 +163,7 @@ class CompanionBadgesList extends StatelessWidget {
                                 ),
                                 child: Text(
                                   tierName,
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 9.5,
                                     fontWeight: FontWeight.w800,
                                     color: b.color,
@@ -175,7 +175,7 @@ class CompanionBadgesList extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             badgeSubtitle,
-                            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted),
+                            style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted),
                           ),
                         ],
                       ),

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -249,7 +249,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                             children: [
                               Text(
                                 _headerTitle(isArabic),
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: isArabic ? 0.0 : 1.1,
@@ -259,7 +259,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                               const SizedBox(height: 2),
                               Text(
                                 _headerSubtitle(isArabic),
-                                style: GoogleFonts.getFont('Geist',
+                                style: AxisFonts.getFont('Geist',
                                     fontSize: 11.5,
                                     color: AxisColors.textMuted),
                               ),
@@ -347,7 +347,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                           const SizedBox(height: 8),
                           AutoDirectionText(
                             _itemTitle,
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: AxisColors.textHigh,
@@ -360,7 +360,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                             const SizedBox(height: 4),
                             AutoDirectionText(
                               _itemSubtitle!.trim(),
-                              style: GoogleFonts.getFont('Geist',
+                              style: AxisFonts.getFont('Geist',
                                   fontSize: 11.5, color: AxisColors.textDim),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -392,7 +392,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                       isArabic
                           ? 'اختر الصاحب المستلم:'
                           : 'CHOOSE RECIPIENT COMPANION:',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.8,
@@ -532,7 +532,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                                                 Text(
                                                   friend.name,
                                                   style:
-                                                      GoogleFonts.spaceGrotesk(
+                                                      AxisFonts.spaceGrotesk(
                                                     fontSize: 13.5,
                                                     fontWeight: FontWeight.w700,
                                                     color: isSelected
@@ -543,7 +543,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                                                 const SizedBox(height: 1),
                                                 Text(
                                                   'Lv.${friend.level} • ${friend.totalXp} XP',
-                                                  style: GoogleFonts.getFont(
+                                                  style: AxisFonts.getFont(
                                                       'Geist',
                                                       fontSize: 11,
                                                       color:
@@ -574,7 +574,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                                                 isArabic
                                                     ? 'تمت المشاركة'
                                                     : 'ALREADY SHARED',
-                                                style: GoogleFonts.spaceGrotesk(
+                                                style: AxisFonts.spaceGrotesk(
                                                   fontSize: 9.5,
                                                   fontWeight: FontWeight.w700,
                                                   letterSpacing: 0.4,
@@ -650,7 +650,7 @@ class _ShareTaskSheetState extends State<ShareTaskSheet> {
                                   const SizedBox(width: 8),
                                   Text(
                                     _sendButtonLabel(isArabic),
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: AxisFonts.spaceGrotesk(
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.bold),
                                   ),
@@ -900,7 +900,7 @@ class _ShareWithCompanionSheetState extends State<ShareWithCompanionSheet> {
                                     : 'SHARE WITH ${widget.companionName.toUpperCase()}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: isArabic ? 0.0 : 0.8,
@@ -914,7 +914,7 @@ class _ShareWithCompanionSheetState extends State<ShareWithCompanionSheet> {
                                         ? 'ماذا تريد أن تشارك؟'
                                         : 'What would you like to share?')
                                     : _pickPrompt(isArabic),
-                                style: GoogleFonts.getFont('Geist',
+                                style: AxisFonts.getFont('Geist',
                                     fontSize: 11.5,
                                     color: AxisColors.textMuted),
                               ),
@@ -1037,7 +1037,7 @@ class _ShareWithCompanionSheetState extends State<ShareWithCompanionSheet> {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: AxisColors.textHigh,
@@ -1046,7 +1046,7 @@ class _ShareWithCompanionSheetState extends State<ShareWithCompanionSheet> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: GoogleFonts.getFont('Geist',
+                    style: AxisFonts.getFont('Geist',
                         fontSize: 11.5, color: AxisColors.textMuted),
                   ),
                 ],
@@ -1151,7 +1151,7 @@ class _ShareWithCompanionSheetState extends State<ShareWithCompanionSheet> {
                               : 'Share with ${widget.companionName}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                               fontSize: 13.5, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -1421,7 +1421,7 @@ class _ShareWithCompanionSheetState extends State<ShareWithCompanionSheet> {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: isSelected ? accentColor : AxisColors.textHigh,
@@ -1433,7 +1433,7 @@ class _ShareWithCompanionSheetState extends State<ShareWithCompanionSheet> {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.getFont('Geist',
+                      style: AxisFonts.getFont('Geist',
                           fontSize: 11, color: AxisColors.textDim),
                     ),
                   ],
@@ -1616,7 +1616,7 @@ class _ShareModeSelector extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               title,
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: isSelected ? AxisColors.primarySoft : AxisColors.textHigh,
@@ -1625,7 +1625,7 @@ class _ShareModeSelector extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: GoogleFonts.getFont('Geist',
+              style: AxisFonts.getFont('Geist',
                   fontSize: 10, color: AxisColors.textDim),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

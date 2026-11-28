@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -76,7 +76,7 @@ class TodayNotificationBell extends StatelessWidget {
                         Expanded(
                           child: Text(
                             l10n.friendNotifications,
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AxisColors.textHigh,
@@ -90,7 +90,7 @@ class TodayNotificationBell extends StatelessWidget {
                           },
                           child: Text(
                             l10n.clearNotifications,
-                            style: GoogleFonts.getFont('Geist',
+                            style: AxisFonts.getFont('Geist',
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: AxisColors.textDim),
@@ -131,7 +131,7 @@ class TodayNotificationBell extends StatelessWidget {
                                     const SizedBox(width: 6),
                                     Text(
                                       l10n.pendingRequests.toUpperCase(),
-                                      style: GoogleFonts.spaceGrotesk(
+                                      style: AxisFonts.spaceGrotesk(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
                                         letterSpacing: l10n.isArabic ? 0.0 : 0.8,
@@ -183,7 +183,7 @@ class TodayNotificationBell extends StatelessWidget {
                                               children: [
                                                 Text(
                                                   r.name,
-                                                  style: GoogleFonts.spaceGrotesk(
+                                                  style: AxisFonts.spaceGrotesk(
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.w700,
                                                     color: AxisColors.textHigh,
@@ -192,7 +192,7 @@ class TodayNotificationBell extends StatelessWidget {
                                                 ),
                                                 Text(
                                                   '${l10n.isArabic ? "المستوى" : "Lv."} ${r.level} · ${r.friendCode ?? ''}',
-                                                  style: GoogleFonts.getFont('Geist',
+                                                  style: AxisFonts.getFont('Geist',
                                                       fontSize: 11,
                                                       color: AxisColors.textDim),
                                                 ),
@@ -220,7 +220,7 @@ class TodayNotificationBell extends StatelessWidget {
                                             ),
                                             child: Text(
                                               l10n.refuse,
-                                              style: GoogleFonts.getFont('Geist',
+                                              style: AxisFonts.getFont('Geist',
                                                   fontSize: 11.5,
                                                   fontWeight: FontWeight.w600),
                                             ),
@@ -244,7 +244,7 @@ class TodayNotificationBell extends StatelessWidget {
                                             ),
                                             child: Text(
                                               l10n.accept,
-                                              style: GoogleFonts.getFont('Geist',
+                                              style: AxisFonts.getFont('Geist',
                                                   fontSize: 11.5,
                                                   fontWeight: FontWeight.w700),
                                             ),
@@ -283,7 +283,7 @@ class TodayNotificationBell extends StatelessWidget {
                                           const SizedBox(height: 12),
                                           Text(
                                             l10n.noNotificationsYet,
-                                            style: GoogleFonts.getFont('Geist',
+                                            style: AxisFonts.getFont('Geist',
                                                 fontSize: 13,
                                                 color: AxisColors.textMuted),
                                           ),
@@ -307,7 +307,7 @@ class TodayNotificationBell extends StatelessWidget {
                                         const SizedBox(width: 6),
                                         Text(
                                           l10n.friendNotifications.toUpperCase(),
-                                          style: GoogleFonts.spaceGrotesk(
+                                          style: AxisFonts.spaceGrotesk(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: l10n.isArabic ? 0.0 : 0.8,
@@ -374,7 +374,7 @@ class TodayNotificationBell extends StatelessWidget {
                                                     children: [
                                                       Text(
                                                         log.title,
-                                                        style: GoogleFonts.getFont(
+                                                        style: AxisFonts.getFont(
                                                             'Geist',
                                                             fontSize: 12.5,
                                                             fontWeight:
@@ -385,7 +385,7 @@ class TodayNotificationBell extends StatelessWidget {
                                                       if (dateStr.isNotEmpty)
                                                         Text(
                                                           dateStr,
-                                                          style: GoogleFonts
+                                                          style: AxisFonts
                                                               .spaceGrotesk(
                                                                   fontSize: 10.5,
                                                                   color: AxisColors
@@ -491,7 +491,7 @@ class TodayNotificationBell extends StatelessWidget {
                           ),
                           child: Text(
                             '$totalBadge',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,

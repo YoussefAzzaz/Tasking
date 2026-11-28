@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../core/theme.dart';
 
 /// Clean, uppercase section header bar with optional leading icon and trailing action.
@@ -48,7 +48,7 @@ class SectionHeader extends StatelessWidget {
                         title.toUpperCase(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.1,
@@ -61,7 +61,7 @@ class SectionHeader extends StatelessWidget {
                           subtitle!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.getFont(
+                          style: AxisFonts.getFont(
                             'Geist',
                             fontSize: 11,
                             color: AxisColors.textMuted,

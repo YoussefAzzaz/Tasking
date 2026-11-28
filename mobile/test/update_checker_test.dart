@@ -166,5 +166,50 @@ void main() {
       expect(windowsUpdate, isNotNull);
       expect(windowsUpdate!.downloadUrl, contains('axis-v1.2.1-windows.msix'));
     });
+
+    test('fromGitHubRelease extracts SHA256SUMS.txt, blocks untrusted URLs, and avoids cross-OS asset fallback', () {
+      final releaseJson = {
+        'tag_name': 'v1.4.0+30',
+        'name': 'Axis v1.4.0',
+        'body': 'Security hardening',
+        'html_url': 'https://github.com/YoussefAzzaz/Tasking/releases/tag/v1.4.0',
+        'published_at': '2026-11-28T10:00:00Z',
+        'assets': [
+          {
+            'name': 'SHA256SUMS.txt',
+            'browser_download_url': 'https://github.com/YoussefAzzaz/Tasking/releases/download/v1.4.0/SHA256SUMS.txt',
+            'size': 256,
+          },
+          {
+            'name': 'axis-v1.4.0-android.apk',
+            'browser_download_url': 'https://github.com/YoussefAzzaz/Tasking/releases/download/v1.4.0/axis-v1.4.0-android.apk',
+            'size': 25000000,
+          },
+        ],
+      };
+
+      final android = UpdateInfo.fromGitHubRelease(releaseJson, targetPlatform: 'android');
+      expect(android, isNotNull);
+      expect(android!.sha256SumsUrl, endsWith('SHA256SUMS.txt'));
+      expect(android.downloadUrl, endsWith('axis-v1.4.0-android.apk'));
+
+      // Linux release without a Linux binary should fall back to release page URL, never Android APK
+      final linux = UpdateInfo.fromGitHubRelease(releaseJson, targetPlatform: 'linux');
+      expect(linux, isNotNull);
+      expect(linux!.downloadUrl, 'https://github.com/YoussefAzzaz/Tasking/releases/tag/v1.4.0');
+
+      const sums = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  axis-v1.4.0-android.apk\n';
+      expect(
+        UpdateInfo.parseSha256ForAsset(sums, 'axis-v1.4.0-android.apk'),
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      );
+      expect(UpdateCheckerUrlChecks.isTrusted('http://github.com/evil.apk'), isFalse);
+      expect(UpdateCheckerUrlChecks.isTrusted('https://evil.example.com/app.apk'), isFalse);
+      expect(UpdateCheckerUrlChecks.isTrusted('https://objects.githubusercontent.com/file.apk'), isTrue);
+    });
   });
+}
+
+class UpdateCheckerUrlChecks {
+  static bool isTrusted(String url) => UpdateInfo.isTrustedReleaseUrl(url);
 }

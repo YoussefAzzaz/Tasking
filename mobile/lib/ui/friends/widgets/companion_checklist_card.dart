@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -58,7 +58,7 @@ class CompanionChecklistCard extends StatelessWidget {
                           Flexible(
                             child: Text(
                               status.userName,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: AxisColors.textHigh,
@@ -78,7 +78,7 @@ class CompanionChecklistCard extends StatelessWidget {
                             ),
                             child: Text(
                               '${isArabic ? "المستوى" : "LVL"} ${status.level}',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 color: AxisColors.primarySoft,
@@ -90,13 +90,14 @@ class CompanionChecklistCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         isArabic ? 'المستوى ${status.level}' : 'Level ${status.level}',
-                        style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                        style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                       ),
                     ],
                   ),
                 ),
-                Icon(
-                  isArabic ? Icons.arrow_back_ios_rounded : Icons.arrow_forward_ios_rounded,
+                // Root cause: arrow_forward_ios_rounded auto-mirrors in RTL; ternary flipped twice.
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
                   size: 13,
                   color: AxisColors.textDim,
                 ),

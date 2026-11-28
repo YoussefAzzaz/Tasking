@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:axis/ui/tasks/tasks_screen.dart';
@@ -135,10 +136,11 @@ final router = GoRouter(
       path: '/badges',
       builder: (context, state) => const MasteryBadgesScreen(),
     ),
-    GoRoute(
-      path: '/debug/adhan-alarm',
-      builder: (context, state) => const AdhanAlarmDebugScreen(),
-    ),
+    if (kDebugMode)
+      GoRoute(
+        path: '/debug/adhan-alarm',
+        builder: (context, state) => const AdhanAlarmDebugScreen(),
+      ),
     GoRoute(
       path: '/prayers',
       redirect: (context, state) => AuthService().hasActiveSession ? '/today' : '/auth',

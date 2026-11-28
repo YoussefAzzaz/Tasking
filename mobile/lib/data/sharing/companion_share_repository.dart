@@ -2088,36 +2088,9 @@ class CompanionShareRepository {
         }
       }
 
-      // Remove duplicate local task clones sharing identical normalized title/due_date/status
-      final localTasks = await db.getAll('''
-        SELECT t.id, t.user_id, t.title, COALESCE(t.due_date, '') AS due_date, t.status,
-               EXISTS (
-                 SELECT 1 FROM companion_shares cs
-                 WHERE cs.status IN ('pending', 'accepted')
-                   AND (cs.entity_id = t.id OR cs.accepted_entity_id = t.id)
-               ) AS is_linked_share
-        FROM tasks t
-        WHERE t.user_id = ? AND (t.deleted_at IS NULL OR t.deleted_at = '')
-        ORDER BY is_linked_share DESC, t.updated_at DESC, t.created_at DESC, t.id DESC
-      ''', [uid]);
-
-      final seenTaskKeys = <String>{};
-      for (final row in localTasks) {
-        final id = row['id']?.toString() ?? '';
-        final title = (row['title']?.toString() ?? '').trim().toLowerCase();
-        final dueDate = row['due_date']?.toString() ?? '';
-        final status = row['status']?.toString() ?? 'todo';
-        final isLinked = ((row['is_linked_share'] as num?)?.toInt() ?? 0) == 1;
-        if (id.isEmpty || title.isEmpty) continue;
-
-        final key = '$uid|$title|$dueDate|$status';
-        if (!seenTaskKeys.add(key) && !isLinked) {
-          await db.execute(
-            'UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?',
-            [nowUtc, nowUtc, id],
-          );
-        }
-      }
+      // Root-cause fix: removed destructive fallback that soft-deleted unlinked
+      // local tasks sharing normalized (title, due_date, status); legitimate
+      // repeating or identically named user tasks must never be auto-deleted.
     } catch (e) {
       debugPrint('[CompanionShareRepository] deduplicateSharedEntities notice: $e');
     }

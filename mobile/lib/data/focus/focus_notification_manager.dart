@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/data/habit_notification_service.dart';
 import 'package:axis/data/notification_controller.dart';
+import 'package:axis/data/notifications/notification_ids.dart';
+import 'package:axis/data/prayers/adhan_notification_channels.dart';
 import 'package:axis/data/task_repository.dart';
 
 /// Handles platform-specific AwesomeNotifications lifecycle, progress bar notifications,
@@ -49,66 +51,10 @@ class FocusNotificationManager {
             playSound: true,
             enableVibration: true,
           ),
-          NotificationChannel(
-            channelKey: 'prayer_adhan_channel',
-            channelName: 'Prayer Adhan & Times',
-            channelDescription:
-                'Daily Islamic prayer notifications and Adhan reminder',
-            defaultColor: const Color(0xFF0EA5E9),
-            importance: NotificationImportance.Max,
-            channelShowBadge: true,
-            playSound: true,
-            soundSource: 'resource://raw/res_adhan',
-            defaultRingtoneType: DefaultRingtoneType.Alarm,
-            enableVibration: false,
-            onlyAlertOnce: true,
-            criticalAlerts: true,
-          ),
-          NotificationChannel(
-            channelKey: 'prayer_adhan_channel_alafasy',
-            channelName: 'Prayer Adhan (Sheikh Alafasy)',
-            channelDescription:
-                'Daily Islamic prayer notifications with Sheikh Mishary Rashid Alafasy Adhan',
-            defaultColor: const Color(0xFF0EA5E9),
-            importance: NotificationImportance.Max,
-            channelShowBadge: true,
-            playSound: true,
-            soundSource: 'resource://raw/res_adhan_alafasy',
-            defaultRingtoneType: DefaultRingtoneType.Alarm,
-            enableVibration: false,
-            onlyAlertOnce: true,
-            criticalAlerts: true,
-          ),
-          NotificationChannel(
-            channelKey: 'fajr_alarm_channel',
-            channelName: 'Fajr Wake-Up Alarm',
-            channelDescription:
-                'High-priority cognitive Fajr wake-up verification alarm',
-            defaultColor: const Color(0xFFEF4444),
-            importance: NotificationImportance.Max,
-            channelShowBadge: true,
-            playSound: true,
-            soundSource: 'resource://raw/res_adhan',
-            defaultRingtoneType: DefaultRingtoneType.Alarm,
-            enableVibration: false,
-            onlyAlertOnce: true,
-            criticalAlerts: true,
-          ),
-          NotificationChannel(
-            channelKey: 'fajr_alarm_channel_alafasy',
-            channelName: 'Fajr Wake-Up Alarm (Sheikh Alafasy)',
-            channelDescription:
-                'High-priority cognitive Fajr wake-up verification alarm with Sheikh Alafasy',
-            defaultColor: const Color(0xFFEF4444),
-            importance: NotificationImportance.Max,
-            channelShowBadge: true,
-            playSound: true,
-            soundSource: 'resource://raw/res_adhan_alafasy',
-            defaultRingtoneType: DefaultRingtoneType.Alarm,
-            enableVibration: false,
-            onlyAlertOnce: true,
-            criticalAlerts: true,
-          ),
+          // Root-cause fix: register versioned Adhan & Fajr channels built with
+          // uniform alarm priority and loudness-normalized raw audio resources
+          // so all 5 daily prayers play the exact same Adhan at the same level.
+          ...AdhanNotificationChannels.buildChannels(),
           NotificationChannel(
             channelKey: HabitNotificationService.channelKey,
             channelName: 'Habit Reminders',
@@ -186,9 +132,12 @@ class FocusNotificationManager {
         : (isBreak ? const Color(0xFF10B981) : const Color(0xFF00E5FF));
 
     try {
+      // Root-cause fix: previously hardcoded notification IDs 1001 & 1002 collided
+      // directly with AdhanAlarmService Fajr (1001) & Dhuhr (1002) notification IDs,
+      // causing focus session cancel/complete actions to cancel scheduled Adhan alerts.
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
-          id: 1001,
+          id: NotificationIds.focusProgress,
           channelKey: 'focus_session_channel',
           title: title,
           body: body,
@@ -237,10 +186,10 @@ class FocusNotificationManager {
     final taskTitle = attachedTask?.title ?? 'Focus Session';
 
     try {
-      await AwesomeNotifications().cancel(1001);
+      await AwesomeNotifications().cancel(NotificationIds.focusProgress);
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
-          id: 1002,
+          id: NotificationIds.focusCompleted,
           channelKey: 'focus_completed_channel',
           title: isBreak ? 'Reboot Break Complete' : 'Focus Session Complete',
           body: isBreak
@@ -271,10 +220,10 @@ class FocusNotificationManager {
         ? 'Break cycle finished. Energy restored. Return to launch focus!'
         : 'Optimal continuity achieved for $taskTitle. Return to claim your XP.';
     try {
-      await AwesomeNotifications().cancel(1002);
+      await AwesomeNotifications().cancel(NotificationIds.focusCompleted);
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
-          id: 1002,
+          id: NotificationIds.focusCompleted,
           channelKey: 'focus_completed_channel',
           title: title,
           body: body,
@@ -305,14 +254,14 @@ class FocusNotificationManager {
 
   Future<void> cancelScheduledCompletion() async {
     try {
-      await AwesomeNotifications().cancel(1002);
+      await AwesomeNotifications().cancel(NotificationIds.focusCompleted);
     } catch (_) {}
   }
 
   Future<void> cancelNotification() async {
     try {
-      await AwesomeNotifications().cancel(1001);
-      await AwesomeNotifications().cancel(1002);
+      await AwesomeNotifications().cancel(NotificationIds.focusProgress);
+      await AwesomeNotifications().cancel(NotificationIds.focusCompleted);
     } catch (_) {}
   }
 }

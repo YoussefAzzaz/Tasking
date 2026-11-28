@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -81,7 +81,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
                     children: [
                       Text(
                         l10n.mutualPrayerAccountability.toUpperCase(),
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.8,
@@ -91,7 +91,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         l10n.todayPrayerSub,
-                        style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textMuted, height: 1.3),
+                        style: AxisFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textMuted, height: 1.3),
                       ),
                     ],
                   ),
@@ -159,7 +159,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
                           const SizedBox(width: 7),
                           Text(
                             l10n.yourChecklist.toUpperCase(),
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.1,
@@ -169,7 +169,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
                           const Spacer(),
                           Text(
                             '${myStatus.completedCount}/5',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               color: AxisColors.tertiary,
@@ -193,7 +193,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
                         const SizedBox(width: 7),
                         Text(
                           l10n.companionsAccountability.toUpperCase(),
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.1,
@@ -210,7 +210,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
                           ),
                           child: Text(
                             '${companionStatuses.length}',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               color: AxisColors.secondarySoft,
@@ -287,7 +287,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             isArabic ? 'بيانات المرافقين متاحة عند الاتصال' : 'Companion Data Available Online',
-            style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
+            style: AxisFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
@@ -295,7 +295,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
             isArabic
                 ? 'متابعة صلوات المرافقين تتطلب اتصالاً نشطاً بالإنترنت. ستظهر البيانات تلقائياً بمجرد إعادة الاتصال.'
                 : 'Live prayer accountability with your companions requires an active internet connection. Data will appear automatically once back online.',
-            style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted, height: 1.4),
+            style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted, height: 1.4),
             textAlign: TextAlign.center,
           ),
         ],
@@ -332,9 +332,9 @@ class FriendsTodayPrayersTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text(title, style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AxisColors.textHigh), textAlign: TextAlign.center),
+          Text(title, style: AxisFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AxisColors.textHigh), textAlign: TextAlign.center),
           const SizedBox(height: 6),
-          Text(subtitle, style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted), textAlign: TextAlign.center),
+          Text(subtitle, style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted), textAlign: TextAlign.center),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: onAction,
@@ -345,7 +345,7 @@ class FriendsTodayPrayersTab extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             icon: const Icon(Icons.person_add_rounded, size: 16),
-            label: Text(actionLabel, style: GoogleFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.w700)),
+            label: Text(actionLabel, style: AxisFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.w700)),
           ),
         ],
       ),

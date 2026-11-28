@@ -44,6 +44,59 @@ class NoteCategoryRepository {
   /// Broadcasts newly added category names so UI components can clear any local deletion exclusions.
   static final ValueNotifier<String?> categoryAddedNotifier = ValueNotifier<String?>(null);
 
+  static String deterministicId(String uid, String name) =>
+      IdGenerator.generateDeterministicId(
+          'notecat_${uid.isNotEmpty ? uid : "local"}_${name.trim().toLowerCase()}');
+
+  /// Builds a deterministic category record for unlinked note categories without
+  /// fabricating synthetic `discovered_` IDs.
+  static NoteCategory reconciledCategory(String name) {
+    final clean = name.trim();
+    return NoteCategory(
+      id: deterministicId(currentUserId, clean),
+      name: clean,
+      icon: 'article',
+      color: '#0EA5E9',
+    );
+  }
+
+  Future<void> _reconcileOrphanNoteCategories(
+    String uid,
+    List<dynamic> params,
+    List<NoteCategory> categories,
+    Set<String> knownNames,
+  ) async {
+    try {
+      final noteQuery = uid.isNotEmpty
+          ? "SELECT DISTINCT category FROM notes WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND (deleted_at IS NULL OR deleted_at = '') AND category IS NOT NULL AND category != '' AND LOWER(category) != 'note' AND LOWER(category) != 'journal'"
+          : "SELECT DISTINCT category FROM notes WHERE (deleted_at IS NULL OR deleted_at = '') AND category IS NOT NULL AND category != '' AND LOWER(category) != 'note' AND LOWER(category) != 'journal'";
+      final noteRows = await db.getAll(noteQuery, params);
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+      for (final nr in noteRows) {
+        final catName = (nr['category'] as String?)?.trim() ?? '';
+        if (catName.isNotEmpty && !knownNames.contains(catName.toLowerCase())) {
+          knownNames.add(catName.toLowerCase());
+          final cat = NoteCategory(
+            id: deterministicId(uid, catName),
+            name: catName,
+            icon: 'article',
+            color: '#0EA5E9',
+          );
+          categories.add(cat);
+          try {
+            await db.execute(
+              'INSERT OR IGNORE INTO note_categories (id, user_id, name, icon, color, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [cat.id, uid, cat.name, cat.icon, cat.color, 99, nowUtc, nowUtc],
+            );
+          } catch (e) {
+            debugPrint('[NoteCategoryRepository] Reconcile category notice: $e');
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   /// Watches note categories stream for real-time reactive UI.
   Stream<List<NoteCategory>> watchCategories() {
     if (!isDatabaseInitialized) {
@@ -72,28 +125,7 @@ class NoteCategoryRepository {
         }
       }
 
-      // Discover categories from notes table in real-time as well
-      try {
-        final noteQuery = uid.isNotEmpty
-            ? "SELECT DISTINCT category FROM notes WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND category IS NOT NULL AND category != '' AND LOWER(category) != 'note' AND LOWER(category) != 'journal'"
-            : "SELECT DISTINCT category FROM notes WHERE category IS NOT NULL AND category != '' AND LOWER(category) != 'note' AND LOWER(category) != 'journal'";
-        final noteRows = await db.getAll(noteQuery, params);
-
-        for (final nr in noteRows) {
-          final catName = (nr['category'] as String?)?.trim() ?? '';
-          if (catName.isNotEmpty && !knownNames.contains(catName.toLowerCase())) {
-            knownNames.add(catName.toLowerCase());
-            categories.add(
-              NoteCategory(
-                id: 'discovered_$catName',
-                name: catName,
-                icon: 'article',
-                color: '#0EA5E9',
-              ),
-            );
-          }
-        }
-      } catch (_) {}
+      await _reconcileOrphanNoteCategories(uid, params, categories, knownNames);
 
       CacheService().set<List<NoteCategory>>(_cacheKey, categories, ttl: const Duration(minutes: 5));
       return categories;
@@ -142,26 +174,7 @@ class NoteCategoryRepository {
         }
       }
 
-      // Discover categories from notes table as well
-      final noteQuery = uid.isNotEmpty
-          ? "SELECT DISTINCT category FROM notes WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND category IS NOT NULL AND category != '' AND LOWER(category) != 'note' AND LOWER(category) != 'journal'"
-          : "SELECT DISTINCT category FROM notes WHERE category IS NOT NULL AND category != '' AND LOWER(category) != 'note' AND LOWER(category) != 'journal'";
-      final noteRows = await db.getAll(noteQuery, params);
-
-      for (final nr in noteRows) {
-        final catName = (nr['category'] as String?)?.trim() ?? '';
-        if (catName.isNotEmpty && !knownNames.contains(catName.toLowerCase())) {
-          knownNames.add(catName.toLowerCase());
-          categories.add(
-            NoteCategory(
-              id: 'discovered_$catName',
-              name: catName,
-              icon: 'article',
-              color: '#0EA5E9',
-            ),
-          );
-        }
-      }
+      await _reconcileOrphanNoteCategories(uid, params, categories, knownNames);
 
       // If connected to Supabase and authenticated, pull any remotely saved note_categories
       // to guarantee instant multi-device sync
@@ -214,8 +227,7 @@ class NoteCategoryRepository {
     if (cleanName.isEmpty) return;
 
     final uid = currentUserId;
-    final id = IdGenerator.generateDeterministicId(
-        'notecat_${uid.isNotEmpty ? uid : "local"}_${cleanName.toLowerCase()}');
+    final id = deterministicId(uid, cleanName);
     final nowUtc = DateTime.now().toUtc().toIso8601String();
 
     CacheService().invalidate(_cacheKey);
@@ -253,10 +265,12 @@ class NoteCategoryRepository {
 
     try {
       final uid = currentUserId;
-      final rawId = id.replaceFirst('discovered_', '');
+      final detId = name != null && name.trim().isNotEmpty
+          ? deterministicId(uid, name)
+          : id;
       String catName = (name ?? '').trim();
       if (catName.isEmpty) {
-        final existing = await db.getOptional('SELECT name FROM note_categories WHERE id = ? OR id = ?', [id, rawId]);
+        final existing = await db.getOptional('SELECT name FROM note_categories WHERE id = ? OR id = ?', [id, detId]);
         catName = (existing?['name'] as String? ?? '').trim();
       }
 
@@ -269,8 +283,8 @@ class NoteCategoryRepository {
               ? "DELETE FROM note_categories WHERE (id = ? OR id = ?) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
               : 'DELETE FROM note_categories WHERE id = ? OR id = ?');
       final deleteParams = catName.isNotEmpty
-          ? (uid.isNotEmpty ? [id, rawId, catName, uid] : [id, rawId, catName])
-          : (uid.isNotEmpty ? [id, rawId, uid] : [id, rawId]);
+          ? (uid.isNotEmpty ? [id, detId, catName, uid] : [id, detId, catName])
+          : (uid.isNotEmpty ? [id, detId, uid] : [id, detId]);
       await db.execute(deleteQuery, deleteParams);
 
       // 2. Disassociate notes (set category to 'note' so they remain safe in General Notes)
@@ -282,8 +296,8 @@ class NoteCategoryRepository {
               ? "UPDATE notes SET category = 'note' WHERE (LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
               : "UPDATE notes SET category = 'note' WHERE LOWER(COALESCE(category, '')) = LOWER(?) OR LOWER(COALESCE(category, '')) = LOWER(?)");
       final updateParams = catName.isNotEmpty
-          ? (uid.isNotEmpty ? [catName, id, rawId, uid] : [catName, id, rawId])
-          : (uid.isNotEmpty ? [id, rawId, uid] : [id, rawId]);
+          ? (uid.isNotEmpty ? [catName, id, detId, uid] : [catName, id, detId])
+          : (uid.isNotEmpty ? [id, detId, uid] : [id, detId]);
       await db.execute(updateQuery, updateParams);
     } catch (e) {
       debugPrint('[NoteCategoryRepository] Error deleting category: $e');

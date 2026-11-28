@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/note_category_repository.dart';
@@ -55,7 +55,7 @@ class JournalMarkdownEditorPane extends StatelessWidget {
                 child: Text(
                   isAr ? 'محرر ماركداون' : 'MARKDOWN EDITOR',
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
@@ -94,7 +94,7 @@ class JournalMarkdownEditorPane extends StatelessWidget {
             child: TextField(
               controller: titleController,
               onChanged: onTitleChanged,
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: AxisColors.textHigh,
@@ -103,7 +103,7 @@ class JournalMarkdownEditorPane extends StatelessWidget {
                 hintText: activeTab == 'journal'
                     ? (isAr ? 'عنوان يومية التأمل...' : 'Daily Reflection Title...')
                     : (isAr ? 'عنوان الملاحظة...' : 'Note Title...'),
-                hintStyle: GoogleFonts.spaceGrotesk(fontSize: 14, color: AxisColors.textDim),
+                hintStyle: AxisFonts.spaceGrotesk(fontSize: 14, color: AxisColors.textDim),
                 filled: false,
                 fillColor: Colors.transparent,
                 border: InputBorder.none,
@@ -123,7 +123,7 @@ class JournalMarkdownEditorPane extends StatelessWidget {
               children: [
                 Text(
                   isAr ? 'التصنيف: ' : 'CATEGORY: ',
-                  style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w700, color: AxisColors.textDim),
+                  style: AxisFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w700, color: AxisColors.textDim),
                 ),
                 StreamBuilder<List<NoteCategory>>(
                   stream: NoteCategoryRepository().watchCategories(),
@@ -157,7 +157,7 @@ class JournalMarkdownEditorPane extends StatelessWidget {
                           value: effectiveValue,
                           dropdownColor: AxisColors.surfaceLow,
                           icon: const Icon(Icons.arrow_drop_down, size: 16, color: AxisColors.textDim),
-                          style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: AxisColors.textHigh),
+                          style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: AxisColors.textHigh),
                           items: catNames.map((name) {
                             final label = isAr && name.toLowerCase() == 'general' ? 'عام' : name;
                             return DropdownMenuItem<String>(
@@ -208,7 +208,7 @@ class JournalMarkdownEditorPane extends StatelessWidget {
                 maxLines: null,
                 expands: true,
                 textAlignVertical: TextAlignVertical.top,
-                style: GoogleFonts.firaCode(
+                style: AxisFonts.firaCode(
                   fontSize: 13,
                   height: 1.5,
                   color: AxisColors.textHigh,
@@ -217,7 +217,7 @@ class JournalMarkdownEditorPane extends StatelessWidget {
                   hintText: isAr
                       ? '# العنوان\n\nابدأ بكتابة مسودة الهيكلية المعمارية أو سجل اليوميات...'
                       : '# Title\n\nBegin drafting your architectural breakdown or journal log...',
-                  hintStyle: GoogleFonts.firaCode(fontSize: 13, color: AxisColors.textDim),
+                  hintStyle: AxisFonts.firaCode(fontSize: 13, color: AxisColors.textDim),
                   filled: false,
                   fillColor: Colors.transparent,
                   border: InputBorder.none,

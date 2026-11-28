@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 
@@ -66,7 +66,7 @@ class AxisSnackBar {
             Expanded(
               child: Text(
                 message,
-                style: GoogleFonts.getFont(
+                style: AxisFonts.getFont(
                   'Geist',
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,

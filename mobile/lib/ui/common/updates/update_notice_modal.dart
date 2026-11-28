@@ -1,5 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -12,29 +14,59 @@ class UpdateNoticeModal extends StatefulWidget {
   const UpdateNoticeModal({
     super.key,
     required this.updateInfo,
-    this.currentVersion = '1.2.0',
+    // Root-cause fix (stale v1.2.0): Previously defaulted to hardcoded `'1.2.0'`,
+    // causing callers that omitted `currentVersion` (auto-check / banner) to
+    // always show `Current: v1.2.0`. Keeping it nullable lets State resolve the
+    // actual installed version from `AppUpdateService`.
+    this.currentVersion,
     this.updateService,
   });
 
   final UpdateInfo updateInfo;
-  final String currentVersion;
+  final String? currentVersion;
   final AppUpdateService? updateService;
+
+  static Future<void>? _activeModalFuture;
+
+  /// Whether an update modal dialog is currently open on screen.
+  static bool get isShowing => _activeModalFuture != null;
+
+  @visibleForTesting
+  static void resetModalStateForTesting() {
+    _activeModalFuture = null;
+  }
 
   static Future<void> show(
     BuildContext context, {
     required UpdateInfo updateInfo,
-    String currentVersion = '1.2.0',
+    String? currentVersion,
     AppUpdateService? updateService,
   }) {
-    return showDialog<void>(
+    // Root-cause fix (stacked modals): Previously `show()` pushed a new
+    // `showDialog` route unconditionally, so concurrent or repeated triggers
+    // stacked multiple UpdateNoticeModal dialogs. Reusing `_activeModalFuture`
+    // ensures at most one modal dialog can be open at a time.
+    if (_activeModalFuture != null) {
+      return _activeModalFuture!;
+    }
+    final service = updateService ?? AppUpdateService();
+    final resolvedVersion = currentVersion ?? service.cachedVersionLabel;
+    final future = showDialog<void>(
       context: context,
       barrierDismissible: !updateInfo.isMandatory,
       builder: (_) => UpdateNoticeModal(
         updateInfo: updateInfo,
-        currentVersion: currentVersion,
-        updateService: updateService,
+        currentVersion: resolvedVersion,
+        updateService: service,
       ),
     );
+    _activeModalFuture = future;
+    future.whenComplete(() {
+      if (identical(_activeModalFuture, future)) {
+        _activeModalFuture = null;
+      }
+    });
+    return future;
   }
 
   @override
@@ -43,11 +75,25 @@ class UpdateNoticeModal extends StatefulWidget {
 
 class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
   late final AppUpdateService _service;
+  String? _resolvedCurrentVersion;
 
   @override
   void initState() {
     super.initState();
     _service = widget.updateService ?? AppUpdateService();
+    _resolvedCurrentVersion =
+        widget.currentVersion ?? _service.cachedVersionLabel;
+    if (_resolvedCurrentVersion == null) {
+      unawaited(_loadInstalledVersion());
+    }
+  }
+
+  Future<void> _loadInstalledVersion() async {
+    final installed = await _service.getInstalledVersion();
+    if (!mounted) return;
+    setState(() {
+      _resolvedCurrentVersion = installed.displayVersion;
+    });
   }
 
   void _startDownload() {
@@ -146,11 +192,14 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                       children: [
                         _buildVersionBadge(
                           label: isAr ? 'الحالي' : 'Current',
-                          ver: 'v${widget.currentVersion}',
+                          ver: _resolvedCurrentVersion != null
+                              ? 'v$_resolvedCurrentVersion'
+                              : '...',
                           color: AxisColors.textMuted,
                         ),
-                        Icon(
-                          isAr ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
+                        // Root cause: arrow_forward_rounded auto-mirrors in RTL; ternary flipped twice.
+                        const Icon(
+                          Icons.arrow_forward_rounded,
                           size: 14,
                           color: AxisColors.textDim,
                         ),
@@ -163,7 +212,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                         if (info.fileSizeBytes != null && info.fileSizeBytes! > 0)
                           Text(
                             _formatBytes(info.fileSizeBytes!),
-                            style: GoogleFonts.jetBrainsMono(
+                            style: AxisFonts.jetBrainsMono(
                               fontSize: 11,
                               color: AxisColors.textDim,
                             ),
@@ -175,7 +224,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                     // Changelog title
                     Text(
                       isAr ? 'ما الجديد في هذا الإصدار:' : "What's New in this Release:",
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: AxisColors.textHigh,
@@ -199,7 +248,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                               : (isAr
                                   ? 'تحسينات عامة في الأداء وإصلاح الأخطاء.'
                                   : 'Performance enhancements and stability fixes.'),
-                          style: GoogleFonts.jetBrainsMono(
+                          style: AxisFonts.jetBrainsMono(
                             fontSize: 11.5,
                             height: 1.5,
                             color: AxisColors.textHigh.withValues(alpha: 0.9),
@@ -268,7 +317,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                   info.isMandatory
                       ? (isAr ? 'تحديث إلزامي للنظام' : 'CRITICAL UPDATE REQUIRED')
                       : (isAr ? 'تحديث جديد للنظام' : 'SYSTEM UPDATE AVAILABLE'),
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
@@ -279,7 +328,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                   info.releaseName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.jetBrainsMono(
+                  style: AxisFonts.jetBrainsMono(
                     fontSize: 11,
                     color: AxisColors.textMuted,
                   ),
@@ -320,14 +369,14 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
         children: [
           Text(
             '$label: ',
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               fontSize: 10,
               color: AxisColors.textDim,
             ),
           ),
           Text(
             ver,
-            style: GoogleFonts.jetBrainsMono(
+            style: AxisFonts.jetBrainsMono(
               fontSize: 11,
               fontWeight: FontWeight.bold,
               color: color,
@@ -353,7 +402,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
             children: [
               Text(
                 isAr ? 'جارٍ تحميل التحديث...' : 'Downloading update package...',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: AxisColors.textHigh,
@@ -361,7 +410,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
               ),
               Text(
                 '$percentInt%',
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: AxisColors.secondarySoft,
@@ -387,14 +436,14 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                 progress.totalBytes > 0
                     ? '${_formatBytes(progress.receivedBytes)} / ${_formatBytes(progress.totalBytes)}'
                     : _formatBytes(progress.receivedBytes),
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   fontSize: 10,
                   color: AxisColors.textDim,
                 ),
               ),
               Text(
                 isAr ? 'لا تغلق التطبيق' : 'Keep app open',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 10,
                   color: AxisColors.textDim,
                 ),
@@ -422,7 +471,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                 isAr
                     ? 'اكتمل التحميل! اضغط أدناه للتثبيت فوراً.'
                     : 'Download complete! Tap Install to update.',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 11.5,
                   fontWeight: FontWeight.bold,
                   color: AxisColors.tertiary,
@@ -455,7 +504,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                     progress.error ?? (isAr ? 'فشل التحميل' : 'Download failed. Tap retry or open in browser.'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11,
                       color: AxisColors.priorityHigh,
                     ),
@@ -473,7 +522,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                   const SizedBox(width: 4),
                   Text(
                     isAr ? 'التحميل من المتصفح مباشرة' : 'Download via browser directly',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                       color: AxisColors.primarySoft,
@@ -519,7 +568,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
               icon: const Icon(Icons.install_mobile_rounded, size: 17),
               label: Text(
                 isAr ? 'تثبيت التحديث' : 'INSTALL NOW',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: isAr ? 0.0 : 0.8,
@@ -547,7 +596,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                 progress.status == UpdateDownloadStatus.failed
                     ? (isAr ? 'إعادة المحاولة' : 'RETRY UPDATE')
                     : (isAr ? 'تحديث الآن' : 'UPDATE NOW'),
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: isAr ? 0.0 : 0.8,
@@ -574,7 +623,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                         isAr ? 'المتصفح' : 'BROWSER',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 11.5,
                           fontWeight: FontWeight.bold,
                         ),
@@ -596,7 +645,7 @@ class _UpdateNoticeModalState extends State<UpdateNoticeModal> {
                         isAr ? 'لاحقاً' : 'LATER',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 11.5,
                           fontWeight: FontWeight.bold,
                           color: AxisColors.textMuted,

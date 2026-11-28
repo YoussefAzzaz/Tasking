@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/locale_service.dart';
@@ -65,7 +65,7 @@ class DesktopLanguageCard extends StatelessWidget {
                                 'English (US)',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 13,
                                   fontWeight: !isArabic ? FontWeight.w700 : FontWeight.w500,
                                   color: !isArabic ? AxisColors.textHigh : AxisColors.textMuted,

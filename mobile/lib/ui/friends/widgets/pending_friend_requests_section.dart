@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -42,7 +42,7 @@ class PendingFriendRequestsSection extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   '${l10n.pendingRequests.toUpperCase()} (${requests.length})',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
@@ -84,15 +84,16 @@ class PendingFriendRequestsSection extends StatelessWidget {
                           children: [
                             Text(
                               r.name,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                   fontSize: 14.5,
                                   fontWeight: FontWeight.w700,
                                   color: AxisColors.textHigh),
                             ),
                             const SizedBox(height: 2),
+                            // Root cause: avoided showing fake 'AX-7842' when friendCode is unset.
                             Text(
-                              '${l10n.isArabic ? "المستوى" : "Lv."} ${r.level}  ·  ${r.friendCode ?? "AX-7842"}',
-                              style: GoogleFonts.getFont('Geist',
+                              '${l10n.isArabic ? "المستوى" : "Lv."} ${r.level}  ·  ${(r.friendCode != null && r.friendCode!.trim().isNotEmpty) ? r.friendCode!.trim() : "---"}',
+                              style: AxisFonts.getFont('Geist',
                                   fontSize: 11, color: AxisColors.textDim),
                             ),
                           ],
@@ -116,7 +117,7 @@ class PendingFriendRequestsSection extends StatelessWidget {
                         },
                         icon: const Icon(Icons.check_rounded, size: 15),
                         label: Text(l10n.accept,
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                                 fontSize: 11.5, fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:

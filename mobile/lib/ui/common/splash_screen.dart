@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/router.dart';
 import 'package:axis/core/widget_navigation_service.dart';
@@ -137,74 +137,68 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final isDesktop = !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.windows ||
-            defaultTargetPlatform == TargetPlatform.macOS ||
-            defaultTargetPlatform == TargetPlatform.linux);
+    // Root cause: ExcludeSemantics(excluding: isDesktop) suppressed desktop accessibility semantics
+    // for interactive controls including the Flow State action button.
+    return Scaffold(
+      backgroundColor: AxisColors.canvasBase,
+      body: Stack(
+        children: [
+          // 1. Ambient Background Layer with Technical Coordinate Grid & Fog
+          const SplashTechnicalGrid(),
 
-    return ExcludeSemantics(
-      excluding: isDesktop,
-      child: Scaffold(
-        backgroundColor: AxisColors.canvasBase,
-        body: Stack(
-          children: [
-            // 1. Ambient Background Layer with Technical Coordinate Grid & Fog
-            const SplashTechnicalGrid(),
+          // 2. Main Content Architecture
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: ScaleTransition(
+                scale: _scaleAnim,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 6),
 
-            // 2. Main Content Architecture
-            SafeArea(
-              child: FadeTransition(
-                opacity: _fadeAnim,
-                child: ScaleTransition(
-                  scale: _scaleAnim,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 6),
+                      // Top App Header Telemetry Bar
+                      _buildTopTelemetryBar(),
 
-                        // Top App Header Telemetry Bar
-                        _buildTopTelemetryBar(),
+                      const SizedBox(height: 10),
 
-                        const SizedBox(height: 10),
+                      // System Diagnostics Tri-Pill Row
+                      _buildDiagnosticsPills(),
 
-                        // System Diagnostics Tri-Pill Row
-                        _buildDiagnosticsPills(),
+                      const Spacer(flex: 2),
 
-                        const Spacer(flex: 2),
+                      // Central Kinetic Orbital Enclosure
+                      KineticOrbitalNexus(orbitalCtrl: _orbitalCtrl),
 
-                        // Central Kinetic Orbital Enclosure
-                        KineticOrbitalNexus(orbitalCtrl: _orbitalCtrl),
+                      const SizedBox(height: 24),
 
-                        const SizedBox(height: 24),
+                      // Typographic Identity Anchor
+                      _buildIdentityLockup(),
 
-                        // Typographic Identity Anchor
-                        _buildIdentityLockup(),
+                      const Spacer(flex: 3),
 
-                        const Spacer(flex: 3),
+                      // Vault Synchronization Telemetry Card
+                      VaultSyncTelemetryCard(progressAnim: _progressAnim),
 
-                        // Vault Synchronization Telemetry Card
-                        VaultSyncTelemetryCard(progressAnim: _progressAnim),
+                      const SizedBox(height: 14),
 
-                        const SizedBox(height: 14),
+                      // Primary Cyber Action Button
+                      _buildFlowStateButton(),
 
-                        // Primary Cyber Action Button
-                        _buildFlowStateButton(),
+                      const SizedBox(height: 12),
 
-                        const SizedBox(height: 12),
+                      // Security Micro-Footer
+                      _buildSecurityFooter(),
 
-                        // Security Micro-Footer
-                        _buildSecurityFooter(),
-
-                        SizedBox(height: bottomPadding > 0 ? 4 : 12),
-                      ],
-                    ),
+                      SizedBox(height: bottomPadding > 0 ? 4 : 12),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -246,7 +240,7 @@ class _SplashScreenState extends State<SplashScreen>
               const SizedBox(width: 6),
               Text(
                 'SYS.ONLINE',
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,
@@ -260,7 +254,7 @@ class _SplashScreenState extends State<SplashScreen>
         // Center Brand Header
         Text(
           'AXIS',
-          style: GoogleFonts.spaceGrotesk(
+          style: AxisFonts.spaceGrotesk(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             letterSpacing: 3.5,
@@ -360,7 +354,7 @@ class _SplashScreenState extends State<SplashScreen>
               label,
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
-              style: GoogleFonts.jetBrainsMono(
+              style: AxisFonts.jetBrainsMono(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
@@ -402,7 +396,7 @@ class _SplashScreenState extends State<SplashScreen>
               const SizedBox(width: 6),
               Text(
                 'KINETIC FLOW OS • V2.4.0',
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,
@@ -418,7 +412,7 @@ class _SplashScreenState extends State<SplashScreen>
         // Main Brand Title
         Text(
           'AXIS',
-          style: GoogleFonts.spaceGrotesk(
+          style: AxisFonts.spaceGrotesk(
             fontSize: 40,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
@@ -436,9 +430,11 @@ class _SplashScreenState extends State<SplashScreen>
 
         // Product Descriptor
         Text(
-          'Obsidian workspace architecture engineered\nfor relentless flow state.',
+          Localizations.maybeLocaleOf(context)?.languageCode == 'ar'
+              ? 'مساحة عمل مصممة لأقصى تركيز وتدفق مستمر.'
+              : 'Obsidian workspace architecture engineered\nfor relentless flow state.',
           textAlign: TextAlign.center,
-          style: GoogleFonts.getFont(
+          style: AxisFonts.getFont(
             'Geist',
             fontSize: 13,
             fontWeight: FontWeight.w400,
@@ -452,6 +448,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   // MARK: - Flow State Cyber Action Button
   Widget _buildFlowStateButton() {
+    final isAr = Localizations.maybeLocaleOf(context)?.languageCode == 'ar';
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -489,8 +486,8 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'ENTER FLOW STATE',
-                    style: GoogleFonts.getFont(
+                    isAr ? 'ابدأ حالة التدفق' : 'ENTER FLOW STATE',
+                    style: AxisFonts.getFont(
                       'Geist',
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -527,7 +524,7 @@ class _SplashScreenState extends State<SplashScreen>
           const SizedBox(width: 5),
           Text(
             'OBSIDIAN CORE V2.4 • BIOMETRIC & LOCAL-FIRST ENCRYPTED',
-            style: GoogleFonts.jetBrainsMono(
+            style: AxisFonts.jetBrainsMono(
               fontSize: 8.5,
               fontWeight: FontWeight.w500,
               letterSpacing: 1.1,

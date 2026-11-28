@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../core/theme.dart';
 import '../core/desktop_layout.dart';
 
@@ -96,7 +96,7 @@ class _AccentButtonState extends State<AccentButton> {
                     widget.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.getFont(
+                    style: AxisFonts.getFont(
                       'Geist',
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -115,7 +115,7 @@ class _AccentButtonState extends State<AccentButton> {
                     ),
                     child: Text(
                       widget.shortcutLabel!,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: Colors.white.withValues(alpha: 0.85),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/auth_service.dart';
@@ -149,7 +149,7 @@ class _SessionExpiredBannerState extends State<SessionExpiredBanner> {
                           children: [
                             Text(
                               isArabic ? 'انتهت صلاحية الجلسة' : 'SESSION EXPIRED',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.6,
@@ -161,7 +161,7 @@ class _SessionExpiredBannerState extends State<SessionExpiredBanner> {
                               isArabic
                                   ? 'العمل محفوظ محلياً بأمان. سجّل الدخول لاستئناف المزامنة.'
                                   : 'Work is saved locally. Log in to resume cloud sync.',
-                              style: GoogleFonts.getFont(
+                              style: AxisFonts.getFont(
                                 'Geist',
                                 fontSize: 11,
                                 color: AxisColors.textDim,
@@ -199,7 +199,7 @@ class _SessionExpiredBannerState extends State<SessionExpiredBanner> {
                                 hasSavedCreds
                                     ? (isArabic ? 'إعادة الدخول' : 'RE-LOGIN')
                                     : (isArabic ? 'تسجيل الدخول' : 'SIGN IN'),
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),

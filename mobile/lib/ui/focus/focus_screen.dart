@@ -254,10 +254,9 @@ class _FocusScreenState extends State<FocusScreen>
           backgroundColor: AxisColors.canvasBase,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(
-              context.isArabic
-                  ? Icons.arrow_forward_rounded
-                  : Icons.arrow_back_rounded,
+            // Root cause: arrow_back_rounded auto-mirrors in RTL; ternary caused double-flip.
+            icon: const Icon(
+              Icons.arrow_back_rounded,
               color: AxisColors.textHigh,
             ),
             onPressed: () => Navigator.of(context).maybePop(),

@@ -238,15 +238,17 @@ class HabitStreakService {
     if (!isDatabaseInitialized) {
       return const [];
     }
+    // Root-cause fix: exclude soft-deleted habits and habit logs so archived
+    // or deleted items do not distort active streak requirements.
     final habitsQuery = uid.isNotEmpty
-        ? 'SELECT id, kind, schedule_type, created_at FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\')'
-        : 'SELECT id, kind, schedule_type, created_at FROM habits';
+        ? "SELECT id, kind, schedule_type, is_enabled, created_at FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND (deleted_at IS NULL OR deleted_at = '')"
+        : "SELECT id, kind, schedule_type, is_enabled, created_at FROM habits WHERE (deleted_at IS NULL OR deleted_at = '')";
     final habitsParams = uid.isNotEmpty ? [uid] : <dynamic>[];
     final habitRows = await db.getAll(habitsQuery, habitsParams);
 
     final logsQuery = uid.isNotEmpty
-        ? 'SELECT habit_id, log_date, status FROM habit_logs WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') AND status = ?'
-        : 'SELECT habit_id, log_date, status FROM habit_logs WHERE status = ?';
+        ? "SELECT habit_id, log_date, status FROM habit_logs WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND (deleted_at IS NULL OR deleted_at = '') AND status = ?"
+        : "SELECT habit_id, log_date, status FROM habit_logs WHERE (deleted_at IS NULL OR deleted_at = '') AND status = ?";
     final logsParams = uid.isNotEmpty ? [uid, 'done'] : ['done'];
     final logRows = await db.getAll(logsQuery, logsParams);
 
@@ -276,13 +278,17 @@ class HabitStreakService {
     if (!isDatabaseInitialized) {
       return Stream.value(const <StreakLog>[]);
     }
+    // Root cause: watchQuery lacked deleted_at filtering on habit_logs and habits, causing
+    // soft-deleted rows to remain in the watched result set; filter active rows explicitly.
     final watchQuery = uid.isNotEmpty
-        ? 'SELECT id FROM habit_logs WHERE user_id = ? OR user_id IS NULL OR user_id = \'\' '
+        ? 'SELECT id FROM habit_logs WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') AND (deleted_at IS NULL OR deleted_at = \'\') '
             'UNION ALL '
-            'SELECT id FROM habits WHERE user_id = ? OR user_id IS NULL OR user_id = \'\' '
+            'SELECT id FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = \'\') AND (deleted_at IS NULL OR deleted_at = \'\') '
             'UNION ALL '
             'SELECT id FROM prayers WHERE user_id = ? OR user_id IS NULL OR user_id = \'\''
-        : 'SELECT id FROM habit_logs UNION ALL SELECT id FROM habits UNION ALL SELECT id FROM prayers';
+        : 'SELECT id FROM habit_logs WHERE deleted_at IS NULL OR deleted_at = \'\' '
+            'UNION ALL SELECT id FROM habits WHERE deleted_at IS NULL OR deleted_at = \'\' '
+            'UNION ALL SELECT id FROM prayers';
     final watchParams = uid.isNotEmpty ? [uid, uid, uid] : <dynamic>[];
 
     return db.watch(watchQuery, parameters: watchParams).asyncMap((_) async {

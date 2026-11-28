@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -93,7 +93,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                                 ),
                                 child: Text(
                                   displayCat,
-                                  style: GoogleFonts.getFont(
+                                  style: AxisFonts.getFont(
                                     'Geist',
                                     fontSize: 12,
                                     fontWeight: isSel ? FontWeight.w600 : FontWeight.w400,
@@ -134,7 +134,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                                   isArabic
                                       ? 'لا توجد عادات في هذا التصنيف. انقر على عادة جديدة لإنشائها.'
                                       : 'No habits in this category. Click New Habit to create one.',
-                                  style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                                  style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                                 ),
                               ),
                             );
@@ -228,7 +228,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                       habit.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.getFont(
+                      style: AxisFonts.getFont(
                         'Geist',
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -258,7 +258,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                             ),
                             child: Text(
                               '@${(habit.senderUsername ?? '').trim().replaceFirst(RegExp(r'^@+'), '').trim()}',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w600,
                                 color: AxisColors.primarySoft,
@@ -268,12 +268,12 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                         ],
                         Text(
                           '$scheduleLabel  ·  $categoryLabel$pausedLabel',
-                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                          style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                         ),
                         if (habit.remindTime != null && habit.remindTime!.trim().isNotEmpty && isEnabled) ...[
                           Text(
                             '·',
-                            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                            style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -282,7 +282,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                               const SizedBox(width: 3),
                               Text(
                                 habit.remindTime!,
-                                style: GoogleFonts.getFont(
+                                style: AxisFonts.getFont(
                                   'Geist',
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
@@ -305,7 +305,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                   const SizedBox(width: 2),
                   Text(
                     isArabic ? 'تتابع ${habit.streakDays} أيام' : '${habit.streakDays}d streak',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AxisColors.warning,
@@ -390,20 +390,20 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                       backgroundColor: AxisColors.canvasBase,
                       title: Text(
                         isArabic ? 'حذف العادة' : 'Delete Habit',
-                        style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh),
+                        style: AxisFonts.spaceGrotesk(color: AxisColors.textHigh),
                       ),
                       content: Text(
                         isArabic
                             ? 'هل أنت متأكد من حذف "${habit.name}"؟'
                             : 'Are you sure you want to delete "${habit.name}"?',
-                        style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted),
+                        style: AxisFonts.getFont('Geist', color: AxisColors.textMuted),
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.of(ctx).pop(false),
                           child: Text(
                             isArabic ? 'إلغاء' : 'Cancel',
-                            style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted),
+                            style: AxisFonts.getFont('Geist', color: AxisColors.textMuted),
                           ),
                         ),
                         TextButton(
@@ -435,7 +435,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                       const SizedBox(width: 8),
                       Text(
                         isArabic ? 'مشاركة العادة' : 'Share Habit',
-                        style: GoogleFonts.getFont(
+                        style: AxisFonts.getFont(
                           'Geist',
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
@@ -454,7 +454,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                       const SizedBox(width: 8),
                       Text(
                         isArabic ? 'تعديل العادة' : 'Edit Habit',
-                        style: GoogleFonts.getFont(
+                        style: AxisFonts.getFont(
                           'Geist',
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
@@ -473,7 +473,7 @@ class _DesktopDailyHabitsCardState extends State<DesktopDailyHabitsCard> {
                       const SizedBox(width: 8),
                       Text(
                         isArabic ? 'حذف العادة' : 'Delete Habit',
-                        style: GoogleFonts.getFont(
+                        style: AxisFonts.getFont(
                           'Geist',
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,

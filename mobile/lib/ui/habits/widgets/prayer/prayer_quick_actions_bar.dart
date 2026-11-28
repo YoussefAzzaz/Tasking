@@ -89,12 +89,11 @@ class PrayerQiblaActionButton extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Icon(
-                isArabic
-                    ? Icons.arrow_back_ios_rounded
-                    : Icons.arrow_forward_ios_rounded,
+              // Root cause: arrow_forward_ios_rounded auto-mirrors in RTL; ternary flipped twice.
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
                 size: 11,
-                color: const Color(0xB310B981),
+                color: Color(0xB310B981),
               ),
             ],
           ),

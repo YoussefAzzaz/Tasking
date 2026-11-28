@@ -189,10 +189,9 @@ class OutdatedSection extends StatelessWidget {
                   key: ValueKey(task.id),
                   task: task,
                   onToggle: (checked) async {
-                    final updated = task.copyWith(
-                      status: checked ? 'done' : 'todo',
-                    );
-                    await repo.updateTask(updated);
+                    // Root-cause fix: route completion toggles through toggleTaskStatus()
+                    // instead of raw updateTask() so XP awards, completedAt, and recurrence run.
+                    await repo.toggleTaskStatus(task, checked);
                   },
                   onTap: () => showModalBottomSheet(
                     context: context,
@@ -212,10 +211,7 @@ class OutdatedSection extends StatelessWidget {
                 key: ValueKey(task.id),
                 task: task,
                 onToggle: (checked) async {
-                  final updated = task.copyWith(
-                    status: checked ? 'done' : 'todo',
-                  );
-                  await repo.updateTask(updated);
+                  await repo.toggleTaskStatus(task, checked);
                 },
                 onTap: () => showModalBottomSheet(
                   context: context,

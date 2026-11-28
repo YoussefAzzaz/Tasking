@@ -322,15 +322,27 @@ class PrayerRepository {
     }
   }
 
-  /// Non-destructively resets is_done = 0 for prayers whose updated_at is from a previous calendar day.
+  /// Non-destructively resets is_done = 0 for prayers whose updated_at is from a previous local calendar day.
   /// Does NOT delete habit_logs or logs from today.
   Future<void> resetStalePrayersFromPreviousDays(String userId, String todayStr) async {
     if (!_ready) return;
-    final nowUtc = DateTime.now().toUtc().toIso8601String();
+    final now = DateTime.now();
+    final nowUtc = now.toUtc().toIso8601String();
+    // Root-cause fix: `updated_at` is stored in UTC ISO-8601 while `todayStr` is
+    // a local YYYY-MM-DD key; comparing them lexicographically fails across UTC
+    // midnight boundaries. Parse `todayStr` into local midnight converted to UTC.
+    final parsedDay = DateTime.tryParse(todayStr);
+    final localMidnightUtc = (parsedDay != null
+            ? DateTime(parsedDay.year, parsedDay.month, parsedDay.day)
+            : DateTime(now.year, now.month, now.day))
+        .toUtc()
+        .toIso8601String();
     final query = userId.isNotEmpty
         ? "UPDATE prayers SET is_done = 0, updated_at = ? WHERE user_id = ? AND is_done != 0 AND (updated_at IS NULL OR updated_at < ?)"
         : "UPDATE prayers SET is_done = 0, updated_at = ? WHERE (user_id IS NULL OR user_id = '' OR user_id = 'local_guest') AND is_done != 0 AND (updated_at IS NULL OR updated_at < ?)";
-    final params = userId.isNotEmpty ? [nowUtc, userId, todayStr] : [nowUtc, todayStr];
+    final params = userId.isNotEmpty
+        ? [nowUtc, userId, localMidnightUtc]
+        : [nowUtc, localMidnightUtc];
     await _db.execute(query, params);
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/prayers/adhan_sound_service.dart';
@@ -155,7 +155,7 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                     children: [
                       Text(
                         isArabic ? 'أصوات ومؤذنو الأذان' : 'ADHAN SOUNDS & MU’ADHINS',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.1,
@@ -167,7 +167,7 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                         isArabic
                             ? 'اختر من أشهر الأذانات أو ارفع صوتك المفضل'
                             : 'Choose from world-renowned Adhans or upload custom audio',
-                        style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textMuted),
+                        style: AxisFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textMuted),
                       ),
                     ],
                   ),
@@ -228,7 +228,7 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                             children: [
                               Text(
                                 isArabic ? 'رفع صوت أذان من الهاتف' : 'Upload Custom Sound from Phone',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: AxisColors.textHigh,
@@ -239,7 +239,7 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                                 isArabic
                                     ? 'استخدم أي ملف MP3 أو M4A أو WAV كصوت للأذان'
                                     : 'Pick any audio file from device storage (.mp3, .m4a, .wav)',
-                                style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                                style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                               ),
                             ],
                           ),
@@ -277,7 +277,7 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                       hintText: isArabic
                           ? 'ابحث باسم الحرم، المؤذن أو القارئ...'
                           : 'Search by mosque, mu’adhin or reciter...',
-                      hintStyle: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                      hintStyle: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     ),
@@ -431,7 +431,7 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                           Flexible(
                             child: Text(
                               isArabic ? sound.nameAr : sound.name,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
                                 color: isActive ? AxisColors.primarySoft : AxisColors.textHigh,
@@ -463,13 +463,13 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                       const SizedBox(height: 2),
                       Text(
                         isArabic ? sound.muadhinAr : sound.muadhin,
-                        style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.secondarySoft),
+                        style: AxisFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.secondarySoft),
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 1),
                       Text(
                         isArabic ? sound.descriptionAr : sound.description,
-                        style: GoogleFonts.getFont('Geist', fontSize: 10.5, color: AxisColors.textDim),
+                        style: AxisFonts.getFont('Geist', fontSize: 10.5, color: AxisColors.textDim),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -496,7 +496,7 @@ class _ExploreAdhanSoundsSheetState extends State<ExploreAdhanSoundsSheet> {
                 else
                   Text(
                     isArabic ? 'اختيار' : 'SELECT',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.6,

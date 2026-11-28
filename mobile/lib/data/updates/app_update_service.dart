@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -89,11 +90,35 @@ class AppUpdateService {
       ValueNotifier<UpdateDownloadProgress>(const UpdateDownloadProgress());
   final ValueNotifier<bool> isCheckingNotifier = ValueNotifier<bool>(false);
 
+  static const Duration autoCheckCooldown = Duration(hours: 6);
+
   String? _cachedCurrentVersion;
   int? _cachedCurrentBuildNumber;
   String? _dismissedVersion;
+  String? _lastAutoPromptedVersion;
+  DateTime? _lastAutoCheckAt;
   String? lastErrorMessage;
   Future<UpdateInfo?>? _inFlightCheck;
+
+  /// Cached semantic display version (e.g. `1.3.3`) if `getInstalledVersion` or
+  /// `setInstalledVersion` has already run in this session.
+  String? get cachedVersionLabel {
+    if (_cachedCurrentVersion == null) return null;
+    return SemanticVersion.parse(
+      _cachedCurrentVersion!,
+      _cachedCurrentBuildNumber,
+    ).displayVersion;
+  }
+
+  /// Version string dismissed by the user in this session, if any.
+  String? get dismissedVersion => _dismissedVersion;
+
+  /// Whether an automatic background update check already succeeded recently.
+  bool get isAutoCheckOnCooldown {
+    final lastCheck = _lastAutoCheckAt;
+    if (lastCheck == null) return false;
+    return DateTime.now().difference(lastCheck) < autoCheckCooldown;
+  }
   void Function(int receivedBytes, int totalBytes)? _nativeProgressCallback;
 
   bool get _usesCustomClient => _customHttpClient != null;
@@ -156,8 +181,8 @@ class AppUpdateService {
       );
     } catch (_) {
       // Fallback to pubspec default if PackageInfo unavailable in testing
-      _cachedCurrentVersion ??= '1.3.3';
-      _cachedCurrentBuildNumber ??= 28;
+      _cachedCurrentVersion ??= '1.3.4';
+      _cachedCurrentBuildNumber ??= 29;
       return SemanticVersion.parse(_cachedCurrentVersion!, _cachedCurrentBuildNumber);
     }
   }
@@ -196,6 +221,7 @@ class AppUpdateService {
       if (payload == null) {
         return null;
       }
+      _lastAutoCheckAt = DateTime.now();
 
       final json = jsonDecode(payload) as Map<String, dynamic>;
       final update = UpdateInfo.fromGitHubRelease(
@@ -213,8 +239,15 @@ class AppUpdateService {
       );
 
       if (isNewer) {
-        availableUpdateNotifier.value = update;
-        return update;
+        // Root-cause fix: non-forced checks (such as startup/resume checks) previously
+        // re-assigned `availableUpdateNotifier.value` even after the user dismissed an
+        // optional version, causing dismissed banners and modals to reappear on resume.
+        final isDismissedOptional =
+            !force && !update.isMandatory && isVersionDismissed(update.version);
+        if (!isDismissedOptional) {
+          availableUpdateNotifier.value = update;
+        }
+        return isDismissedOptional ? null : update;
       } else {
         if (force) {
           availableUpdateNotifier.value = null;
@@ -282,7 +315,8 @@ class AppUpdateService {
     }
   }
 
-  /// Downloads the release file with real-time progress callbacks and stalled-stream recovery.
+  /// Downloads the release file with real-time progress callbacks, stalled-stream
+  /// recovery, trusted HTTPS host validation, and SHA-256 verification.
   Future<File?> downloadUpdate(
     UpdateInfo update, {
     void Function(double progress, int received, int total)? onProgress,
@@ -292,6 +326,27 @@ class AppUpdateService {
       downloadProgressNotifier.value = const UpdateDownloadProgress(
         status: UpdateDownloadStatus.failed,
         error: 'No download URL available for this platform.',
+      );
+      return null;
+    }
+
+    if (!UpdateInfo.isTrustedReleaseUrl(update.downloadUrl)) {
+      downloadProgressNotifier.value = const UpdateDownloadProgress(
+        status: UpdateDownloadStatus.failed,
+        error: 'Untrusted update download URL blocked for security.',
+      );
+      return null;
+    }
+
+    // Root cause: when no OS-specific binary asset is attached to a release yet,
+    // UpdateInfo falls back to GitHub's release HTML tag page (`.../releases/tag/...`).
+    // Downloading that HTML page would masquerade as an APK/tarball installer.
+    final parsedUri = Uri.tryParse(update.downloadUrl);
+    if (parsedUri != null && parsedUri.path.contains('/releases/tag/')) {
+      downloadProgressNotifier.value = const UpdateDownloadProgress(
+        status: UpdateDownloadStatus.failed,
+        error:
+            'No direct installer binary attached for this platform yet. Use Browser to open the release page.',
       );
       return null;
     }
@@ -309,6 +364,10 @@ class AppUpdateService {
       final fileExtension = _resolveExtension(update.downloadUrl, currentPlatform);
       final filename = 'axis-update-v${update.version}$fileExtension';
       final saveFile = File(p.join(cacheDir.path, filename));
+
+      File downloadedFile;
+      int finalReceivedBytes = 0;
+      int finalTotalBytes = initialTotal;
 
       if (_useNativeAndroidHttp) {
         try {
@@ -338,17 +397,20 @@ class AppUpdateService {
           _nativeProgressCallback = null;
 
           if (res != null) {
-            final receivedBytes = (res['receivedBytes'] as num?)?.toInt() ?? 0;
-            final totalBytes = (res['totalBytes'] as num?)?.toInt() ?? receivedBytes;
+            finalReceivedBytes = (res['receivedBytes'] as num?)?.toInt() ?? 0;
+            finalTotalBytes =
+                (res['totalBytes'] as num?)?.toInt() ?? finalReceivedBytes;
             final outPath = res['path'] as String? ?? saveFile.path;
+            downloadedFile = File(outPath);
+            await _verifyDownloadedChecksum(downloadedFile, update);
             downloadProgressNotifier.value = UpdateDownloadProgress(
               status: UpdateDownloadStatus.completed,
-              receivedBytes: receivedBytes,
-              totalBytes: totalBytes,
+              receivedBytes: finalReceivedBytes,
+              totalBytes: finalTotalBytes,
               percentage: 1.0,
               savedFilePath: outPath,
             );
-            return File(outPath);
+            return downloadedFile;
           }
         } on MissingPluginException {
           _nativeProgressCallback = null;
@@ -359,12 +421,22 @@ class AppUpdateService {
         }
       }
 
-      return await _downloadWithDartHttp(
+      downloadedFile = await _downloadWithDartHttp(
         update: update,
         saveFile: saveFile,
         onProgress: onProgress,
         chunkTimeout: chunkTimeout,
       );
+      await _verifyDownloadedChecksum(downloadedFile, update);
+      finalReceivedBytes = await downloadedFile.length();
+      downloadProgressNotifier.value = UpdateDownloadProgress(
+        status: UpdateDownloadStatus.completed,
+        receivedBytes: finalReceivedBytes,
+        totalBytes: initialTotal > 0 ? initialTotal : finalReceivedBytes,
+        percentage: 1.0,
+        savedFilePath: downloadedFile.path,
+      );
+      return downloadedFile;
     } catch (e) {
       debugPrint('[AppUpdateService] Error downloading update: $e');
       downloadProgressNotifier.value = UpdateDownloadProgress(
@@ -372,6 +444,68 @@ class AppUpdateService {
         error: e.toString(),
       );
       return null;
+    }
+  }
+
+  Future<void> _verifyDownloadedChecksum(File file, UpdateInfo update) async {
+    String? expected = update.expectedSha256?.trim().toLowerCase();
+    if ((expected == null || expected.isEmpty) &&
+        update.sha256SumsUrl != null &&
+        UpdateInfo.isTrustedReleaseUrl(update.sha256SumsUrl!)) {
+      final sumsBody = await _fetchPlainTextBody(update.sha256SumsUrl!);
+      if (sumsBody == null) {
+        if (await file.exists()) await file.delete();
+        throw Exception('Security verification failed: unable to fetch release checksums.');
+      }
+      final assetFileName =
+          Uri.tryParse(update.downloadUrl)?.pathSegments.last ?? '';
+      expected = UpdateInfo.parseSha256ForAsset(sumsBody, assetFileName);
+      if (expected == null) {
+        if (await file.exists()) await file.delete();
+        throw Exception('Security verification failed: missing asset entry in SHA256SUMS.txt.');
+      }
+    }
+    if (expected == null || expected.isEmpty) return;
+
+    final bytes = await file.readAsBytes();
+    final actual = sha256.convert(bytes).toString().toLowerCase();
+    if (actual != expected) {
+      if (await file.exists()) await file.delete();
+      throw Exception('Security verification failed: downloaded package checksum mismatch.');
+    }
+  }
+
+  Future<String?> _fetchPlainTextBody(String urlStr) async {
+    const headers = <String, String>{
+      'User-Agent': 'Axis-App-Updater',
+      'Accept': 'text/plain, */*',
+      'Connection': 'close',
+    };
+    if (_useNativeAndroidHttp) {
+      try {
+        final res = await _updaterChannel
+            .invokeMapMethod<String, dynamic>('fetchJson', {
+              'url': urlStr,
+              'headers': headers,
+            })
+            .timeout(const Duration(seconds: 25));
+        if (res != null && ((res['statusCode'] as num?)?.toInt() ?? 0) == 200) {
+          return res['body'] as String?;
+        }
+      } on MissingPluginException {
+        // Fall back to Dart HTTP client
+      } on PlatformException {
+        return null;
+      }
+    }
+    final client = _acquireClient();
+    try {
+      final res = await client
+          .get(Uri.parse(urlStr), headers: headers)
+          .timeout(const Duration(seconds: 15));
+      return res.statusCode == 200 ? res.body : null;
+    } finally {
+      if (!_usesCustomClient) client.close();
     }
   }
 
@@ -388,7 +522,11 @@ class AppUpdateService {
 
       // Follow redirects explicitly up to 8 times (GitHub releases redirect to release-assets / Azure)
       for (int redirectCount = 0; redirectCount < 8; redirectCount++) {
-        final request = http.Request('GET', Uri.parse(currentUrl));
+        final targetUri = Uri.parse(currentUrl);
+        if (targetUri.scheme.toLowerCase() != 'https') {
+          throw Exception('Blocked insecure non-HTTPS redirect target.');
+        }
+        final request = http.Request('GET', targetUri);
         request.followRedirects = false;
         request.headers['User-Agent'] = 'Axis-App-Updater';
         request.headers['Accept'] = '*/*';
@@ -482,14 +620,6 @@ class AppUpdateService {
         );
       }
 
-      downloadProgressNotifier.value = UpdateDownloadProgress(
-        status: UpdateDownloadStatus.completed,
-        receivedBytes: receivedBytes,
-        totalBytes: totalBytes > 0 ? totalBytes : receivedBytes,
-        percentage: 1.0,
-        savedFilePath: saveFile.path,
-      );
-
       return saveFile;
     } finally {
       if (!_usesCustomClient) {
@@ -538,9 +668,36 @@ class AppUpdateService {
     }
   }
 
+  /// Returns true only when an automatic prompt should be shown for [update]
+  /// in the current session (respecting dismissed versions and prior auto-prompts).
+  bool shouldAutoPrompt(UpdateInfo update, SemanticVersion currentVer) {
+    if (_lastAutoPromptedVersion == update.version) {
+      return false;
+    }
+    return update.shouldPrompt(
+      currentVersion: currentVer.toString(),
+      currentBuildNumber: currentVer.buildNumber,
+      dismissedVersion: _dismissedVersion,
+    );
+  }
+
+  /// Marks [version] as already auto-prompted during this app session so
+  /// resume lifecycle events never spam or re-stack dialogs.
+  void markAutoPrompted(String version) {
+    _lastAutoPromptedVersion = version;
+  }
+
+  @visibleForTesting
+  void resetAutoPromptStateForTesting() {
+    _dismissedVersion = null;
+    _lastAutoPromptedVersion = null;
+    _lastAutoCheckAt = null;
+  }
+
   /// Dismisses an optional update for the current session.
   void dismissUpdate(String version) {
     _dismissedVersion = version;
+    _lastAutoPromptedVersion = version;
     if (availableUpdateNotifier.value?.version == version) {
       availableUpdateNotifier.value = null;
     }

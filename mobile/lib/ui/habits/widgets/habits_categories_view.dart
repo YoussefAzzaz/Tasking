@@ -96,9 +96,8 @@ class _HabitCategoriesViewState extends State<HabitCategoriesView> {
                   !categoryNames.contains(catLower)) {
                 categoryNames.add(catLower);
                 discoveredCategories.add(
-                  HabitCategory(
-                    id: 'discovered_$catTrimmed',
-                    name: catTrimmed,
+                  HabitCategoryRepository.reconciledCategory(
+                    catTrimmed,
                     icon: h.icon,
                     color: h.color,
                   ),

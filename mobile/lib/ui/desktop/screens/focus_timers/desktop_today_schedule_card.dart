@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -106,7 +106,7 @@ class DesktopTodayScheduleCard extends StatelessWidget {
                               isAr
                                   ? 'لم تسجل أي جلسات تركيز اليوم بعد. ابدأ جلسة للانطلاق في العمل العميق.'
                                   : 'No focus sprints recorded yet today. Launch a session to begin deep work.',
-                              style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                              style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                             ),
                           ),
                         );
@@ -143,7 +143,7 @@ class DesktopTodayScheduleCard extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: AxisColors.textHigh),
+                    style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: AxisColors.textHigh),
                   ),
                 ),
                 if (timeRange.isNotEmpty) ...[
@@ -152,7 +152,7 @@ class DesktopTodayScheduleCard extends StatelessWidget {
                     timeRange,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
+                    style: AxisFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
                   ),
                 ],
               ],

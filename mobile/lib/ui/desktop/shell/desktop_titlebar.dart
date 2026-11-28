@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:powersync/powersync.dart' show SyncStatus;
 import 'package:window_manager/window_manager.dart';
@@ -192,7 +192,7 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
               const SizedBox(width: 5),
               Text(
                 dateStr,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: AxisColors.textHigh,
@@ -213,7 +213,7 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
               const SizedBox(width: 4),
               Text(
                 timeStr,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: AxisColors.primarySoft,
@@ -258,7 +258,7 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
                       ? 'ابحث في المهام، المشاريع، العادات، أو اكتب أمراً...'
                       : 'Search tasks, projects, habits, telemetry, or enter command...',
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.getFont(
+                  style: AxisFonts.getFont(
                     'Geist',
                     fontSize: 11,
                     color: AxisColors.textDim,
@@ -274,7 +274,7 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
                 ),
                 child: Text(
                   'Ctrl + K',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 9,
                     fontWeight: FontWeight.w600,
                     color: AxisColors.textMuted,
@@ -364,7 +364,7 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
                           const SizedBox(width: 8),
                           Text(
                             'AXIS',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.2,
@@ -532,7 +532,7 @@ class _DesktopTitlebarState extends State<DesktopTitlebar> with WindowListener {
                       const SizedBox(width: 6),
                       Text(
                         'OPERATOR ACCESS TERMINAL // POWERSYNC GATEWAY',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: AxisColors.textMuted,

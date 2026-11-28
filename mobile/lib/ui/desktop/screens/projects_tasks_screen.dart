@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../core/theme.dart';
 import '../../../core/l10n/app_localizations.dart';
@@ -67,20 +67,20 @@ class _ProjectsTasksScreenState extends State<ProjectsTasksScreen> {
         ),
         title: Text(
           isArabic ? 'حذف المشروع' : 'Delete Project',
-          style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh, fontWeight: FontWeight.bold),
+          style: AxisFonts.spaceGrotesk(color: AxisColors.textHigh, fontWeight: FontWeight.bold),
         ),
         content: Text(
           isArabic
               ? 'هل أنت متأكد من حذف "${p.name}"؟ سيتم إلغاء ربط المهام المرتبطة بهذا المشروع دون حذفها.'
               : 'Are you sure you want to delete "${p.name}"? Tasks associated with this project will be unlinked but not deleted.',
-          style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted, fontSize: 13),
+          style: AxisFonts.getFont('Geist', color: AxisColors.textMuted, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               isArabic ? 'إلغاء' : 'Cancel',
-              style: GoogleFonts.getFont('Geist', color: AxisColors.textDim),
+              style: AxisFonts.getFont('Geist', color: AxisColors.textDim),
             ),
           ),
           AccentButton(

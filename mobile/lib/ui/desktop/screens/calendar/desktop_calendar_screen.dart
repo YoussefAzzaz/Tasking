@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme.dart';
@@ -521,7 +521,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                 children: [
                   Text(
                     l10n.calendar,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       color: AxisColors.textHigh,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -529,7 +529,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                   ),
                   Text(
                     rangeLabel,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: AxisFonts.jetBrainsMono(
                       color: AxisColors.textMuted,
                       fontSize: 11,
                     ),
@@ -707,7 +707,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                 const SizedBox(width: 6),
                 Text(
                   isAr ? 'المكتملة' : 'Completed',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                     color: _showCompletedTasks
@@ -758,7 +758,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                     value: CalendarZoomLevel.hour,
                     child: Text(
                       isAr ? '1 ساعة' : '1 Hour',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: AxisFonts.jetBrainsMono(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -768,7 +768,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                     value: CalendarZoomLevel.halfHour,
                     child: Text(
                       isAr ? '30 دقيقة' : '30 Min',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: AxisFonts.jetBrainsMono(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -778,7 +778,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                     value: CalendarZoomLevel.quarterHour,
                     child: Text(
                       isAr ? '15 دقيقة' : '15 Min',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: AxisFonts.jetBrainsMono(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -791,7 +791,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                 isDense: true,
                 dropdownColor: AxisColors.surfaceHigh,
                 iconEnabledColor: AxisColors.textMuted,
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   color: AxisColors.textHigh,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -852,7 +852,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
               isDense: true,
               dropdownColor: AxisColors.surfaceHigh,
               iconEnabledColor: AxisColors.textMuted,
-              style: GoogleFonts.jetBrainsMono(
+              style: AxisFonts.jetBrainsMono(
                 color: AxisColors.textHigh,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -879,7 +879,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
             child: Center(
               child: Text(
                 isAr ? 'الوقت' : 'TIME',
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   color: AxisColors.textDim,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
@@ -935,7 +935,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
           children: [
             Text(
               _weekdayShortName(day.weekday, isAr).toUpperCase(),
-              style: GoogleFonts.jetBrainsMono(
+              style: AxisFonts.jetBrainsMono(
                 color: isToday ? AxisColors.primary : AxisColors.textMuted,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
@@ -952,7 +952,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
               ),
               child: Text(
                 '${day.day}',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   color: isToday ? Colors.white : AxisColors.textHigh,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -1034,7 +1034,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                 alignment: Alignment.topRight,
                 child: Text(
                   CalendarScheduler.formatMinutes(i * step),
-                  style: GoogleFonts.jetBrainsMono(
+                  style: AxisFonts.jetBrainsMono(
                     color: (i * step) % 60 == 0
                         ? AxisColors.textDim
                         : AxisColors.textDim.withValues(alpha: 0.65),
@@ -1436,7 +1436,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                           ],
                           Text(
                             pLabel,
-                            style: GoogleFonts.jetBrainsMono(
+                            style: AxisFonts.jetBrainsMono(
                               color: isDone ? AxisColors.tertiary : pColor,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w700,
@@ -1460,7 +1460,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                           const SizedBox(width: 3),
                           Text(
                             '${duration}m',
-                            style: GoogleFonts.jetBrainsMono(
+                            style: AxisFonts.jetBrainsMono(
                               color: AxisColors.textMuted,
                               fontSize: 9.5,
                             ),
@@ -1491,7 +1491,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                               ],
                               Text(
                                 pLabel,
-                                style: GoogleFonts.jetBrainsMono(
+                                style: AxisFonts.jetBrainsMono(
                                   color: isDone ? AxisColors.tertiary : pColor,
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w700,
@@ -1501,7 +1501,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                               Expanded(
                                 child: Text(
                                   '${CalendarScheduler.formatMinutes(startMin)} · ${duration}m',
-                                  style: GoogleFonts.jetBrainsMono(
+                                  style: AxisFonts.jetBrainsMono(
                                     color: AxisColors.textMuted,
                                     fontSize: 9.5,
                                   ),
@@ -1591,7 +1591,7 @@ class _DesktopCalendarScreenState extends State<DesktopCalendarScreen> {
                       ],
                       Text(
                         pLabel,
-                        style: GoogleFonts.jetBrainsMono(
+                        style: AxisFonts.jetBrainsMono(
                           color: pColor,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,

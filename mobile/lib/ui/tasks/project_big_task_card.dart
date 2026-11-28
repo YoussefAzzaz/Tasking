@@ -359,10 +359,9 @@ class _ProjectBigTaskCardState extends State<ProjectBigTaskCard> {
                           AxisCheckbox(
                             checked: isDone,
                             onChanged: (checked) async {
-                              final updated = task.copyWith(
-                                status: checked ? 'done' : 'todo',
-                              );
-                              await widget.taskRepo.updateTask(updated);
+                              // Root-cause fix: route status changes through toggleTaskStatus()
+                              // so XP calculation, completedAt, and recurrence progression run.
+                              await widget.taskRepo.toggleTaskStatus(task, checked);
                             },
                           ),
                           const SizedBox(width: 10),

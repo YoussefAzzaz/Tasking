@@ -94,6 +94,20 @@ class AxisStorage {
     return File(p.join(prefDir.path, 'last_saved_credentials.json'));
   }
 
+  /// File for persisting active Pomodoro timer state across app kills.
+  static Future<File> getFocusSessionStateFile() async {
+    await ensureInitializedAndMigrated();
+    final prefDir = await getPreferencesDirectory();
+    return File(p.join(prefDir.path, 'focus_session_state.json'));
+  }
+
+  /// File for per-installation credential vault key material (0600 on POSIX).
+  static Future<File> getVaultKeyFile() async {
+    await ensureInitializedAndMigrated();
+    final prefDir = await getPreferencesDirectory();
+    return File(p.join(prefDir.path, 'vault_device_key.json'));
+  }
+
   /// Directory for notifications state: `<Documents>/axis/notifications/`
   static Future<Directory> getNotificationsDirectory() async {
     final root = await getAxisRootDirectory();

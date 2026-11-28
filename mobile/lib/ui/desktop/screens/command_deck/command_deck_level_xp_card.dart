@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -38,7 +38,7 @@ class CommandDeckLevelXpCard extends StatelessWidget {
                       isArabic ? 'مشغل مستوى $level' : 'LEVEL $level OPERATOR',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.8,
@@ -49,7 +49,7 @@ class CommandDeckLevelXpCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     isArabic ? '$xp / $nextLevelTarget نقطة خبرة' : '$xp / $nextLevelTarget XP',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AxisColors.textMuted,

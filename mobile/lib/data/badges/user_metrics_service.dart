@@ -16,6 +16,11 @@ class UserMetricsService {
 
   static const String _cacheKey = 'user_productivity_metrics_snapshot';
 
+  String get _scopedCacheKey {
+    final uid = currentUserId;
+    return uid.isEmpty ? _cacheKey : '${_cacheKey}_$uid';
+  }
+
   /// Indexes are defined and managed natively by PowerSync Schema (appSchema)
   Future<void> ensureCoveringIndexes() async {
     // Managed natively via PowerSync appSchema Table indexes
@@ -24,7 +29,7 @@ class UserMetricsService {
   /// Fetches a consolidated UserProductivityMetrics snapshot using single-pass aggregation
   Future<UserProductivityMetrics> getMetrics({bool forceRefresh = false}) async {
     if (!forceRefresh) {
-      final cached = CacheService().get<UserProductivityMetrics>(_cacheKey);
+      final cached = CacheService().get<UserProductivityMetrics>(_scopedCacheKey);
       if (cached != null) {
         return cached;
       }
@@ -35,10 +40,9 @@ class UserMetricsService {
     }
 
     final uid = currentUserId;
-    final whereUser = uid.isNotEmpty ? "(user_id = ? OR user_id IS NULL OR user_id = '')" : "1=1";
-    final params = uid.isNotEmpty
-        ? List.filled(17, uid)
-        : <dynamic>[];
+    // Root cause: previously included `(user_id IS NULL OR user_id = '')`,
+    // allowing unowned pre-migration local rows to bleed into another account's metrics.
+    final whereUser = uid.isNotEmpty ? "user_id = ?" : "1=1";
 
     int streakDays = 0;
     int bestStreakDays = 0;
@@ -77,10 +81,15 @@ class UserMetricsService {
         (SELECT COUNT(*) FROM projects WHERE (deleted_at IS NULL OR deleted_at = '') AND $whereUser) as projects_count,
         (SELECT COUNT(*) FROM tags WHERE $whereUser) as tags_count,
         
-        (SELECT COUNT(*) FROM prayers WHERE is_done = 1 AND $whereUser) as prayers_count
+        MAX(
+          (SELECT COUNT(*) FROM logs WHERE event_type = 'prayer_completed' AND (deleted_at IS NULL OR deleted_at = '') AND $whereUser),
+          (SELECT COUNT(*) FROM prayers WHERE is_done = 1 AND $whereUser)
+        ) as prayers_count
     ''';
 
     try {
+      final placeholderCount = '?'.allMatches(sql).length;
+      final params = uid.isNotEmpty ? List.filled(placeholderCount, uid) : <dynamic>[];
       final res = await db.execute(sql, params);
       if (res.isNotEmpty) {
         final row = res.first;
@@ -109,9 +118,9 @@ class UserMetricsService {
           activityLogsCount: (row['completed_tasks'] as num?)?.toInt() ?? 0,
         );
 
-        // Cache for 60 seconds to make Me screen loads instant
+        // Cache for 60 seconds per account to make Me screen loads instant
         CacheService().set<UserProductivityMetrics>(
-          _cacheKey,
+          _scopedCacheKey,
           metrics,
           ttl: const Duration(seconds: 60),
         );

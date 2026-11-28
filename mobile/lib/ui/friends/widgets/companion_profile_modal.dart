@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
 import 'package:axis/data/mastery_badge_repository.dart';
 import 'package:axis/data/powersync_db.dart';
+import 'package:axis/data/user_profile_repository.dart';
 import 'package:axis/ui/me/widgets/avatar_widget.dart';
 import 'package:axis/ui/tasks/widgets/share_task_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -157,8 +158,9 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
     }
 
     if (code.isEmpty) {
-      final hashPart = companionUid.replaceAll('-', '').toUpperCase();
-      code = 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
+      // Root cause: fell back to fake 'AX-7842' when companion code was missing.
+      final fallback = UserProfileRepository.formatFallbackFriendCode(companionUid);
+      code = fallback == '---' ? '' : fallback;
     }
 
     final badges = await _friendRepo.getBadgesForCompanion(
@@ -229,7 +231,7 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                 children: [
                   Text(
                     l10n.companionProfile.toUpperCase(),
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.2,
@@ -288,7 +290,7 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                             Flexible(
                               child: Text(
                                 status.userName,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 19,
                                   fontWeight: FontWeight.w800,
                                   color: AxisColors.textHigh,
@@ -306,7 +308,7 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                               ),
                               child: Text(
                                 '${isArabic ? "المستوى" : "LVL"} $_level',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w800,
                                   color: AxisColors.primarySoft,
@@ -324,7 +326,7 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                                       ? 'مشغل'
                                       : _title)
                               : _title,
-                          style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
+                          style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
                         ),
                         const SizedBox(height: 8),
                         // Friend Code Chip
@@ -343,7 +345,7 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                               children: [
                                 Text(
                                   '${isArabic ? "الرمز:" : "CODE:"} $_friendCode',
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: isArabic ? 0.0 : 0.6,
@@ -415,7 +417,7 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
                         isArabic
                             ? 'مشاركة مهمة أو عادة أو ملاحظة'
                             : 'Share Task, Habit, or Note',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -481,9 +483,9 @@ class _CompanionProfileModalState extends State<CompanionProfileModal> {
         children: [
           Icon(icon, size: 16, color: iconColor),
           const SizedBox(height: 4),
-          Text(title, style: GoogleFonts.spaceGrotesk(fontSize: 11.5, fontWeight: FontWeight.w800, color: AxisColors.textHigh), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+          Text(title, style: AxisFonts.spaceGrotesk(fontSize: 11.5, fontWeight: FontWeight.w800, color: AxisColors.textHigh), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 1),
-          Text(subtitle, style: GoogleFonts.getFont('Geist', fontSize: 9.5, color: AxisColors.textDim), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+          Text(subtitle, style: AxisFonts.getFont('Geist', fontSize: 9.5, color: AxisColors.textDim), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
         ],
       ),
     );

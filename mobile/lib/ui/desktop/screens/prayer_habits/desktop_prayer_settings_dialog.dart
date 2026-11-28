@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/adhan_alarm_service.dart';
@@ -100,7 +100,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                     const SizedBox(width: 8),
                     Text(
                       isArabic ? 'قياسات ومنبهات الصلوات' : 'Prayer Telemetry & Alarms',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AxisColors.textHigh,
@@ -148,7 +148,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                             children: [
                               Text(
                                 isArabic ? 'اتجاه القبلة' : 'QIBLA BEARING',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: AxisColors.textMuted,
@@ -159,7 +159,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                                 isArabic
                                     ? '${_prayerService.qiblaBearing.toStringAsFixed(1)}° بالنسبة للشمال'
                                     : '${_prayerService.qiblaBearing.toStringAsFixed(1)}° Relative to North',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: AxisColors.textHigh,
@@ -198,7 +198,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                       children: [
                         Text(
                           isArabic ? 'إشعارات الأذان' : 'Adhan Notifications',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AxisColors.textHigh,
@@ -209,7 +209,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                           isArabic
                               ? 'إشعار يومي عند حلول وقت كل صلاة'
                               : 'Daily notification on every prayer window',
-                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                          style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                         ),
                       ],
                     ),
@@ -249,7 +249,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                           children: [
                             Text(
                               isArabic ? 'صوت الأذان النشط' : 'Active Adhan Sound',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: AxisColors.textHigh,
@@ -258,7 +258,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                             const SizedBox(height: 2),
                             Text(
                               '${isArabic ? activeSound.nameAr : activeSound.name} • ${isArabic ? activeSound.muadhinAr : activeSound.muadhin}',
-                              style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.primarySoft),
+                              style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.primarySoft),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
@@ -296,7 +296,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                       children: [
                         Text(
                           isArabic ? 'منبه الفجر الذكي للاستيقاظ' : 'Fajr Smart Wake-Up Alarm',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AxisColors.textHigh,
@@ -307,7 +307,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                           isArabic
                               ? 'تنبيه صوتي مستمر للاستيقاظ لصلاة الفجر'
                               : 'Persistent acoustic wake-up alert at dawn',
-                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                          style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                         ),
                       ],
                     ),
@@ -338,7 +338,7 @@ class _DesktopPrayerSettingsDialogState extends State<DesktopPrayerSettingsDialo
                         : 'Location: ${_resolveLocationLabel(context)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                    style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                   ),
                 ),
                 const SizedBox(width: 8),

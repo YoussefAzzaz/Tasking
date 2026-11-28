@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/auth_service.dart';
 import 'package:axis/data/stats_repository.dart';
@@ -287,10 +287,9 @@ class _MeScreenState extends State<MeScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(
-            l10n.isArabic
-                ? Icons.arrow_forward_ios_rounded
-                : Icons.arrow_back_ios_new_rounded,
+          // Root cause: arrow_back_ios_new_rounded auto-mirrors in RTL; manual ternary caused double-flip.
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
             color: AxisColors.textHigh,
             size: 19,
           ),
@@ -305,7 +304,7 @@ class _MeScreenState extends State<MeScreen> {
         ),
         title: Text(
           l10n.me.toUpperCase(),
-          style: GoogleFonts.spaceGrotesk(
+          style: AxisFonts.spaceGrotesk(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             letterSpacing: l10n.isArabic ? 0.0 : 2.0,
@@ -350,7 +349,7 @@ class _MeScreenState extends State<MeScreen> {
                         isGuest
                             ? (l10n.isArabic ? 'دخول' : 'Sign In')
                             : (l10n.isArabic ? 'خروج' : 'Sign Out'),
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: isGuest ? AxisColors.primarySoft : AxisColors.error,

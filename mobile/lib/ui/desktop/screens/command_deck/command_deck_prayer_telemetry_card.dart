@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -57,7 +57,7 @@ class CommandDeckPrayerTelemetryCard extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     AppLocalizations.of(context).prayerName(prayer.name),
-                                    style: GoogleFonts.getFont(
+                                    style: AxisFonts.getFont(
                                       'Geist',
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
@@ -67,7 +67,7 @@ class CommandDeckPrayerTelemetryCard extends StatelessWidget {
                                 ),
                                 Text(
                                   prayer.time,
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 11,
                                     color: AxisColors.textMuted,
                                   ),

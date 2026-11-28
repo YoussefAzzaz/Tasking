@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/habit_repository.dart';
@@ -47,7 +47,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                         children: [
                           Text(
                             isArabic ? 'صلوات اليوم' : "TODAY'S PRAYERS",
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.6,
@@ -57,7 +57,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                           const SizedBox(height: 6),
                           Text(
                             isArabic ? '$donePrayers / $totalPrayers مكتملة' : '$donePrayers / $totalPrayers Done',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AxisColors.textHigh,
@@ -74,7 +74,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                             isArabic
                                 ? '${totalPrayers > 0 ? ((donePrayers / totalPrayers) * 100).toInt() : 0}٪ مكتملة اليوم'
                                 : '${totalPrayers > 0 ? ((donePrayers / totalPrayers) * 100).toInt() : 0}% completed today',
-                            style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
+                            style: AxisFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
                           ),
                         ],
                       ),
@@ -89,7 +89,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                         children: [
                           Text(
                             isArabic ? 'تتابع العادات' : 'HABIT STREAK',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.6,
@@ -103,7 +103,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                               const SizedBox(width: 4),
                               Text(
                                 isArabic ? '$maxStreak أيام' : '$maxStreak Days',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                   color: AxisColors.textHigh,
@@ -116,7 +116,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                             isArabic
                                 ? '$doneDailyHabits من ${dailyHabits.length} عادات مكتملة اليوم'
                                 : '$doneDailyHabits of ${dailyHabits.length} habits completed today',
-                            style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
+                            style: AxisFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
                           ),
                         ],
                       ),
@@ -131,7 +131,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                         children: [
                           Text(
                             isArabic ? 'نقاط الخبرة اليومية' : 'DAILY XP',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.6,
@@ -143,7 +143,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                             isArabic
                                 ? '+${doneDailyHabits * 25 + donePrayers * 30} نقطة خبرة'
                                 : '+${doneDailyHabits * 25 + donePrayers * 30} XP',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AxisColors.primarySoft,
@@ -152,7 +152,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             isArabic ? 'من إنجاز العادات والصلوات' : 'From habits and prayer completion',
-                            style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
+                            style: AxisFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
                           ),
                         ],
                       ),
@@ -167,7 +167,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                         children: [
                           Text(
                             isArabic ? 'الصلاة القادمة' : 'NEXT PRAYER',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.6,
@@ -179,7 +179,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                             nextPrayer != null
                                 ? '${AppLocalizations.of(context).prayerName(nextPrayer.name)} ${nextPrayer.time}'
                                 : (isArabic ? 'مكتملة' : 'Completed'),
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AxisColors.tertiary,
@@ -190,7 +190,7 @@ class PrayerHabitsStatsRow extends StatelessWidget {
                             nextPrayer != null
                                 ? (isArabic ? 'الموعد القادم' : 'Upcoming window')
                                 : (isArabic ? 'تمت جميع الفرائض' : 'All obligations fulfilled'),
-                            style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
+                            style: AxisFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim),
                           ),
                         ],
                       ),

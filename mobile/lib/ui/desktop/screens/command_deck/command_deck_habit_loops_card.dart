@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -89,7 +89,7 @@ class _CommandDeckHabitLoopsCardState extends State<CommandDeckHabitLoopsCard> {
                             isArabic
                                 ? 'لا توجد عادات نشطة بعد. اضغط + جديدة لإضافة عادة.'
                                 : 'No active habits enrolled. Click + New to add one.',
-                            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                            style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                           ),
                         ),
                       );
@@ -151,7 +151,7 @@ class _CommandDeckHabitLoopsCardState extends State<CommandDeckHabitLoopsCard> {
                                           h.name,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.getFont(
+                                          style: AxisFonts.getFont(
                                             'Geist',
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600,
@@ -175,7 +175,7 @@ class _CommandDeckHabitLoopsCardState extends State<CommandDeckHabitLoopsCard> {
                                                 '${isArabic ? "تتابع ${h.streakDays} أيام" : "${h.streakDays}d streak"} · ${(isArabic && h.category.toLowerCase() == "general") ? "عام" : (h.category.isNotEmpty ? h.category : (isArabic ? "عام" : "General"))}${h.remindTime != null && h.remindTime!.trim().isNotEmpty ? " · ${h.remindTime}" : ""}',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: GoogleFonts.spaceGrotesk(
+                                                style: AxisFonts.spaceGrotesk(
                                                   fontSize: 10,
                                                   color: AxisColors.textDim,
                                                 ),

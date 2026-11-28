@@ -93,6 +93,21 @@ class UserProfileRepository {
 
   String get _cacheKey => 'user_profile_data_${currentUserId.isNotEmpty ? currentUserId : "global"}';
 
+  /// Root cause: multiple UI and DB paths fell back to hardcoded 'AX-7842'.
+  /// Derive a deterministic friend code from [uid] or return '---' if unavailable.
+  static String formatFallbackFriendCode(String uid) {
+    final cleaned = uid.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+    if (cleaned.length < 4 || uid == 'local_guest') return '---';
+    return 'AX-${cleaned.substring(0, 4)}';
+  }
+
+  /// Resolves the active user's friend code without exposing fake placeholder codes.
+  String resolveDisplayFriendCode([UserProfile? profile]) {
+    final code = (profile ?? profileNotifier.value).friendCode?.trim() ?? '';
+    if (code.isNotEmpty) return code;
+    return formatFallbackFriendCode(currentUserId);
+  }
+
   /// Synchronously broadcasts updated XP and Level to profile listeners and clears stale cache.
   void updateNotifierLevelAndXp(int totalXp, int level) {
     CacheService().invalidate(_cacheKey);
@@ -166,9 +181,10 @@ class UserProfileRepository {
       }
 
       if ((friendCode == null || friendCode.isEmpty) && uid.isNotEmpty) {
-        final hashPart = uid.replaceAll('-', '').toUpperCase();
-        friendCode = 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
-        if (rows.isNotEmpty) {
+        // Root cause: fell back to fake 'AX-7842'; derive deterministic fallback or '---'.
+        final computed = formatFallbackFriendCode(uid);
+        friendCode = computed;
+        if (rows.isNotEmpty && computed != '---') {
           try {
             await db.execute(
               'UPDATE user_profiles SET friend_code = ? WHERE user_id = ?',

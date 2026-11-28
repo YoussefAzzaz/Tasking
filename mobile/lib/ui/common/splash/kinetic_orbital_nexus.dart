@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 
 /// Central kinetic orbital core with rotating rings, counter-rotating gradient arc,
@@ -29,7 +29,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 left: 0,
                 child: Text(
                   '⎡',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: AxisFonts.jetBrainsMono(
                     color: AxisColors.textDim.withValues(alpha: 0.5),
                     fontSize: 16,
                     fontWeight: FontWeight.w300,
@@ -41,7 +41,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 right: 0,
                 child: Text(
                   '⎤',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: AxisFonts.jetBrainsMono(
                     color: AxisColors.textDim.withValues(alpha: 0.5),
                     fontSize: 16,
                     fontWeight: FontWeight.w300,
@@ -53,7 +53,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 left: 0,
                 child: Text(
                   '⎣',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: AxisFonts.jetBrainsMono(
                     color: AxisColors.textDim.withValues(alpha: 0.5),
                     fontSize: 16,
                     fontWeight: FontWeight.w300,
@@ -65,7 +65,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                 right: 0,
                 child: Text(
                   '⎦',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: AxisFonts.jetBrainsMono(
                     color: AxisColors.textDim.withValues(alpha: 0.5),
                     fontSize: 16,
                     fontWeight: FontWeight.w300,
@@ -196,7 +196,7 @@ class KineticOrbitalNexus extends StatelessWidget {
                   ),
                   child: Text(
                     'AX // 00.98',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: AxisFonts.jetBrainsMono(
                       fontSize: 9,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.5,

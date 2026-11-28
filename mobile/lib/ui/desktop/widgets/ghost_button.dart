@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../core/theme.dart';
 import '../core/desktop_layout.dart';
 
@@ -79,7 +79,7 @@ class _GhostButtonState extends State<GhostButton> {
                   widget.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.getFont(
+                  style: AxisFonts.getFont(
                     'Geist',
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -91,7 +91,7 @@ class _GhostButtonState extends State<GhostButton> {
                 const SizedBox(width: 8),
                 Text(
                   widget.shortcutLabel!,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: AxisColors.textDim,

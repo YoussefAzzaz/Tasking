@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/note_category_repository.dart';
@@ -56,10 +56,10 @@ class DesktopNoteCategoriesCard extends StatelessWidget {
                   ),
                   child: TextField(
                     controller: newNoteCatController,
-                    style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
+                    style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
                     decoration: InputDecoration(
                       hintText: isAr ? 'تصنيف ملاحظات جديد...' : 'New note category...',
-                      hintStyle: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                      hintStyle: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                       filled: false,
                       fillColor: Colors.transparent,
                       border: InputBorder.none,
@@ -122,7 +122,7 @@ class DesktopNoteCategoriesCard extends StatelessWidget {
                   child: Center(
                     child: Text(
                       isAr ? 'لم يتم إنشاء تصنيفات ملاحظات مخصصة بعد' : 'No custom note categories created yet',
-                      style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                      style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                     ),
                   ),
                 );
@@ -164,7 +164,7 @@ class DesktopNoteCategoriesCard extends StatelessWidget {
                               const SizedBox(width: 10),
                               Text(
                                 cat.name,
-                                style: GoogleFonts.getFont(
+                                style: AxisFonts.getFont(
                                   'Geist',
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,

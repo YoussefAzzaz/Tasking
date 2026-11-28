@@ -111,10 +111,9 @@ class _MasteryBadgesScreenState extends State<MasteryBadgesScreen> {
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: Icon(
-            isArabic
-                ? Icons.arrow_forward_ios_rounded
-                : Icons.arrow_back_ios_new_rounded,
+          // Root cause: arrow_back_ios_new_rounded auto-mirrors in RTL; manual Arabic ternary flipped twice.
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
             color: AxisColors.textHigh,
             size: 18,
           ),

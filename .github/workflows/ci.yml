@@ -1,0 +1,55 @@
+name: CI Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  flutter-analyze-and-test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Static analysis
+        working-directory: mobile
+        run: flutter analyze
+
+      - name: Run unit and widget test suites
+        working-directory: mobile
+        run: flutter test -r compact
+
+      - name: Check modified/added files obey 400-line cap
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          violations=0
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              mobile/lib/*.dart|mobile/android/app/src/main/kotlin/*.kt|mobile/android/app/src/main/kotlin/**/*.kt|backend/supabase/migrations/*.sql)
+                lines=$(wc -l < "$file")
+                if [ "$lines" -gt 400 ]; then
+                  echo "::warning file=$file::File has $lines lines (AGENTS.md recommends <= 400 lines)."
+                  violations=$((violations + 1))
+                fi
+                ;;
+            esac
+          done < <(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          echo "Files over 400 lines in PR diff: $violations"

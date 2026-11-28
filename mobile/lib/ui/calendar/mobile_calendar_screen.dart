@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/task_repository.dart';
@@ -228,14 +228,32 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
         isDone: nextDone,
         date: dateStr,
       );
-    } catch (_) {}
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        final set = _completedLogsByDate.putIfAbsent(dateStr, () => <String>{});
+        if (currentlyDone) {
+          set.add(code);
+          set.add('prayer_$code');
+        } else {
+          set.remove(code);
+          set.remove('prayer_$code');
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update prayer: $e')),
+      );
+    }
   }
 
   Future<void> _toggleHabitForDate(
       String dateStr, CalendarHabitBlock block) async {
     final currentlyDone = _isHabitDone(dateStr, block);
     final nextDone = !currentlyDone;
-    final hId = block.habit.id;
+    // Root-cause fix: `_isHabitDone` normalizes IDs via `.toLowerCase().trim()`,
+    // whereas `_toggleHabitForDate` previously inserted/removed raw `block.habit.id`,
+    // breaking optimistic uncheck whenever case/whitespace differed.
+    final hId = block.habit.id.toLowerCase().trim();
 
     setState(() {
       final set = _completedLogsByDate.putIfAbsent(dateStr, () => <String>{});
@@ -243,13 +261,28 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
         set.add(hId);
       } else {
         set.remove(hId);
+        set.remove('habit_$hId');
       }
     });
 
     try {
       final repo = widget.habitRepo ?? HabitRepository();
       await repo.toggleHabit(block.habit.id, nextDone, dateStr);
-    } catch (_) {}
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        final set = _completedLogsByDate.putIfAbsent(dateStr, () => <String>{});
+        if (currentlyDone) {
+          set.add(hId);
+        } else {
+          set.remove(hId);
+          set.remove('habit_$hId');
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update habit: $e')),
+      );
+    }
   }
 
   void _openCreateTask({DateTime? date, String? time}) {
@@ -376,8 +409,9 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
           // Back Button if route can pop
           if (Navigator.of(context).canPop())
             IconButton(
-              icon: Icon(
-                isAr ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
+              // Root cause: Material back chevron auto-mirrors in RTL; manual ternary caused double-flip.
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
                 size: 18,
                 color: AxisColors.textHigh,
               ),
@@ -411,7 +445,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
                         '$monthName $yearStr',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           color: AxisColors.textHigh,
@@ -421,7 +455,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
                         l10n.calendar,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.jetBrainsMono(
+                        style: AxisFonts.jetBrainsMono(
                           fontSize: 10,
                           color: AxisColors.textMuted,
                           letterSpacing: 0.8,
@@ -445,7 +479,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
             ),
             child: Text(
               isAr ? 'اليوم' : 'TODAY',
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: AxisColors.secondarySoft,
@@ -493,7 +527,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
                     const SizedBox(width: 4),
                     Text(
                       isAr ? 'المكتملة' : 'Done',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 10.5,
                         fontWeight: FontWeight.bold,
                         color: _showCompletedTasks
@@ -608,7 +642,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
           children: [
             Text(
               _weekdayVeryShortName(day.weekday, isAr),
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 color: isSelected
@@ -619,7 +653,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
             const SizedBox(height: 3),
             Text(
               '${day.day}',
-              style: GoogleFonts.jetBrainsMono(
+              style: AxisFonts.jetBrainsMono(
                 fontSize: 13,
                 fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
                 color: isSelected
@@ -687,7 +721,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
               textAlign: isAr ? TextAlign.left : TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
                 color: AxisColors.textMuted,
@@ -727,7 +761,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
             const SizedBox(width: 4),
             Text(
               label,
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 10.5,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
                 color: isActive ? Colors.white : AxisColors.textDim,
@@ -778,7 +812,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
                       right: 6,
                       child: Text(
                         '${hour.toString().padLeft(2, '0')}:00',
-                        style: GoogleFonts.jetBrainsMono(
+                        style: AxisFonts.jetBrainsMono(
                           fontSize: 10,
                           color: AxisColors.textDim,
                           fontWeight: FontWeight.w600,
@@ -935,7 +969,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
               const SizedBox(width: 5),
               Text(
                 block.prayer.name,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 10.5,
                   fontWeight: FontWeight.bold,
                   color: isDone ? AxisColors.textDim : Colors.white,
@@ -945,7 +979,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
               const Spacer(),
               Text(
                 block.startTimeFormatted,
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   fontSize: 9.5,
                   color: AxisColors.textDim,
                 ),
@@ -993,7 +1027,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
               Expanded(
                 child: Text(
                   block.habit.name,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 10.5,
                     fontWeight: FontWeight.bold,
                     color: isDone ? AxisColors.textDim : Colors.white,
@@ -1004,7 +1038,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
               ),
               Text(
                 block.startTimeFormatted,
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   fontSize: 9.5,
                   color: AxisColors.textDim,
                 ),
@@ -1077,7 +1111,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
               ],
               Text(
                 pLabel,
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   fontSize: 9.5,
                   fontWeight: FontWeight.bold,
                   color: isDone ? AxisColors.tertiary : pColor,
@@ -1100,7 +1134,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
               ),
               Text(
                 '${CalendarScheduler.formatMinutes(startMin)} · ${duration}m',
-                style: GoogleFonts.jetBrainsMono(
+                style: AxisFonts.jetBrainsMono(
                   fontSize: 9.5,
                   color: AxisColors.textDim,
                 ),
@@ -1181,7 +1215,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
             const SizedBox(height: 14),
             Text(
               isAr ? 'لا توجد مهام أو مواعيد لهذا اليوم' : 'No tasks scheduled for this day',
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: AxisColors.textHigh,
@@ -1192,7 +1226,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
               isAr
                   ? 'انقر على زر الإضافة أدناه لجدولة مهمة جديدة'
                   : 'Tap the + button below to schedule a new task',
-              style: GoogleFonts.getFont(
+              style: AxisFonts.getFont(
                 'Geist',
                 fontSize: 12,
                 color: AxisColors.textDim,
@@ -1237,7 +1271,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
                   ),
                   child: Text(
                     timeFormatted,
-                    style: GoogleFonts.jetBrainsMono(
+                    style: AxisFonts.jetBrainsMono(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: item.color,
@@ -1276,7 +1310,7 @@ class _MobileCalendarScreenState extends State<MobileCalendarScreen> {
                       const SizedBox(height: 2),
                       Text(
                         item.subtitle,
-                        style: GoogleFonts.getFont(
+                        style: AxisFonts.getFont(
                           'Geist',
                           fontSize: 11,
                           color: AxisColors.textDim,

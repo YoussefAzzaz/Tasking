@@ -126,6 +126,8 @@ class UpdateInfo {
     this.isMandatory = false,
     this.platform = 'all',
     this.minSupportedVersion,
+    this.sha256SumsUrl,
+    this.expectedSha256,
   });
 
   final String version;
@@ -138,6 +140,40 @@ class UpdateInfo {
   final bool isMandatory;
   final String platform;
   final String? minSupportedVersion;
+  final String? sha256SumsUrl;
+  final String? expectedSha256;
+
+  /// Verifies that an OTA release/manifest URL uses HTTPS and points to a
+  /// trusted distribution domain (GitHub Releases / GitHub CDN / Supabase).
+  static bool isTrustedReleaseUrl(String rawUrl) {
+    final uri = Uri.tryParse(rawUrl.trim());
+    if (uri == null || uri.scheme.toLowerCase() != 'https') {
+      return false;
+    }
+    final host = uri.host.toLowerCase();
+    return host == 'github.com' ||
+        host.endsWith('.github.com') ||
+        host == 'githubusercontent.com' ||
+        host.endsWith('.githubusercontent.com') ||
+        host.endsWith('.supabase.co');
+  }
+
+  /// Extracts a matching lowercase 64-char SHA-256 hex digest for [fileName]
+  /// from the contents of a `SHA256SUMS.txt` release manifest.
+  static String? parseSha256ForAsset(String sumsBody, String fileName) {
+    final target = fileName.trim().toLowerCase();
+    if (target.isEmpty) return null;
+    for (final line in sumsBody.split('\n')) {
+      final match = RegExp(r'^([0-9a-fA-F]{64})\s+\*?(.+)$').firstMatch(line.trim());
+      if (match == null) continue;
+      final hash = match.group(1)!.toLowerCase();
+      final candidate = match.group(2)!.trim().split('/').last.toLowerCase();
+      if (candidate == target) {
+        return hash;
+      }
+    }
+    return null;
+  }
 
   SemanticVersion get semver => SemanticVersion.parse(version, buildNumber);
 
@@ -188,6 +224,7 @@ class UpdateInfo {
 
     String? matchedUrl;
     int? matchedSize;
+    String? sha256SumsUrl;
 
     final platLower = targetPlatform.toLowerCase();
     for (final rawAsset in assets) {
@@ -196,43 +233,45 @@ class UpdateInfo {
       final downloadUrl = rawAsset['browser_download_url'] as String? ?? '';
       final size = rawAsset['size'] as int?;
 
-      if (downloadUrl.isEmpty) continue;
+      if (downloadUrl.isEmpty || !isTrustedReleaseUrl(downloadUrl)) continue;
+
+      if (assetName == 'sha256sums.txt') {
+        sha256SumsUrl = downloadUrl;
+        continue;
+      }
+
+      if (matchedUrl != null) continue;
 
       if (platLower == 'android' && assetName.endsWith('.apk')) {
         matchedUrl = downloadUrl;
         matchedSize = size;
-        break;
       } else if (platLower == 'linux' &&
           (assetName.endsWith('.tar.gz') ||
               assetName.endsWith('.appimage') ||
               assetName.endsWith('.deb'))) {
         matchedUrl = downloadUrl;
         matchedSize = size;
-        break;
       } else if (platLower == 'windows' &&
           (assetName.endsWith('.msix') ||
               assetName.endsWith('.exe') ||
               (assetName.contains('windows') && assetName.endsWith('.zip')))) {
         matchedUrl = downloadUrl;
         matchedSize = size;
-        break;
       } else if (platLower == 'macos' &&
           (assetName.endsWith('.dmg') ||
               (assetName.contains('macos') && assetName.endsWith('.zip')))) {
         matchedUrl = downloadUrl;
         matchedSize = size;
-        break;
       }
     }
 
-    // Fallback: if no specific asset matched for this platform, look for general asset or tag link
-    if (matchedUrl == null && assets.isNotEmpty) {
-      final first = assets.first as Map<String, dynamic>;
-      matchedUrl = first['browser_download_url'] as String?;
-      matchedSize = first['size'] as int?;
+    // Root-cause fix: previously fell back to `assets.first`, which could offer
+    // an Android APK on Linux/Windows or download SHA256SUMS.txt as an installer.
+    // If no platform-matching binary exists, fall back strictly to trusted release html_url.
+    if (matchedUrl == null) {
+      final htmlUrl = json['html_url'] as String? ?? '';
+      matchedUrl = isTrustedReleaseUrl(htmlUrl) ? htmlUrl : '';
     }
-
-    matchedUrl ??= json['html_url'] as String? ?? '';
 
     // Check if mandatory flag is present in notes or tag
     final isMandatory = body.contains('[mandatory]') ||
@@ -249,6 +288,7 @@ class UpdateInfo {
       fileSizeBytes: matchedSize,
       isMandatory: isMandatory,
       platform: targetPlatform,
+      sha256SumsUrl: sha256SumsUrl,
     );
   }
 

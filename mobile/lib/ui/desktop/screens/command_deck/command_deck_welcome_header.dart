@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme.dart';
@@ -46,7 +46,7 @@ class CommandDeckWelcomeHeader extends StatelessWidget {
                           isArabic ? 'النظام نشط • العقدة المحلية' : 'SYSTEM ACTIVE • LOCAL NODE',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.0,
@@ -61,7 +61,7 @@ class CommandDeckWelcomeHeader extends StatelessWidget {
                     isArabic ? 'مرحباً بعودتك، $name' : 'Welcome Back, $name',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: AxisColors.textHigh,
@@ -80,7 +80,7 @@ class CommandDeckWelcomeHeader extends StatelessWidget {
                     final dateStr = DateFormat('EEE, MMM d').format(now);
                     return Text(
                       '$timeStr  ·  $dateStr',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AxisColors.textMuted,

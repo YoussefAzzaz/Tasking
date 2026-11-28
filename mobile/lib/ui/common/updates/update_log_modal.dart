@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 
@@ -8,8 +8,8 @@ import 'package:axis/core/l10n/app_localizations.dart';
 class UpdateLogModal extends StatelessWidget {
   const UpdateLogModal({
     super.key,
-    this.currentVersion = '1.3.3',
-    this.buildNumber = 28,
+    this.currentVersion = '1.3.4',
+    this.buildNumber = 29,
     this.onCheckForUpdates,
   });
 
@@ -19,8 +19,8 @@ class UpdateLogModal extends StatelessWidget {
 
   static Future<void> show(
     BuildContext context, {
-    String currentVersion = '1.3.3',
-    int buildNumber = 28,
+    String currentVersion = '1.3.4',
+    int buildNumber = 29,
     VoidCallback? onCheckForUpdates,
   }) {
     return showDialog<void>(
@@ -39,6 +39,32 @@ class UpdateLogModal extends StatelessWidget {
     final isAr = context.isArabic;
 
     const categories = <_UpdateCategory>[
+      _UpdateCategory(
+        icon: Icons.security_rounded,
+        color: Color(0xFF6366F1), // Indigo
+        titleEn: 'Security Hardening, Offline Fonts, Adhan & Stability (v1.3.4)',
+        titleAr: 'تعزيز الأمان، الخطوط دون إنترنت، الأذان والاستقرار (v1.3.4)',
+        items: [
+          _UpdateItem(
+            titleEn: 'Hardware-Backed Vault, SHA-256 OTA Checksums & RLS Hardening',
+            titleAr: 'خزنة مفاتيح محمية بالعتاد والتحقق من التحديثات بـ SHA-256',
+            descEn: 'Replaced static credential vault keys with per-device Android Keystore/0600 keys, enforced SHA256SUMS.txt & trusted HTTPS checks on OTA updates, and hardened release route guards.',
+            descAr: 'استبدال مفاتيح التشفير الثابتة بمفاتيح مخصصة لكل جهاز عبر Android Keystore، وإضافة التحقق من بصمة SHA-256 لجميع حزم التحديثات.',
+          ),
+          _UpdateItem(
+            titleEn: 'Boosted & Unified 5-Prayer Adhan + Reboot Alarm Recovery',
+            titleAr: 'رفع صوت الأذان وتوحيده عبر الصلوات الخمس واستعادته بعد إعادة التشغيل',
+            descEn: 'Normalized and amplified all bundled Adhan tracks evenly across Fajr, Dhuhr, Asr, Maghrib, and Isha, fixed lock-screen wake flag leaks, and persisted exact alarms across reboots.',
+            descAr: 'توحيد وتقوية مستوى صوت الأذان لجميع الصلوات الخمس، منع بقاء الشاشة قيد التشغيل عند الفتح العادي، واستعادة منبهات الصلاة تلقائياً بعد إعادة تشغيل الجهاز.',
+          ),
+          _UpdateItem(
+            titleEn: 'True Offline Typography, Sync Safety & UI Bug Fixes',
+            titleAr: 'خطوط مدمجة تعمل دون إنترنت وإصلاحات المزامنة والواجهة',
+            descEn: 'Bundled 48 font files natively for zero network dependency, fixed update notice version/stacking bugs, prevented XP anchor inflation and non-share task deletion, isolated multi-account IDs/caches, and repaired RTL icons and light-mode contrast.',
+            descAr: 'دمج الخطوط محلياً بالكامل للعمل دون اتصال، إصلاح عرض الإصدار وتكرار نافذة التحديث، حماية نقاط الخبرة والمهام من التضخم أو الحذف الخاطئ، وتحسين اللغة العربية والتباين.',
+          ),
+        ],
+      ),
       _UpdateCategory(
         icon: Icons.verified_user_rounded,
         color: Color(0xFF06B6D4), // Cyan
@@ -244,7 +270,7 @@ class UpdateLogModal extends StatelessWidget {
                                 isAr ? 'سجل التحديثات' : 'UPDATE LOG',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: isAr ? 0.0 : 0.8,
@@ -262,7 +288,7 @@ class UpdateLogModal extends StatelessWidget {
                               ),
                               child: Text(
                                 'v$currentVersion',
-                                style: GoogleFonts.jetBrainsMono(
+                                style: AxisFonts.jetBrainsMono(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.bold,
                                   color: AxisColors.tertiary,
@@ -278,7 +304,7 @@ class UpdateLogModal extends StatelessWidget {
                               : 'Improvements & features active in this release',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 11,
                             color: AxisColors.textDim,
                           ),
@@ -322,7 +348,7 @@ class UpdateLogModal extends StatelessWidget {
                                 isAr ? cat.titleAr : cat.titleEn,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: cat.color,
@@ -354,7 +380,7 @@ class UpdateLogModal extends StatelessWidget {
                                     children: [
                                       Text(
                                         isAr ? item.titleAr : item.titleEn,
-                                        style: GoogleFonts.spaceGrotesk(
+                                        style: AxisFonts.spaceGrotesk(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
                                           color: AxisColors.textHigh,
@@ -363,7 +389,7 @@ class UpdateLogModal extends StatelessWidget {
                                       const SizedBox(height: 3),
                                       Text(
                                         isAr ? item.descAr : item.descEn,
-                                        style: GoogleFonts.spaceGrotesk(
+                                        style: AxisFonts.spaceGrotesk(
                                           fontSize: 11,
                                           color: AxisColors.textMuted,
                                           height: 1.4,
@@ -405,7 +431,7 @@ class UpdateLogModal extends StatelessWidget {
                               : 'Current version active & verified (v$currentVersion)',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 11,
                             color: AxisColors.textDim,
                           ),
@@ -435,7 +461,7 @@ class UpdateLogModal extends StatelessWidget {
                               isAr ? 'فحص التحديثات' : 'Check Updates',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -456,7 +482,7 @@ class UpdateLogModal extends StatelessWidget {
                           onPressed: () => Navigator.of(context).pop(),
                           child: Text(
                             isAr ? 'إغلاق' : 'Close',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),

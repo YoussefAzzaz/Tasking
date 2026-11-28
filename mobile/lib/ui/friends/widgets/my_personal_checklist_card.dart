@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -64,7 +64,7 @@ class MyPersonalChecklistCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             status.userName.isNotEmpty && status.userName != 'You' ? status.userName : l10n.youLabel,
-                            style: GoogleFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
+                            style: AxisFonts.spaceGrotesk(fontSize: 15, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -77,7 +77,7 @@ class MyPersonalChecklistCard extends StatelessWidget {
                           ),
                           child: Text(
                             l10n.youLabel,
-                            style: GoogleFonts.spaceGrotesk(fontSize: 9.5, fontWeight: FontWeight.w800, color: AxisColors.primarySoft),
+                            style: AxisFonts.spaceGrotesk(fontSize: 9.5, fontWeight: FontWeight.w800, color: AxisColors.primarySoft),
                           ),
                         ),
                       ],
@@ -85,7 +85,7 @@ class MyPersonalChecklistCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${status.completedCount}/5 ${l10n.prayersDoneCount}',
-                      style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                      style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                     ),
                   ],
                 ),
@@ -104,7 +104,7 @@ class MyPersonalChecklistCard extends StatelessWidget {
                     const SizedBox(width: 3),
                     Text(
                       '${status.streakDays} ${l10n.day}',
-                      style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w800, color: AxisColors.warning),
+                      style: AxisFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w800, color: AxisColors.warning),
                     ),
                   ],
                 ),
@@ -148,7 +148,7 @@ class MyPersonalChecklistCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           name,
-                          style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: isDone ? FontWeight.w700 : FontWeight.w500, color: isDone ? AxisColors.textHigh : AxisColors.textDim),
+                          style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: isDone ? FontWeight.w700 : FontWeight.w500, color: isDone ? AxisColors.textHigh : AxisColors.textDim),
                           textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -171,13 +171,13 @@ class MyPersonalChecklistCard extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     '${l10n.dailyHabitsCount}: ${status.habitsDone}/${status.habitsTotal}',
-                    style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted),
+                    style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted),
                   ),
                   const Spacer(),
                   if (status.habitsDone == status.habitsTotal)
                     Text(
                       l10n.allCompletedBadge,
-                      style: GoogleFonts.spaceGrotesk(fontSize: 10.5, fontWeight: FontWeight.w700, color: AxisColors.tertiary),
+                      style: AxisFonts.spaceGrotesk(fontSize: 10.5, fontWeight: FontWeight.w700, color: AxisColors.tertiary),
                     ),
                 ],
               ),

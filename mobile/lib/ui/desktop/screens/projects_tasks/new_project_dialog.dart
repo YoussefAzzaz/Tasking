@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -67,7 +67,7 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
           children: [
             Text(
               isArabic ? 'إنشاء مشروع جديد' : 'Create New Project',
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AxisColors.textHigh,
@@ -77,10 +77,10 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
             TextField(
               controller: _nameController,
               autofocus: true,
-              style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh),
+              style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh),
               decoration: InputDecoration(
                 hintText: isArabic ? 'مثال: مركز التحكم v2' : 'e.g. Axis Command Center v2',
-                hintStyle: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
+                hintStyle: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
                 filled: true,
                 fillColor: AxisColors.surfaceLowest,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -93,7 +93,7 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
             const SizedBox(height: 14),
             Text(
               isArabic ? 'لون المشروع' : 'PROJECT COLOR',
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
@@ -151,7 +151,7 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
                     isArabic ? 'إلغاء' : 'Cancel',
-                    style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted),
+                    style: AxisFonts.getFont('Geist', color: AxisColors.textMuted),
                   ),
                 ),
                 const SizedBox(width: 8),

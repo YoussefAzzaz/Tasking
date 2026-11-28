@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme.dart';
@@ -76,7 +76,7 @@ class MacroSlotsCard extends StatelessWidget {
                                 : 'Auto-scheduler active (≤15m).'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textHigh),
+                        style: AxisFonts.getFont('Geist', fontSize: 10, color: AxisColors.textHigh),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -97,7 +97,7 @@ class MacroSlotsCard extends StatelessWidget {
                       },
                       child: Text(
                         isArabic ? 'إعادة الجدولة' : 'RESCHEDULE',
-                        style: GoogleFonts.getFont(
+                        style: AxisFonts.getFont(
                           'Geist',
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
@@ -134,7 +134,7 @@ class MacroSlotsCard extends StatelessWidget {
                                           : 'No 15-Minute Slots Scheduled',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.spaceGrotesk(
+                                      style: AxisFonts.spaceGrotesk(
                                         color: AxisColors.textHigh,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 11,
@@ -147,7 +147,7 @@ class MacroSlotsCard extends StatelessWidget {
                                           : 'Today\'s tasks with estimates of 15 minutes or less appear here.',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.getFont('Geist', color: AxisColors.textDim, fontSize: 10),
+                                      style: AxisFonts.getFont('Geist', color: AxisColors.textDim, fontSize: 10),
                                     ),
                                   ],
                                 ),

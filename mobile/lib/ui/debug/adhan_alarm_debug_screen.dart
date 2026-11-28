@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
+import 'package:axis/data/notifications/notification_ids.dart';
+import 'package:axis/data/prayers/adhan_notification_channels.dart';
 import 'package:axis/data/prayers/adhan_sound_service.dart';
 import 'package:axis/ui/prayers/adhan_full_screen_alarm.dart';
 
@@ -41,7 +43,7 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
   int _countdownSeconds = 0;
   int _selectedDelay = 5;
 
-  static const _testNotificationId = 8888;
+  static const _testNotificationId = NotificationIds.adhanDebugTest;
 
   @override
   void initState() {
@@ -98,7 +100,9 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
     // 1. If basic notifications are missing, request them first without queue blocking
     if (!_notificationAllowed) {
       await AwesomeNotifications().requestPermissionToSendNotifications(
-        channelKey: 'prayer_adhan_channel',
+        channelKey: AdhanNotificationChannels.permissionChannelKeyFor(
+          _soundService.currentSound.id,
+        ),
         permissions: const [
           NotificationPermission.Alert,
           NotificationPermission.Sound,
@@ -230,7 +234,10 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
           id: _testNotificationId,
-          channelKey: 'prayer_adhan_channel',
+          channelKey: AdhanNotificationChannels.channelKeyFor(
+            soundId: _soundService.currentSound.id,
+            isFajr: false,
+          ),
           title: 'Adhan Test: Maghrib (المغرب)',
           body: 'Test Alarm: It is now time for Maghrib. Full screen intent triggered.',
           notificationLayout: NotificationLayout.Default,
@@ -355,7 +362,7 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
         elevation: 0,
         title: Text(
           'ADHAN ALARM DEBUG COCKPIT',
-          style: GoogleFonts.spaceGrotesk(
+          style: AxisFonts.spaceGrotesk(
             fontSize: 14,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.2,
@@ -421,7 +428,7 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
               const SizedBox(width: 10),
               Text(
                 'LIVE SYSTEM TELEMETRY',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
@@ -469,7 +476,7 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
                   const SizedBox(width: 10),
                   Text(
                     'PERMISSIONS AUDIT',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
@@ -512,7 +519,9 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
             _fullScreenIntentAllowed,
             onTap: _fullScreenIntentAllowed ? null : () async {
               await AwesomeNotifications().requestPermissionToSendNotifications(
-                channelKey: 'prayer_adhan_channel',
+                channelKey: AdhanNotificationChannels.permissionChannelKeyFor(
+                  _soundService.currentSound.id,
+                ),
                 permissions: const [NotificationPermission.FullScreenIntent],
               );
               await _checkAllPermissions();
@@ -523,7 +532,9 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
             _criticalAlertAllowed,
             onTap: _criticalAlertAllowed ? null : () async {
               await AwesomeNotifications().requestPermissionToSendNotifications(
-                channelKey: 'prayer_adhan_channel',
+                channelKey: AdhanNotificationChannels.permissionChannelKeyFor(
+                  _soundService.currentSound.id,
+                ),
                 permissions: const [NotificationPermission.CriticalAlert],
               );
               await _checkAllPermissions();
@@ -617,7 +628,7 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
                   children: [
                     Text(
                       'TEST BACKGROUND / LOCK SCREEN ALARM',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.0,
@@ -750,7 +761,7 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
               const SizedBox(width: 10),
               Text(
                 'TEST FULL-SCREEN OVERLAYS (FOREGROUND)',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
@@ -855,7 +866,7 @@ class _AdhanAlarmDebugScreenState extends State<AdhanAlarmDebugScreen> with Widg
               const SizedBox(width: 10),
               Text(
                 'AUDIO STREAM ROUTING DIAGNOSTICS',
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,

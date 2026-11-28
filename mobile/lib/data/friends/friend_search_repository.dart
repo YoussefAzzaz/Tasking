@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/auth_service.dart';
+import 'package:axis/data/user_profile_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'friend_models.dart';
 
@@ -197,8 +198,10 @@ class FriendSearchRepository {
       final url = prof['avatar_url']?.toString();
       final xp = parseToInt(prof['total_xp']);
       final lvl = parseToInt(prof['level'], 1);
-      final hashPart = otherUid.replaceAll('-', '').toUpperCase();
-      final fCode = prof['friend_code']?.toString() ?? 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
+      // Root cause: fell back to hardcoded '7842' for short UIDs; share formatter.
+      final fCode = (prof['friend_code']?.toString().trim().isNotEmpty == true)
+          ? prof['friend_code'].toString().trim()
+          : UserProfileRepository.formatFallbackFriendCode(otherUid);
       final nowUtc = DateTime.now().toUtc().toIso8601String();
 
       // Check if row already exists by id or user_id

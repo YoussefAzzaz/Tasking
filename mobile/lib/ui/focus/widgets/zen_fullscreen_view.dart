@@ -57,10 +57,9 @@ class ZenFullscreenView extends StatelessWidget {
                   tooltip: context.isArabic
                       ? 'تصغير / خروج من التركيز'
                       : 'Minimize / Exit Focus',
-                  icon: Icon(
-                    context.isArabic
-                        ? Icons.arrow_forward_rounded
-                        : Icons.arrow_back_rounded,
+                  // Root cause: arrow_back_rounded auto-mirrors in RTL; ternary flipped twice.
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
                     color: AxisColors.textHigh,
                   ),
                   onPressed: onMinimize,

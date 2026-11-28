@@ -199,10 +199,9 @@ class FloatingFocusSessionBar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(
-                        context.isArabic
-                            ? Icons.arrow_back_rounded
-                            : Icons.arrow_forward_rounded,
+                      // Root cause: arrow_forward_rounded auto-mirrors in RTL; ternary flipped twice.
+                      const Icon(
+                        Icons.arrow_forward_rounded,
                         size: 12,
                         color: AxisColors.secondary,
                       ),

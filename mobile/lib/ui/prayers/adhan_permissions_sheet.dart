@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/adhan_alarm_service.dart';
+import 'package:axis/data/prayers/adhan_notification_channels.dart';
+import 'package:axis/data/prayers/adhan_sound_service.dart';
 
 /// Modal bottom sheet that prompts users to grant all required Android permissions
 /// for reliable full-screen, unmuted Adhan prayer alarms.
@@ -122,8 +124,11 @@ class _AdhanPermissionsSheetState extends State<AdhanPermissionsSheet>
 
     // 1. Basic notifications & full-screen intent (clean prompt without blocking settings queue)
     if (!_notificationAllowed || !_fullScreenIntentAllowed) {
+      final channelKey = AdhanNotificationChannels.permissionChannelKeyFor(
+        AdhanSoundService().currentSound.id,
+      );
       await AwesomeNotifications().requestPermissionToSendNotifications(
-        channelKey: 'prayer_adhan_channel',
+        channelKey: channelKey,
         permissions: const [
           NotificationPermission.Alert,
           NotificationPermission.Sound,
@@ -308,7 +313,7 @@ class _AdhanPermissionsSheetState extends State<AdhanPermissionsSheet>
                       isArabic
                           ? 'صلاحيات أذان ومنبه الصلاة'
                           : 'Adhan & Prayer Alarm Permissions',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: AxisColors.textHigh,
@@ -378,8 +383,11 @@ class _AdhanPermissionsSheetState extends State<AdhanPermissionsSheet>
                 ? null
                 : () async {
                     HapticFeedback.lightImpact();
+                    final channelKey = AdhanNotificationChannels.permissionChannelKeyFor(
+                      AdhanSoundService().currentSound.id,
+                    );
                     await AwesomeNotifications().requestPermissionToSendNotifications(
-                      channelKey: 'prayer_adhan_channel',
+                      channelKey: channelKey,
                       permissions: const [NotificationPermission.FullScreenIntent],
                     );
                     await _checkPermissions();

@@ -46,7 +46,8 @@ class NoteCategoriesSection extends StatelessWidget {
       {'name': 'fitness', 'icon': Icons.fitness_center_rounded, 'label': isArabic ? 'رياضة' : 'Fitness'},
     ];
 
-    showDialog(
+    // Root cause: local TextEditingController was never disposed after dialog dismissal.
+    showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
@@ -212,7 +213,7 @@ class NoteCategoriesSection extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ).whenComplete(catCtrl.dispose);
   }
 
   void _confirmDeleteCategory(BuildContext context, String id, String name) {

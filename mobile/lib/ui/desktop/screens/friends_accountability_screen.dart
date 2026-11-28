@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -31,7 +31,8 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
   }
 
   void _openAddCompanionDialog() {
-    final code = _profileRepo.profileNotifier.value.friendCode ?? 'AX-7842';
+    // Root cause: fell back to fake 'AX-7842' before profile friendCode loaded.
+    final code = _profileRepo.resolveDisplayFriendCode();
     DesktopAddCompanionDialog.show(context, code);
   }
 
@@ -58,7 +59,7 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
                 children: [
                   const Icon(Icons.notifications_active_rounded, size: 18, color: AxisColors.tertiaryBright),
                   const SizedBox(width: 8),
-                  Text(l10n.friendNotifications, style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
+                  Text(l10n.friendNotifications, style: AxisFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
                   const Spacer(),
                   TextButton(
                     onPressed: () {
@@ -77,7 +78,7 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
                     final logs = snapshot.data ?? [];
                     if (logs.isEmpty) {
                       return Center(
-                        child: Text(l10n.noNotificationsYet, style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim)),
+                        child: Text(l10n.noNotificationsYet, style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim)),
                       );
                     }
                     return ListView.separated(
@@ -96,7 +97,7 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
                               child: Row(
                                 children: [
                                   Expanded(
-                                    child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh)),
+                                    child: Text(log.title, style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh)),
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.close_rounded, size: 14, color: AxisColors.textDim),
@@ -151,7 +152,7 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
                   children: [
                     Text(
                       isArabic ? 'الرفاق والمحاسبة المشتركة' : 'COMPANIONS & MUTUAL ACCOUNTABILITY',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.0,
@@ -162,7 +163,7 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
                     ),
                     Text(
                       isArabic ? 'متابعة حية للصلوات والعادات والترتيب مع رفاقك' : 'Live sync of prayers, daily habits & rankings with your circle',
-                      style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                      style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
@@ -175,7 +176,9 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
               ValueListenableBuilder<UserProfile>(
                 valueListenable: _profileRepo.profileNotifier,
                 builder: (context, profile, _) {
-                  final myCode = profile.friendCode ?? 'AX-7842';
+                  // Root cause: fell back to hardcoded fake 'AX-7842' when friendCode wasn't loaded.
+                  final myCode = _profileRepo.resolveDisplayFriendCode(profile);
+                  final canCopy = myCode.isNotEmpty && myCode != '---';
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -186,14 +189,20 @@ class _FriendsAccountabilityScreenState extends State<FriendsAccountabilityScree
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('CODE: $myCode', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
+                        Text('CODE: $myCode', style: AxisFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
                         const SizedBox(width: 6),
                         InkWell(
-                          onTap: () {
-                            Clipboard.setData(ClipboardData(text: myCode));
-                            AxisSnackBar.show(context, message: l10n.copyCodeSuccess, icon: Icons.copy_rounded);
-                          },
-                          child: const Icon(Icons.copy_rounded, size: 12, color: AxisColors.textDim),
+                          onTap: canCopy
+                              ? () {
+                                  Clipboard.setData(ClipboardData(text: myCode));
+                                  AxisSnackBar.show(context, message: l10n.copyCodeSuccess, icon: Icons.copy_rounded);
+                                }
+                              : null,
+                          child: Icon(
+                            Icons.copy_rounded,
+                            size: 12,
+                            color: canCopy ? AxisColors.textDim : AxisColors.textDim.withValues(alpha: 0.35),
+                          ),
                         ),
                       ],
                     ),

@@ -67,6 +67,10 @@ class AdhanSoundService {
   String? _currentlyPreviewingId;
   Timer? _previewTimer;
 
+  /// Optional callback invoked when the user switches Adhan sounds so all 5
+  /// scheduled prayer alarms can be refreshed onto matching channels.
+  VoidCallback? onSoundSelectionChanged;
+
   final ValueNotifier<String?> previewingNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<String?> downloadingNotifier = ValueNotifier<String?>(null);
 
@@ -212,6 +216,8 @@ class AdhanSoundService {
     } catch (e) {
       debugPrint('[AdhanSoundService] selectSound error: $e');
     }
+
+    onSoundSelectionChanged?.call();
   }
 
   /// Downloads a remote Adhan MP3 and crops it to the opening Takbeerat (~16 seconds),
@@ -280,6 +286,7 @@ class AdhanSoundService {
       }
 
       await _previewPlayer!.stop();
+      await _previewPlayer!.setVolume(1.0);
       await _previewPlayer!.play(source);
 
       // Auto-stop preview after 45 seconds

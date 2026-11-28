@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -110,7 +110,7 @@ class _DesktopAddCompanionDialogState extends State<DesktopAddCompanionDialog> {
                 const SizedBox(width: 10),
                 Text(
                   l10n.addCompanion,
-                  style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
+                  style: AxisFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
                 ),
                 const Spacer(),
                 IconButton(
@@ -136,16 +136,19 @@ class _DesktopAddCompanionDialogState extends State<DesktopAddCompanionDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(l10n.yourFriendCode.toUpperCase(), style: GoogleFonts.spaceGrotesk(fontSize: 9, color: AxisColors.textDim)),
-                        Text(widget.myFriendCode.isNotEmpty ? widget.myFriendCode : 'AX-7842', style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
+                        Text(l10n.yourFriendCode.toUpperCase(), style: AxisFonts.spaceGrotesk(fontSize: 9, color: AxisColors.textDim)),
+                        // Root cause: fell back to hardcoded fake 'AX-7842' when empty; show '---' and guard copy.
+                        Text(widget.myFriendCode.trim().isNotEmpty ? widget.myFriendCode.trim() : '---', style: AxisFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
                       ],
                     ),
                   ),
                   OutlinedButton(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: widget.myFriendCode));
-                      AxisSnackBar.show(context, message: l10n.copyCodeSuccess, icon: Icons.copy_rounded);
-                    },
+                    onPressed: (widget.myFriendCode.trim().isNotEmpty && widget.myFriendCode.trim() != '---')
+                        ? () {
+                            Clipboard.setData(ClipboardData(text: widget.myFriendCode.trim()));
+                            AxisSnackBar.show(context, message: l10n.copyCodeSuccess, icon: Icons.copy_rounded);
+                          }
+                        : null,
                     child: Text(l10n.copy, style: const TextStyle(fontSize: 11)),
                   ),
                 ],
@@ -156,7 +159,7 @@ class _DesktopAddCompanionDialogState extends State<DesktopAddCompanionDialog> {
             TextField(
               controller: _searchCtrl,
               textCapitalization: TextCapitalization.characters,
-              style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh, fontSize: 14),
+              style: AxisFonts.spaceGrotesk(color: AxisColors.textHigh, fontSize: 14),
               decoration: InputDecoration(
                 labelText: l10n.friendCode,
                 hintText: l10n.searchCompanionHint,
@@ -188,8 +191,8 @@ class _DesktopAddCompanionDialogState extends State<DesktopAddCompanionDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_foundCandidate!.name, style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
-                          Text('Lv. ${_foundCandidate!.level} · ${_foundCandidate!.friendCode ?? ""}', style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim)),
+                          Text(_foundCandidate!.name, style: AxisFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
+                          Text('Lv. ${_foundCandidate!.level} · ${_foundCandidate!.friendCode ?? ""}', style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim)),
                         ],
                       ),
                     ),
@@ -198,7 +201,7 @@ class _DesktopAddCompanionDialogState extends State<DesktopAddCompanionDialog> {
               ),
               const SizedBox(height: 14),
             ] else if (!_isSearching && _lastQuery.length >= 3) ...[
-              Text(l10n.noCompanionFound, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.warning), textAlign: TextAlign.center),
+              Text(l10n.noCompanionFound, style: AxisFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.warning), textAlign: TextAlign.center),
               const SizedBox(height: 14),
             ],
 
@@ -220,7 +223,7 @@ class _DesktopAddCompanionDialogState extends State<DesktopAddCompanionDialog> {
               style: ElevatedButton.styleFrom(backgroundColor: AxisColors.primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
               child: _isSubmitting
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text(l10n.sendConnectionRequest, style: GoogleFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.bold)),
+                  : Text(l10n.sendConnectionRequest, style: AxisFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

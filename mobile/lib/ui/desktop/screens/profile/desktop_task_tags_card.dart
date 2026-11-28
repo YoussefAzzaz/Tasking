@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/tag_repository.dart';
@@ -49,10 +49,10 @@ class DesktopTaskTagsCard extends StatelessWidget {
                   ),
                   child: TextField(
                     controller: newTagController,
-                    style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
+                    style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
                     decoration: InputDecoration(
                       hintText: isAr ? '#وسم-جديد...' : '#NEW-IDENTIFIER...',
-                      hintStyle: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                      hintStyle: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                       filled: false,
                       fillColor: Colors.transparent,
                       border: InputBorder.none,
@@ -87,7 +87,7 @@ class DesktopTaskTagsCard extends StatelessWidget {
                   child: Center(
                     child: Text(
                       isAr ? 'لا توجد وسوم معرفة. أضف وسماً أعلاه.' : 'No tags defined. Add one above.',
-                      style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                      style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                     ),
                   ),
                 );
@@ -109,7 +109,7 @@ class DesktopTaskTagsCard extends StatelessWidget {
                       children: [
                         Text(
                           '#$t',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AxisColors.secondary,

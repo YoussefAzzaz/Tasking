@@ -12,6 +12,11 @@ class TagRepository {
 
   static const String _cacheKey = 'task_tags_list';
 
+  String get _scopedCacheKey {
+    final uid = currentUserId;
+    return uid.isEmpty ? _cacheKey : '${_cacheKey}_$uid';
+  }
+
   /// Predefined system tag identifiers excluded from custom user tag lists.
   static const List<String> systemTags = [
     'urgent',
@@ -44,7 +49,7 @@ class TagRepository {
         if (name != null && name.isNotEmpty) tagSet.add(name);
       }
       final result = tagSet.toList()..sort();
-      CacheService().set<List<String>>(_cacheKey, result, ttl: const Duration(minutes: 10));
+      CacheService().set<List<String>>(_scopedCacheKey, result, ttl: const Duration(minutes: 10));
       return result;
     });
   }
@@ -52,11 +57,11 @@ class TagRepository {
   /// Retrieves all available user-created tags from cache or database in a non-blocking manner.
   Future<List<String>> getTags({bool forceRefresh = false}) async {
     if (forceRefresh) {
-      CacheService().invalidate(_cacheKey);
+      CacheService().invalidate(_scopedCacheKey);
     }
 
     return CacheService().getOrFetch<List<String>>(
-      _cacheKey,
+      _scopedCacheKey,
       _fetchTagsFromDb,
       ttl: const Duration(minutes: 10),
       staleWhileRevalidate: true,
@@ -95,13 +100,18 @@ class TagRepository {
     final clean = tagName.trim().replaceAll('@', '');
     if (clean.isEmpty) return;
 
-    CacheService().invalidate(_cacheKey);
+    CacheService().invalidate(_scopedCacheKey);
 
     if (!isDatabaseInitialized) return;
 
     final uid = currentUserId;
     try {
-      final tagId = IdGenerator.generateDeterministicId('tag_${clean.toLowerCase()}');
+      // Root-cause fix: namespace deterministic tag IDs per account so two users
+      // creating the same tag name never collide on Supabase `tags` primary keys.
+      final seed = uid.isNotEmpty
+          ? 'tag_${uid}_${clean.toLowerCase()}'
+          : 'tag_${clean.toLowerCase()}';
+      final tagId = IdGenerator.generateDeterministicId(seed);
       await db.execute('''
         INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at)
         VALUES (?, ?, ?, '#6366F1', ?)
@@ -121,17 +131,24 @@ class TagRepository {
     final clean = tagName.trim().replaceAll('@', '');
     if (clean.isEmpty) return;
 
-    CacheService().invalidate(_cacheKey);
+    CacheService().invalidate(_scopedCacheKey);
 
     if (!isDatabaseInitialized) return;
 
     try {
       await db.writeTransaction((tx) async {
-        // 1. Delete from tags table
-        await tx.execute('DELETE FROM tags WHERE LOWER(name) = LOWER(?)', [clean]);
+        final uid = currentUserId;
+        // 1. Delete from tags table scoped to active account
+        if (uid.isNotEmpty) {
+          await tx.execute(
+            "DELETE FROM tags WHERE LOWER(name) = LOWER(?) AND (user_id = ? OR user_id IS NULL OR user_id = '')",
+            [clean, uid],
+          );
+        } else {
+          await tx.execute('DELETE FROM tags WHERE LOWER(name) = LOWER(?)', [clean]);
+        }
 
         // 2. Disassociate this tag from any tasks that currently have it
-        final uid = currentUserId;
         final taskQuery = uid.isNotEmpty
             ? "SELECT id, tags FROM tasks WHERE tags LIKE ? AND (user_id = ? OR user_id IS NULL OR user_id = '')"
             : "SELECT id, tags FROM tasks WHERE tags LIKE ?";

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -70,7 +70,7 @@ class _DesktopMasteryBadgesCardState extends State<DesktopMasteryBadgesCard> {
                           isAr
                               ? 'غرفة جوائز وأوسمة المشغل المتميز'
                               : 'MASTER OPERATOR TROPHY ROOM & BADGES',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.8,
@@ -188,7 +188,7 @@ class _DesktopMasteryBadgesCardState extends State<DesktopMasteryBadgesCard> {
                                 const SizedBox(width: 5),
                                 Text(
                                   cat.localizedLabel(isAr),
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 10,
                                     fontWeight: _selectedCategory == cat ? FontWeight.w700 : FontWeight.w500,
                                     color: _selectedCategory == cat ? AxisColors.textHigh : AxisColors.textDim,
@@ -229,7 +229,7 @@ class _DesktopMasteryBadgesCardState extends State<DesktopMasteryBadgesCard> {
                             const SizedBox(width: 4),
                             Text(
                               isAr ? 'مفتوحة فقط' : 'Unlocked Only',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 10,
                                 fontWeight: _unlockedOnly ? FontWeight.w700 : FontWeight.w500,
                                 color: _unlockedOnly ? AxisColors.textHigh : AxisColors.textDim,
@@ -251,7 +251,7 @@ class _DesktopMasteryBadgesCardState extends State<DesktopMasteryBadgesCard> {
                   child: Center(
                     child: Text(
                       isAr ? 'لا توجد شارات تطابق هذا الفلتر.' : 'No badges match this filter.',
-                      style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                      style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                     ),
                   ),
                 )

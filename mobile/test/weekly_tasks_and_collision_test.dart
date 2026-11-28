@@ -283,6 +283,28 @@ void main() {
         '2026-12-09',
       );
 
+      // Interval > 1 with multiple BYDAY days: Monday -> Wednesday (same week),
+      // then Wednesday -> Monday 2 weeks later (+12 days), not next week.
+      const biweeklyMoWe = 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE';
+      expect(
+        RecurrenceEngine.calculateNextDueDate(
+          biweeklyMoWe,
+          'fixed',
+          '2026-11-30', // Monday
+          '2026-11-30',
+        ),
+        '2026-12-02', // Wednesday of same week
+      );
+      expect(
+        RecurrenceEngine.calculateNextDueDate(
+          biweeklyMoWe,
+          'fixed',
+          '2026-12-02', // Wednesday
+          '2026-12-02',
+        ),
+        '2026-12-14', // Monday two weeks after Nov 30 week
+      );
+
       // Checklist reset helper
       expect(
         RecurrenceEngine.uncheckMarkdownChecklists(

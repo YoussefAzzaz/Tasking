@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/note_repository.dart';
@@ -80,7 +80,7 @@ class JournalVaultHeader extends StatelessWidget {
                 children: [
                   Text(
                     breadcrumbPrefix,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11,
                       letterSpacing: 0.6,
                       color: AxisColors.textDim,
@@ -91,7 +91,7 @@ class JournalVaultHeader extends StatelessWidget {
                       breadcrumbTail,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.6,
@@ -106,7 +106,7 @@ class JournalVaultHeader extends StatelessWidget {
                 titleText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AxisColors.textHigh,
@@ -115,7 +115,7 @@ class JournalVaultHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 telemetryText,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 11,
                   color: AxisColors.textMuted,
                 ),

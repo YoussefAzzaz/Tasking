@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
@@ -77,9 +77,9 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                         children: [
                           const Icon(Icons.group_outlined, size: 36, color: AxisColors.textDim),
                           const SizedBox(height: 8),
-                          Text(l10n.noCompanionsYet, style: GoogleFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
+                          Text(l10n.noCompanionsYet, style: AxisFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
                           const SizedBox(height: 4),
-                          Text(l10n.noCompanionsDesc, style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim)),
+                          Text(l10n.noCompanionsDesc, style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim)),
                         ],
                       ),
                     ),
@@ -115,12 +115,12 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                             const SizedBox(width: 6),
                             Text(
                               l10n.yourChecklist.toUpperCase(),
-                              style: GoogleFonts.spaceGrotesk(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1.0, color: AxisColors.primarySoft),
+                              style: AxisFonts.spaceGrotesk(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1.0, color: AxisColors.primarySoft),
                             ),
                             const Spacer(),
                             Text(
                               '${myStatus.completedCount}/5 ${isArabic ? "صلوات" : "prayers"}',
-                              style: GoogleFonts.spaceGrotesk(fontSize: 10.5, fontWeight: FontWeight.w700, color: AxisColors.tertiary),
+                              style: AxisFonts.spaceGrotesk(fontSize: 10.5, fontWeight: FontWeight.w700, color: AxisColors.tertiary),
                             ),
                           ],
                         ),
@@ -137,7 +137,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                           const SizedBox(width: 6),
                           Text(
                             l10n.companionsAccountability.toUpperCase(),
-                            style: GoogleFonts.spaceGrotesk(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1.0, color: AxisColors.secondary),
+                            style: AxisFonts.spaceGrotesk(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1.0, color: AxisColors.secondary),
                           ),
                           const SizedBox(width: 6),
                           Container(
@@ -145,7 +145,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                             decoration: BoxDecoration(color: AxisColors.secondary.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
                             child: Text(
                               '${companionStatuses.length}',
-                              style: GoogleFonts.spaceGrotesk(fontSize: 9.5, fontWeight: FontWeight.w800, color: AxisColors.secondarySoft),
+                              style: AxisFonts.spaceGrotesk(fontSize: 9.5, fontWeight: FontWeight.w800, color: AxisColors.secondarySoft),
                             ),
                           ),
                         ],
@@ -166,9 +166,9 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                                 children: [
                                   const Icon(Icons.person_add_alt_1_outlined, size: 28, color: AxisColors.textDim),
                                   const SizedBox(height: 6),
-                                  Text(l10n.noCompanionsYet, style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
+                                  Text(l10n.noCompanionsYet, style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
                                   const SizedBox(height: 2),
-                                  Text(l10n.noCompanionsDesc, style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim)),
+                                  Text(l10n.noCompanionsDesc, style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim)),
                                 ],
                               ),
                             ),
@@ -216,7 +216,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
           const SizedBox(height: 10),
           Text(
             isArabic ? 'بيانات المرافقين متاحة عند الاتصال' : 'Companion Data Available Online',
-            style: GoogleFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
+            style: AxisFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
@@ -224,7 +224,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
             isArabic
                 ? 'متابعة صلوات المرافقين تتطلب اتصالاً بالإنترنت. ستظهر البيانات تلقائياً بمجرد إعادة الاتصال.'
                 : 'Live prayer accountability with your companions requires an active internet connection. Data will appear automatically once back online.',
-            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted, height: 1.3),
+            style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textMuted, height: 1.3),
             textAlign: TextAlign.center,
           ),
         ],
@@ -271,14 +271,14 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                             status.userName.isNotEmpty && status.userName != 'You' ? status.userName : l10n.youLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.getFont('Geist', fontSize: 13, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
+                            style: AxisFonts.getFont('Geist', fontSize: 13, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
                           ),
                         ),
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(color: AxisColors.primary.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(4)),
-                          child: Text(l10n.youLabel, style: GoogleFonts.spaceGrotesk(fontSize: 9, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
+                          child: Text(l10n.youLabel, style: AxisFonts.spaceGrotesk(fontSize: 9, fontWeight: FontWeight.bold, color: AxisColors.primarySoft)),
                         ),
                       ],
                     ),
@@ -289,7 +289,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                         const SizedBox(width: 2),
                         Text(
                           '${status.streakDays}${isArabic ? " يوم متتالي" : "d streak"} · ${status.completedCount}/5 ${isArabic ? "صلوات" : "prayers"}',
-                          style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w600, color: AxisColors.textDim),
+                          style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w600, color: AxisColors.textDim),
                         ),
                       ],
                     ),
@@ -303,7 +303,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                   children: [
                     Text(
                       '$habitsDone/$habitsTotal ${l10n.dailyHabitsCount}',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                         color: habitFraction >= 1.0 ? AxisColors.tertiary : AxisColors.textDim,
@@ -354,7 +354,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                       children: [
                         Icon(isDone ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 13, color: isDone ? AxisColors.tertiary : AxisColors.textDim),
                         const SizedBox(height: 2),
-                        Text(name, style: GoogleFonts.spaceGrotesk(fontSize: 9.5, fontWeight: isDone ? FontWeight.bold : FontWeight.w500, color: isDone ? AxisColors.textHigh : AxisColors.textDim)),
+                        Text(name, style: AxisFonts.spaceGrotesk(fontSize: 9.5, fontWeight: isDone ? FontWeight.bold : FontWeight.w500, color: isDone ? AxisColors.textHigh : AxisColors.textDim)),
                       ],
                     ),
                   ),
@@ -402,7 +402,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                           status.userName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.getFont('Geist', fontSize: 13, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
+                          style: AxisFonts.getFont('Geist', fontSize: 13, fontWeight: FontWeight.w700, color: AxisColors.textHigh),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -415,7 +415,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                         ),
                         child: Text(
                           'LVL ${status.level}',
-                          style: GoogleFonts.spaceGrotesk(fontSize: 9, fontWeight: FontWeight.bold, color: AxisColors.primarySoft),
+                          style: AxisFonts.spaceGrotesk(fontSize: 9, fontWeight: FontWeight.bold, color: AxisColors.primarySoft),
                         ),
                       ),
                     ],
@@ -423,7 +423,7 @@ class _DesktopPrayerBoardState extends State<DesktopPrayerBoard> {
                   const SizedBox(height: 2),
                   Text(
                     isArabic ? 'المستوى ${status.level}' : 'Level ${status.level}',
-                    style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                    style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                   ),
                 ],
               ),

@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/widgets.dart';
 import 'package:axis/domain/gamification_engine.dart';
-import 'package:axis/ui/common/cyber_color_picker.dart';
 import 'package:axis/ui/me/widgets/avatar_widget.dart';
+import 'package:axis/ui/me/widgets/user_profile_edit_dialog.dart';
 
 /// User Profile cockpit card with user avatar, title, level, total XP,
 /// friend code copy action, level progress bar, and profile editing dialog.
@@ -48,186 +48,16 @@ class UserProfileCard extends StatelessWidget {
     }
   }
 
-  Color _parseHex(String? hex) {
-    if (hex == null || hex.isEmpty) return AxisColors.primary;
-    try {
-      final clean = hex.replaceAll('#', '').trim();
-      if (clean.length == 6) {
-        return Color(int.parse('FF$clean', radix: 16));
-      } else if (clean.length == 8) {
-        return Color(int.parse(clean, radix: 16));
-      }
-      return AxisColors.primary;
-    } catch (_) {
-      return AxisColors.primary;
-    }
-  }
-
   void _showEditProfileDialog(BuildContext context) {
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-    final nameCtrl = TextEditingController(text: userName);
-    final titleCtrl = TextEditingController(text: userTitle);
-    String selectedColor = avatarColor ?? '#6366F1';
-
-    const presetColors = AxisColors.presetHexes;
-
-    showDialog(
+    // Root cause: local TextEditingControllers outlived showDialog without disposal;
+    // delegating to StatefulWidget dialog guarantees controller disposal on unmount.
+    showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDlgState) => AlertDialog(
-          backgroundColor: AxisColors.surfaceLow,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AxisColors.borderPrimary),
-          ),
-          title: Text(
-            isArabic ? 'تعديل الملف الشخصي' : 'Edit Profile',
-            style: const TextStyle(
-              color: AxisColors.textHigh,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isArabic ? 'الاسم الظاهر' : 'DISPLAY NAME',
-                  style: TextStyle(
-                    color: AxisColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: isArabic ? 0.0 : 0.5,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: nameCtrl,
-                  autofocus: false,
-                  style: const TextStyle(color: AxisColors.textHigh),
-                  decoration: InputDecoration(
-                    hintText: isArabic ? 'مثال: أليكس فانس' : 'e.g. Alex Vance',
-                    hintStyle: const TextStyle(color: AxisColors.textDim),
-                    filled: true,
-                    fillColor: AxisColors.surfaceHigh,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                    ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  isArabic ? 'اللقب / الوصف' : 'TITLE / BIO',
-                  style: TextStyle(
-                    color: AxisColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: isArabic ? 0.0 : 0.5,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: titleCtrl,
-                  style: const TextStyle(color: AxisColors.textHigh),
-                  decoration: InputDecoration(
-                    hintText: isArabic
-                        ? 'مثال: مهندس رئيسي، مشغل نظام'
-                        : 'e.g. Lead Architect, System Operative',
-                    hintStyle: const TextStyle(color: AxisColors.textDim),
-                    filled: true,
-                    fillColor: AxisColors.surfaceHigh,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                    ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  isArabic ? 'لون تمييز الصورة الرمزية' : 'AVATAR ACCENT COLOR',
-                  style: TextStyle(
-                    color: AxisColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: isArabic ? 0.0 : 0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    ...presetColors.map((hex) {
-                      final isSel = selectedColor.toUpperCase() == hex.toUpperCase();
-                      final col = _parseHex(hex);
-                      return InkWell(
-                        onTap: () => setDlgState(() => selectedColor = hex),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: col,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSel ? Colors.white : Colors.transparent,
-                              width: 2.2,
-                            ),
-                          ),
-                          child: isSel
-                              ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-                              : null,
-                        ),
-                      );
-                    }),
-                    RainbowColorPickerButton(
-                      selectedColor: selectedColor,
-                      size: 30,
-                      borderWidth: 2,
-                      onColorSelected: (col) => setDlgState(() => selectedColor = col),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(isArabic ? 'إلغاء' : 'Cancel',
-                  style: const TextStyle(color: AxisColors.textDim)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AxisColors.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () {
-                final newName = nameCtrl.text.trim();
-                final newTitle = titleCtrl.text.trim();
-                Navigator.pop(ctx);
-                if (newName.isNotEmpty) {
-                  _triggerSave(
-                    newName,
-                    newTitle.isNotEmpty ? newTitle : 'System Operative',
-                    selectedColor,
-                  );
-                }
-              },
-              child: Text(isArabic ? 'حفظ التغييرات' : 'Save Changes',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
+      builder: (_) => UserProfileEditDialog(
+        initialName: userName,
+        initialTitle: userTitle,
+        initialColor: avatarColor ?? '#6366F1',
+        onSave: (name, title, color) => _triggerSave(name, title, color),
       ),
     );
   }

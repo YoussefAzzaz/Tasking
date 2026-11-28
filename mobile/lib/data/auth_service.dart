@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:axis/core/cache/cache_service.dart';
 import 'package:axis/core/storage/axis_storage.dart';
+import 'package:axis/data/auth/auth_error_classifier.dart';
 import 'package:axis/data/powersync_db.dart';
+
+export 'package:axis/data/auth/auth_error_classifier.dart' show SessionRefreshResult;
 import 'package:axis/data/network_service.dart';
 import 'package:axis/data/focus_session_service.dart';
 import 'package:axis/data/prayer_time_service.dart';
@@ -13,22 +16,6 @@ import 'package:axis/data/daily_prayer_status_repository.dart';
 import 'package:axis/data/friends/friend_search_repository.dart';
 import 'package:axis/data/friends/friend_activity_repository.dart';
 import 'package:axis/core/security/secure_credential_vault.dart';
-
-/// Outcome of attempting to refresh or silently recover a cloud session.
-enum SessionRefreshResult {
-  /// Active, unexpired Supabase session is ready for cloud sync.
-  valid,
-
-  /// Device is offline or encountered a transient network/server error.
-  /// Local offline session remains completely valid; NEVER show session-expired.
-  offlineOrTransient,
-
-  /// Supabase explicitly rejected the refresh token / credentials as invalid or revoked.
-  expired,
-
-  /// No cloud account session exists (unauthenticated or local guest).
-  unauthenticated,
-}
 
 /// Full-stack Authentication Service bridging Supabase Auth & PowerSync multi-tenant isolation.
 /// Provides offline session persistence, background auto-login, and seamless reconnect sync.
@@ -75,104 +62,11 @@ class AuthService {
     sessionExpiredDismissedNotifier.value = true;
   }
 
-  /// Classifies whether an error represents an offline / network / transient failure
-  /// rather than a server-confirmed invalid or revoked auth token.
-  static bool isNetworkOrRetryableError(Object error) {
-    if (error is AuthRetryableFetchException) return true;
-    if (error is SocketException ||
-        error is TimeoutException ||
-        error is HandshakeException ||
-        error is HttpException ||
-        error is TlsException) {
-      return true;
-    }
-    if (error is AuthException) {
-      final code = error.statusCode;
-      if (code == '500' ||
-          code == '502' ||
-          code == '503' ||
-          code == '504' ||
-          code == '408' ||
-          code == '429' ||
-          code == '0') {
-        return true;
-      }
-    }
-    final lower = error.toString().toLowerCase();
-    return lower.contains('socketexception') ||
-        lower.contains('failed host lookup') ||
-        lower.contains('network is unreachable') ||
-        lower.contains('connection refused') ||
-        lower.contains('connection reset') ||
-        lower.contains('connection closed') ||
-        lower.contains('connection terminated') ||
-        lower.contains('software caused connection abort') ||
-        lower.contains('timed out') ||
-        lower.contains('timeoutexception') ||
-        lower.contains('clientexception') ||
-        lower.contains('handshakeexception') ||
-        lower.contains('no address associated with hostname') ||
-        lower.contains('authretryablefetchexception') ||
-        lower.contains('xmlhttprequest error') ||
-        lower.contains('failed to fetch');
-  }
+  static bool isNetworkOrRetryableError(Object error) =>
+      AuthErrorClassifier.isNetworkOrRetryableError(error);
 
-  /// Classifies whether an error is a definitive server-side auth rejection
-  /// (revoked/invalid refresh token, invalid credentials, deleted/banned user).
-  /// Always returns false for offline/network/transient errors.
-  static bool isPermanentAuthError(Object error) {
-    if (isNetworkOrRetryableError(error)) return false;
-    if (error is AuthSessionMissingException) return true;
-
-    const permanentCodes = {
-      'invalid_grant',
-      'refresh_token_not_found',
-      'refresh_token_already_used',
-      'invalid_credentials',
-      'user_not_found',
-      'user_banned',
-      'session_not_found',
-      'session_expired',
-      'bad_jwt',
-    };
-
-    if (error is AuthApiException) {
-      if (error.code != null && permanentCodes.contains(error.code!.toLowerCase())) {
-        return true;
-      }
-      if (error.statusCode == '400' ||
-          error.statusCode == '401' ||
-          error.statusCode == '403') {
-        return true;
-      }
-    }
-
-    if (error is AuthException) {
-      if (error.code != null && permanentCodes.contains(error.code!.toLowerCase())) {
-        return true;
-      }
-      if (error.statusCode == '400' ||
-          error.statusCode == '401' ||
-          error.statusCode == '403') {
-        return true;
-      }
-      final msg = error.message.toLowerCase();
-      if (msg.contains('invalid refresh token') ||
-          msg.contains('refresh token not found') ||
-          msg.contains('already used') ||
-          msg.contains('invalid_grant') ||
-          msg.contains('invalid login credentials') ||
-          msg.contains('session_not_found') ||
-          msg.contains('session not found') ||
-          msg.contains('user not found') ||
-          msg.contains('user_banned') ||
-          msg.contains('bad_jwt')) {
-        return true;
-      }
-    }
-
-    return false;
-  }
+  static bool isPermanentAuthError(Object error) =>
+      AuthErrorClassifier.isPermanentAuthError(error);
 
   Map<String, dynamic>? get lastSavedSession => _lastSavedSession;
 
@@ -810,6 +704,31 @@ class AuthService {
     return result == SessionRefreshResult.valid;
   }
 
+  /// Purges prior account's in-memory caches and local synced tables whenever
+  /// transitioning from a different authenticated user onto [newUid].
+  Future<void> _purgePreviousAccountIfNeeded(
+    String previousUid,
+    String newUid,
+  ) async {
+    if (newUid.isEmpty ||
+        previousUid.isEmpty ||
+        previousUid == 'local_guest' ||
+        previousUid == newUid) {
+      return;
+    }
+    try {
+      DailyPrayerStatusRepository().clearSessionState();
+      FriendSearchRepository().inMemoryProfileCache.clear();
+      FriendActivityRepository().clearSessionState();
+      CacheService().clear();
+      if (isDatabaseInitialized) {
+        await db.disconnectAndClear().timeout(const Duration(seconds: 5));
+      }
+    } catch (e) {
+      debugPrint('[AuthService] User switch disconnectAndClear notice: $e');
+    }
+  }
+
   /// Sign in with email and password
   Future<AuthResponse> signIn({
     required String email,
@@ -838,21 +757,7 @@ class AuthService {
       final name = (response.user?.userMetadata?['display_name'] as String?) ??
           email.split('@').first;
 
-      // Guarantee prior user's local PowerSync tables are purged before activating the new account
-      if (uid.isNotEmpty &&
-          previousUid.isNotEmpty &&
-          previousUid != 'local_guest' &&
-          previousUid != uid &&
-          isDatabaseInitialized) {
-        try {
-          DailyPrayerStatusRepository().clearSessionState();
-          FriendSearchRepository().inMemoryProfileCache.clear();
-          FriendActivityRepository().clearSessionState();
-          await db.disconnectAndClear().timeout(const Duration(seconds: 5));
-        } catch (e) {
-          debugPrint('[AuthService] User switch disconnectAndClear notice: $e');
-        }
-      }
+      await _purgePreviousAccountIfNeeded(previousUid, uid);
 
       await saveLocalSession(
         userId: uid,
@@ -905,6 +810,10 @@ class AuthService {
     _authEpoch++;
     setSigningIn(true);
     try {
+      final currentAuthUid = currentUserId;
+      final previousUid = (currentAuthUid != null && currentAuthUid.isNotEmpty)
+          ? currentAuthUid
+          : ((_lastSavedSession?['user_id'] as String?) ?? '');
       final cleanName =
           displayName.trim().isEmpty ? 'Operative' : displayName.trim();
       final response = await client.auth
@@ -918,6 +827,8 @@ class AuthService {
           .timeout(const Duration(seconds: 20));
 
       final uid = response.user?.id ?? '';
+      // Root-cause fix: also purge prior account caches and PowerSync tables on sign-up.
+      await _purgePreviousAccountIfNeeded(previousUid, uid);
       await saveLocalSession(
         userId: uid,
         email: email.trim(),
@@ -990,6 +901,7 @@ class AuthService {
       try {
         FriendActivityRepository().clearSessionState();
       } catch (_) {}
+      CacheService().clear();
 
       // 2. Cancel habit notifications asynchronously (with timeout) so platform channels never stall logout
       unawaited(

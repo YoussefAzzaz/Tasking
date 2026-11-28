@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../widgets/desktop_card.dart';
@@ -43,12 +43,12 @@ class DesktopDistractionsCard extends StatelessWidget {
               controller: controller,
               maxLines: 1,
               textAlignVertical: TextAlignVertical.center,
-              style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh),
+              style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh),
               decoration: InputDecoration(
                 hintText: isAr
                     ? 'التقط فكرة سريعة أو مهمة أو خاطرة لمراجعتها لاحقاً...'
                     : 'Capture a quick idea, task or thought to review later...',
-                hintStyle: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
+                hintStyle: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
                 filled: false,
                 fillColor: Colors.transparent,
                 border: InputBorder.none,

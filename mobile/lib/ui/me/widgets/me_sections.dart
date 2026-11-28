@@ -154,10 +154,9 @@ class _MasteryBadgesSectionState extends State<MasteryBadgesSection> {
                         ),
                       ),
                       const SizedBox(width: 3),
-                      Icon(
-                        isArabic
-                            ? Icons.arrow_back_ios_rounded
-                            : Icons.arrow_forward_ios_rounded,
+                      // Root cause: arrow_forward_ios_rounded auto-mirrors in RTL; ternary caused double-flip.
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
                         size: 10,
                         color: AxisColors.primarySoft,
                       ),

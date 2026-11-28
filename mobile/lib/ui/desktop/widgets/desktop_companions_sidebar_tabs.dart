@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -80,7 +80,7 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
                   label,
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
-                  style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: active ? FontWeight.bold : FontWeight.w500, color: active ? AxisColors.primarySoft : AxisColors.textDim),
+                  style: AxisFonts.spaceGrotesk(fontSize: 11, fontWeight: active ? FontWeight.bold : FontWeight.w500, color: active ? AxisColors.primarySoft : AxisColors.textDim),
                 ),
               ),
             ],
@@ -103,7 +103,7 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l10n.pendingRequests.toUpperCase(), style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.bold, color: AxisColors.warning)),
+                Text(l10n.pendingRequests.toUpperCase(), style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.bold, color: AxisColors.warning)),
                 const SizedBox(height: 6),
                 ...requests.map((r) => Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -114,7 +114,7 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
                           AvatarWidget(name: r.name, avatarColor: r.avatarColor, avatarUrl: r.avatarUrl, size: 30),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(r.name, style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
+                            child: Text(r.name, style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
                           ),
                           IconButton(
                             icon: const Icon(Icons.check_rounded, color: AxisColors.success, size: 18),
@@ -145,7 +145,7 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
                     children: [
                       const Icon(Icons.group_add_outlined, size: 32, color: AxisColors.textDim),
                       const SizedBox(height: 6),
-                      Text(l10n.noCompanionsYet, style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
+                      Text(l10n.noCompanionsYet, style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh)),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
                         onPressed: widget.onAddCompanion,
@@ -163,9 +163,9 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
               children: [
                 Row(
                   children: [
-                    Text(l10n.connectedCompanions.toUpperCase(), style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.bold, color: AxisColors.textDim)),
+                    Text(l10n.connectedCompanions.toUpperCase(), style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.bold, color: AxisColors.textDim)),
                     const Spacer(),
-                    Text('${friends.length}', style: GoogleFonts.spaceGrotesk(fontSize: 10, color: AxisColors.textDim)),
+                    Text('${friends.length}', style: AxisFonts.spaceGrotesk(fontSize: 10, color: AxisColors.textDim)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -194,13 +194,13 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
                                     Row(
                                       children: [
                                         Flexible(
-                                          child: Text(f.name, style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh), overflow: TextOverflow.ellipsis),
+                                          child: Text(f.name, style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: AxisColors.textHigh), overflow: TextOverflow.ellipsis),
                                         ),
                                         const SizedBox(width: 4),
                                         const Icon(Icons.arrow_forward_ios_rounded, size: 9, color: AxisColors.textDim),
                                       ],
                                     ),
-                                    Text('Lv. ${f.level} · ${f.friendCode ?? ""}', style: GoogleFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim)),
+                                    Text('Lv. ${f.level} · ${f.friendCode ?? ""}', style: AxisFonts.getFont('Geist', fontSize: 10, color: AxisColors.textDim)),
                                   ],
                                 ),
                               ),
@@ -243,7 +243,7 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
         final logs = snapshot.data ?? [];
         if (logs.isEmpty) {
           return Center(
-            child: Text(l10n.noNotificationsYet, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim)),
+            child: Text(l10n.noNotificationsYet, style: AxisFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textDim)),
           );
         }
 
@@ -251,7 +251,7 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
           children: [
             Row(
               children: [
-                Text(l10n.friendNotifications.toUpperCase(), style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.bold, color: AxisColors.textDim)),
+                Text(l10n.friendNotifications.toUpperCase(), style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.bold, color: AxisColors.textDim)),
                 const Spacer(),
                 TextButton(
                   onPressed: () => _friendRepo.clearFriendNotifications(),
@@ -296,7 +296,7 @@ class _DesktopCompanionsSidebarTabsState extends State<DesktopCompanionsSidebarT
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(log.title, style: GoogleFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textHigh)),
+                            child: Text(log.title, style: AxisFonts.getFont('Geist', fontSize: 11.5, color: AxisColors.textHigh)),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close_rounded, size: 14, color: AxisColors.textDim),

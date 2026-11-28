@@ -87,8 +87,9 @@ class DailyReviewPromptCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(
-                    isAr ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
+                  // Root cause: arrow_forward_rounded auto-mirrors in RTL; ternary flipped twice.
+                  const Icon(
+                    Icons.arrow_forward_rounded,
                     size: 14,
                     color: AxisColors.secondary,
                   ),

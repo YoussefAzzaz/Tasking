@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:go_router/go_router.dart';
 import 'package:powersync/powersync.dart' show SyncStatus;
 import 'package:axis/core/theme.dart';
@@ -155,7 +155,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                           children: [
                             Text(
                               isArabic ? 'المزامنة السحابية' : 'CLOUD SYNCHRONIZATION',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.8,
@@ -165,7 +165,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                             const SizedBox(height: 2),
                             Text(
                               email,
-                              style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                              style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
@@ -229,7 +229,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                       ),
                       child: Text(
                         _syncMessage!,
-                        style: GoogleFonts.getFont(
+                        style: AxisFonts.getFont(
                           'Geist',
                           fontSize: 12,
                           color: _syncMessage!.contains('successful') || _syncMessage!.contains('بنجاح')
@@ -275,7 +275,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                         auth.hasSavedCredentials
                             ? (isArabic ? 'إعادة المصادقة كـ ${auth.savedEmail}' : 'RE-AUTHENTICATE AS ${auth.savedEmail}')
                             : (isArabic ? 'انتهت الجلسة • تسجيل الدخول مجدداً' : 'SESSION EXPIRED • LOG IN AGAIN'),
-                        style: GoogleFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
+                        style: AxisFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AxisColors.danger,
@@ -295,7 +295,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                       icon: const Icon(Icons.login_rounded, size: 16),
                       label: Text(
                         isArabic ? 'تسجيل الدخول للمزامنة مع سطح المكتب' : 'SIGN IN TO SYNC WITH DESKTOP',
-                        style: GoogleFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
+                        style: AxisFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AxisColors.primary,
@@ -319,7 +319,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
                       _isSyncing
                           ? (isArabic ? 'جارٍ المزامنة...' : 'SYNCING...')
                           : (isArabic ? 'مزامنة وإعادة الاتصال الآن' : 'SYNC & RECONNECT NOW'),
-                      style: GoogleFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
+                      style: AxisFonts.spaceGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isGuest ? AxisColors.surfaceLowest : AxisColors.primary,
@@ -353,7 +353,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
         const SizedBox(width: 10),
         Text(
           label,
-          style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh),
+          style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textHigh),
         ),
         const Spacer(),
         Container(
@@ -364,7 +364,7 @@ class _SyncStatusModalState extends State<SyncStatusModal> {
           ),
           child: Text(
             status,
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,

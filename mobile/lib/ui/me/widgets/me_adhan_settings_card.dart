@@ -1,6 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -105,26 +106,30 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header (Secret 5-Tap on Mosque Icon or Long-Press opens Debug Cockpit)
+            // Header (Secret 5-Tap on Mosque Icon or Long-Press opens Debug Cockpit in debug builds only)
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onLongPress: () {
-                HapticFeedback.heavyImpact();
-                context.push('/debug/adhan-alarm');
-              },
+              onLongPress: !kDebugMode
+                  ? null
+                  : () {
+                      HapticFeedback.heavyImpact();
+                      context.push('/debug/adhan-alarm');
+                    },
               child: Row(
                 children: [
                   InkWell(
-                    onTap: () {
-                      _debugTapCount++;
-                      if (_debugTapCount >= 5) {
-                        _debugTapCount = 0;
-                        HapticFeedback.heavyImpact();
-                        context.push('/debug/adhan-alarm');
-                      } else {
-                        HapticFeedback.lightImpact();
-                      }
-                    },
+                    onTap: !kDebugMode
+                        ? null
+                        : () {
+                            _debugTapCount++;
+                            if (_debugTapCount >= 5) {
+                              _debugTapCount = 0;
+                              HapticFeedback.heavyImpact();
+                              context.push('/debug/adhan-alarm');
+                            } else {
+                              HapticFeedback.lightImpact();
+                            }
+                          },
                     borderRadius: BorderRadius.circular(99),
                     child: Container(
                       padding: const EdgeInsets.all(8),
@@ -146,7 +151,7 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
                       children: [
                         Text(
                           isArabic ? 'أصوات وتنبيهات الأذان' : 'ADHAN & PRAYER NOTIFICATIONS',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             letterSpacing: isArabic ? 0.0 : 1.2,
@@ -158,7 +163,7 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
                           isArabic
                               ? 'تخصيص التكبيرات الأولى، تنبيهات الأوقات ومنبه الفجر'
                               : 'Configure short Takbeerat calls & Fajr alarm',
-                          style: GoogleFonts.getFont(
+                          style: AxisFonts.getFont(
                             'Geist',
                             fontSize: 11.5,
                             color: AxisColors.textMuted,
@@ -309,7 +314,7 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
             // Active Sound Card Header
             Text(
               isArabic ? 'صوت الأذان الحالي (التكبيرات):' : 'ACTIVE ADHAN SOUND (TAKBEERAT):',
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
@@ -377,7 +382,7 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
                                     Flexible(
                                       child: Text(
                                         isArabic ? activeSound.nameAr : activeSound.name,
-                                        style: GoogleFonts.spaceGrotesk(
+                                        style: AxisFonts.spaceGrotesk(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w700,
                                           color: AxisColors.textHigh,
@@ -415,7 +420,7 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
                                 const SizedBox(height: 2),
                                 Text(
                                   isArabic ? activeSound.muadhinAr : activeSound.muadhin,
-                                  style: GoogleFonts.getFont(
+                                  style: AxisFonts.getFont(
                                     'Geist',
                                     fontSize: 11,
                                     color: AxisColors.secondarySoft,
@@ -451,7 +456,7 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
                     icon: const Icon(Icons.library_music_rounded, size: 16, color: AxisColors.primarySoft),
                     label: Text(
                       isArabic ? 'استكشاف الأذانات' : 'Explore Sounds',
-                      style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700),
+                      style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AxisColors.primarySoft,
@@ -474,7 +479,7 @@ class _MeAdhanSettingsCardState extends State<MeAdhanSettingsCard> {
                         : const Icon(Icons.upload_file_rounded, size: 16, color: AxisColors.textMuted),
                     label: Text(
                       isArabic ? 'رفع صوت من هاتفك' : 'Upload Audio',
-                      style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700),
+                      style: AxisFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AxisColors.textHigh,

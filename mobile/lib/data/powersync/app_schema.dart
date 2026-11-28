@@ -320,6 +320,10 @@ const appSchema = Schema([
         IndexedColumn.ascending('entity_type'),
         IndexedColumn.ascending('entity_id'),
       ]),
+      Index('entity_accepted', [
+        IndexedColumn.ascending('entity_type'),
+        IndexedColumn.ascending('accepted_entity_id'),
+      ]),
     ],
   ),
 ]);

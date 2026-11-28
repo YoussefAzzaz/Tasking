@@ -71,7 +71,9 @@ class Note {
       mood: row['mood'] as String?,
       energy: row['energy'] as String?,
       pinned: ((row['pinned'] as num?)?.toInt() ?? 0) == 1,
-      createdAt: DateTime.tryParse((row['created_at'] as String?) ?? '') ??
+      // Root cause: SQLite stores UTC ISO strings without converting back to local timezone,
+      // causing midnight-boundary journals to be classified under the wrong local day.
+      createdAt: DateTime.tryParse((row['created_at'] as String?) ?? '')?.toLocal() ??
           DateTime.now(),
       shareId: (shareIdRaw != null && shareIdRaw.isNotEmpty) ? shareIdRaw : null,
       senderId:

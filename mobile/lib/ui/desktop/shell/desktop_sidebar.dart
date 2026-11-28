@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../core/theme.dart';
 import '../../../core/l10n/app_localizations.dart';
@@ -214,7 +214,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.6,
@@ -224,7 +224,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                         const SizedBox(height: 2),
                         Text(
                           'OPERATOR • LVL $effectiveLevel',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             color: AxisColors.secondary,
@@ -350,7 +350,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                     ),
                     title: Text(
                       isAr ? 'تسجيل الخروج' : 'Log Out',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AxisColors.textHigh,
@@ -360,7 +360,7 @@ class _DesktopSidebarState extends State<DesktopSidebar> {
                       isAr
                           ? 'هل أنت متأكد من رغبتك في إنهاء الجلسة الحالية؟'
                           : 'Are you sure you want to end your current session?',
-                      style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted),
+                      style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textMuted),
                     ),
                     actions: [
                       TextButton(
@@ -469,7 +469,7 @@ class _NavItemState extends State<_NavItem> {
                 Expanded(
                   child: Text(
                     widget.label,
-                    style: GoogleFonts.getFont(
+                    style: AxisFonts.getFont(
                       'Geist',
                       fontSize: 13,
                       fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
@@ -479,7 +479,7 @@ class _NavItemState extends State<_NavItem> {
                 ),
                 Text(
                   widget.shortcut,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: widget.isSelected ? AxisColors.primarySoft : AxisColors.textDim,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme.dart';
@@ -63,7 +63,7 @@ class ExecutionStreamCard extends StatelessWidget {
                   child: Center(
                     child: Text(
                       isArabic ? 'لا توجد مهام مجدولة لليوم' : 'No tasks scheduled for today',
-                      style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                      style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                     ),
                   ),
                 )
@@ -139,7 +139,7 @@ class _TaskRow extends StatelessWidget {
                   task.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.getFont(
+                  style: AxisFonts.getFont(
                     'Geist',
                     fontSize: 13,
                     decoration: isDone ? TextDecoration.lineThrough : null,
@@ -155,7 +155,7 @@ class _TaskRow extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   task.dueTime!,
-                  style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
+                  style: AxisFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
                 ),
               ],
               if (!isDone) ...[

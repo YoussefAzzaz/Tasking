@@ -3,7 +3,6 @@ package com.axis.axis
 import android.app.AlarmManager
 import android.app.KeyguardManager
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -26,6 +25,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        AxisVaultKeystore.register(flutterEngine, applicationContext)
         val updater = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UPDATER_CHANNEL)
         updaterChannel = updater
         updater.setMethodCallHandler { call, result ->
@@ -193,6 +193,11 @@ class MainActivity : FlutterActivity() {
                 }
                 "cancelNativeWakeupNotification" -> {
                     AdhanKeepAliveService.cancelWakeupNotification(applicationContext)
+                    runOnUiThread { clearLockScreenWakeFlags() }
+                    result.success(true)
+                }
+                "clearAdhanWakeFlags" -> {
+                    runOnUiThread { clearLockScreenWakeFlags() }
                     result.success(true)
                 }
                 "bringToForegroundForAdhan" -> {
@@ -227,68 +232,25 @@ class MainActivity : FlutterActivity() {
                         val prayerNameAr = call.argument<String>("prayerNameAr") ?: "الصلاة"
                         val prayerTime = call.argument<String>("prayerTime") ?: ""
 
-                        val alarmIntent = Intent(applicationContext, AdhanWakeupReceiver::class.java).apply {
-                            putExtra(AdhanKeepAliveService.EXTRA_PRAYER_ID, prayerId)
-                            putExtra(AdhanKeepAliveService.EXTRA_PRAYER_NAME, prayerName)
-                            putExtra(AdhanKeepAliveService.EXTRA_PRAYER_NAME_AR, prayerNameAr)
-                            putExtra(AdhanKeepAliveService.EXTRA_PRAYER_TIME, prayerTime)
-                        }
-                        val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-                        val operationIntent = PendingIntent.getBroadcast(
-                            applicationContext,
-                            requestCode,
-                            alarmIntent,
-                            pendingFlags,
+                        val ok = AdhanAlarmStore.scheduleAndPersist(
+                            context = applicationContext,
+                            requestCode = requestCode,
+                            triggerAtMillis = triggerAtMillis,
+                            prayerId = prayerId,
+                            prayerName = prayerName,
+                            prayerNameAr = prayerNameAr,
+                            prayerTime = prayerTime,
                         )
-                        val showActivityIntent = AdhanKeepAliveService.buildMainActivityAdhanIntent(
-                            applicationContext,
-                            prayerId,
-                            prayerName,
-                            prayerNameAr,
-                            prayerTime,
-                        )
-                        val showPendingIntent = PendingIntent.getActivity(
-                            applicationContext,
-                            requestCode + 5000,
-                            showActivityIntent,
-                            pendingFlags,
-                        )
-                        val alarmManager = getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-                        if (alarmManager != null) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                                val clockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, showPendingIntent)
-                                alarmManager.setAlarmClock(clockInfo, operationIntent)
-                            } else {
-                                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, operationIntent)
-                            }
-                            result.success(true)
-                        } else {
-                            result.success(false)
-                        }
+                        result.success(ok)
                     } catch (e: Exception) {
                         result.error("ALARM_ERROR", e.localizedMessage, null)
                     }
                 }
                 "cancelNativeAdhanAlarm" -> {
-                    try {
-                        val requestCode = call.argument<Int>("requestCode") ?: 0
-                        val alarmIntent = Intent(applicationContext, AdhanWakeupReceiver::class.java)
-                        val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-                        val pi = PendingIntent.getBroadcast(
-                            applicationContext,
-                            requestCode,
-                            alarmIntent,
-                            pendingFlags,
-                        )
-                        val alarmManager = getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-                        alarmManager?.cancel(pi)
-                        pi.cancel()
-                        result.success(true)
-                    } catch (_: Exception) {
-                        result.success(false)
-                    }
+                    val requestCode = call.argument<Int>("requestCode") ?: 0
+                    result.success(
+                        AdhanAlarmStore.cancelAndRemove(applicationContext, requestCode),
+                    )
                 }
                 "isBatteryOptimizationIgnored" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -361,22 +323,30 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableLockScreenWakeFlags()
-        extractAdhanPayload(intent)?.let { pendingAdhanPayload = it }
+        // Root-cause fix: only keep the screen awake and bypass keyguard when
+        // launched specifically for an active Adhan alarm, not normal launches.
+        val adhanPayload = extractAdhanPayload(intent)
+        if (adhanPayload != null) {
+            enableLockScreenWakeFlags()
+            pendingAdhanPayload = adhanPayload
+        } else {
+            clearLockScreenWakeFlags()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        enableLockScreenWakeFlags()
-        extractAdhanPayload(intent)?.let { payload ->
+        val adhanPayload = extractAdhanPayload(intent)
+        if (adhanPayload != null) {
+            enableLockScreenWakeFlags()
             val channel = settingsChannel
             if (channel != null) {
                 runOnUiThread {
-                    channel.invokeMethod("onAdhanTrigger", payload)
+                    channel.invokeMethod("onAdhanTrigger", adhanPayload)
                 }
             } else {
-                pendingAdhanPayload = payload
+                pendingAdhanPayload = adhanPayload
             }
         }
     }
@@ -396,6 +366,21 @@ class MainActivity : FlutterActivity() {
             )
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    private fun clearLockScreenWakeFlags() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(false)
+            setTurnScreenOn(false)
+        } else {
+            @Suppress("DEPRECATION")
+            window.clearFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD,
+            )
+        }
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     private fun extractAdhanPayload(intent: Intent?): Map<String, String>? {

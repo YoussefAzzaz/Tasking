@@ -339,9 +339,32 @@ class RecurrenceEngine {
       if (rules.containsKey('BYDAY')) {
         var days = rules['BYDAY']!.split(',').map((d) => d.trim().toUpperCase());
         var targetDays = days.map((d) => _codeToDay[d]).whereType<int>().toSet();
+        if (targetDays.isEmpty) {
+          return DateTime(fromDate.year, fromDate.month, fromDate.day + (7 * interval));
+        }
 
-        for (int i = 1; i <= 7 * interval; i++) {
-          var candidate = DateTime(fromDate.year, fromDate.month, fromDate.day + i);
+        // Root-cause fix: previously scanned `1..7*interval` linearly, so whenever
+        // `INTERVAL > 1` the loop wrapped into week 1 instead of skipping `interval - 1`
+        // weeks. Finish any remaining targetDays in the current ISO week first, then
+        // jump `interval - 1` full weeks before selecting the next cycle's weekday.
+        for (int offset = 1; fromDate.weekday + offset <= 7; offset++) {
+          final candidate = DateTime(fromDate.year, fromDate.month, fromDate.day + offset);
+          if (targetDays.contains(candidate.weekday)) {
+            return candidate;
+          }
+        }
+        final daysToNextWeekMonday = 8 - fromDate.weekday;
+        final targetWeekMonday = DateTime(
+          fromDate.year,
+          fromDate.month,
+          fromDate.day + daysToNextWeekMonday + (7 * (interval - 1)),
+        );
+        for (int offset = 0; offset < 7; offset++) {
+          final candidate = DateTime(
+            targetWeekMonday.year,
+            targetWeekMonday.month,
+            targetWeekMonday.day + offset,
+          );
           if (targetDays.contains(candidate.weekday)) {
             return candidate;
           }

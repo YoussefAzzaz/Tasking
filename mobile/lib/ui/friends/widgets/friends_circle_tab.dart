@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -76,7 +76,7 @@ class FriendsCircleTab extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         '${l10n.connectedCompanions.toUpperCase()} (${friends.length})',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.8,
@@ -101,7 +101,7 @@ class FriendsCircleTab extends StatelessWidget {
                               const SizedBox(width: 3),
                               Text(
                                 l10n.addCompanion,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.bold,
                                     color: AxisColors.primarySoft),
@@ -175,7 +175,7 @@ class FriendsCircleTab extends StatelessWidget {
                                             Flexible(
                                               child: Text(
                                                 f.name,
-                                                style: GoogleFonts.spaceGrotesk(
+                                                style: AxisFonts.spaceGrotesk(
                                                     fontSize: 14,
                                                     fontWeight:
                                                         FontWeight.w700,
@@ -186,17 +186,17 @@ class FriendsCircleTab extends StatelessWidget {
                                               ),
                                             ),
                                             const SizedBox(width: 4),
-                                            Icon(
-                                                l10n.isArabic
-                                                    ? Icons.arrow_back_ios_rounded
-                                                    : Icons.arrow_forward_ios_rounded,
+                                            // Root cause: Material arrow_forward_ios_rounded auto-mirrors in RTL;
+                                            // selecting arrow_back_ios_rounded in Arabic caused double-mirroring.
+                                            const Icon(
+                                                Icons.arrow_forward_ios_rounded,
                                                 size: 10,
                                                 color: AxisColors.textDim),
                                           ],
                                         ),
                                         Text(
-                                          '${l10n.friendCode}: ${f.friendCode ?? "AX-7842"}  ·  ${l10n.isArabic ? "المستوى" : "Lv."} ${f.level}',
-                                          style: GoogleFonts.getFont('Geist',
+                                          '${l10n.friendCode}: ${(f.friendCode != null && f.friendCode!.trim().isNotEmpty) ? f.friendCode!.trim() : "---"}  ·  ${l10n.isArabic ? "المستوى" : "Lv."} ${f.level}',
+                                          style: AxisFonts.getFont('Geist',
                                               fontSize: 10.5,
                                               color: AxisColors.textDim),
                                         ),
@@ -218,13 +218,13 @@ class FriendsCircleTab extends StatelessWidget {
                                               borderRadius:
                                                   BorderRadius.circular(16)),
                                           title: Text(l10n.removeCompanion,
-                                              style: GoogleFonts.spaceGrotesk(
+                                              style: AxisFonts.spaceGrotesk(
                                                   color: AxisColors.textHigh,
                                                   fontWeight:
                                                       FontWeight.w700)),
                                           content: Text(
                                               l10n.removeCompanionConfirm,
-                                              style: GoogleFonts.getFont(
+                                              style: AxisFonts.getFont(
                                                   'Geist',
                                                   color: AxisColors.textMuted)),
                                           actions: [
@@ -285,14 +285,14 @@ class FriendsCircleTab extends StatelessWidget {
           Icon(icon, size: 40, color: AxisColors.textDim),
           const SizedBox(height: 12),
           Text(title,
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AxisColors.textHigh),
               textAlign: TextAlign.center),
           const SizedBox(height: 6),
           Text(subtitle,
-              style: GoogleFonts.getFont('Geist',
+              style: AxisFonts.getFont('Geist',
                   fontSize: 12, color: AxisColors.textMuted),
               textAlign: TextAlign.center),
           const SizedBox(height: 16),
@@ -300,7 +300,7 @@ class FriendsCircleTab extends StatelessWidget {
             onPressed: onAction,
             icon: const Icon(Icons.person_add_rounded, size: 15),
             label: Text(actionLabel,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                     fontWeight: FontWeight.w700, fontSize: 12.5)),
             style: ElevatedButton.styleFrom(
               backgroundColor: AxisColors.primary,

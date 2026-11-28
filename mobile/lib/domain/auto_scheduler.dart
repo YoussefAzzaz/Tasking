@@ -59,11 +59,13 @@ class AutoScheduler {
     var end = _parseTime(workEnd);
     var now = _parseTime(nowTime);
 
-    // Support both local and UTC date checks to prevent past proposals across timezones
+    // Root-cause fix: `date` and `nowTime` represent user local calendar date/clock,
+    // so clamping must compare only `localToday` (matching both `localToday` and
+    // `utcToday` wrongly truncated tomorrow/yesterday slots near UTC midnight).
     final localNow = DateTime.now();
-    final localToday = '${localNow.year.toString().padLeft(4, '0')}-${localNow.month.toString().padLeft(2, '0')}-${localNow.day.toString().padLeft(2, '0')}';
-    final utcToday = localNow.toUtc().toIso8601String().substring(0, 10);
-    if ((date == localToday || date == utcToday) && now > start) {
+    final localToday =
+        '${localNow.year.toString().padLeft(4, '0')}-${localNow.month.toString().padLeft(2, '0')}-${localNow.day.toString().padLeft(2, '0')}';
+    if (date == localToday && now > start) {
       start = now;
     }
 

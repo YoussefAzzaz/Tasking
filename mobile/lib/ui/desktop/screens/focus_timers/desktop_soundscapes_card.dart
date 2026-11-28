@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/neural_sound_service.dart';
@@ -38,7 +38,7 @@ class DesktopSoundscapesCard extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               displayName,
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected ? AxisColors.secondary : AxisColors.textHigh,
@@ -112,7 +112,7 @@ class DesktopSoundscapesCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     '${(volume * 100).toInt()}%',
-                    style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textMuted),
+                    style: AxisFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textMuted),
                   ),
                 ],
               );

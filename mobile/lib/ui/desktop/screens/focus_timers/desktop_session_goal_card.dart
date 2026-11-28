@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/focus_session_service.dart';
@@ -82,7 +82,7 @@ class DesktopSessionGoalCard extends StatelessWidget with TaskChecklistMixin {
                           Expanded(
                             child: Text(
                               task.title,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: AxisColors.textHigh,
@@ -139,7 +139,7 @@ class DesktopSessionGoalCard extends StatelessWidget with TaskChecklistMixin {
                         AxisMarkdownViewer(
                           markdown: cleanNotes,
                           selectable: true,
-                          baseStyle: GoogleFonts.getFont('Geist', fontSize: 13, height: 1.45, color: AxisColors.textHigh),
+                          baseStyle: AxisFonts.getFont('Geist', fontSize: 13, height: 1.45, color: AxisColors.textHigh),
                         ),
                       ],
 
@@ -163,7 +163,7 @@ class DesktopSessionGoalCard extends StatelessWidget with TaskChecklistMixin {
                                 Expanded(
                                   child: Text(
                                     item.text,
-                                    style: GoogleFonts.getFont(
+                                    style: AxisFonts.getFont(
                                       'Geist',
                                       fontSize: 13,
                                       decoration: item.isDone ? TextDecoration.lineThrough : null,
@@ -184,14 +184,14 @@ class DesktopSessionGoalCard extends StatelessWidget with TaskChecklistMixin {
                           isAr
                               ? 'تجنب المقاطعات وحافظ على تركيز مستمر لإنجاز هذه المهمة.'
                               : 'Eliminate interruptions and maintain uninterrupted concentration on this deliverable.',
-                          style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
+                          style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
                         ),
                       ],
                     ] else ...[
                       // Standby state (no task attached)
                       Text(
                         isAr ? 'تركيز ذهني عميق وانسيابية' : 'Deep Cognitive Focus & Flow',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AxisColors.textHigh,
@@ -202,7 +202,7 @@ class DesktopSessionGoalCard extends StatelessWidget with TaskChecklistMixin {
                         isAr
                             ? 'تجنب المقاطعات وحافظ على تركيز مستمر دون انقطاع.'
                             : 'Eliminate interruptions and maintain uninterrupted concentration.',
-                        style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
+                        style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textMuted),
                       ),
                     ],
                   ],

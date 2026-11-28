@@ -164,11 +164,9 @@ class _ProjectsTabState extends State<ProjectsTab> {
                   t.projectId!.trim().isNotEmpty &&
                   !projectNames.contains(t.projectId!.trim().toLowerCase())) {
                 projectNames.add(t.projectId!.trim().toLowerCase());
-                discoveredProjects.add(Project(
-                  id: 'discovered_${t.projectId}',
-                  name: t.projectId!.trim(),
-                  color: '#0EA5E9',
-                ));
+                discoveredProjects.add(
+                  ProjectRepository.reconciledProject(t.projectId!.trim()),
+                );
               }
             }
 
@@ -179,8 +177,7 @@ class _ProjectsTabState extends State<ProjectsTab> {
                      idLower != 'personal' &&
                      idLower != 'growth' &&
                      !_locallyDeletedProjects.contains(idLower) &&
-                     !_locallyDeletedProjects.contains(nameLower) &&
-                     !_locallyDeletedProjects.contains(idLower.replaceFirst('discovered_', ''));
+                     !_locallyDeletedProjects.contains(nameLower);
             }).toList();
 
             // Separate collaborative tasks from personal project buckets
@@ -552,8 +549,6 @@ class _ProjectsTabState extends State<ProjectsTab> {
                             }
                             _locallyDeletedProjects.add(project.id.toLowerCase());
                             _locallyDeletedProjects.add(project.name.toLowerCase());
-                            final raw = project.id.toLowerCase().replaceFirst('discovered_', '');
-                            _locallyDeletedProjects.add(raw);
                           });
                         },
                       ),

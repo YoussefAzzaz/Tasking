@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/updates/app_update_service.dart';
@@ -20,8 +20,8 @@ class MeUpdateSection extends StatefulWidget {
 
 class _MeUpdateSectionState extends State<MeUpdateSection> {
   late final AppUpdateService _service;
-  String _versionStr = '1.3.3';
-  int _buildNumber = 28;
+  String _versionStr = '1.3.4';
+  int _buildNumber = 29;
   bool _isChecking = false;
 
   @override
@@ -69,7 +69,7 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
             ),
             content: Text(
               isAr ? 'تعذر التحقق من التحديثات على الشبكة الحالية' : 'Unable to check for updates on current network',
-              style: GoogleFonts.spaceGrotesk(color: AxisColors.priorityHigh, fontSize: 12),
+              style: AxisFonts.spaceGrotesk(color: AxisColors.priorityHigh, fontSize: 12),
             ),
           ),
         );
@@ -91,7 +91,7 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
                     isAr
                         ? 'تطبيق Axis محدّث إلى أحدث إصدار (v$_versionStr)'
                         : 'Axis is up to date (v$_versionStr)',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AxisColors.textHigh,
@@ -116,7 +116,7 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
           ),
           content: Text(
             isAr ? 'تعذر التحقق من التحديثات' : 'Unable to check for updates',
-            style: GoogleFonts.spaceGrotesk(color: AxisColors.priorityHigh, fontSize: 12),
+            style: AxisFonts.spaceGrotesk(color: AxisColors.priorityHigh, fontSize: 12),
           ),
         ),
       );
@@ -175,7 +175,7 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
                       children: [
                         Text(
                           isAr ? 'إصدار النظام والتحديثات' : 'SYSTEM VERSION & UPDATES',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             letterSpacing: isAr ? 0.0 : 0.7,
@@ -189,7 +189,7 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
                           isAr
                               ? 'استعراض الميزات أو التحقق من الإصدارات'
                               : 'View changelog or check releases',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 11,
                             color: AxisColors.textDim,
                           ),
@@ -209,7 +209,7 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
                     ),
                     child: Text(
                       'v$_versionStr',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: AxisFonts.jetBrainsMono(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: AxisColors.tertiary,
@@ -243,7 +243,7 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
                       isAr ? 'سجل التحديثات' : 'Update Log',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                       ),
@@ -279,7 +279,7 @@ class _MeUpdateSectionState extends State<MeUpdateSection> {
                       isAr ? 'فحص التحديثات' : 'Check Updates',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                       ),

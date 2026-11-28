@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 
@@ -44,7 +44,7 @@ class AuthHeaderBranding extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             'AXIS COMMAND STATION',
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               color: AxisColors.textHigh,
               fontWeight: FontWeight.w800,
               letterSpacing: 2.4,
@@ -54,7 +54,7 @@ class AuthHeaderBranding extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'OFFLINE-FIRST CLOUD SYNC & AUTHENTICATION',
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               color: AxisColors.secondary,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.2,
@@ -161,7 +161,7 @@ class AuthModeToggle extends StatelessWidget {
                 child: Text(
                   isArabic ? 'تسجيل الدخول' : 'SIGN IN',
                   style: isDesktop
-                      ? GoogleFonts.spaceGrotesk(
+                      ? AxisFonts.spaceGrotesk(
                           color: !isSignUp ? AxisColors.primarySoft : AxisColors.textDim,
                           fontWeight: FontWeight.w700,
                           letterSpacing: isArabic ? 0.0 : 1.2,
@@ -196,7 +196,7 @@ class AuthModeToggle extends StatelessWidget {
                 child: Text(
                   isArabic ? 'إنشاء حساب' : 'CREATE ACCOUNT',
                   style: isDesktop
-                      ? GoogleFonts.spaceGrotesk(
+                      ? AxisFonts.spaceGrotesk(
                           color: isSignUp ? AxisColors.primarySoft : AxisColors.textDim,
                           fontWeight: FontWeight.w700,
                           letterSpacing: isArabic ? 0.0 : 1.2,
@@ -325,7 +325,7 @@ class AuthSubmitButton extends StatelessWidget {
                               ? (isDesktop ? 'دخول محطة القيادة' : 'الدخول إلى النظام')
                               : (isDesktop ? 'ENTER COMMAND STATION' : 'ENTER SYSTEM')),
                       style: isDesktop
-                          ? GoogleFonts.spaceGrotesk(
+                          ? AxisFonts.spaceGrotesk(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               letterSpacing: isArabic ? 0.0 : 1.0,
@@ -375,7 +375,7 @@ class AuthOfflineButton extends StatelessWidget {
         label: Text(
           isArabic ? 'المتابعة في وضع عدم الاتصال' : 'CONTINUE IN OFFLINE MODE',
           style: isDesktop
-              ? GoogleFonts.spaceGrotesk(
+              ? AxisFonts.spaceGrotesk(
                   color: AxisColors.textMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -432,7 +432,7 @@ class AuthSecurityNote extends StatelessWidget {
                     : 'PowerSync user_id isolation active'),
             overflow: TextOverflow.ellipsis,
             style: isDesktop
-                ? GoogleFonts.spaceGrotesk(
+                ? AxisFonts.spaceGrotesk(
                     color: AxisColors.textDim,
                     fontSize: 10,
                     letterSpacing: isArabic ? 0.0 : 0.5,
@@ -499,7 +499,7 @@ class AuthRememberMeButton extends StatelessWidget {
               child: Text(
                 isArabic ? 'تذكرني على هذا الجهاز' : 'Remember me on this device',
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: value ? AxisColors.textHigh : AxisColors.textMuted,

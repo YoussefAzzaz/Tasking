@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -147,6 +148,124 @@ void main() {
       expect(file, isNull);
       expect(service.downloadProgressNotifier.value.status, UpdateDownloadStatus.failed);
       expect(service.downloadProgressNotifier.value.error, contains('stalled'));
+    });
+
+    test('cachedVersionLabel, cooldown, auto-prompt gating, and dismissal suppression work end-to-end', () async {
+      final mockJson = jsonEncode({
+        'tag_name': 'v1.3.4+29',
+        'name': 'Axis v1.3.4',
+        'body': 'Bug fixes',
+        'published_at': '2026-11-28T12:00:00Z',
+        'assets': [],
+      });
+
+      final mockClient = MockClient((request) async {
+        return http.Response(mockJson, 200);
+      });
+
+      final service = AppUpdateService(httpClient: mockClient);
+      service.setInstalledVersion('1.3.3', 28);
+      expect(service.cachedVersionLabel, '1.3.3');
+      expect(service.isAutoCheckOnCooldown, isFalse);
+
+      final currentVer = await service.getInstalledVersion();
+      final update = await service.checkForUpdate();
+      expect(update, isNotNull);
+      expect(service.isAutoCheckOnCooldown, isTrue);
+      expect(service.shouldAutoPrompt(update!, currentVer), isTrue);
+
+      service.markAutoPrompted(update.version);
+      expect(service.shouldAutoPrompt(update, currentVer), isFalse);
+
+      service.dismissUpdate(update.version);
+      expect(service.dismissedVersion, '1.3.4');
+      expect(service.availableUpdateNotifier.value, isNull);
+
+      final resumeUpdate = await service.checkForUpdate();
+      expect(resumeUpdate, isNull);
+      expect(service.availableUpdateNotifier.value, isNull);
+
+      final forcedUpdate = await service.checkForUpdate(force: true);
+      expect(forcedUpdate, isNotNull);
+      expect(forcedUpdate!.version, '1.3.4');
+    });
+
+    test('downloadUpdate verifies SHA-256 checksums and blocks untrusted URLs', () async {
+      const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(pathProviderChannel, (call) async {
+        if (call.method == 'getTemporaryDirectory') {
+          return Directory.systemTemp.path;
+        }
+        return null;
+      });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(pathProviderChannel, null);
+      });
+
+      final payloadBytes = utf8.encode('valid-axis-apk-binary-payload');
+      final validSha = sha256.convert(payloadBytes).toString();
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('SHA256SUMS.txt')) {
+          return http.Response('$validSha  axis-v1.4.0-android.apk\n', 200);
+        }
+        return http.Response.bytes(payloadBytes, 200);
+      });
+
+      final service = AppUpdateService(httpClient: client);
+      final untrusted = UpdateInfo(
+        version: '1.4.0',
+        buildNumber: 30,
+        releaseName: 'Untrusted',
+        releaseNotes: 'Test',
+        publishedAt: DateTime(2026, 11, 28),
+        downloadUrl: 'http://evil.example.com/axis.apk',
+      );
+      expect(await service.downloadUpdate(untrusted), isNull);
+      expect(service.downloadProgressNotifier.value.error, contains('Untrusted'));
+
+      final tampered = UpdateInfo(
+        version: '1.4.0',
+        buildNumber: 30,
+        releaseName: 'Tampered',
+        releaseNotes: 'Test',
+        publishedAt: DateTime(2026, 11, 28),
+        downloadUrl: 'https://github.com/YoussefAzzaz/Tasking/releases/download/v1.4.0/axis-v1.4.0-android.apk',
+        expectedSha256: '0' * 64,
+      );
+      expect(await service.downloadUpdate(tampered), isNull);
+      expect(service.downloadProgressNotifier.value.status, UpdateDownloadStatus.failed);
+      expect(service.downloadProgressNotifier.value.error, contains('checksum mismatch'));
+
+      final htmlPageFallback = UpdateInfo(
+        version: '1.4.0',
+        buildNumber: 30,
+        releaseName: 'Release Page Only',
+        releaseNotes: 'Test',
+        publishedAt: DateTime(2026, 11, 28),
+        downloadUrl: 'https://github.com/YoussefAzzaz/Tasking/releases/tag/v1.4.0',
+      );
+      expect(await service.downloadUpdate(htmlPageFallback), isNull);
+      expect(service.downloadProgressNotifier.value.status, UpdateDownloadStatus.failed);
+      expect(
+        service.downloadProgressNotifier.value.error,
+        contains('No direct installer binary attached'),
+      );
+
+      final valid = UpdateInfo(
+        version: '1.4.0',
+        buildNumber: 30,
+        releaseName: 'Valid',
+        releaseNotes: 'Test',
+        publishedAt: DateTime(2026, 11, 28),
+        downloadUrl: 'https://github.com/YoussefAzzaz/Tasking/releases/download/v1.4.0/axis-v1.4.0-android.apk',
+        sha256SumsUrl: 'https://github.com/YoussefAzzaz/Tasking/releases/download/v1.4.0/SHA256SUMS.txt',
+      );
+      final okFile = await service.downloadUpdate(valid);
+      expect(okFile, isNotNull);
+      expect(await okFile!.exists(), isTrue);
+      await okFile.delete();
     });
   });
 }

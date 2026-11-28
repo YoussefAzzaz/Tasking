@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -145,7 +145,7 @@ class _DesktopBadgeCardState extends State<DesktopBadgeCard> {
                               badgeTitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: unlocked
@@ -171,7 +171,7 @@ class _DesktopBadgeCardState extends State<DesktopBadgeCard> {
                             ),
                             child: Text(
                               tierLabel,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w600,
                                 color: unlocked ? badge.color : AxisColors.textDim,
@@ -187,7 +187,7 @@ class _DesktopBadgeCardState extends State<DesktopBadgeCard> {
                         badgeSubtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.getFont(
+                        style: AxisFonts.getFont(
                           'Geist',
                           fontSize: 10.5,
                           color: AxisColors.textDim,
@@ -218,7 +218,7 @@ class _DesktopBadgeCardState extends State<DesktopBadgeCard> {
                               progressText,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 9.0,
                                 fontWeight: FontWeight.w600,
                                 color: AxisColors.textDim,
@@ -289,7 +289,7 @@ abstract final class DesktopBadgeDetailDialog {
                         const SizedBox(width: 8),
                         Text(
                           categoryName.toUpperCase(),
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.8,
@@ -352,7 +352,7 @@ abstract final class DesktopBadgeDetailDialog {
                             Text(
                               badgeTitle,
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: AxisColors.textHigh,
@@ -363,7 +363,7 @@ abstract final class DesktopBadgeDetailDialog {
                               Text(
                                 badgeSubtitle,
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                                style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                               ),
                             ],
                           ],
@@ -393,7 +393,7 @@ abstract final class DesktopBadgeDetailDialog {
                                               : 'Current: ${currentTier?.name ?? "Unlocked"}')
                                           : (isArabic ? 'أعلى مستوى تم تحقيقه!' : 'Max Tier Achieved!'))
                                       : (isArabic ? 'الهدف لفتح الشارة' : 'Target to Unlock'),
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                     color: unlocked ? badge.color : AxisColors.textMuted,
@@ -403,7 +403,7 @@ abstract final class DesktopBadgeDetailDialog {
                                   nextTier != null
                                       ? '${badge.currentValue} / ${nextTier.targetValue} ${nextTier.localizedUnit(isArabic, badgeId: badge.id)}'
                                       : (isArabic ? 'مكتمل' : 'Completed'),
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                     color: AxisColors.textHigh,
@@ -431,7 +431,7 @@ abstract final class DesktopBadgeDetailDialog {
                       // Tiers Roadmap
                       Text(
                         isArabic ? 'مسار مستويات الإتقان' : 'MASTERY TIER ROADMAP',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.8,
@@ -482,7 +482,7 @@ abstract final class DesktopBadgeDetailDialog {
                                           children: [
                                             Text(
                                               '${isArabic ? "مستوى" : "Tier"} ${tier.tierNumber} • $tierName',
-                                              style: GoogleFonts.spaceGrotesk(
+                                              style: AxisFonts.spaceGrotesk(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w700,
                                                 color: achieved ? AxisColors.textHigh : AxisColors.textMuted,
@@ -498,7 +498,7 @@ abstract final class DesktopBadgeDetailDialog {
                                                 ),
                                                 child: Text(
                                                   isArabic ? 'الحالي' : 'ACTIVE',
-                                                  style: GoogleFonts.spaceGrotesk(
+                                                  style: AxisFonts.spaceGrotesk(
                                                     fontSize: 9,
                                                     fontWeight: FontWeight.bold,
                                                     color: badge.color,
@@ -510,7 +510,7 @@ abstract final class DesktopBadgeDetailDialog {
                                         const SizedBox(height: 2),
                                         Text(
                                           tierDesc,
-                                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                                          style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                                         ),
                                       ],
                                     ),
@@ -518,7 +518,7 @@ abstract final class DesktopBadgeDetailDialog {
                                   const SizedBox(width: 10),
                                   Text(
                                     '${tier.targetValue} $tierUnit',
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: AxisFonts.spaceGrotesk(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: achieved ? badge.color : AxisColors.textDim,

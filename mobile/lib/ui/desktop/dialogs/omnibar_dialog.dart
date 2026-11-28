@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../core/theme.dart';
 import '../../../data/habit_repository.dart';
@@ -262,14 +262,14 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                                 _selectedIndex = 0;
                               });
                             },
-                            style: GoogleFonts.getFont(
+                            style: AxisFonts.getFont(
                               'Geist',
                               fontSize: 14,
                               color: AxisColors.textHigh,
                             ),
                             decoration: InputDecoration(
                               hintText: 'Search tasks, projects, habits, notes or jump to...',
-                              hintStyle: GoogleFonts.getFont(
+                              hintStyle: AxisFonts.getFont(
                                 'Geist',
                                 fontSize: 14,
                                 color: AxisColors.textDim,
@@ -343,7 +343,7 @@ class _OmnibarDialogState extends State<OmnibarDialog> {
                             child: Center(
                               child: Text(
                                 'No matching records found',
-                                style: GoogleFonts.getFont(
+                                style: AxisFonts.getFont(
                                   'Geist',
                                   fontSize: 13,
                                   color: AxisColors.textDim,

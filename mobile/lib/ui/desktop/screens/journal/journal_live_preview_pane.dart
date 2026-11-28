@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/note_repository.dart';
@@ -40,7 +40,7 @@ class JournalLivePreviewPane extends StatelessWidget {
                   isAr ? '● المعاينة' : '● PREVIEW',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
@@ -68,7 +68,7 @@ class JournalLivePreviewPane extends StatelessWidget {
                             ),
                             child: Text(
                               'A-',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: AxisColors.textHigh,
@@ -91,7 +91,7 @@ class JournalLivePreviewPane extends StatelessWidget {
                             ),
                             child: Text(
                               '${(scale * 100).round()}%',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: AxisColors.secondary,
@@ -114,7 +114,7 @@ class JournalLivePreviewPane extends StatelessWidget {
                             ),
                             child: Text(
                               'A+',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: AxisColors.textHigh,

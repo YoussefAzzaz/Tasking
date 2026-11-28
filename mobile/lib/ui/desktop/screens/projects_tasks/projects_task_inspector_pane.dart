@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:axis/ui/common/axis_snackbar.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -62,38 +62,44 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
   Future<void> _promptAddSubtask(Task task) async {
     final isArabic = AppLocalizations.of(context).isArabic;
     final controller = TextEditingController();
-    final subtask = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AxisColors.canvasBase,
-        title: Text(
-          isArabic ? 'إضافة مهمة فرعية' : 'Add Subtask Checkpoint',
-          style: GoogleFonts.spaceGrotesk(color: AxisColors.textHigh),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          style: GoogleFonts.getFont('Geist', color: AxisColors.textHigh),
-          decoration: InputDecoration(
-            hintText: isArabic ? 'مثال: كتابة اختبارات التكامل' : 'e.g. Write integration test suite',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    // Root cause: local TextEditingController was never disposed after dialog completion.
+    final String? subtask;
+    try {
+      subtask = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AxisColors.canvasBase,
+          title: Text(
+            isArabic ? 'إضافة مهمة فرعية' : 'Add Subtask Checkpoint',
+            style: AxisFonts.spaceGrotesk(color: AxisColors.textHigh),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(isArabic ? 'إلغاء' : 'Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: Text(
-              isArabic ? 'إضافة' : 'Add',
-              style: const TextStyle(color: AxisColors.secondary),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: AxisFonts.getFont('Geist', color: AxisColors.textHigh),
+            decoration: InputDecoration(
+              hintText: isArabic ? 'مثال: كتابة اختبارات التكامل' : 'e.g. Write integration test suite',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+              child: Text(
+                isArabic ? 'إضافة' : 'Add',
+                style: const TextStyle(color: AxisColors.secondary),
+              ),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
     if (subtask != null && subtask.isNotEmpty) {
       final current = task.notes ?? '';
       final updatedNotes = current.isEmpty ? '- [ ] $subtask' : '$current\n- [ ] $subtask';
@@ -129,7 +135,7 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                     isArabic
                         ? 'اختر مهمة لمعاينة التفاصيل وقائمة المهام الفرعية'
                         : 'Select a task to inspect details and checklist',
-                    style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
+                    style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
                   ),
                 ],
               ),
@@ -155,7 +161,7 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                 children: [
                   Text(
                     isArabic ? 'فاحص المهام' : 'TASK INSPECTOR',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.8,
@@ -217,7 +223,7 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
               const SizedBox(height: 14),
               Text(
                 task.title,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: AxisColors.textHigh,
@@ -242,7 +248,7 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                           children: [
                             Text(
                               isArabic ? 'الملاحظات والسياق' : 'NOTES & CONTEXT',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 color: AxisColors.textMuted,
@@ -256,14 +262,14 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                                   return AxisMarkdownViewer(
                                     markdown: displayNotes,
                                     selectable: true,
-                                    baseStyle: GoogleFonts.getFont('Geist', fontSize: 13, height: 1.4, color: AxisColors.textHigh),
+                                    baseStyle: AxisFonts.getFont('Geist', fontSize: 13, height: 1.4, color: AxisColors.textHigh),
                                   );
                                 }
                                 return Text(
                                   isArabic
                                       ? 'لا توجد ملاحظات إضافية مسجلة لهذه المهمة.'
                                       : 'No additional notes provided for this deliverable.',
-                                  style: GoogleFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
+                                  style: AxisFonts.getFont('Geist', fontSize: 13, color: AxisColors.textDim),
                                 );
                               },
                             ),
@@ -299,7 +305,7 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                                                   ? 'قائمة المهام الفرعية ($doneCount/${checklist.length})'
                                                   : 'DELIVERABLE CHECKLIST ($doneCount/${checklist.length})')
                                               : (isArabic ? 'قائمة المهام الفرعية' : 'DELIVERABLE CHECKLIST'),
-                                          style: GoogleFonts.spaceGrotesk(
+                                          style: AxisFonts.spaceGrotesk(
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                             color: AxisColors.textMuted,
@@ -311,7 +317,7 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                                             onTap: () => _promptAddSubtask(task),
                                             child: Text(
                                               isArabic ? '+ إضافة مهمة فرعية' : '+ Add Subtask',
-                                              style: GoogleFonts.spaceGrotesk(
+                                              style: AxisFonts.spaceGrotesk(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.bold,
                                                 color: AxisColors.secondary,
@@ -329,7 +335,7 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                                           isArabic
                                               ? 'لا توجد عناصر بعد. انقر على + إضافة مهمة فرعية لإضافة خطوات.'
                                               : 'No checklist items yet. Click + Add Subtask to add checkpoints.',
-                                          style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                                          style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                                         ),
                                       )
                                     else
@@ -355,7 +361,7 @@ class _ProjectsTaskInspectorPaneState extends State<ProjectsTaskInspectorPane> w
                                                     Expanded(
                                                       child: Text(
                                                         item.text,
-                                                        style: GoogleFonts.getFont(
+                                                        style: AxisFonts.getFont(
                                                           'Geist',
                                                           fontSize: 12,
                                                           decoration: item.isDone ? TextDecoration.lineThrough : null,

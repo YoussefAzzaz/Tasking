@@ -510,8 +510,9 @@ class DailyJournalCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Icon(
-                      isArabic ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
+                    // Root cause: arrow_forward_rounded auto-mirrors in RTL; ternary flipped twice.
+                    const Icon(
+                      Icons.arrow_forward_rounded,
                       size: 14,
                       color: Colors.white,
                     ),

@@ -34,7 +34,9 @@ class HabitCategoriesSection extends StatelessWidget {
     final catCtrl = TextEditingController();
     String selectedColor = '#10B981';
 
-    showDialog(
+    // Root cause: local TextEditingController outlived showDialog without disposal;
+    // dispose in whenComplete after route exit completes.
+    showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
@@ -187,7 +189,7 @@ class HabitCategoriesSection extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ).whenComplete(catCtrl.dispose);
   }
 
   void _confirmDeleteCategory(BuildContext context, String id, String name) {

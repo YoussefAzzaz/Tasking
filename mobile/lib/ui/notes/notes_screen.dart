@@ -113,7 +113,30 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final al = a.toLocal();
+    final bl = b.toLocal();
+    return al.year == bl.year && al.month == bl.month && al.day == bl.day;
+  }
+
+  Widget _buildNotesLoadingSkeleton() {
+    Widget cardPlaceholder({required double height}) => Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: AxisColors.surfaceLow,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AxisColors.borderSubtle),
+          ),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        cardPlaceholder(height: 56),
+        const SizedBox(height: 12),
+        cardPlaceholder(height: 88),
+        const SizedBox(height: 10),
+        cardPlaceholder(height: 88),
+      ],
+    );
   }
 
   @override
@@ -153,13 +176,8 @@ class _NotesScreenState extends State<NotesScreen> {
                 builder: (context, noteSnapshot) {
                   if (catSnapshot.connectionState == ConnectionState.waiting &&
                       noteSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child:
-                            CircularProgressIndicator(color: AxisColors.secondary),
-                      ),
-                    );
+                    // Root cause: centered CircularProgressIndicator violates skeleton-first loading UX.
+                    return _buildNotesLoadingSkeleton();
                   }
 
                   final customCategories = catSnapshot.data ?? [];
@@ -193,12 +211,7 @@ class _NotesScreenState extends State<NotesScreen> {
                         !categoryNames.contains(catLower)) {
                       categoryNames.add(catLower);
                       discoveredCategories.add(
-                        NoteCategory(
-                          id: 'discovered_$catTrimmed',
-                          name: catTrimmed,
-                          icon: 'article',
-                          color: '#0EA5E9',
-                        ),
+                        NoteCategoryRepository.reconciledCategory(catTrimmed),
                       );
                     }
                   }

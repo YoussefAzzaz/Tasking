@@ -15,91 +15,10 @@ class TaskTagsSection extends StatelessWidget {
   final ValueChanged<String> onDeleteTag;
 
   void _showAddTagDialog(BuildContext context) {
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-    final tagCtrl = TextEditingController();
-
-    showDialog(
+    // Root cause: local TextEditingController allocated in showDialog builder was never disposed.
+    showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AxisColors.surfaceLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AxisColors.borderPrimary),
-        ),
-        title: Text(
-          isArabic ? 'وسم مهمة جديد' : 'New Task Tag',
-          style: const TextStyle(
-            color: AxisColors.textHigh,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        actionsOverflowButtonSpacing: 8,
-        actionsOverflowDirection: VerticalDirection.down,
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isArabic ? 'اسم الوسم' : 'TAG NAME',
-                style: TextStyle(
-                  color: AxisColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: isArabic ? 0.0 : 0.8,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: tagCtrl,
-                autofocus: false,
-                style: const TextStyle(color: AxisColors.textHigh),
-                decoration: InputDecoration(
-                  prefixText: '@',
-                  prefixStyle: const TextStyle(
-                    color: AxisColors.primarySoft,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  hintText: isArabic
-                      ? 'مثال: عاجل، تطوير، مراجعة'
-                      : 'e.g. urgent, backend, review',
-                  hintStyle: const TextStyle(color: AxisColors.textDim),
-                  filled: true,
-                  fillColor: AxisColors.surfaceHigh,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AxisColors.borderSubtle),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(isArabic ? 'إلغاء' : 'Cancel',
-                style: const TextStyle(color: AxisColors.textDim)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AxisColors.primary,
-            ),
-            onPressed: () {
-              final tagName = tagCtrl.text.trim().replaceAll('@', '');
-              Navigator.pop(ctx);
-              if (tagName.isNotEmpty) {
-                onAddTag(tagName);
-              }
-            },
-            child: Text(isArabic ? 'إنشاء الوسم' : 'Create Tag',
-                style: const TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      builder: (_) => _CreateTagDialog(onAddTag: onAddTag),
     );
   }
 
@@ -261,6 +180,103 @@ class TaskTagsSection extends StatelessWidget {
               );
             }).toList(),
           ),
+      ],
+    );
+  }
+}
+
+class _CreateTagDialog extends StatefulWidget {
+  const _CreateTagDialog({required this.onAddTag});
+
+  final ValueChanged<String> onAddTag;
+
+  @override
+  State<_CreateTagDialog> createState() => _CreateTagDialogState();
+}
+
+class _CreateTagDialogState extends State<_CreateTagDialog> {
+  final TextEditingController _tagCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _tagCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    return AlertDialog(
+      backgroundColor: AxisColors.surfaceLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AxisColors.borderPrimary),
+      ),
+      title: Text(
+        isArabic ? 'وسم مهمة جديد' : 'New Task Tag',
+        style: const TextStyle(
+          color: AxisColors.textHigh,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      actionsOverflowButtonSpacing: 8,
+      actionsOverflowDirection: VerticalDirection.down,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isArabic ? 'اسم الوسم' : 'TAG NAME',
+              style: TextStyle(
+                color: AxisColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: isArabic ? 0.0 : 0.8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _tagCtrl,
+              autofocus: false,
+              style: const TextStyle(color: AxisColors.textHigh),
+              decoration: InputDecoration(
+                prefixText: '@',
+                prefixStyle: const TextStyle(
+                  color: AxisColors.primarySoft,
+                  fontWeight: FontWeight.bold,
+                ),
+                hintText: isArabic ? 'مثال: عاجل، تطوير، مراجعة' : 'e.g. urgent, backend, review',
+                hintStyle: const TextStyle(color: AxisColors.textDim),
+                filled: true,
+                fillColor: AxisColors.surfaceHigh,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AxisColors.borderSubtle),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(isArabic ? 'إلغاء' : 'Cancel', style: const TextStyle(color: AxisColors.textDim)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: AxisColors.primary),
+          onPressed: () {
+            final tagName = _tagCtrl.text.trim().replaceAll('@', '');
+            Navigator.pop(context);
+            if (tagName.isNotEmpty) {
+              widget.onAddTag(tagName);
+            }
+          },
+          child: Text(isArabic ? 'إنشاء الوسم' : 'Create Tag', style: const TextStyle(color: Colors.white)),
+        ),
       ],
     );
   }

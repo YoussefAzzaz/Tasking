@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/note_category_repository.dart';
@@ -66,7 +66,7 @@ class JournalVaultNavigatorPane extends StatelessWidget {
                     child: Center(
                       child: Text(
                         isArabic ? '≡ الملاحظات' : '≡ Notes',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: activeTab == 'notes' ? AxisColors.textHigh : AxisColors.textMuted,
@@ -93,7 +93,7 @@ class JournalVaultNavigatorPane extends StatelessWidget {
                     child: Center(
                       child: Text(
                         l10n.journals,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: activeTab == 'journal' ? AxisColors.textHigh : AxisColors.textMuted,
@@ -153,7 +153,7 @@ class JournalVaultNavigatorPane extends StatelessWidget {
                           ),
                           child: Text(
                             displayLabel,
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 12,
                               fontWeight: isSel ? FontWeight.w700 : FontWeight.w600,
                               color: isSel ? AxisColors.secondary : AxisColors.textMuted,
@@ -181,11 +181,11 @@ class JournalVaultNavigatorPane extends StatelessWidget {
             child: TextField(
               controller: searchController,
               onChanged: onSearchChanged,
-              style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
+              style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
               decoration: InputDecoration(
                 icon: const Icon(Icons.search_rounded, size: 15, color: AxisColors.textDim),
                 hintText: isArabic ? 'البحث في الملاحظات والوسوم...' : 'Search notes & tags...',
-                hintStyle: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                hintStyle: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                 filled: false,
                 fillColor: Colors.transparent,
                 border: InputBorder.none,
@@ -202,7 +202,7 @@ class JournalVaultNavigatorPane extends StatelessWidget {
           // Vault hierarchy section header
           Text(
             isArabic ? 'شجرة الخزينة' : 'VAULT HIERARCHY',
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
@@ -252,7 +252,7 @@ class JournalVaultNavigatorPane extends StatelessWidget {
                         activeTab == 'journal'
                             ? (isArabic ? 'لم يتم تسجيل يوميات بعد' : 'No journals recorded yet')
                             : (isArabic ? 'لم يتم العثور على ملاحظات' : 'No notes found'),
-                        style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                        style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                       ),
                     ),
                   );
@@ -299,7 +299,7 @@ class JournalVaultNavigatorPane extends StatelessWidget {
                                   displayTitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.getFont(
+                                  style: AxisFonts.getFont(
                                     'Geist',
                                     fontSize: 12,
                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
@@ -318,7 +318,7 @@ class JournalVaultNavigatorPane extends StatelessWidget {
                                   ),
                                   child: Text(
                                     n.category,
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: AxisFonts.spaceGrotesk(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: AxisColors.textMuted,
@@ -340,7 +340,7 @@ class JournalVaultNavigatorPane extends StatelessWidget {
                                   ),
                                   child: Text(
                                     '@${(n.senderUsername ?? '').trim().replaceFirst(RegExp(r'^@+'), '').trim()}',
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: AxisFonts.spaceGrotesk(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                       color: AxisColors.primarySoft,

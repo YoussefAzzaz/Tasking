@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/auth_service.dart';
@@ -86,8 +86,9 @@ class MobileAuthView extends StatelessWidget {
                               if (AuthService().isGuest)
                                 TextButton.icon(
                                   onPressed: () => context.go('/today'),
-                                  icon: Icon(
-                                    isArabic ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+                                  // Root cause: arrow_back_rounded auto-mirrors in RTL; ternary flipped twice.
+                                  icon: const Icon(
+                                    Icons.arrow_back_rounded,
                                     size: 16,
                                     color: AxisColors.textMuted,
                                   ),
@@ -145,7 +146,7 @@ class MobileAuthView extends StatelessWidget {
                                     isArabic
                                         ? 'انتهت صلاحية جلستك. يرجى تسجيل الدخول مجدداً لاستئناف المزامنة.'
                                         : 'Your session has expired. Please log in again to resume synchronization.',
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: AxisFonts.spaceGrotesk(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       color: AxisColors.textHigh,
@@ -203,7 +204,7 @@ class MobileAuthView extends StatelessWidget {
                                     children: [
                                       Text(
                                         isArabic ? 'حساب محفوظ (مشفر)' : 'SAVED ACCOUNT READY',
-                                        style: GoogleFonts.spaceGrotesk(
+                                        style: AxisFonts.spaceGrotesk(
                                           fontSize: 10.5,
                                           fontWeight: FontWeight.w800,
                                           letterSpacing: 0.5,
@@ -213,7 +214,7 @@ class MobileAuthView extends StatelessWidget {
                                       const SizedBox(height: 1),
                                       Text(
                                         AuthService().savedEmail ?? '',
-                                        style: GoogleFonts.getFont(
+                                        style: AxisFonts.getFont(
                                           'Geist',
                                           fontSize: 12,
                                           color: AxisColors.textHigh,
@@ -237,7 +238,7 @@ class MobileAuthView extends StatelessWidget {
                                   ),
                                   child: Text(
                                     isArabic ? 'دخول سريع' : 'QUICK LOGIN',
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: AxisFonts.spaceGrotesk(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                       color: AxisColors.secondarySoft,

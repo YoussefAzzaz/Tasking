@@ -563,8 +563,10 @@ Future<void> syncGlobalUserLevel() async {
     final focusTotal = (focusRow?['total'] as num?)?.toInt() ?? 0;
     int totalXp = logTotal + focusTotal;
 
-    // Self-healing: if historical logs were purged or deficit exists compared to user_profiles.total_xp,
-    // heal the deficit by inserting a permanent historical progression anchor row into logs so lifetime XP is preserved!
+    // Self-healing: preserve higher server total_xp while initial PowerSync sync
+    // is still catching up, and only seed a single immutable anchor row once synced.
+    // Never increment `xp_earned = xp_earned + deficit` on an existing anchor,
+    // which previously caused feedback-loop XP doubling across concurrent syncs.
     if (uid.isNotEmpty && uid != 'local_guest') {
       final existingProfile = await db.getOptional(
         'SELECT total_xp, level FROM user_profiles WHERE user_id = ?',
@@ -574,20 +576,20 @@ Future<void> syncGlobalUserLevel() async {
         final profileXp = (existingProfile['total_xp'] as num?)?.toInt() ?? 0;
         if (profileXp > totalXp) {
           final deficit = profileXp - totalXp;
-          final anchorId = IdGenerator.generateDeterministicId('historical_xp_anchor_$uid');
-          final anchorExists = await db.getOptional('SELECT id FROM logs WHERE id = ?', [anchorId]);
-          final nowIso = DateTime.now().toUtc().toIso8601String();
-          if (anchorExists == null) {
-            await db.execute('''
-              INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp, created_at, updated_at)
-              VALUES (?, ?, 'historical_base', 'historical_progression', ?, '2026-10-01T00:00:00.000Z', ?, ?)
-            ''', [anchorId, uid, deficit, nowIso, nowIso]);
-          } else {
-            await db.execute('''
-              UPDATE logs SET xp_earned = xp_earned + ?, updated_at = ? WHERE id = ?
-            ''', [deficit, nowIso, anchorId]);
+          if (db.currentStatus.hasSynced == true) {
+            final anchorId =
+                IdGenerator.generateDeterministicId('historical_xp_anchor_$uid');
+            final anchorExists =
+                await db.getOptional('SELECT id FROM logs WHERE id = ?', [anchorId]);
+            if (anchorExists == null) {
+              final nowIso = DateTime.now().toUtc().toIso8601String();
+              await db.execute('''
+                INSERT INTO logs (id, user_id, task_id, event_type, xp_earned, timestamp, created_at, updated_at)
+                VALUES (?, ?, 'historical_base', 'historical_progression', ?, '2026-10-01T00:00:00.000Z', ?, ?)
+              ''', [anchorId, uid, deficit, nowIso, nowIso]);
+            }
           }
-          totalXp += deficit;
+          totalXp = profileXp;
         }
       }
     }
@@ -643,8 +645,8 @@ Future<void> syncGlobalUserLevel() async {
         }
         final titleToUse = (metaTitle != null && metaTitle.trim().isNotEmpty) ? metaTitle.trim() : 'Specialist';
 
-        final hashPart = uid.replaceAll('-', '').toUpperCase();
-        final friendCode = 'AX-${hashPart.length >= 4 ? hashPart.substring(0, 4) : "7842"}';
+        // Root cause: fell back to fake static '7842'; delegate to shared formatter.
+        final friendCode = UserProfileRepository.formatFallbackFriendCode(uid);
 
         try {
           await db.execute('''

@@ -595,16 +595,17 @@ class AppWidgetSyncService {
       };
 
       try {
-        final prayerQuery = uid.isNotEmpty
-            ? "SELECT id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at FROM prayers WHERE (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest') ORDER BY sort_order ASC"
-            : 'SELECT id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at FROM prayers ORDER BY sort_order ASC';
-        final prayerParams = uid.isNotEmpty ? [uid] : <dynamic>[];
-        final rows = await db.getAll(prayerQuery, prayerParams);
-        for (final row in rows) {
-          final parsed = Prayer.fromRow(row);
-          final code = parsed.prayerCode.trim().toLowerCase();
-          if (doneMap.containsKey(code)) {
-            doneMap[code] = parsed.isDone;
+        // Guard against unscoped reads during sign-out when active uid is empty.
+        if (uid.isNotEmpty) {
+          const prayerQuery =
+              "SELECT id, user_id, prayer_code, name, icon, time, sort_order, is_done, created_at, updated_at FROM prayers WHERE (user_id = ? OR user_id IS NULL OR user_id = '' OR user_id = 'local_guest') ORDER BY sort_order ASC";
+          final rows = await db.getAll(prayerQuery, [uid]);
+          for (final row in rows) {
+            final parsed = Prayer.fromRow(row);
+            final code = parsed.prayerCode.trim().toLowerCase();
+            if (doneMap.containsKey(code)) {
+              doneMap[code] = parsed.isDone;
+            }
           }
         }
       } catch (_) {}

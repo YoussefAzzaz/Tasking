@@ -7,8 +7,10 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:axis/core/router.dart';
 import 'package:axis/data/habit_repository.dart';
+import 'package:axis/data/notifications/notification_ids.dart';
 import 'package:axis/data/powersync_db.dart';
 import 'package:axis/data/prayer_time_service.dart';
+import 'package:axis/data/prayers/adhan_notification_channels.dart';
 import 'package:axis/data/prayers/adhan_sound_service.dart';
 import 'package:axis/ui/habits/widgets/fajr_alarm_dialog.dart';
 import 'package:axis/ui/prayers/adhan_full_screen_alarm.dart';
@@ -240,9 +242,9 @@ class AdhanAlarmService {
     // If Fajr adhan is dismissed, cancel the scheduled +1m Fajr wake-up verification alarm immediately
     if (code == 'fajr' && isSupportedPlatform) {
       try {
-        await AwesomeNotifications().cancelSchedule(9991);
-        await AwesomeNotifications().cancel(9991);
-        await AwesomeNotifications().dismiss(9991);
+        await AwesomeNotifications().cancelSchedule(NotificationIds.fajrLegacyWakeup);
+        await AwesomeNotifications().cancel(NotificationIds.fajrLegacyWakeup);
+        await AwesomeNotifications().dismiss(NotificationIds.fajrLegacyWakeup);
       } catch (_) {}
     }
   }
@@ -266,8 +268,8 @@ class AdhanAlarmService {
     final sortOrder = sortOrderForPrayerCode(prayerCodeOrId);
     if (sortOrder == null) return;
 
-    final notifId = 1000 + sortOrder;
-    final nativeReqCode = 2000 + sortOrder;
+    final notifId = NotificationIds.adhanForOrder(sortOrder);
+    final nativeReqCode = NotificationIds.adhanNativeAlarmForOrder(sortOrder);
 
     try {
       await _loadAlarmSettingsFromDb();
@@ -277,9 +279,9 @@ class AdhanAlarmService {
         await AwesomeNotifications().dismiss(notifId);
         await cancelNativeAlarm(nativeReqCode);
         if (sortOrder == 1) {
-          await AwesomeNotifications().cancel(9991);
-          await AwesomeNotifications().cancelSchedule(9991);
-          await AwesomeNotifications().dismiss(9991);
+          await AwesomeNotifications().cancel(NotificationIds.fajrLegacyWakeup);
+          await AwesomeNotifications().cancelSchedule(NotificationIds.fajrLegacyWakeup);
+          await AwesomeNotifications().dismiss(NotificationIds.fajrLegacyWakeup);
         }
         if (_isAlarmRinging || sortOrder == 1) {
           await stopAlarmSound();
@@ -303,6 +305,12 @@ class AdhanAlarmService {
   /// Registers native->Dart callback handler and initializes alarm preferences.
   Future<void> init() async {
     _registerPlatformHandler();
+    // Root-cause fix: whenever the user selects a new Adhan sound, immediately
+    // reschedule all 5 daily prayers so Fajr..Isha never stay bound to stale
+    // notification channels with mismatched audio/loudness.
+    AdhanSoundService().onSoundSelectionChanged = () {
+      unawaited(_rescheduleAllPrayersForSoundChange());
+    };
     try {
       await AdhanSoundService().init();
       await _loadAlarmSettingsFromDb();
@@ -310,6 +318,17 @@ class AdhanAlarmService {
       await checkPendingNativeAdhanLaunch();
     } catch (e) {
       debugPrint('Error initializing AdhanAlarmService: $e');
+    }
+  }
+
+  Future<void> _rescheduleAllPrayersForSoundChange() async {
+    if (!isSupportedPlatform) return;
+    try {
+      final prayers =
+          await PrayerTimeService().calculatePrayersForDate(DateTime.now());
+      await scheduleAllPrayers(prayers);
+    } catch (e) {
+      debugPrint('[AdhanAlarmService] reschedule on sound change notice: $e');
     }
   }
 
@@ -590,8 +609,11 @@ class AdhanAlarmService {
         debugPrint('[AdhanAlarmService] Native openAppNotificationSettings error: $e');
       }
     }
+    final permChannelKey = AdhanNotificationChannels.permissionChannelKeyFor(
+      AdhanSoundService().currentSound.id,
+    );
     try {
-      await AwesomeNotifications().showNotificationConfigPage(channelKey: 'prayer_adhan_channel');
+      await AwesomeNotifications().showNotificationConfigPage(channelKey: permChannelKey);
     } catch (e) {
       debugPrint('[AdhanAlarmService] showNotificationConfigPage fallback: $e');
     }
@@ -612,9 +634,12 @@ class AdhanAlarmService {
     }
 
     try {
+      final permChannelKey = AdhanNotificationChannels.permissionChannelKeyFor(
+        AdhanSoundService().currentSound.id,
+      );
       bool notifAllowed = await AwesomeNotifications().isNotificationAllowed();
       final allowedList = await AwesomeNotifications().checkPermissionList(
-        channelKey: 'prayer_adhan_channel',
+        channelKey: permChannelKey,
         permissions: const [
           NotificationPermission.Alert,
           NotificationPermission.Sound,
@@ -688,10 +713,13 @@ class AdhanAlarmService {
     if (!isSupportedPlatform) return true;
 
     try {
+      final permChannelKey = AdhanNotificationChannels.permissionChannelKeyFor(
+        AdhanSoundService().currentSound.id,
+      );
       final isAllowed = await AwesomeNotifications().isNotificationAllowed();
       if (!isAllowed) {
         await AwesomeNotifications().requestPermissionToSendNotifications(
-          channelKey: 'prayer_adhan_channel',
+          channelKey: permChannelKey,
           permissions: const [
             NotificationPermission.Alert,
             NotificationPermission.Sound,
@@ -722,7 +750,7 @@ class AdhanAlarmService {
       }
       if (missingAwn.isNotEmpty) {
         await AwesomeNotifications().requestPermissionToSendNotifications(
-          channelKey: 'prayer_adhan_channel',
+          channelKey: permChannelKey,
           permissions: missingAwn,
         );
       }
@@ -767,8 +795,8 @@ class AdhanAlarmService {
       if (!enabled) {
         // Cancel all scheduled adhan notifications & native wakeup alarms
         for (int i = 1; i <= 5; i++) {
-          await AwesomeNotifications().cancel(1000 + i);
-          await cancelNativeAlarm(2000 + i);
+          await AwesomeNotifications().cancel(NotificationIds.adhanForOrder(i));
+          await cancelNativeAlarm(NotificationIds.adhanNativeAlarmForOrder(i));
         }
         await _syncKeepAliveServiceState();
       } else {
@@ -795,7 +823,7 @@ class AdhanAlarmService {
       if (!isSupportedPlatform) return;
 
       if (!enabled) {
-        await AwesomeNotifications().cancel(9991);
+        await AwesomeNotifications().cancel(NotificationIds.fajrLegacyWakeup);
         await _syncKeepAliveServiceState();
       } else {
         await checkAndRequestPermissions();
@@ -831,11 +859,11 @@ class AdhanAlarmService {
       for (final prayer in prayers) {
         final doneToday = await isPrayerCompletedToday(prayer.name);
         if (doneToday) {
-          final notifId = 1000 + prayer.sortOrder;
+          final notifId = NotificationIds.adhanForOrder(prayer.sortOrder);
           await AwesomeNotifications().cancel(notifId);
           await AwesomeNotifications().cancelSchedule(notifId);
           await AwesomeNotifications().dismiss(notifId);
-          await cancelNativeAlarm(2000 + prayer.sortOrder);
+          await cancelNativeAlarm(NotificationIds.adhanNativeAlarmForOrder(prayer.sortOrder));
 
           final tomorrowPrayer = tomorrowByOrder[prayer.sortOrder];
           if (tomorrowPrayer != null) {
@@ -855,9 +883,9 @@ class AdhanAlarmService {
     // 2. Clear any legacy Fajr duplicate +1 min alarms (Fajr adhan itself serves as the un-dismissible waking alarm)
     if (isSupportedPlatform) {
       try {
-        await AwesomeNotifications().cancel(9991);
-        await AwesomeNotifications().cancelSchedule(9991);
-        await AwesomeNotifications().dismiss(9991);
+        await AwesomeNotifications().cancel(NotificationIds.fajrLegacyWakeup);
+        await AwesomeNotifications().cancelSchedule(NotificationIds.fajrLegacyWakeup);
+        await AwesomeNotifications().dismiss(NotificationIds.fajrLegacyWakeup);
       } catch (_) {}
     }
   }
@@ -867,16 +895,17 @@ class AdhanAlarmService {
   /// sound, `fullScreenIntent: true`, `wakeUpScreen: true`, and
   /// `category: Alarm` so it overrides DND and wakes the device.
   Future<void> _scheduleSingleAdhan(PrayerItem prayer) async {
-    final notifId = 1000 + prayer.sortOrder;
+    final notifId = NotificationIds.adhanForOrder(prayer.sortOrder);
 
     try {
       await AwesomeNotifications().cancel(notifId);
 
       final isFajr = prayer.sortOrder == 1;
       final activeSound = AdhanSoundService().currentSound;
-      final targetChannel = isFajr
-          ? (activeSound.id == 'alafasy' ? 'fajr_alarm_channel_alafasy' : 'fajr_alarm_channel')
-          : (activeSound.id == 'alafasy' ? 'prayer_adhan_channel_alafasy' : 'prayer_adhan_channel');
+      final targetChannel = AdhanNotificationChannels.channelKeyFor(
+        soundId: activeSound.id,
+        isFajr: isFajr,
+      );
 
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
@@ -928,7 +957,7 @@ class AdhanAlarmService {
 
       // Pair with Android native AlarmClock wakeup so background/Doze opens AdhanFullScreenAlarm directly
       await scheduleNativeAlarmForTime(
-        requestCode: 2000 + prayer.sortOrder,
+        requestCode: NotificationIds.adhanNativeAlarmForOrder(prayer.sortOrder),
         triggerTime: prayer.time,
         prayerName: prayer.name,
         prayerId: prayer.id,
@@ -961,6 +990,9 @@ class AdhanAlarmService {
         ),
       ));
       await _alarmPlayer!.setReleaseMode(ReleaseMode.loop);
+      // Enforce full alarm-stream player volume alongside loudness-normalized assets
+      // so all 5 daily prayer alarms ring at maximum consistent clarity.
+      await _alarmPlayer!.setVolume(1.0);
       final source = AdhanSoundService().getActiveAudioSource();
       await _alarmPlayer!.play(source);
       // Guard against race condition if stopAlarmSound was called while play was initializing
@@ -971,7 +1003,7 @@ class AdhanAlarmService {
       // Dismiss raw OS notification-sound alerts so the looping full-screen alarm doesn't echo
       if (isSupportedPlatform) {
         for (int i = 1; i <= 5; i++) {
-          unawaited(AwesomeNotifications().dismiss(1000 + i));
+          unawaited(AwesomeNotifications().dismiss(NotificationIds.adhanForOrder(i)));
         }
       }
     } catch (e) {
@@ -1006,15 +1038,16 @@ class AdhanAlarmService {
     if (!isSupportedPlatform) return;
 
     try {
-      await AwesomeNotifications().cancelSchedule(9991);
-      await AwesomeNotifications().cancel(9991);
-      await AwesomeNotifications().dismiss(9991);
+      await AwesomeNotifications().cancelSchedule(NotificationIds.fajrLegacyWakeup);
+      await AwesomeNotifications().cancel(NotificationIds.fajrLegacyWakeup);
+      await AwesomeNotifications().dismiss(NotificationIds.fajrLegacyWakeup);
       for (int i = 1; i <= 5; i++) {
-        await AwesomeNotifications().cancel(1000 + i);
-        await AwesomeNotifications().dismiss(1000 + i);
+        await AwesomeNotifications().cancel(NotificationIds.adhanForOrder(i));
+        await AwesomeNotifications().dismiss(NotificationIds.adhanForOrder(i));
       }
       if (defaultTargetPlatform == TargetPlatform.android) {
         await _platformChannel.invokeMethod<bool>('cancelNativeWakeupNotification');
+        await _platformChannel.invokeMethod<bool>('clearAdhanWakeFlags');
       }
     } catch (_) {}
   }

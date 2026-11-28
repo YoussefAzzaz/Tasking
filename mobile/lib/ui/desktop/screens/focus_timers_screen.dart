@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../core/theme.dart';
 import '../../../core/l10n/app_localizations.dart';
@@ -159,7 +159,7 @@ class _FocusTimersScreenState extends State<FocusTimersScreen> {
                       children: [
                         Text(
                           sprintLabel,
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.0,
@@ -180,7 +180,7 @@ class _FocusTimersScreenState extends State<FocusTimersScreen> {
                           : (isAr ? 'جلسة تركيز للعمل العميق' : 'Deep Work Focus Session'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: AxisColors.textHigh,
@@ -188,33 +188,46 @@ class _FocusTimersScreenState extends State<FocusTimersScreen> {
                     ),
                   ],
                 ),
+                // Root cause: break/focus durations were hardcoded to '5m Break' and '25m Sprint' instead
+                // of listening to FocusSessionService().configNotifier, ignoring user timer settings.
                 ValueListenableBuilder<int>(
                   valueListenable: FocusSessionService().completedCyclesNotifier,
                   builder: (context, cycles, _) {
                     final sessionNum = (cycles % 4) + 1;
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        TelemetryChip(
-                          label: isAr ? 'الجلسة: $sessionNum من 4' : 'SESSION: $sessionNum of 4',
-                          color: isBreak ? AxisColors.warning : AxisColors.secondary,
-                        ),
-                        TelemetryChip(
-                          label: isBreak
-                              ? (isAr ? 'المدة: 5د استراحة' : 'DURATION: 5m Break')
-                              : (isAr ? 'المدة: 25د تركيز' : 'DURATION: 25m Sprint'),
-                          color: AxisColors.primarySoft,
-                        ),
-                        GhostButton(
-                          label: isAr ? 'الإعدادات' : 'Settings',
-                          icon: Icons.tune_rounded,
-                          height: 28,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          onPressed: _showFocusSettingsDialog,
-                        ),
-                      ],
+                    return ValueListenableBuilder<FocusSessionConfig>(
+                      valueListenable: FocusSessionService().configNotifier,
+                      builder: (context, config, _) {
+                        final isNextLongBreak = config.cyclesBeforeLongBreak > 0 &&
+                            cycles > 0 &&
+                            (cycles % config.cyclesBeforeLongBreak == 0);
+                        final breakMin = isNextLongBreak
+                            ? config.longBreakMinutes
+                            : config.shortBreakMinutes;
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            TelemetryChip(
+                              label: isAr ? 'الجلسة: $sessionNum من 4' : 'SESSION: $sessionNum of 4',
+                              color: isBreak ? AxisColors.warning : AxisColors.secondary,
+                            ),
+                            TelemetryChip(
+                              label: isBreak
+                                  ? (isAr ? 'المدة: $breakMinد استراحة' : 'DURATION: ${breakMin}m Break')
+                                  : (isAr ? 'المدة: ${config.focusMinutes}د تركيز' : 'DURATION: ${config.focusMinutes}m Sprint'),
+                              color: AxisColors.primarySoft,
+                            ),
+                            GhostButton(
+                              label: isAr ? 'الإعدادات' : 'Settings',
+                              icon: Icons.tune_rounded,
+                              height: 28,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              onPressed: _showFocusSettingsDialog,
+                            ),
+                          ],
+                        );
+                      },
                     );
                   },
                 ),

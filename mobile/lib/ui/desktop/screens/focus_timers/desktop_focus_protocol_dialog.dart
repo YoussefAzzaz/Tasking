@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/focus_session_service.dart';
@@ -80,7 +80,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
                     const SizedBox(width: 8),
                     Text(
                       isAr ? 'بروتوكول جلسات التركيز' : 'Focus Sprint Protocol',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AxisColors.textHigh,
@@ -99,7 +99,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
             // Focus Sprint duration options
             Text(
               isAr ? 'مدة جلسة التركيز' : 'FOCUS SPRINT DURATION',
-              style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.textDim),
+              style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.textDim),
             ),
             const SizedBox(height: 6),
             Row(
@@ -119,7 +119,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
                       child: Center(
                         child: Text(
                           isAr ? '$min د' : '${min}m',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 12,
                             fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
                             color: isSel ? AxisColors.textHigh : AxisColors.textMuted,
@@ -136,7 +136,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
             // Short Break duration options
             Text(
               isAr ? 'استراحة استعادة النشاط القصيرة' : 'SHORT REBOOT BREAK',
-              style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.textDim),
+              style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.textDim),
             ),
             const SizedBox(height: 6),
             Row(
@@ -156,7 +156,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
                       child: Center(
                         child: Text(
                           isAr ? '$min د' : '${min}m',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 12,
                             fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
                             color: isSel ? AxisColors.warning : AxisColors.textMuted,
@@ -173,7 +173,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
             // Cycles before long break
             Text(
               isAr ? 'الدورات قبل الاستراحة الطويلة' : 'CYCLES BEFORE LONG RESET',
-              style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.textDim),
+              style: AxisFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: AxisColors.textDim),
             ),
             const SizedBox(height: 6),
             Row(
@@ -193,7 +193,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
                       child: Center(
                         child: Text(
                           isAr ? '$c دورات' : '$c Cycles',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 11,
                             fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
                             color: isSel ? AxisColors.secondary : AxisColors.textMuted,
@@ -221,7 +221,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
                   Expanded(
                     child: Text(
                       isAr ? 'بدء استراحات الاستعادة تلقائياً' : 'Auto-start reboot breaks',
-                      style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
+                      style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textHigh),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -242,7 +242,7 @@ class _DesktopFocusProtocolDialogState extends State<DesktopFocusProtocolDialog>
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
                     isAr ? 'إلغاء' : 'Cancel',
-                    style: GoogleFonts.getFont('Geist', color: AxisColors.textMuted),
+                    style: AxisFonts.getFont('Geist', color: AxisColors.textMuted),
                   ),
                 ),
                 const SizedBox(width: 8),

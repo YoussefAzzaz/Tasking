@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/friend_repository.dart';
@@ -22,7 +22,8 @@ class FriendCodeShareCard extends StatelessWidget {
     return ValueListenableBuilder<UserProfile>(
       valueListenable: profileRepo.profileNotifier,
       builder: (context, profile, _) {
-        final myCode = profile.friendCode ?? 'AX-7842';
+        final myCode = profileRepo.resolveDisplayFriendCode(profile);
+        final canCopy = myCode.isNotEmpty && myCode != '---';
         return Container(
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.only(bottom: 20),
@@ -53,7 +54,7 @@ class FriendCodeShareCard extends StatelessWidget {
                   children: [
                     Text(
                       l10n.yourFriendCode.toUpperCase(),
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                           color: AxisColors.textDim),
@@ -61,7 +62,7 @@ class FriendCodeShareCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       myCode,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.2,
@@ -72,7 +73,7 @@ class FriendCodeShareCard extends StatelessWidget {
                 ),
               ),
               ElevatedButton.icon(
-                onPressed: () {
+                onPressed: canCopy ? () {
                   HapticFeedback.lightImpact();
                   Clipboard.setData(ClipboardData(text: myCode));
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -82,10 +83,10 @@ class FriendCodeShareCard extends StatelessWidget {
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
-                },
+                } : null,
                 icon: const Icon(Icons.copy_rounded, size: 14),
                 label: Text(l10n.copy,
-                    style: GoogleFonts.getFont('Geist',
+                    style: AxisFonts.getFont('Geist',
                         fontSize: 12, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AxisColors.primary.withValues(alpha: 0.22),
@@ -143,7 +144,7 @@ class FriendActivityNotificationsSection extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   l10n.friendNotifications.toUpperCase(),
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
@@ -155,7 +156,7 @@ class FriendActivityNotificationsSection extends StatelessWidget {
                   TextButton(
                     onPressed: () => friendRepo.clearFriendNotifications(),
                     child: Text(l10n.clearNotifications,
-                        style: GoogleFonts.getFont('Geist',
+                        style: AxisFonts.getFont('Geist',
                             fontSize: 11, color: AxisColors.textDim)),
                   ),
               ],
@@ -179,7 +180,7 @@ class FriendActivityNotificationsSection extends StatelessWidget {
                     Expanded(
                       child: Text(
                         l10n.noNotificationsYet,
-                        style: GoogleFonts.getFont('Geist',
+                        style: AxisFonts.getFont('Geist',
                             fontSize: 11.5, color: AxisColors.textDim),
                       ),
                     ),
@@ -243,7 +244,7 @@ class FriendActivityNotificationsSection extends StatelessWidget {
                           Expanded(
                             child: Text(
                               log.title,
-                              style: GoogleFonts.getFont('Geist',
+                              style: AxisFonts.getFont('Geist',
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                   color: AxisColors.textHigh),

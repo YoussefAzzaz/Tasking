@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/reading_preferences_service.dart';
@@ -68,7 +68,7 @@ class DesktopReadingCard extends StatelessWidget {
                     isAr
                         ? 'المستوى ${readingPref.currentStepIndex + 1} من ${ReadingPreferencesService.scaleSteps.length}'
                         : 'Step ${readingPref.currentStepIndex + 1} of ${ReadingPreferencesService.scaleSteps.length}',
-                    style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
+                    style: AxisFonts.spaceGrotesk(fontSize: 11, color: AxisColors.textDim),
                   ),
                 ],
               ),
@@ -87,14 +87,14 @@ class DesktopReadingCard extends StatelessWidget {
                   children: [
                     Text(
                       isAr ? 'نموذج المعاينة' : 'PREVIEW SAMPLE',
-                      style: GoogleFonts.spaceGrotesk(fontSize: 9, fontWeight: FontWeight.w700, color: AxisColors.textDim),
+                      style: AxisFonts.spaceGrotesk(fontSize: 9, fontWeight: FontWeight.w700, color: AxisColors.textDim),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       isAr
                           ? 'التركيز العميق والوضوح في البناء ينبعان من التنفيذ المستمر دون انقطاع.'
                           : 'Deep focus and architecture clarity come from uninterrupted execution.',
-                      style: GoogleFonts.getFont(
+                      style: AxisFonts.getFont(
                         'Geist',
                         fontSize: 13 * scale,
                         height: 1.5,

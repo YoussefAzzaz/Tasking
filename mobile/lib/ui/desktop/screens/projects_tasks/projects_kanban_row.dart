@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -76,7 +76,7 @@ class ProjectsKanbanRow extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text(
                                 isArabic ? 'جميع المشاريع' : 'All Projects',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: AxisColors.textHigh,
@@ -84,7 +84,7 @@ class ProjectsKanbanRow extends StatelessWidget {
                               ),
                               Text(
                                 isArabic ? '${projects.length} مساحات عمل' : '${projects.length} workspaces',
-                                style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                                style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                               ),
                             ],
                           ),
@@ -127,7 +127,7 @@ class ProjectsKanbanRow extends StatelessWidget {
                                     p.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: AxisFonts.spaceGrotesk(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: AxisColors.textHigh,
@@ -173,7 +173,7 @@ class ProjectsKanbanRow extends StatelessWidget {
                                   children: [
                                     Text(
                                       isArabic ? '$completed/$total مهام' : '$completed/$total tasks',
-                                      style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+                                      style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
                                     ),
                                   ],
                                 ),

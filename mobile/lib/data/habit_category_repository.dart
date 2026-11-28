@@ -106,6 +106,65 @@ class HabitCategoryRepository {
     );
   }
 
+  static String deterministicId(String uid, String name) =>
+      IdGenerator.generateDeterministicId(
+          'cat_${uid.isNotEmpty ? uid : "local"}_${name.trim().toLowerCase()}');
+
+  /// Builds a real deterministic category model for orphaned habit kinds without
+  /// fabricating synthetic `discovered_` IDs.
+  static HabitCategory reconciledCategory(
+    String name, {
+    String icon = 'fitness',
+    String color = '#10B981',
+  }) {
+    final clean = name.trim();
+    return HabitCategory(
+      id: deterministicId(currentUserId, clean),
+      name: clean,
+      icon: icon,
+      color: color,
+    );
+  }
+
+  /// Persists any non-built-in habit category kinds missing from habit_categories
+  /// once into local SQLite so they sync as first-class records.
+  Future<void> _reconcileOrphanHabitCategories(
+    String uid,
+    List<dynamic> params,
+    List<HabitCategory> categories,
+    Set<String> knownNames,
+  ) async {
+    final habitQuery = uid.isNotEmpty
+        ? "SELECT DISTINCT kind, icon, color FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND kind IS NOT NULL AND kind != '' AND LOWER(kind) != 'prayers' AND (deleted_at IS NULL OR deleted_at = '')"
+        : "SELECT DISTINCT kind, icon, color FROM habits WHERE kind IS NOT NULL AND kind != '' AND LOWER(kind) != 'prayers' AND (deleted_at IS NULL OR deleted_at = '')";
+    final habitRows = await db.getAll(habitQuery, params);
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+    for (final hr in habitRows) {
+      final catName = (hr['kind'] as String?)?.trim() ?? '';
+      if (catName.isNotEmpty &&
+          catName.toLowerCase() != 'general routines' &&
+          !knownNames.contains(catName.toLowerCase())) {
+        knownNames.add(catName.toLowerCase());
+        final cat = HabitCategory(
+          id: deterministicId(uid, catName),
+          name: catName,
+          icon: (hr['icon'] as String?) ?? 'fitness',
+          color: (hr['color'] as String?) ?? '#10B981',
+        );
+        categories.add(cat);
+        try {
+          await db.execute(
+            'INSERT OR IGNORE INTO habit_categories (id, user_id, name, icon, color, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [cat.id, uid, cat.name, cat.icon, cat.color, 99, nowUtc, nowUtc],
+          );
+        } catch (e) {
+          debugPrint('[HabitCategoryRepository] Reconcile category notice: $e');
+        }
+      }
+    }
+  }
+
   Future<List<HabitCategory>> _fetchCategoriesFromDb() async {
     if (!isDatabaseInitialized) return [];
 
@@ -132,30 +191,7 @@ class HabitCategoryRepository {
         }
       }
 
-
-
-      // Discover categories from habits table as well
-      final habitQuery = uid.isNotEmpty
-          ? "SELECT DISTINCT kind, icon, color FROM habits WHERE (user_id = ? OR user_id IS NULL OR user_id = '') AND kind IS NOT NULL AND kind != '' AND LOWER(kind) != 'prayers'"
-          : "SELECT DISTINCT kind, icon, color FROM habits WHERE kind IS NOT NULL AND kind != '' AND LOWER(kind) != 'prayers'";
-      final habitRows = await db.getAll(habitQuery, params);
-
-      for (final hr in habitRows) {
-        final catName = (hr['kind'] as String?)?.trim() ?? '';
-        if (catName.isNotEmpty &&
-            catName.toLowerCase() != 'general routines' &&
-            !knownNames.contains(catName.toLowerCase())) {
-          knownNames.add(catName.toLowerCase());
-          categories.add(
-            HabitCategory(
-              id: 'discovered_$catName',
-              name: catName,
-              icon: (hr['icon'] as String?) ?? 'fitness',
-              color: (hr['color'] as String?) ?? '#10B981',
-            ),
-          );
-        }
-      }
+      await _reconcileOrphanHabitCategories(uid, params, categories, knownNames);
 
       return categories;
     } catch (e) {
@@ -175,8 +211,7 @@ class HabitCategoryRepository {
     if (cleanName.toLowerCase() == 'prayers') return;
 
     final uid = currentUserId;
-    final id = IdGenerator.generateDeterministicId(
-        'cat_${uid.isNotEmpty ? uid : "local"}_${cleanName.toLowerCase()}');
+    final id = deterministicId(uid, cleanName);
     final nowUtc = DateTime.now().toUtc().toIso8601String();
 
     CacheService().invalidate(_cacheKey);
@@ -216,10 +251,15 @@ class HabitCategoryRepository {
 
     try {
       final uid = currentUserId;
-      final rawId = id.replaceFirst('discovered_', '');
+      final detId = name != null && name.trim().isNotEmpty
+          ? deterministicId(uid, name)
+          : id;
       String catName = (name ?? '').trim();
       if (catName.isEmpty) {
-        final existing = await db.getOptional('SELECT name FROM habit_categories WHERE id = ? OR id = ?', [id, rawId]);
+        final existing = await db.getOptional(
+          'SELECT name FROM habit_categories WHERE id = ? OR id = ?',
+          [id, detId],
+        );
         catName = (existing?['name'] as String? ?? '').trim();
       }
 
@@ -232,8 +272,8 @@ class HabitCategoryRepository {
               ? "DELETE FROM habit_categories WHERE (id = ? OR id = ?) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
               : 'DELETE FROM habit_categories WHERE id = ? OR id = ?');
       final deleteParams = catName.isNotEmpty
-          ? (uid.isNotEmpty ? [id, rawId, catName, uid] : [id, rawId, catName])
-          : (uid.isNotEmpty ? [id, rawId, uid] : [id, rawId]);
+          ? (uid.isNotEmpty ? [id, detId, catName, uid] : [id, detId, catName])
+          : (uid.isNotEmpty ? [id, detId, uid] : [id, detId]);
       await db.execute(deleteQuery, deleteParams);
 
       // 2. Unset category from habits table so habits move cleanly to General Routines
@@ -245,8 +285,8 @@ class HabitCategoryRepository {
               ? "UPDATE habits SET kind = NULL WHERE (LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)) AND (user_id = ? OR user_id IS NULL OR user_id = '')"
               : "UPDATE habits SET kind = NULL WHERE LOWER(COALESCE(kind, '')) = LOWER(?) OR LOWER(COALESCE(kind, '')) = LOWER(?)");
       final updateParams = catName.isNotEmpty
-          ? (uid.isNotEmpty ? [catName, id, rawId, uid] : [catName, id, rawId])
-          : (uid.isNotEmpty ? [id, rawId, uid] : [id, rawId]);
+          ? (uid.isNotEmpty ? [catName, id, detId, uid] : [catName, id, detId])
+          : (uid.isNotEmpty ? [id, detId, uid] : [id, detId]);
       await db.execute(updateQuery, updateParams);
     } catch (e) {
       debugPrint('[HabitCategoryRepository] Error deleting category: $e');

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme.dart';
@@ -144,7 +144,7 @@ class _MetricCard extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.6,
@@ -159,7 +159,7 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: AxisColors.textHigh,
@@ -168,7 +168,7 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             caption,
-            style: GoogleFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
+            style: AxisFonts.getFont('Geist', fontSize: 11, color: AxisColors.textDim),
           ),
         ],
       ),

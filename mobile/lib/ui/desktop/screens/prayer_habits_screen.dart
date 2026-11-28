@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme.dart';
@@ -70,7 +70,7 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
                       children: [
                         Text(
                           AppLocalizations.of(context).isArabic ? 'الصلوات والعادات' : 'Prayer & Habits',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: AxisFonts.spaceGrotesk(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: AxisColors.textHigh,
@@ -81,7 +81,7 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
                           AppLocalizations.of(context).isArabic
                               ? 'متابعة مواقيت الصلوات اليومية وتناسق العادات الشخصية'
                               : 'Track daily prayer times and personal habit consistency',
-                          style: GoogleFonts.getFont(
+                          style: AxisFonts.getFont(
                             'Geist',
                             fontSize: 13,
                             color: AxisColors.textMuted,
@@ -95,7 +95,7 @@ class _PrayerHabitsScreenState extends State<PrayerHabitsScreen> {
                     builder: (context, now) {
                       return Text(
                         DateFormat('HH:mm:ss').format(now),
-                        style: GoogleFonts.spaceGrotesk(
+                        style: AxisFonts.spaceGrotesk(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: AxisColors.textHigh,

@@ -230,8 +230,9 @@ class MeCloudAccountCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(
-                        isArabic ? Icons.arrow_back_ios_rounded : Icons.arrow_forward_ios_rounded,
+                      // Root cause: Material directional icon already flips in RTL.
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
                         size: 9,
                         color: AxisColors.primarySoft,
                       ),

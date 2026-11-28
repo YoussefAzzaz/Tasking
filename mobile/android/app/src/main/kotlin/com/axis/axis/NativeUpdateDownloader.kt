@@ -213,6 +213,9 @@ internal object NativeUpdateDownloader {
         var currentUrl = initialUrl
         for (hop in 0..MAX_REDIRECTS) {
             val url = URL(currentUrl)
+            if (!url.protocol.equals("https", ignoreCase = true)) {
+                throw IOException("Blocked insecure non-HTTPS update URL")
+            }
             val conn = openSingleConnection(context, url, preferActiveNetwork).apply {
                 instanceFollowRedirects = false
                 connectTimeout = CONNECT_TIMEOUT_MS

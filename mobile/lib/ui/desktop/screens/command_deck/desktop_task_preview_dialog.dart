@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -149,7 +149,7 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
                                 : "TASK PREVIEW // TODAY'S STREAM",
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.0,
@@ -234,7 +234,7 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
                             children: [
                               Text(
                                 _currentTask.title,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                   decoration: isDone ? TextDecoration.lineThrough : null,
@@ -303,7 +303,7 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
                           children: [
                             Text(
                               isArabic ? 'الملاحظات والسياق' : 'NOTES & CONTEXT',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8,
@@ -314,7 +314,7 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
                             AxisMarkdownViewer(
                               markdown: displayNotes,
                               selectable: true,
-                              baseStyle: GoogleFonts.getFont('Geist', fontSize: 13, height: 1.4, color: AxisColors.textHigh),
+                              baseStyle: AxisFonts.getFont('Geist', fontSize: 13, height: 1.4, color: AxisColors.textHigh),
                             ),
                           ],
                         ),
@@ -339,7 +339,7 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
                               isArabic
                                   ? 'المهام الفرعية (${checklist.where((c) => c.isDone).length}/${checklist.length})'
                                   : 'CHECKLIST SUBTASKS (${checklist.where((c) => c.isDone).length}/${checklist.length})',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8,
@@ -370,7 +370,7 @@ class _DesktopTaskPreviewDialogState extends State<DesktopTaskPreviewDialog> wit
                                     Expanded(
                                       child: Text(
                                         item.text,
-                                        style: GoogleFonts.getFont(
+                                        style: AxisFonts.getFont(
                                           'Geist',
                                           fontSize: 13,
                                           decoration: item.isDone ? TextDecoration.lineThrough : null,

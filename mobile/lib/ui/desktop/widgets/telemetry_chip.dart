@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../core/theme.dart';
 import '../core/desktop_layout.dart';
 
@@ -74,13 +74,13 @@ class TelemetryChip extends StatelessWidget {
           Text(
             label,
             style: isMonospace
-                ? GoogleFonts.spaceGrotesk(
+                ? AxisFonts.spaceGrotesk(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.4,
                     color: effectiveText,
                   )
-                : GoogleFonts.getFont(
+                : AxisFonts.getFont(
                     'Geist',
                     fontSize: 11,
                     fontWeight: FontWeight.w500,

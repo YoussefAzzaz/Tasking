@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
@@ -92,7 +92,7 @@ class ProjectsTaskItem extends StatelessWidget {
                     task.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.getFont(
+                    style: AxisFonts.getFont(
                       'Geist',
                       fontSize: 13,
                       decoration: isDone ? TextDecoration.lineThrough : null,
@@ -128,7 +128,7 @@ class ProjectsTaskItem extends StatelessWidget {
                                 const SizedBox(width: 3),
                                 Text(
                                   isArabic ? 'تعاوني' : 'COLLAB',
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 9,
                                     fontWeight: FontWeight.w700,
                                     color: AxisColors.secondary,
@@ -148,7 +148,7 @@ class ProjectsTaskItem extends StatelessWidget {
                             ),
                             child: Text(
                               '@$cleanSender',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: AxisFonts.spaceGrotesk(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w600,
                                 color: AxisColors.primarySoft,
@@ -158,7 +158,7 @@ class ProjectsTaskItem extends StatelessWidget {
                         if (task.dueDate != null)
                           Text(
                             dueDateLabel.trim(),
-                            style: GoogleFonts.spaceGrotesk(
+                            style: AxisFonts.spaceGrotesk(
                               fontSize: 10,
                               color: isOverdue
                                   ? AxisColors.error
@@ -192,7 +192,7 @@ class ProjectsTaskItem extends StatelessWidget {
                                     task.recurrenceRule,
                                     isArabic: isArabic,
                                   ),
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: AxisFonts.spaceGrotesk(
                                     fontSize: 9.5,
                                     fontWeight: FontWeight.w600,
                                     color: AxisColors.tertiary,
@@ -221,7 +221,7 @@ class ProjectsTaskItem extends StatelessWidget {
                 ),
                 child: Text(
                   isArabic ? 'منتهية' : 'FINISHED',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: AxisFonts.spaceGrotesk(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
                     color: AxisColors.tertiary,

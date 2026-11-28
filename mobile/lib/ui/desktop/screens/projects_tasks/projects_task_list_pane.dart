@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme.dart';
@@ -91,7 +91,7 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
         ),
         child: Text(
           displayLabel,
-          style: GoogleFonts.getFont(
+          style: AxisFonts.getFont(
             'Geist',
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
@@ -115,7 +115,7 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
           const SizedBox(width: 8),
           Text(
             title,
-            style: GoogleFonts.spaceGrotesk(
+            style: AxisFonts.spaceGrotesk(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: color,
@@ -132,7 +132,7 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
             ),
             child: Text(
               '$count',
-              style: GoogleFonts.spaceGrotesk(
+              style: AxisFonts.spaceGrotesk(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: color,
@@ -237,7 +237,7 @@ class _ProjectsTaskListPaneState extends State<ProjectsTaskListPane> {
                       return Center(
                         child: Text(
                           isArabic ? 'لا توجد مهام مطابقة للتصفية المختارة' : 'No tasks found for selected filter',
-                          style: GoogleFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
+                          style: AxisFonts.getFont('Geist', fontSize: 12, color: AxisColors.textDim),
                         ),
                       );
                     }

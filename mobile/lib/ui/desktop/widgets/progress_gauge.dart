@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../core/theme.dart';
 
 /// Clean linear progress gauge with optional label and percentage readout.
@@ -75,7 +75,7 @@ class ProgressGauge extends StatelessWidget {
             if (label != null)
               Text(
                 label!,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -87,7 +87,7 @@ class ProgressGauge extends StatelessWidget {
             if (valueLabel != null)
               Text(
                 valueLabel!,
-                style: GoogleFonts.spaceGrotesk(
+                style: AxisFonts.spaceGrotesk(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: color ?? AxisColors.secondary,

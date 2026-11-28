@@ -127,10 +127,9 @@ class _AttachTaskSheetState extends State<AttachTaskSheet> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Icon(
-                                isArabic
-                                    ? Icons.arrow_back_ios_rounded
-                                    : Icons.arrow_forward_ios_rounded,
+                              // Root cause: arrow_forward_ios_rounded auto-mirrors in RTL; ternary flipped twice.
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
                                 size: 14,
                                 color: AxisColors.secondary,
                               ),

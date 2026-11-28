@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 import 'package:axis/data/updates/app_update_service.dart';
@@ -57,7 +57,7 @@ class UpdateNoticeBanner extends StatelessWidget {
                     isAr
                         ? 'إصدار جديد متاح (v${update.version}) • انقر للتحميل والتثبيت'
                         : 'New release ready (v${update.version}) • Tap to download & install',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: AxisFonts.spaceGrotesk(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: AxisColors.textHigh,
@@ -73,6 +73,7 @@ class UpdateNoticeBanner extends StatelessWidget {
                     UpdateNoticeModal.show(
                       context,
                       updateInfo: update,
+                      currentVersion: service.cachedVersionLabel,
                       updateService: service,
                     );
                   },
@@ -85,7 +86,7 @@ class UpdateNoticeBanner extends StatelessWidget {
                     ),
                     child: Text(
                       isAr ? 'تحديث' : 'UPDATE',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: AxisFonts.spaceGrotesk(
                         fontSize: 10.5,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,

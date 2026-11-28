@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../data/focus_session_service.dart';
@@ -90,7 +90,7 @@ class DesktopTimerHeroCard extends StatelessWidget {
                             children: [
                               Text(
                                 isAr ? 'الوقت المتبقي' : 'TIME REMAINING',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: isExpanded ? 11 : 10,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 1.0,
@@ -100,7 +100,7 @@ class DesktopTimerHeroCard extends StatelessWidget {
                               const SizedBox(height: 6),
                               Text(
                                 timeDisplay,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: AxisFonts.spaceGrotesk(
                                   fontSize: timerFontSize,
                                   fontWeight: FontWeight.w800,
                                   color: AxisColors.textHigh,
@@ -111,7 +111,7 @@ class DesktopTimerHeroCard extends StatelessWidget {
                                 isAr
                                     ? 'اكتمل ${(progress * 100).toInt()}%'
                                     : '${(progress * 100).toInt()}% completed',
-                                style: GoogleFonts.getFont('Geist', fontSize: isExpanded ? 13 : 11, color: AxisColors.secondary),
+                                style: AxisFonts.getFont('Geist', fontSize: isExpanded ? 13 : 11, color: AxisColors.secondary),
                               ),
                             ],
                           ),
@@ -230,7 +230,7 @@ class _StepItem extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           title,
-          style: GoogleFonts.spaceGrotesk(
+          style: AxisFonts.spaceGrotesk(
             fontSize: 11,
             fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
             color: isActive ? AxisColors.textHigh : AxisColors.textDim,

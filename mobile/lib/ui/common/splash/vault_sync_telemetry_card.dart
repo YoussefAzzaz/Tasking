@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:axis/core/typography.dart';
 import 'package:axis/core/theme.dart';
 import 'package:axis/core/l10n/app_localizations.dart';
 
@@ -25,7 +25,7 @@ class VaultSyncTelemetryCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
+          style: AxisFonts.jetBrainsMono(
             fontSize: 9,
             fontWeight: FontWeight.w500,
             letterSpacing: isArabic ? 0.0 : 1.2,
@@ -35,7 +35,7 @@ class VaultSyncTelemetryCard extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           value,
-          style: GoogleFonts.jetBrainsMono(
+          style: AxisFonts.jetBrainsMono(
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: isArabic ? 0.0 : 0.4,
@@ -98,7 +98,7 @@ class VaultSyncTelemetryCard extends StatelessWidget {
                                   : 'SYNCHRONIZING SECURE OFFLINE VAULT',
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
-                              style: GoogleFonts.jetBrainsMono(
+                              style: AxisFonts.jetBrainsMono(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w500,
                                 letterSpacing: isArabic ? 0.0 : 0.6,
@@ -114,7 +114,7 @@ class VaultSyncTelemetryCard extends StatelessWidget {
                       pct >= 100
                           ? (isArabic ? 'جاهز 100%' : '100% READY')
                           : '$pct%',
-                      style: GoogleFonts.jetBrainsMono(
+                      style: AxisFonts.jetBrainsMono(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
